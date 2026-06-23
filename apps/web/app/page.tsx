@@ -23,6 +23,7 @@ import {
   Zap
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { PermissionToggles } from "../components/settings/PermissionToggles";
 import {
   ApiStatus,
   BackendHealthView,
@@ -31,8 +32,10 @@ import {
   DraftView,
   ForkProposal,
   ForestView,
+  PermissionSet,
   ProjectSummary,
   QuickNoteView,
+  createNode,
   createProject,
   createQuickNote,
   fetchForest,
@@ -47,6 +50,7 @@ import {
   pingApi,
   proposeForks,
   testBackendHealth,
+  ThoughtNodeView,
   updateBackend,
   promoteQuickNote
 } from "../lib/api";
@@ -95,6 +99,14 @@ const fallbackQuickNotes: QuickNoteView[] = [
   { id: "note_bundle", text: "Bundle economics: who captures the surplus?", created_at: "Jun 19", promoted_project_id: null }
 ];
 
+function withNodeDefaults(node: Omit<ThoughtNodeView, "kind" | "collapsed"> & Partial<Pick<ThoughtNodeView, "kind" | "collapsed">>): ThoughtNodeView {
+  return {
+    ...node,
+    kind: node.kind ?? "user_thought",
+    collapsed: node.collapsed ?? false
+  };
+}
+
 const fallbackForest: ForestView = {
   project_id: "proj_subscription_fatigue",
   focused_node_id: "node_demand",
@@ -116,7 +128,7 @@ const fallbackForest: ForestView = {
     { id: "node_bundle", project_id: "proj_subscription_fatigue", parent_id: "node_supply", tag: "SUPPLY-SIDE", x: 18, y: 48, title: "Bundling could pool audiences instead of splitting them.", body: "Bundling branch.", status: "open", order_index: 0 },
     { id: "node_free", project_id: "proj_subscription_fatigue", parent_id: "node_supply", tag: "SUPPLY-SIDE", x: 42, y: 48, title: "Ad-supported free tiers re-expand the top of the funnel.", body: "Free tier branch.", status: "open", order_index: 1 },
     { id: "node_attention", project_id: "proj_subscription_fatigue", parent_id: "node_demand", tag: "DEMAND-SIDE", x: 60, y: 48, title: "Attention is zero-sum: a subscription competes with sleep.", body: "Attention branch.", status: "open", order_index: 0 }
-  ]
+  ].map(withNodeDefaults)
 };
 
 const fallbackDraft: DraftView = {
@@ -454,6 +466,7 @@ function ThinkingTree({ setScreen }: { setScreen: (screen: Screen) => void }) {
   const [context, setContext] = useState<BranchContext | null>(null);
   const [proposals, setProposals] = useState<ForkProposal[]>([]);
   const [treeStatus, setTreeStatus] = useState<"loading" | "live" | "offline">("loading");
+  const [composerText, setComposerText] = useState("");
 
   const focusedNode = forest.nodes.find((node) => node.id === focusedNodeId) ?? forest.nodes[0];
 
@@ -491,8 +504,22 @@ function ThinkingTree({ setScreen }: { setScreen: (screen: Screen) => void }) {
       setContext({
         target_node_id: nodeId,
         chain: [
-          { node_id: "node_root", title: "Is subscription fatigue actually killing independent media?", body: "Root question." },
-          { node_id: nodeId, title: focusedNode?.title ?? "Focused branch", body: focusedNode?.body ?? "" }
+          {
+            node_id: "node_root",
+            title: "Is subscription fatigue actually killing independent media?",
+            body: "Root question.",
+            kind: "user_thought",
+            role: "user",
+            provenance: { node_id: "node_root" }
+          },
+          {
+            node_id: nodeId,
+            title: focusedNode?.title ?? "Focused branch",
+            body: focusedNode?.body ?? "",
+            kind: "user_thought",
+            role: "user",
+            provenance: { node_id: nodeId }
+          }
         ],
         excluded_dead_end_ids: [],
         grounding_enabled: false,
@@ -532,7 +559,7 @@ function ThinkingTree({ setScreen }: { setScreen: (screen: Screen) => void }) {
         },
         nodes: [
           ...current.nodes,
-          {
+          withNodeDefaults({
             id: localId,
             project_id: focusedNode.project_id,
             parent_id: focusedNode.id,
@@ -543,7 +570,53 @@ function ThinkingTree({ setScreen }: { setScreen: (screen: Screen) => void }) {
             tag: proposal.suggested_label,
             x: Math.min(90, focusedNode.x + 14),
             y: Math.min(72, focusedNode.y + 18)
-          }
+          })
+        ]
+      }));
+      setFocusedNodeId(localId);
+      setTreeStatus("offline");
+    }
+  }
+
+  async function addComposerNode() {
+    const text = composerText.trim();
+    if (!text || !focusedNode) return;
+    setComposerText("");
+    try {
+      const created = await createNode(focusedNode.project_id, {
+        parent_id: focusedNode.id,
+        title: text,
+        body: text,
+        tag: "USER THOUGHT",
+        kind: "user_thought"
+      });
+      await loadForest(created.id);
+      setFocusedNodeId(created.id);
+      setTreeStatus("live");
+    } catch {
+      const localId = `local_node_${Date.now()}`;
+      setForest((current) => ({
+        ...current,
+        focused_node_id: localId,
+        children: {
+          ...current.children,
+          [focusedNode.id]: [...(current.children[focusedNode.id] ?? []), localId],
+          [localId]: []
+        },
+        nodes: [
+          ...current.nodes,
+          withNodeDefaults({
+            id: localId,
+            project_id: focusedNode.project_id,
+            parent_id: focusedNode.id,
+            title: text,
+            body: text,
+            status: "open",
+            order_index: (current.children[focusedNode.id] ?? []).length,
+            tag: "USER THOUGHT",
+            x: Math.min(90, focusedNode.x + 14),
+            y: Math.min(72, focusedNode.y + 18)
+          })
         ]
       }));
       setFocusedNodeId(localId);
@@ -596,9 +669,16 @@ function ThinkingTree({ setScreen }: { setScreen: (screen: Screen) => void }) {
           <div className="composer">
             <span>CONTINUING FROM {focusedNode?.title.slice(0, 54)}</span>
             <div>
-              <input placeholder="Ask the next question on this branch..." />
-              <button className="ghost-button"><GitBranch size={15} /> Fork</button>
-              <button className="send-button"><Send size={18} /></button>
+              <input
+                placeholder="Ask the next question on this branch..."
+                value={composerText}
+                onChange={(event) => setComposerText(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") void addComposerNode();
+                }}
+              />
+              <button className="ghost-button" onClick={() => void addComposerNode()}><GitBranch size={15} /> Fork</button>
+              <button className="send-button" onClick={() => void addComposerNode()}><Send size={18} /></button>
             </div>
           </div>
         </section>
@@ -788,10 +868,15 @@ function SettingsScreen({ apiStatus, isTesting, onTest }: { apiStatus: ApiStatus
     setHealth((current) => ({ ...current, [backendId]: result }));
   }
 
-  async function togglePermission(backend: BackendView, key: keyof BackendView["permissions"]) {
+  async function togglePermission(backend: BackendView, key: keyof PermissionSet) {
+    const permissions: PermissionSet = backend.permissions ?? {
+      auto_run_readonly: false,
+      allow_file_edits: false,
+      network_access: false
+    };
     const updatedPermissions = {
-      ...backend.permissions,
-      [key]: !backend.permissions[key]
+      ...permissions,
+      [key]: !permissions[key]
     };
     const updated = await updateBackend(backend.id, { permissions: updatedPermissions });
     setBackends((current) => current.map((item) => item.id === backend.id ? updated : item));
@@ -830,11 +915,7 @@ function SettingsScreen({ apiStatus, isTesting, onTest }: { apiStatus: ApiStatus
               <label>Reasoning effort</label>
               <button className="wide-select">Default <ChevronDown size={13} /></button>
               {backend.kind === "cli_agent" ? (
-                <div className="permission-grid">
-                  <PermissionToggle label="Auto-run read-only" active={backend.permissions.auto_run_readonly} onClick={() => void togglePermission(backend, "auto_run_readonly")} />
-                  <PermissionToggle label="Allow file edits" active={backend.permissions.allow_file_edits} onClick={() => void togglePermission(backend, "allow_file_edits")} />
-                  <PermissionToggle label="Network access" active={backend.permissions.network_access} onClick={() => void togglePermission(backend, "network_access")} />
-                </div>
+                <PermissionToggles permissions={backend.permissions} onToggle={(key) => void togglePermission(backend, key)} />
               ) : null}
               <div className="agent-actions">
                 <button onClick={() => void setDefaultBackend(backend.id)}>{backend.is_default ? "Default backend" : "Set as default"}</button>
@@ -884,15 +965,6 @@ function fallbackBackends(): BackendView[] {
       permissions: { auto_run_readonly: true, allow_file_edits: false, network_access: false }
     }
   ];
-}
-
-function PermissionToggle({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
-  return (
-    <button className={`permission-toggle ${active ? "active" : ""}`} onClick={onClick}>
-      <span>{label}</span>
-      <span className={`mini-switch ${active ? "on" : ""}`} />
-    </button>
-  );
 }
 
 function SettingRow({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {

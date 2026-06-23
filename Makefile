@@ -1,4 +1,4 @@
-.PHONY: help dev dev-api dev-web test build
+.PHONY: help dev dev-api dev-web test build contracts contracts-emit contracts-ts lint codegen
 
 help:
 	@printf "Targets:\n"
@@ -7,6 +7,9 @@ help:
 	@printf "  dev        Start API and web together\n"
 	@printf "  test       Run backend tests\n"
 	@printf "  build      Build frontend\n"
+	@printf "  contracts  Emit OpenAPI and generated TypeScript contracts\n"
+	@printf "  lint       Run frontend lint\n"
+	@printf "  codegen    Run all generated-code tasks\n"
 
 dev-api:
 	.venv/bin/python -m uvicorn weaver_api.main:app --app-dir apps/api --reload --port 8000
@@ -22,3 +25,16 @@ test:
 
 build:
 	npm run build:web
+
+contracts: contracts-emit contracts-ts
+
+contracts-emit:
+	.venv/bin/python tooling/codegen/emit.py
+
+contracts-ts:
+	bash tooling/codegen/gen-ts.sh
+
+lint:
+	npm run lint:web
+
+codegen: contracts

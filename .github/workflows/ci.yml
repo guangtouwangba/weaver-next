@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install API dependencies
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/python -m pip install -e "apps/api[test]"
+
+      - name: Install web dependencies
+        run: npm ci
+
+      - name: API tests and imports
+        env:
+          MODEL_MODE: fake
+          WEAVER_MODEL_MODE: fake
+        run: .venv/bin/python -m pytest apps/api/tests
+
+      - name: Contract drift guard
+        run: bash tooling/codegen/check-drift.sh
+
+      - name: Web build
+        run: npm run build:web

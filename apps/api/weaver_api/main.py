@@ -1,20 +1,28 @@
 from __future__ import annotations
 
 from itertools import count
+import re
 from typing import Literal
 
-from fastapi import FastAPI, HTTPException, Response
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
-from weaver_core.context.resolver import resolve_branch_context
+from weaver_api.errors import ErrorCode, WeaverError, install_error_handlers
+from weaver_api.sse import ndjson_frames, sse_frames
+from weaver_core.context.resolver import NodeNotFoundError, resolve_branch_context
+from weaver_core.context.render import to_messages
+from weaver_core.model import FakeProvider, GenerateRequest, TokenEvent
+from weaver_core.model.schemas import FORK_PROPOSAL_RESPONSE_SCHEMA, ForkProposalStructured
 from weaver_core.schemas.node import BranchContext, NodeForest, ThoughtNode
+from weaver_core.tree import InvalidTreeError, NodeSpec, add_root, backtrack, fork as fork_forest, prune, set_collapsed, set_state
 
 
 class FeatureFlags(BaseModel):
     relations: bool = False
     compare: bool = False
     multi_format: bool = False
-    cli_agents: bool = True
+    cli_agents: bool = False
 
 
 class MetaView(BaseModel):
@@ -109,9 +117,12 @@ class NodeView(BaseModel):
     parent_id: str | None
     title: str
     body: str
+    annotation: str | None = None
     status: str
     order_index: int
     tag: str
+    kind: str
+    collapsed: bool
     x: int
     y: int
 
@@ -132,6 +143,29 @@ class ForkSpec(BaseModel):
 
 class ForkRequest(BaseModel):
     branches: list[ForkSpec]
+
+
+class NodeCreate(BaseModel):
+    parent_id: str | None = None
+    title: str
+    body: str
+    annotation: str | None = None
+    tag: str = "THOUGHT"
+    kind: Literal["question_answer", "ai_reasoning", "user_thought"] = "user_thought"
+
+
+class NodeUpdate(BaseModel):
+    title: str | None = None
+    body: str | None = None
+    annotation: str | None = None
+    status: Literal["open", "promising", "dead_end"] | None = None
+    collapsed: bool | None = None
+
+
+class BranchView(BaseModel):
+    head_node_id: str
+    node_ids: list[str]
+    nodes: list[NodeView]
 
 
 class ForkProposal(BaseModel):
@@ -364,6 +398,7 @@ THOUGHT_NODES = [
 
 
 app = FastAPI(title="Weaver Next API", version="0.1.0")
+install_error_handlers(app)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -393,6 +428,24 @@ def _forest_view(project_id: str, focused_node_id: str | None = None) -> ForestV
         children=forest.children,
         focused_node_id=focused_node_id or (forest.roots[0] if forest.roots else None),
     )
+
+
+def _replace_project_nodes(project_id: str, forest: NodeForest) -> None:
+    THOUGHT_NODES[:] = [node for node in THOUGHT_NODES if node.project_id != project_id]
+    THOUGHT_NODES.extend(forest.nodes.values())
+
+
+def _new_node_id() -> str:
+    return f"node_{next(NODE_ID_COUNTER)}"
+
+
+def _tree_error(exc: InvalidTreeError) -> WeaverError:
+    message = str(exc)
+    if "NODE_NOT_FOUND" in message:
+        return WeaverError(ErrorCode.NODE_NOT_FOUND)
+    if "ILLEGAL_STATE_TRANSITION" in message:
+        return WeaverError(ErrorCode.ILLEGAL_STATE_TRANSITION)
+    return WeaverError(ErrorCode.INVALID_TREE_OP, message)
 
 
 def _find_node(node_id: str) -> ThoughtNode | None:
@@ -435,17 +488,19 @@ def _generate_draft(project_id: str, payload: DraftGenerateRequest) -> DraftView
     has_branches = bool(payload.source_branch_node_ids)
     has_outline = bool(payload.outline_id)
     if has_branches == has_outline:
-        raise HTTPException(
-            status_code=422,
-            detail="DRAFT_SOURCE_AMBIGUOUS: set either source_branch_node_ids or outline_id",
+        raise WeaverError(
+            ErrorCode.DRAFT_SOURCE_AMBIGUOUS,
+            "set either source_branch_node_ids or outline_id",
         )
 
-    branch_ids = payload.source_branch_node_ids or ["node_demand", "node_bundle"]
+    branch_ids = payload.source_branch_node_ids
     forest = _forest(project_id)
     sections: list[str] = []
-    citations: list[DraftCitation] = []
-    for index, node_id in enumerate(branch_ids, start=1):
-        context = resolve_branch_context(node_id, forest)
+    for node_id in branch_ids:
+        try:
+            context = resolve_branch_context(node_id, forest)
+        except NodeNotFoundError:
+            continue
         if not context.chain:
             continue
         head = context.chain[-1]
@@ -453,15 +508,6 @@ def _generate_draft(project_id: str, payload: DraftGenerateRequest) -> DraftView
         setup = " -> ".join(ancestor_titles) if ancestor_titles else _project_title(project_id)
         sections.append(
             f"{head.title} {head.body} In {payload.voice.lower()} voice, this section is grounded only in its own branch path: {setup}."
-        )
-        citations.append(
-            DraftCitation(
-                id=f"c{index}",
-                source_label=f"Branch context - {head.title[:42]}",
-                quote=head.body,
-                source_node_id=head.node_id,
-                deep_link=f"weaver://source/{head.node_id}#char=0-{len(head.body)}",
-            )
         )
 
     if not sections:
@@ -479,8 +525,8 @@ def _generate_draft(project_id: str, payload: DraftGenerateRequest) -> DraftView
             *sections,
             "The practical move is to stop treating price as the only constraint and design around attention as the scarce resource.",
         ],
-        citations=citations,
-        grounded=bool(citations),
+        citations=[],
+        grounded=False,
     )
     DRAFTS[draft.id] = draft
     return draft
@@ -500,6 +546,15 @@ def _render_markdown(draft: DraftView) -> str:
                 f"[^{index}]: {citation.source_label} - \"{citation.quote}\" ({citation.deep_link})"
             )
     return "\n".join(body).strip() + "\n"
+
+
+def _citations_preserved(draft: DraftView, markdown: str) -> bool:
+    if not draft.citations:
+        return "[^" not in markdown
+    definitions = set(re.findall(r"(?m)^\[\^(\d+)\]:", markdown))
+    references = set(re.findall(r"(?<!\[)\[\^(\d+)\](?!:)", markdown))
+    expected = {str(index) for index in range(1, len(draft.citations) + 1)}
+    return definitions == expected and references == expected
 
 
 def _find_backend(backend_id: str) -> BackendView | None:
@@ -563,6 +618,29 @@ def get_project_nodes(project_id: str) -> ForestView:
     return _forest_view(project_id)
 
 
+@app.post("/api/v1/projects/{project_id}/nodes", response_model=NodeView, status_code=201)
+def create_project_node(project_id: str, payload: NodeCreate) -> NodeView:
+    forest = _forest(project_id)
+    spec = NodeSpec(
+        title=payload.title.strip() or "Untitled node",
+        body=payload.body.strip() or payload.title.strip() or "Untitled node",
+        annotation=payload.annotation,
+        tag=payload.tag.strip().upper() or "THOUGHT",
+        kind=payload.kind,
+    )
+    try:
+        if payload.parent_id:
+            next_forest, created = fork_forest(forest, payload.parent_id, [spec], new_id=_new_node_id)
+            node = created[0]
+        else:
+            next_forest, node = add_root(forest, spec, new_id=_new_node_id)
+    except InvalidTreeError as exc:
+        raise _tree_error(exc) from exc
+    _replace_project_nodes(project_id, next_forest)
+    _refresh_project_counts(project_id)
+    return _node_view(node)
+
+
 @app.get("/api/v1/quicknotes", response_model=list[QuickNoteView])
 def list_quicknotes() -> list[QuickNoteView]:
     return QUICKNOTES
@@ -589,10 +667,12 @@ def promote_quicknote(
     payload: PromoteQuickNoteRequest | None = None,
 ) -> PromoteQuickNoteResponse:
     quicknote = next((note for note in QUICKNOTES if note.id == quicknote_id), None)
+    if not quicknote:
+        raise WeaverError(ErrorCode.QUICKNOTE_NOT_FOUND)
     title = payload.project_title if payload and payload.project_title else None
     project = ProjectSummary(
         id=f"proj_{next(PROJECT_ID_COUNTER)}",
-        title=(title or quicknote.text if quicknote else "Promoted quick thought").strip(),
+        title=(title or quicknote.text).strip(),
         status="thinking",
         node_count=1,
         branch_count=1,
@@ -605,71 +685,161 @@ def promote_quicknote(
             project_id=project.id,
             parent_id=None,
             title=project.title,
-            body=quicknote.text if quicknote else project.title,
+            body=quicknote.text,
             order_index=0,
             tag="ROOT QUESTION",
             x=52,
             y=16,
         )
     )
-    if quicknote:
-        quicknote.promoted_project_id = project.id
-    else:
-        quicknote = QuickNoteView(
-            id=quicknote_id,
-            text=project.title,
-            created_at="now",
-            promoted_project_id=project.id,
-        )
+    quicknote.promoted_project_id = project.id
     return PromoteQuickNoteResponse(project=project, quicknote=quicknote)
 
 
 @app.get("/api/v1/nodes/{node_id}/context", response_model=BranchContext)
 def get_node_context(node_id: str) -> BranchContext:
     node = _find_node(node_id)
-    project_id = node.project_id if node else "proj_subscription_fatigue"
-    return resolve_branch_context(node_id, _forest(project_id))
+    if not node:
+        raise WeaverError(ErrorCode.NODE_NOT_FOUND)
+    return resolve_branch_context(node_id, _forest(node.project_id))
 
 
 @app.post("/api/v1/nodes/{node_id}/fork", response_model=list[NodeView], status_code=201)
 def fork_node(node_id: str, payload: ForkRequest) -> list[NodeView]:
     parent = _find_node(node_id)
     if not parent:
-        return []
-    existing_children = [node for node in THOUGHT_NODES if node.parent_id == parent.id]
-    created: list[ThoughtNode] = []
-    for offset, branch in enumerate(payload.branches):
-        created_node = _make_child_node(
-            parent,
-            branch,
-            order_index=len(existing_children) + offset,
+        raise WeaverError(ErrorCode.NODE_NOT_FOUND)
+    specs = [
+        NodeSpec(
+            title=branch.title.strip() or "Untitled fork",
+            body=branch.body.strip() or branch.title.strip() or "Untitled fork",
+            tag=branch.tag.strip().upper() or "FORK",
         )
-        THOUGHT_NODES.append(created_node)
-        created.append(created_node)
+        for branch in payload.branches
+    ]
+    try:
+        next_forest, created = fork_forest(_forest(parent.project_id), parent.id, specs, new_id=_new_node_id)
+    except InvalidTreeError as exc:
+        raise _tree_error(exc) from exc
+    _replace_project_nodes(parent.project_id, next_forest)
     _refresh_project_counts(parent.project_id)
     return [_node_view(node) for node in created]
 
 
-@app.post("/api/v1/nodes/{node_id}/fork/propose", response_model=ForkProposeResult)
-def propose_forks(node_id: str) -> ForkProposeResult:
+@app.patch("/api/v1/nodes/{node_id}", response_model=NodeView)
+def update_node(node_id: str, payload: NodeUpdate) -> NodeView:
     node = _find_node(node_id)
-    project_id = node.project_id if node else "proj_subscription_fatigue"
-    context = resolve_branch_context(node_id, _forest(project_id))
-    theme = context.chain[-1].title if context.chain else "this branch"
-    return ForkProposeResult(
-        proposals=[
-            ForkProposal(
-                title="Pressure-test the strongest assumption",
-                prompt=f"What evidence would make '{theme}' false?",
-                suggested_label="COUNTERPOINT",
-            ),
-            ForkProposal(
-                title="Split timing from willingness",
-                prompt="Is the bottleneck reader willingness, available time, or habit formation?",
-                suggested_label="DEMAND-SIDE",
-            ),
-        ]
+    if not node:
+        raise WeaverError(ErrorCode.NODE_NOT_FOUND)
+    forest = _forest(node.project_id)
+    try:
+        next_forest = forest
+        if payload.status is not None:
+            next_forest = set_state(next_forest, node_id, payload.status)
+        if payload.collapsed is not None:
+            next_forest = set_collapsed(next_forest, node_id, payload.collapsed)
+        current = next_forest.nodes[node_id]
+        updated = current.model_copy(
+            update={
+                key: value
+                for key, value in {
+                    "title": payload.title,
+                    "body": payload.body,
+                    "annotation": payload.annotation,
+                }.items()
+                if value is not None
+            }
+        )
+        next_forest = next_forest.with_node(updated)
+    except InvalidTreeError as exc:
+        raise _tree_error(exc) from exc
+    _replace_project_nodes(node.project_id, next_forest)
+    _refresh_project_counts(node.project_id)
+    return _node_view(next_forest.nodes[node_id])
+
+
+@app.post("/api/v1/nodes/{node_id}/backtrack", response_model=BranchView)
+def backtrack_node(node_id: str) -> BranchView:
+    node = _find_node(node_id)
+    if not node:
+        raise WeaverError(ErrorCode.NODE_NOT_FOUND)
+    try:
+        node_ids = backtrack(_forest(node.project_id), node_id)
+    except InvalidTreeError as exc:
+        raise _tree_error(exc) from exc
+    nodes = [_node_view(_find_node(branch_node_id)) for branch_node_id in node_ids]
+    return BranchView(head_node_id=node_id, node_ids=node_ids, nodes=nodes)
+
+
+@app.post("/api/v1/nodes/{node_id}/prune", response_model=NodeView)
+def prune_node(node_id: str) -> NodeView:
+    node = _find_node(node_id)
+    if not node:
+        raise WeaverError(ErrorCode.NODE_NOT_FOUND)
+    try:
+        next_forest = prune(_forest(node.project_id), node_id)
+    except InvalidTreeError as exc:
+        raise _tree_error(exc) from exc
+    _replace_project_nodes(node.project_id, next_forest)
+    _refresh_project_counts(node.project_id)
+    return _node_view(next_forest.nodes[node_id])
+
+
+@app.post("/api/v1/nodes/{node_id}/fork/propose", response_model=ForkProposeResult)
+def propose_forks(node_id: str, request: Request) -> ForkProposeResult | StreamingResponse:
+    node = _find_node(node_id)
+    if not node:
+        raise WeaverError(ErrorCode.NODE_NOT_FOUND)
+    context = resolve_branch_context(node_id, _forest(node.project_id))
+    provider_request = GenerateRequest(
+        purpose="fork_proposal",
+        system="Propose branches using only the supplied ancestor chain.",
+        messages=to_messages(context),
+        response_schema=FORK_PROPOSAL_RESPONSE_SCHEMA,
+        request_id=f"fork_proposal_{node_id}",
     )
+    accept = request.headers.get("accept", "")
+    if "text/event-stream" in accept:
+        return StreamingResponse(
+            sse_frames(_proposal_events(provider_request)),
+            media_type="text/event-stream",
+        )
+    if "application/x-ndjson" in accept:
+        return StreamingResponse(
+            ndjson_frames(_proposal_events(provider_request)),
+            media_type="application/x-ndjson",
+        )
+    structured = _proposal_structured(provider_request)
+    return ForkProposeResult(proposals=[ForkProposal(**item.model_dump()) for item in structured.proposals])
+
+
+async def _proposal_events(provider_request: GenerateRequest):
+    async for event in FakeProvider().generate(provider_request):
+        if event.type == "done" and event.structured:
+            structured = ForkProposalStructured.model_validate(event.structured)
+            for offset, proposal in enumerate(structured.proposals, start=event.seq):
+                yield TokenEvent(
+                    type="structured",
+                    seq=offset,
+                    request_id=event.request_id,
+                    structured={"proposal": proposal.model_dump()},
+                )
+            yield event.model_copy(update={"seq": event.seq + len(structured.proposals)})
+        else:
+            yield event
+
+
+def _proposal_structured(provider_request: GenerateRequest) -> ForkProposalStructured:
+    # Deterministic sync wrapper for the non-streaming compatibility path.
+    import asyncio
+
+    async def collect() -> ForkProposalStructured:
+        async for event in FakeProvider().generate(provider_request):
+            if event.type == "done" and event.structured:
+                return ForkProposalStructured.model_validate(event.structured)
+        raise WeaverError(ErrorCode.INVALID_TREE_OP, "fork proposal stream did not complete")
+
+    return asyncio.run(collect())
 
 
 @app.post("/api/v1/projects/{project_id}/drafts", response_model=DraftView, status_code=201)
@@ -681,7 +851,7 @@ def generate_project_draft(project_id: str, payload: DraftGenerateRequest) -> Dr
 def get_draft(draft_id: str) -> DraftView:
     draft = DRAFTS.get(draft_id)
     if not draft:
-        raise HTTPException(status_code=404, detail="DRAFT_NOT_FOUND")
+        raise WeaverError(ErrorCode.DRAFT_NOT_FOUND)
     return draft
 
 
@@ -689,14 +859,14 @@ def get_draft(draft_id: str) -> DraftView:
 def create_export(draft_id: str, payload: ExportCreate) -> ExportView:
     draft = DRAFTS.get(draft_id)
     if not draft:
-        raise HTTPException(status_code=404, detail="DRAFT_NOT_FOUND")
+        raise WeaverError(ErrorCode.DRAFT_NOT_FOUND)
     markdown = _render_markdown(draft)
     export_id = f"export_{next(EXPORT_ID_COUNTER)}"
     view = ExportView(
         id=export_id,
         draft_id=draft.id,
         target=payload.target,
-        citations_preserved=len(draft.citations) == markdown.count("[^") // 2,
+        citations_preserved=_citations_preserved(draft, markdown),
         download_url=f"/api/v1/exports/{export_id}/download",
     )
     EXPORTS[export_id] = markdown
@@ -708,7 +878,7 @@ def create_export(draft_id: str, payload: ExportCreate) -> ExportView:
 def get_export(export_id: str) -> ExportView:
     view = EXPORT_META.get(export_id)
     if not view:
-        raise HTTPException(status_code=404, detail="EXPORT_NOT_FOUND")
+        raise WeaverError(ErrorCode.EXPORT_NOT_FOUND)
     return view
 
 
@@ -716,7 +886,7 @@ def get_export(export_id: str) -> ExportView:
 def download_export(export_id: str) -> Response:
     markdown = EXPORTS.get(export_id)
     if markdown is None:
-        raise HTTPException(status_code=404, detail="EXPORT_NOT_FOUND")
+        raise WeaverError(ErrorCode.EXPORT_NOT_FOUND)
     return Response(content=markdown, media_type="text/markdown")
 
 
@@ -749,7 +919,7 @@ def create_backend(payload: BackendCreate) -> BackendView:
 def get_backend(backend_id: str) -> BackendView:
     backend = _find_backend(backend_id)
     if not backend:
-        raise HTTPException(status_code=404, detail="BACKEND_NOT_FOUND")
+        raise WeaverError(ErrorCode.BACKEND_NOT_FOUND)
     return backend
 
 
@@ -757,7 +927,7 @@ def get_backend(backend_id: str) -> BackendView:
 def update_backend(backend_id: str, payload: BackendUpdate) -> BackendView:
     backend = _find_backend(backend_id)
     if not backend:
-        raise HTTPException(status_code=404, detail="BACKEND_NOT_FOUND")
+        raise WeaverError(ErrorCode.BACKEND_NOT_FOUND)
     if payload.name is not None:
         backend.name = payload.name
     if payload.model is not None:
@@ -777,7 +947,7 @@ def update_backend(backend_id: str, payload: BackendUpdate) -> BackendView:
 def delete_backend(backend_id: str) -> Response:
     backend = _find_backend(backend_id)
     if not backend:
-        raise HTTPException(status_code=404, detail="BACKEND_NOT_FOUND")
+        raise WeaverError(ErrorCode.BACKEND_NOT_FOUND)
     BACKENDS.remove(backend)
     if backend.is_default and BACKENDS:
         BACKENDS[0].is_default = True
@@ -788,7 +958,7 @@ def delete_backend(backend_id: str) -> Response:
 def backend_health(backend_id: str) -> BackendHealthView:
     backend = _find_backend(backend_id)
     if not backend:
-        raise HTTPException(status_code=404, detail="BACKEND_NOT_FOUND")
+        raise WeaverError(ErrorCode.BACKEND_NOT_FOUND)
     if not backend.enabled:
         return BackendHealthView(
             id=backend_id,
