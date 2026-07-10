@@ -41,14 +41,17 @@ jobs:
       - name: Lint (Biome)
         run: npm run lint
 
+      - name: Build workspace packages
+        run: npm run build:packages
+
       - name: TS unit tests
         run: npm run test:ts
 
       - name: Widget typecheck
         run: npm run typecheck:widget
 
-      - name: Build plugin (packages + widget)
-        run: npm run build:plugin
+      - name: Build widget
+        run: npm run build:widget
 
       - name: Web build
         run: npm run build:web
