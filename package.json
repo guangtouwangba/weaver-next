@@ -18,6 +18,10 @@
     "build:packages": "npm --workspace @weaver/contracts run build && npm --workspace @weaver/core run build && npm --workspace @weaver/layout-engine run build && npm --workspace @weaver/scene-packs run build && npm --workspace @weaver/visual-templates run build && npm --workspace @weaver/storage run build && npm --workspace @weaver/mcp run build",
     "build:widget": "npm --workspace @weaver/widget run build",
     "build:plugin": "npm run build:packages && npm run build:widget",
+    "typecheck:widget": "npm --workspace @weaver/widget run typecheck",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write .",
+    "format": "biome format --write .",
     "test:ts": "vitest run",
     "test:python": ".venv/bin/python -m pytest apps/api/tests",
     "benchmark:layout": "npm run build:packages && node scripts/benchmark-layout.mjs",
@@ -26,8 +30,9 @@
     "dev": "npm-run-all --parallel dev:api dev:web"
   },
   "devDependencies": {
-    "npm-run-all": "^4.1.5",
+    "@biomejs/biome": "2.5.3",
     "@types/node": "^24.10.0",
+    "npm-run-all": "^4.1.5",
     "openapi-typescript": "^7.13.0",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"

@@ -1,0 +1,40 @@
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
+import { builtinScenePacks, getScenePack } from "@weaver/scene-packs";
+import { projectSchema, workspaceSchema } from "../shared/schemas.js";
+import { track } from "../shared/workspace-registry.js";
+import { defineTool, result, withStore, type MutateWithStore } from "../shared/tool-runtime.js";
+import { chatSessionKeyFromRequest } from "../thread-context.js";
+
+export type ProjectsToolsCtx = { mutateWithStore: MutateWithStore };
+
+/** Project CRUD & scene recommendation, plus reading the pinned project manifest. */
+export function registerProjectsTools(server: McpServer, ctx: ProjectsToolsCtx) {
+  const { mutateWithStore } = ctx;
+
+  server.registerTool("weaver_list_projects", {
+    title: "List Weaver Projects", description: "List projects stored in <workspaceDir>/.weaver.", inputSchema: workspaceSchema.shape,
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  }, defineTool(async ({ workspaceDir }) => { const projects = withStore(workspaceDir, (store) => store.listProjects()); projects.forEach((project) => track(workspaceDir, project.id)); return result(projects, `${projects.length} Weaver projects.`); }));
+
+  server.registerTool("weaver_recommend_scene", {
+    title: "Recommend Weaver Scene", description: "Recommend scene packs from a natural-language goal without creating a project.",
+    inputSchema: { goal: z.string().min(1) }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  }, async ({ goal }) => {
+    const normalized = goal.toLowerCase();
+    const preferred = normalized.match(/word|vocab|单词|词汇/) ? "situational-vocabulary" : normalized.match(/cause|因果/) ? "causal-map" : normalized.match(/timeline|时间线|历史/) ? "event-timeline" : normalized.match(/project|项目/) ? "project-breakdown" : "free-brainstorming";
+    const ordered = [...builtinScenePacks].sort((left) => left.id === preferred ? -1 : 1).slice(0, 3).map((scene, index) => ({ scenePackId: scene.id, viewType: scene.defaultView, confidence: index === 0 ? 0.9 : 0.55, rationale: index === 0 ? `Goal best matches ${scene.name}.` : `Alternative ${scene.name}.` }));
+    return result(ordered, `Recommended ${ordered[0].scenePackId}.`);
+  });
+
+  server.registerTool("weaver_create_project", {
+    title: "Create Weaver Project", description: "Create a project pinned to one scene-pack version with one semantic root node.",
+    inputSchema: { ...workspaceSchema.shape, title: z.string().min(1), goal: z.string().default(""), scenePackId: z.string().default("free-brainstorming"), automationLevel: z.enum(["cautious", "collaborative", "automatic"]).default("collaborative") },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  }, defineTool(async ({ workspaceDir, title, goal, scenePackId, automationLevel }, extra) => { const scene = getScenePack(scenePackId); if (!scene) throw new Error(`SCENE_PACK_NOT_FOUND:${scenePackId}`); const chatSessionKey = chatSessionKeyFromRequest(extra, false); const created = mutateWithStore(workspaceDir, (store) => store.createSeededProject({ title, goal, scenePack: scene, automationLevel, chatSessionKey })); track(workspaceDir, created.project.id); const binding = created.binding ? { leaseId: created.binding.leaseId, bindingRevision: created.binding.bindingRevision, projectId: created.binding.projectId, viewId: created.binding.viewId } : undefined; return result({ ...created.project, binding }, `Created ${created.project.title}.`); }));
+
+  server.registerTool("weaver_get_project_manifest", {
+    title: "Get Project Manifest", description: "Get a project's pinned scene rules, available node/edge types, views, artifacts, revisions and automation level.", inputSchema: projectSchema.shape,
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  }, defineTool(async ({ workspaceDir, projectId }) => { const output = withStore(workspaceDir, (store) => { const project = store.getProject(projectId); if (!project) throw new Error("PROJECT_NOT_FOUND"); const scenePack = getScenePack(project.scenePackId, project.scenePackVersion); return { project, scenePack, views: store.listProjectViews(projectId, "active").map((view) => ({ ...view, viewId: view.id, viewName: view.name, layoutRevision: store.getLayout(projectId, view.id)?.layoutRevision ?? 0 })) }; }); track(workspaceDir, projectId); return result(output); }));
+}

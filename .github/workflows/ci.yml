@@ -38,5 +38,17 @@ jobs:
       - name: Contract drift guard
         run: bash tooling/codegen/check-drift.sh
 
+      - name: Lint (Biome)
+        run: npm run lint
+
+      - name: TS unit tests
+        run: npm run test:ts
+
+      - name: Widget typecheck
+        run: npm run typecheck:widget
+
+      - name: Build plugin (packages + widget)
+        run: npm run build:plugin
+
       - name: Web build
         run: npm run build:web

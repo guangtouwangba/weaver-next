@@ -9,6 +9,8 @@ const workspaceDir = join(tmpdir(), `weaver-mcp-probe-${process.pid}`);
 mkdirSync(workspaceDir, { recursive: true });
 const transport = new StdioClientTransport({ command: "node", args: ["./scripts/start-mcp.mjs"], cwd: process.cwd(), stderr: "pipe" });
 const client = new Client({ name: "weaver-probe", version: "0.1.0" });
+const threadId = `weaver-probe-thread-${process.pid}`;
+const threadMeta = { threadId, "x-codex-turn-metadata": { thread_id: threadId } };
 
 function data(result) {
   if (result.isError) throw new Error(result.content?.find((item) => item.type === "text")?.text ?? "MCP tool failed");
@@ -48,13 +50,16 @@ try {
   const graphView = data(await client.callTool({ name: "weaver_get_or_create_view", arguments: { workspaceDir, projectId: project.id, viewType: "graph" } }));
   if (graphView.viewId === project.defaultViewId || graphView.layoutRevision !== 0) throw new Error("Independent view was not created");
   const sessionId = "probe-session";
-  data(await client.callTool({ name: "weaver_sync_canvas_context", arguments: { workspaceDir, snapshot: { version: 1, canvasSessionId: sessionId, workspaceDir, projectId: project.id, scenePackId: project.scenePackId, scenePackVersion: project.scenePackVersion, graphRevision: graph.project.graphRevision, viewId: project.defaultViewId, viewType: graph.layout.viewType, selectedNodeIds: graph.nodes.map((node) => node.id), selectedEdgeIds: [], selectedGroupIds: [], pinnedContextNodeIds: [], viewport: { x: 0, y: 0, zoom: 1 }, sequence: 1, updatedAt: new Date().toISOString() } } }));
-  const task = data(await client.callTool({ name: "weaver_prepare_agent_task", arguments: { workspaceDir, canvasSessionId: sessionId, actionKey: "layout_view", userInstruction: "Arrange causes left to right" } }));
-  const generated = data(await client.callTool({ name: "weaver_generate_layout_candidates", arguments: { workspaceDir, taskId: task.taskId, plan: { projectId: project.id, viewId: project.defaultViewId, baseGraphRevision: graph.project.graphRevision, baseLayoutRevision: graph.layout.layoutRevision, scope: { type: "whole-view" }, strategy: "layered", direction: "left-right", constraints: [{ type: "avoid-overlap", nodeIds: [], edgeIds: [], edgeTypes: [], strength: 1 }], preserve: { pinnedNodes: true, manualGroups: true, relativeOrder: true, mentalMapWeight: 0.7 }, candidateCount: 3, rationale: "Causal direction" } } }));
-  const run = data(await client.callTool({ name: "weaver_get_layout_run", arguments: { workspaceDir, layoutRunId: generated.layoutRunId } }));
+  const opened = data(await client.callTool({ name: "weaver_open_workspace_widget", arguments: { workspaceDir, projectId: project.id }, _meta: threadMeta }));
+  const timestamp = new Date().toISOString();
+  data(await client.callTool({ name: "weaver_sync_canvas_context", arguments: { workspaceDir, snapshot: { version: 2, canvasSessionId: sessionId, workspaceDir, projectId: project.id, scenePackId: project.scenePackId, scenePackVersion: project.scenePackVersion, graphRevision: graph.project.graphRevision, viewId: project.defaultViewId, viewType: graph.layout.viewType, selectedNodeIds: graph.nodes.map((node) => node.id), selectedEdgeIds: [], selectedGroupIds: [], pinnedContextNodeIds: [], viewport: { x: 0, y: 0, zoom: 1 }, presence: { visible: true, focused: true, lastSeenAt: timestamp }, chatBinding: opened.chatBinding, agentEligible: true, sequence: 1, updatedAt: timestamp } }, _meta: threadMeta }));
+  const task = data(await client.callTool({ name: "weaver_prepare_task_from_active_canvas", arguments: { workspaceDir, actionKey: "layout_view", userInstruction: "Arrange causes left to right" }, _meta: threadMeta }));
+  data(await client.callTool({ name: "weaver_start_agent_task", arguments: { workspaceDir, taskId: task.taskId }, _meta: threadMeta }));
+  const generated = data(await client.callTool({ name: "weaver_generate_layout_candidates", arguments: { workspaceDir, taskId: task.taskId, plan: { projectId: project.id, viewId: project.defaultViewId, baseGraphRevision: graph.project.graphRevision, baseLayoutRevision: graph.layout.layoutRevision, scope: { type: "whole-view" }, strategy: "layered", direction: "left-right", constraints: [{ type: "avoid-overlap", nodeIds: [], edgeIds: [], edgeTypes: [], strength: 1 }], preserve: { pinnedNodes: true, manualGroups: true, relativeOrder: true, mentalMapWeight: 0.7 }, candidateCount: 3, rationale: "Causal direction" } }, _meta: threadMeta }));
+  const run = data(await client.callTool({ name: "weaver_get_layout_run", arguments: { workspaceDir, layoutRunId: generated.layoutRunId }, _meta: threadMeta }));
   const valid = run.candidates.find((candidate) => candidate.metrics.hardViolations.length === 0);
   if (!valid) throw new Error("No valid layout candidate");
-  const applied = data(await client.callTool({ name: "weaver_apply_layout", arguments: { workspaceDir, layoutRunId: run.id, candidateId: valid.id } }));
+  const applied = data(await client.callTool({ name: "weaver_apply_layout", arguments: { workspaceDir, layoutRunId: run.id, candidateId: valid.id }, _meta: threadMeta }));
   if (applied.layoutRevision !== graph.layout.layoutRevision + 1) throw new Error("layoutRevision did not increment");
   const current = data(await client.callTool({ name: "weaver_get_project_graph", arguments: { workspaceDir, projectId: project.id, viewId: project.defaultViewId } }));
   if (current.project.graphRevision !== graph.project.graphRevision) throw new Error("layout changed graphRevision");

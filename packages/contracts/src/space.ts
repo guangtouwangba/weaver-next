@@ -53,7 +53,7 @@ const nodeBaseSchema = z.object({
 });
 
 function excerpt(markdown: string) {
-  return markdown.replace(/[#>*_`\[\]()!-]/g, " ").replace(/\s+/g, " ").trim().slice(0, 280);
+  return markdown.replace(/[#>*_`[\]()!-]/g, " ").replace(/\s+/g, " ").trim().slice(0, 280);
 }
 
 export const nodeSchema = nodeBaseSchema.transform((node) => {

@@ -20,6 +20,20 @@ export type LayoutOperation =
   | { type: "set-view-theme"; theme: unknown }
   | { type: string; [key: string]: unknown };
 
+type NodeFrame = { x: number; y: number; width: number; height: number };
+
+export function resolveEdgeHandles(source?: NodeFrame, target?: NodeFrame) {
+  if (!source || !target) return { sourceHandle: "source-right", targetHandle: "target-left" };
+  const dx = target.x + target.width / 2 - (source.x + source.width / 2);
+  const dy = target.y + target.height / 2 - (source.y + source.height / 2);
+  if (Math.abs(dx) >= Math.abs(dy)) return dx >= 0
+    ? { sourceHandle: "source-right", targetHandle: "target-left" }
+    : { sourceHandle: "source-left", targetHandle: "target-right" };
+  return dy >= 0
+    ? { sourceHandle: "source-bottom", targetHandle: "target-top" }
+    : { sourceHandle: "source-top", targetHandle: "target-bottom" };
+}
+
 export function applyGraphDelta<Node extends { id: string }, Edge extends { id: string }>(
   nodes: Node[],
   edges: Edge[],
@@ -39,8 +53,9 @@ export function applyGraphDelta<Node extends { id: string }, Edge extends { id: 
 export function applyLayoutOperations<T extends { layoutRevision: number; nodes: Record<string, any> }>(document: T, toRevision: number, operations: LayoutOperation[]): T {
   const next = structuredClone(document);
   for (const operation of operations) {
-    const node = "nodeId" in operation ? next.nodes[operation.nodeId] : undefined;
-    if (operation.type === "set-node-frame") next.nodes[operation.nodeId] = { ...(node ?? { nodeId: operation.nodeId, pinned: false }), ...operation.frame };
+    const nodeId = "nodeId" in operation ? (operation.nodeId as string) : undefined;
+    const node = nodeId ? next.nodes[nodeId] : undefined;
+    if (operation.type === "set-node-frame" && nodeId) next.nodes[nodeId] = { ...(node ?? { nodeId, pinned: false }), ...(operation.frame as Record<string, unknown>) };
     else if (operation.type === "pin-node" && node) node.pinned = true;
     else if (operation.type === "unpin-node" && node) node.pinned = false;
     else if (operation.type === "set-node-visibility" && node) node.hidden = operation.hidden;

@@ -1,8 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { applyGraphDelta, applyLayoutOperations } from "../sync";
+import { applyGraphDelta, applyLayoutOperations, resolveEdgeHandles } from "../sync";
 import * as viewCatalog from "../sync";
 
 describe("widget SSE reducers", () => {
+  it("routes edges through the facing sides of positioned nodes", () => {
+    const center = { x: 300, y: 200, width: 220, height: 112 };
+    expect(resolveEdgeHandles(center, { x: 0, y: 200, width: 220, height: 112 })).toEqual({ sourceHandle: "source-left", targetHandle: "target-right" });
+    expect(resolveEdgeHandles(center, { x: 600, y: 200, width: 220, height: 112 })).toEqual({ sourceHandle: "source-right", targetHandle: "target-left" });
+    expect(resolveEdgeHandles(center, { x: 300, y: -100, width: 220, height: 112 })).toEqual({ sourceHandle: "source-top", targetHandle: "target-bottom" });
+    expect(resolveEdgeHandles(center, { x: 300, y: 500, width: 220, height: 112 })).toEqual({ sourceHandle: "source-bottom", targetHandle: "target-top" });
+  });
+
   it("applies graph deltas while preserving a locally dirty node", () => {
     const current = [{ id: "dirty", title: "Local" }, { id: "clean", title: "Old" }];
     const result = applyGraphDelta(current, [{ id: "edge-old" }], {
