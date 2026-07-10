@@ -1,0 +1,4 @@
+interface:
+  display_name: "Open Weaver Space"
+  short_description: "Open the current project-backed Weaver canvas."
+  default_prompt: "Open the Weaver space for this project."

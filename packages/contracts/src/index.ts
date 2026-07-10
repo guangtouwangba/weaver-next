@@ -22,6 +22,8 @@ export type PromoteQuickNoteResponse = components["schemas"]["PromoteQuickNoteRe
 export type QuickNoteCreate = components["schemas"]["QuickNoteCreate"];
 export type QuickNoteView = components["schemas"]["QuickNoteView"];
 export type ThoughtNodeView = components["schemas"]["NodeView"];
+export * from "./space.js";
+export * from "./layout.js";
 
 export class WeaverApiError extends Error {
   code: string;

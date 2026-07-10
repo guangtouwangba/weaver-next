@@ -1,0 +1,4 @@
+interface:
+  display_name: "Create Weaver Artifact"
+  short_description: "Create scene-defined artifacts from selected nodes."
+  default_prompt: "Create an artifact from this Weaver selection."

@@ -1,0 +1,12 @@
+<evaluation>
+  <qa_pair><question>List the built-in Weaver scene packs and count how many belong to the learning category.</question><answer>3</answer></qa_pair>
+  <qa_pair><question>Which built-in scene pack is recommended for a goal that explicitly mentions learning vocabulary?</question><answer>situational-vocabulary</answer></qa_pair>
+  <qa_pair><question>For the situational-vocabulary scene pack, what is the default view?</question><answer>graph</answer></qa_pair>
+  <qa_pair><question>For the causal-map scene pack, what default layout direction is declared?</question><answer>left-right</answer></qa_pair>
+  <qa_pair><question>After graph discovery returns only a document summary, which MCP tool reads that node's complete Markdown?</question><answer>weaver_get_node_content</answer></qa_pair>
+  <qa_pair><question>Which three first-phase content kinds may every built-in scene semantic type use? Answer in schema order with commas and no spaces.</question><answer>document,image,link</answer></qa_pair>
+  <qa_pair><question>After a layout-only candidate is applied, which revision must remain unchanged?</question><answer>graphRevision</answer></qa_pair>
+  <qa_pair><question>Importing image bytes without creating or attaching a node must leave which revision unchanged?</question><answer>graphRevision</answer></qa_pair>
+  <qa_pair><question>Which coding-agent skill must be used for a request to reduce edge crossings without changing graph content?</question><answer>weaver-layout-space</answer></qa_pair>
+  <qa_pair><question>How many deterministic layout candidates does the default LayoutPlan request?</question><answer>3</answer></qa_pair>
+</evaluation>

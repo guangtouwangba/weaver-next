@@ -1,0 +1,4 @@
+interface:
+  display_name: "Create Weaver Space"
+  short_description: "Create a scene-driven Weaver knowledge space."
+  default_prompt: "Create a Weaver space from my goal."

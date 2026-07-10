@@ -1,0 +1,19 @@
+{
+  "name": "@weaver/mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/server.js",
+  "types": "dist/server.d.ts",
+  "scripts": { "build": "tsc -p tsconfig.json" },
+  "dependencies": {
+    "@modelcontextprotocol/ext-apps": "^1.7.4",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@weaver/contracts": "0.1.0",
+    "@weaver/core": "0.1.0",
+    "@weaver/layout-engine": "0.1.0",
+    "@weaver/scene-packs": "0.1.0",
+    "@weaver/storage": "0.1.0",
+    "zod": "^4.4.3"
+  }
+}

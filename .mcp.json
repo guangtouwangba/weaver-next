@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "weaver_mcp": {
+      "title": "Weaver Semantic Space MCP",
+      "description": "Open and operate project-local Weaver spaces, tasks, ChangeSets, and deterministic layout previews.",
+      "command": "node",
+      "args": ["./scripts/start-mcp.mjs"],
+      "cwd": "."
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "@weaver/layout-engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": { "build": "tsc -p tsconfig.json" },
+  "dependencies": {
+    "@weaver/contracts": "0.1.0",
+    "@weaver/core": "0.1.0",
+    "d3-force": "^3.0.0",
+    "elkjs": "^0.10.0"
+  },
+  "devDependencies": { "@types/d3-force": "^3.0.10" }
+}

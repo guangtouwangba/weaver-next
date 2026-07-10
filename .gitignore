@@ -13,6 +13,7 @@ artifacts/
 __pycache__/
 *.pyc
 *.egg-info/
+*.tsbuildinfo
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/

@@ -1,0 +1,18 @@
+{
+  "name": "weaver-next",
+  "version": "0.1.0",
+  "description": "A scene-driven semantic knowledge space with coding-agent collaboration and deterministic natural-language layout.",
+  "author": { "name": "Weaver" },
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Weaver Next",
+    "shortDescription": "Think, learn, map, and auto-layout semantic spaces with Codex.",
+    "longDescription": "Weaver turns scene-aware nodes and typed relations into a native Codex semantic canvas. Send selected canvas context to the coding agent, generate auditable graph changes, translate natural language into layout constraints, preview deterministic layout candidates, and apply or undo them without changing knowledge content.",
+    "developerName": "Weaver",
+    "category": "Productivity",
+    "brandColor": "#315CF6",
+    "capabilities": ["Native semantic canvas", "Natural-language layout", "Scene packs", "Coding-agent task bridge", "Auditable ChangeSets", "Project-local persistence"],
+    "defaultPrompt": ["Open the Weaver space for this project.", "Create a scene-vocabulary space for my next trip.", "Re-layout the current Weaver selection by theme without moving pinned nodes."]
+  }
+}

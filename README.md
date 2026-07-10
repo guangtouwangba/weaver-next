@@ -1,59 +1,49 @@
 # Weaver Next
 
-Weaver Next is a clean rebuild of Weaver as a **branching thinking tool**.
+Weaver Next is a scene-driven semantic knowledge space that runs as a native Codex plugin.
 
-The old product idea was "NotebookLM + infinite canvas". The redesign goes back
-to first principles: **thinking is branching** (fork, backtrack, compare, merge,
-prune), but linear chat flattens it into a single line — the medium destroys the
-shape of thought. Weaver Next makes thinking branch, stay visible, and
-crystallize into writing.
+Users build typed nodes and relationships for brainstorming, learning, research, and planning. Nodes have two independent axes: a scene-semantic `type` and a first-phase content kind (`document`, `image`, or `link`). The same graph can be viewed as a free canvas, tree, relationship graph, board, timeline, flow, or table. Content and layout are versioned independently.
 
-- Authoritative product spec: [docs/PRD-Weaver-Redesign-2026.md](docs/PRD-Weaver-Redesign-2026.md) (中文, source of truth)
-- Competitive analysis: [docs/competitive-analysis-2026.md](docs/competitive-analysis-2026.md)
+## Core Loop
 
-## Product Direction
+1. Describe a goal; Weaver recommends a versioned scene pack and view.
+2. Create or edit semantic nodes and typed relations in the native widget.
+3. Send the current selection and instruction to the coding agent.
+4. The agent submits auditable GraphOperations or a semantic LayoutPlan through MCP.
+5. A loopback SSE stream delivers task status and revision deltas; the widget previews, applies, rejects, or reverts them without polling.
+6. The deterministic layout engine calculates and scores layout candidates; mixed content-and-layout tasks continue after content review.
+7. Produce scene-defined artifacts such as articles, flashcards, quizzes, plans, or SOPs.
 
-Weaver Next is a "thinking tree" tool:
+## Content Nodes
 
-1. **Think by branching.** Every step is a node (a thought segment + your
-   annotation); fork from any node.
-2. **The tree lays itself out** — visualization is a by-product of thinking, not
-   extra cleanup work.
-3. **Each branch carries its own context** — the AI in branch B is not polluted
-   by branch A's assumptions.
-4. **Crystallize** promising branches into an argument outline (optional).
-5. **Draft directly from the tree**, with citations and a chosen voice.
+- **Document** — Markdown-backed note or article. Canvas cards remain a stable preview; full writing happens in the 420px side editor with autosave and revision-conflict protection.
+- **Image** — a validated, deduplicated local Asset projected as a semantic node or attached as an article cover/reference. The canvas loads only a 640px WebP thumbnail.
+- **Link** — a public HTTP/HTTPS bookmark enriched with bounded title, description, and cover metadata. Private-network targets, oversized responses, and redirect abuse are blocked.
 
-**Primary user:** deep content creators (long-form, newsletter, analysis).
-But the tool **does not require sources** — you can branch-think from nothing but
-AI + your own ideas. This makes it a general branching-thinking tool, with
-writing as its most natural downstream output.
+Use the widget's **Create** menu to add an article, upload an image, or save a link. Pasting an image while the canvas is focused creates an image node. Double-click a document card to edit it.
 
-## What We Keep
+Canvas navigation follows a free design-tool model: drag empty space to pan, use the wheel or trackpad to pan, pinch or Cmd/Ctrl-scroll to zoom around the pointer, hold Space to pan from any tool state, and hold Shift to box-select. The live viewport is included in CanvasContext sent to the coding agent.
 
-- Self-hosted, local-first deployment.
-- Bring-your-own model provider.
-- Source-grounded answers with citations — **when sources exist** (optional).
-- Chinese and global workflows.
+The agent never invents final coordinates or writes the project database directly. Weaver stores project state under `<workspace>/.weaver/`, keeps `graphRevision` separate from each view's `layoutRevision`, and routes agent writes through ChangeSets. The MCP process also owns a token-scoped, read-only SSE endpoint bound to `127.0.0.1`; SQLite remains authoritative and disconnects recover with `Last-Event-ID`.
 
-## What Changed From The Old Direction
+## Packages
 
-- **Not canvas-first.** The core artifact is a branching thinking tree, not a
-  free-form canvas (no manual dragging/arranging).
-- **Sources are optional** grounding, not a requirement.
-- **Argument outline is an optional** crystallization layer, not a mandatory step.
-- **Positioning:** "thinking tree / branching thinking tool", not "NotebookLM
-  alternative with canvas".
+- `apps/widget` — native Codex widget and standalone development preview.
+- `packages/contracts` — graph, task, ChangeSet, and layout schemas.
+- `packages/core` — pure graph, layout-operation, and context logic.
+- `packages/layout-engine` — deterministic candidates, routing, and quality scoring.
+- `packages/storage` — project-local SQLite persistence.
+- `packages/mcp` — local stdio MCP server and widget resource.
+- `packages/scene-packs` — 13 built-in scene packs.
+- `skills` — stable coding-agent workflows.
 
-## Core Differentiator
+## Development
 
-**Per-branch context isolation:** each branch only inherits its ancestor chain.
-NotebookLM / YouMind / ChatGPT cannot do this — their "edit message and
-regenerate" is an implicit fork that throws away the tree and keeps one polluted
-context window. This is an architecture-level moat, not just a UI.
+```bash
+npm install
+npm run build:plugin
+npm run test
+node scripts/probe-mcp.mjs
+```
 
-## First Milestone
-
-A local MVP across **3 pages**: Dashboard, Thinking Tree (with optional source
-sidebar), Draft. See [docs/rebuild-plan.md](docs/rebuild-plan.md) for the
-execution plan.
+The authoritative product direction is [docs/PRD-Weaver-Redesign-2026.md](docs/PRD-Weaver-Redesign-2026.md).

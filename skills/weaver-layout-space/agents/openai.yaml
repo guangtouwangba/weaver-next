@@ -1,0 +1,4 @@
+interface:
+  display_name: "Layout Weaver Space"
+  short_description: "Create deterministic semantic layouts from language."
+  default_prompt: "Arrange this Weaver view without moving pinned nodes."

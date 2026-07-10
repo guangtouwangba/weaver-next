@@ -1,0 +1,22 @@
+[
+  {
+    "scenePackId": "free-brainstorming",
+    "instruction": "按主题分组，保留我手动摆放的位置，只整理选中的想法。",
+    "expected": { "scope": "selection", "strategies": ["cluster", "hybrid"], "constraints": ["group", "preserve-position"] }
+  },
+  {
+    "scenePackId": "situational-vocabulary",
+    "instruction": "场景放中间，单词围绕场景，例句放在单词下方，近义词靠近，反义词拉开。",
+    "expected": { "scope": "whole-view", "strategies": ["radial", "hybrid"], "constraints": ["emphasis", "relative-position", "separation"] }
+  },
+  {
+    "scenePackId": "causal-map",
+    "instruction": "原因从左到右通向结果，减少交叉线，不要移动固定节点。",
+    "expected": { "scope": "whole-view", "strategies": ["layered"], "constraints": ["direction", "edge-routing", "avoid-overlap", "pin"] }
+  },
+  {
+    "scenePackId": "people-organization-network",
+    "instruction": "人物按组织分组，拉开不同组织，同时尽量减少跨组织连线交叉。",
+    "expected": { "scope": "whole-view", "strategies": ["cluster", "force"], "constraints": ["group", "containment", "separation", "edge-routing"] }
+  }
+]
