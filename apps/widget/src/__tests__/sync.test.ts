@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { applyGraphDelta, applyLayoutOperations } from "../sync";
+import * as viewCatalog from "../sync";
 
 describe("widget SSE reducers", () => {
   it("applies graph deltas while preserving a locally dirty node", () => {
@@ -22,5 +23,37 @@ describe("widget SSE reducers", () => {
     expect(next.layoutRevision).toBe(5);
     expect(next.nodes.a).toMatchObject({ x: 40, y: 60, width: 120, height: 90, pinned: true });
     expect(next.nodes.b).toEqual(layout.nodes.b);
+  });
+
+  it("applies view projection and theme as layout-only deltas", () => {
+    const layout = { layoutRevision: 1, nodes: {}, viewName: "Canvas", projection: { kind: "canvas" }, theme: { canvas: { backgroundColor: "white" } } };
+    const next = applyLayoutOperations(layout, 2, [{ type: "set-view-name", viewName: "Roadmap" }, { type: "set-view-projection", projection: { kind: "timeline" } }, { type: "set-view-theme", theme: { canvas: { backgroundColor: "blue" } } }]);
+    expect(next).toMatchObject({ layoutRevision: 2, viewName: "Roadmap", projection: { kind: "timeline" }, theme: { canvas: { backgroundColor: "blue" } } });
+  });
+});
+
+describe("View catalog presentation", () => {
+  const views = [
+    { id: "canvas", name: "Canvas", status: "active", pinned: true, pinnedOrder: 1, lastOpenedAt: "2026-07-10T01:00:00Z" },
+    { id: "roadmap", name: "Roadmap", status: "active", pinned: true, pinnedOrder: 0, lastOpenedAt: "2026-07-10T02:00:00Z" },
+    { id: "mind", name: "Mind map", status: "active", pinned: false, lastOpenedAt: "2026-07-10T03:00:00Z", templateRef: { id: "radial-mind-map", version: "1" } },
+    { id: "trash", name: "Old", status: "trashed", pinned: false, lastOpenedAt: "2026-07-09T03:00:00Z" },
+  ];
+
+  it("shows pinned Views plus the current unpinned View", () => {
+    expect((viewCatalog as any).selectSwitcherViews(views, "mind").map((view: any) => view.id)).toEqual(["roadmap", "canvas", "mind"]);
+    expect((viewCatalog as any).selectSwitcherViews(views, "canvas").map((view: any) => view.id)).toEqual(["roadmap", "canvas"]);
+  });
+
+  it("applies a contiguous catalog delta and rejects a gap", () => {
+    const current = { revision: 2, views: views.slice(0, 3), defaultViewId: "canvas" };
+    const next = (viewCatalog as any).applyViewCatalogDelta(current, { fromRevision: 2, toRevision: 3, upsertedViews: [{ ...views[2], name: "Ideas" }], removedViewIds: ["canvas"], defaultViewId: "roadmap" });
+    expect(next).toMatchObject({ revision: 3, defaultViewId: "roadmap" });
+    expect(next.views.map((view: any) => view.id)).toEqual(["roadmap", "mind"]);
+    expect(() => (viewCatalog as any).applyViewCatalogDelta(current, { fromRevision: 1, toRevision: 3, upsertedViews: [], removedViewIds: [] })).toThrow("VIEW_CATALOG_EVENT_GAP");
+  });
+
+  it("finds existing Views created from the selected template", () => {
+    expect((viewCatalog as any).findTemplateInstances(views, "radial-mind-map").map((view: any) => view.id)).toEqual(["mind"]);
   });
 });

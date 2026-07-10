@@ -24,6 +24,7 @@ export type QuickNoteView = components["schemas"]["QuickNoteView"];
 export type ThoughtNodeView = components["schemas"]["NodeView"];
 export * from "./space.js";
 export * from "./layout.js";
+export * from "./visual.js";
 
 export class WeaverApiError extends Error {
   code: string;

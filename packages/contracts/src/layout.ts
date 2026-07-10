@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { graphOperationSchema, viewTypeSchema } from "./space.js";
+import { defaultProjectionByView, defaultViewTheme, projectionSpecSchema, viewThemeSchema } from "./visual.js";
 
 export const layoutStrategySchema = z.enum(["tree", "layered", "radial", "force", "cluster", "grid", "timeline", "swimlane", "hybrid"]);
 export type LayoutStrategy = z.infer<typeof layoutStrategySchema>;
@@ -58,6 +59,10 @@ export const layoutDocumentSchema = z.object({
   viewType: viewTypeSchema,
   graphRevision: z.number().int().nonnegative(),
   layoutRevision: z.number().int().nonnegative(),
+  viewName: z.string().default("Untitled view"),
+  templateRef: z.object({ id: z.string(), version: z.string() }).optional(),
+  projection: projectionSpecSchema.optional(),
+  theme: viewThemeSchema.default(defaultViewTheme),
   strategy: layoutStrategySchema,
   config: layoutConfigSchema,
   nodes: z.record(z.string(), nodeLayoutSchema),
@@ -66,7 +71,7 @@ export const layoutDocumentSchema = z.object({
   bounds: rectSchema,
   createdBy: z.enum(["user", "layout-engine", "agent"]),
   updatedAt: z.string(),
-});
+}).transform((document) => ({ ...document, projection: document.projection ?? projectionSpecSchema.parse(defaultProjectionByView[document.viewType]) }));
 export type LayoutDocument = z.infer<typeof layoutDocumentSchema>;
 
 export const layoutConstraintSchema = z.object({
@@ -122,6 +127,9 @@ export const layoutOperationSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("set-edge-route"), viewId: z.string(), edgeId: z.string(), route: edgeLayoutSchema }),
   z.object({ type: z.literal("set-layout-config"), viewId: z.string(), config: layoutConfigSchema }),
   z.object({ type: z.literal("set-viewport-preset"), viewId: z.string(), viewport: z.object({ x: z.number(), y: z.number(), zoom: z.number().positive() }) }),
+  z.object({ type: z.literal("set-view-name"), viewId: z.string(), viewName: z.string().min(1) }),
+  z.object({ type: z.literal("set-view-projection"), viewId: z.string(), projection: projectionSpecSchema }),
+  z.object({ type: z.literal("set-view-theme"), viewId: z.string(), theme: viewThemeSchema }),
 ]);
 export type LayoutOperation = z.infer<typeof layoutOperationSchema>;
 

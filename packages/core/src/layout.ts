@@ -51,6 +51,15 @@ export function applyLayoutOperations(document: LayoutDocument, operations: Layo
         break;
       case "set-viewport-preset":
         break;
+      case "set-view-name":
+        next.viewName = operation.viewName;
+        break;
+      case "set-view-projection":
+        next.projection = operation.projection;
+        break;
+      case "set-view-theme":
+        next.theme = operation.theme;
+        break;
     }
   }
   next.layoutRevision = nextRevision;
@@ -71,5 +80,8 @@ export function diffLayoutDocuments(before: LayoutDocument, after: LayoutDocumen
     if (JSON.stringify(previous) !== JSON.stringify(edge)) operations.push({ type: "set-edge-route", viewId: after.viewId, edgeId, route: edge });
   }
   if (JSON.stringify(before.config) !== JSON.stringify(after.config)) operations.push({ type: "set-layout-config", viewId: after.viewId, config: after.config });
+  if (before.viewName !== after.viewName) operations.push({ type: "set-view-name", viewId: after.viewId, viewName: after.viewName });
+  if (JSON.stringify(before.projection) !== JSON.stringify(after.projection)) operations.push({ type: "set-view-projection", viewId: after.viewId, projection: after.projection });
+  if (JSON.stringify(before.theme) !== JSON.stringify(after.theme)) operations.push({ type: "set-view-theme", viewId: after.viewId, theme: after.theme });
   return operations;
 }

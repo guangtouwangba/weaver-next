@@ -1,9 +1,11 @@
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import sharp from "sharp";
 import { getScenePack } from "@weaver/scene-packs";
+import { getVisualTemplate } from "@weaver/visual-templates";
 import { WorkspaceStore } from "../src/workspace-store.js";
 
 const roots: string[] = [];
@@ -12,6 +14,20 @@ afterEach(() => roots.splice(0).forEach((root) => rmSync(root, { recursive: true
 function store() {
   const root = mkdtempSync(join(tmpdir(), "weaver-store-")); roots.push(root); mkdirSync(root, { recursive: true });
   return new WorkspaceStore(root);
+}
+
+function dispatchAndStart(db: WorkspaceStore, task: ReturnType<WorkspaceStore["prepareAgentTask"]>) {
+  const dispatchKey = task.dispatches.at(-1)!.dispatchKey;
+  db.confirmAgentDispatch(task.taskId, dispatchKey);
+  return db.updateAgentTask(task.taskId, { status: "running" });
+}
+
+function bindCanvas(db: WorkspaceStore, project: { id: string; defaultViewId: string; graphRevision: number }, scene: NonNullable<ReturnType<typeof getScenePack>>, canvasSessionId: string, options: { selectedNodeIds?: string[]; focused?: boolean; lastSeenAt?: string } = {}) {
+  const chatSessionKey = createHash("sha256").update(`test-chat:${canvasSessionId}`).digest("hex");
+  const binding = db.openChatCanvasBinding({ chatSessionKey, projectId: project.id, viewId: project.defaultViewId });
+  const timestamp = options.lastSeenAt ?? new Date().toISOString();
+  db.syncCanvasContext({ version: 2, canvasSessionId, workspaceDir: db.workspaceDir, projectId: project.id, scenePackId: scene.id, scenePackVersion: scene.version, graphRevision: project.graphRevision, viewId: project.defaultViewId, viewType: scene.defaultView, selectedNodeIds: options.selectedNodeIds ?? [], selectedEdgeIds: [], selectedGroupIds: [], pinnedContextNodeIds: [], viewport: { x: 0, y: 0, zoom: 1 }, presence: { visible: true, focused: options.focused ?? true, lastSeenAt: timestamp }, chatBinding: { leaseId: binding.leaseId, bindingRevision: binding.bindingRevision }, agentEligible: true, sequence: 1, updatedAt: timestamp }, chatSessionKey);
+  return chatSessionKey;
 }
 
 describe("WorkspaceStore", () => {
@@ -31,7 +47,7 @@ describe("WorkspaceStore", () => {
     const db = store();
     const scene = getScenePack("free-brainstorming")!;
     const project = db.createProject({ title: "Test", goal: "Map ideas", scenePack: scene });
-    const snapshot = { version: 1 as const, canvasSessionId: "s", workspaceDir: db.workspaceDir, projectId: project.id, scenePackId: scene.id, scenePackVersion: scene.version, graphRevision: 0, viewId: project.defaultViewId, viewType: scene.defaultView, selectedNodeIds: [], selectedEdgeIds: [], selectedGroupIds: [], pinnedContextNodeIds: [], viewport: { x: 0, y: 0, zoom: 1 }, sequence: 2, updatedAt: new Date().toISOString() };
+    const snapshot = { version: 2 as const, canvasSessionId: "s", workspaceDir: db.workspaceDir, projectId: project.id, scenePackId: scene.id, scenePackVersion: scene.version, graphRevision: 0, viewId: project.defaultViewId, viewType: scene.defaultView, selectedNodeIds: [], selectedEdgeIds: [], selectedGroupIds: [], pinnedContextNodeIds: [], viewport: { x: 0, y: 0, zoom: 1 }, agentEligible: false, sequence: 2, updatedAt: new Date().toISOString() };
     db.syncCanvasContext(snapshot);
     expect(() => db.syncCanvasContext({ ...snapshot, sequence: 1 })).toThrow("STALE_CANVAS_SEQUENCE");
     db.close();
@@ -50,6 +66,36 @@ describe("WorkspaceStore", () => {
     db.close();
   });
 
+  it("creates a project atomically from a visual template", () => {
+    const db = store(); const scene = getScenePack("problem-decomposition")!; const template = getVisualTemplate("logic-tree")!;
+    const chatSessionKey = createHash("sha256").update("template-chat").digest("hex");
+    const created = db.createProjectFromVisualTemplate({ title: "Decompose", goal: "Understand a problem", scenePack: scene, template, chatBinding: { chatSessionKey } });
+    expect(created.project).toMatchObject({ graphRevision: 1, createdFromTemplate: { id: "logic-tree", version: "1.0.0" } });
+    expect(created.graph.nodes.length).toBeGreaterThan(1); expect(created.graph.edges.length).toBeGreaterThan(0);
+    expect(created.layout).toMatchObject({ layoutRevision: 1, viewName: "逻辑拆解树", templateRef: { id: "logic-tree", version: "1.0.0" }, projection: { kind: "tree" } });
+    expect(created.binding).toMatchObject({ projectId: created.project.id, viewId: created.project.defaultViewId, status: "opening" });
+    db.close();
+  });
+
+  it("creates multiple same-type template views without changing graph", () => {
+    const db = store(); const scene = getScenePack("free-brainstorming")!; const project = db.createProject({ title: "Views", goal: "", scenePack: scene });
+    const template = getVisualTemplate("blank-canvas")!;
+    const first = db.createViewFromVisualTemplate({ projectId: project.id, template, baseGraphRevision: 0, viewName: "Workshop" });
+    const second = db.createViewFromVisualTemplate({ projectId: project.id, template, baseGraphRevision: 0, viewName: "Workshop" });
+    expect(first.viewId).not.toBe(second.viewId); expect(second.viewName).toBe("Workshop 2"); expect(db.getProject(project.id)?.graphRevision).toBe(0);
+    expect(db.listProjectEvents(project.id).some((event) => event.kind === "view.created")).toBe(true);
+    expect(() => db.createViewFromVisualTemplate({ projectId: project.id, template, baseGraphRevision: 1 })).toThrow("GRAPH_REVISION_CONFLICT");
+    db.close();
+  });
+
+  it("materializes matrix quadrants as view-only groups", () => {
+    const db = store(); const scene = getScenePack("decision-comparison")!; const template = getVisualTemplate("swot-matrix")!;
+    const created = db.createProjectFromVisualTemplate({ title: "SWOT", goal: "Compare a decision", scenePack: scene, template });
+    expect(Object.keys(created.layout.groups)).toEqual(expect.arrayContaining(["quadrant:优势", "quadrant:劣势", "quadrant:机会", "quadrant:威胁"]));
+    expect(created.layout.projection.kind).toBe("matrix"); expect(created.project.graphRevision).toBe(1);
+    db.close();
+  });
+
   it("migrates legacy body nodes into document content without changing graph revision", () => {
     const db = store();
     const scene = getScenePack("free-brainstorming")!;
@@ -63,6 +109,21 @@ describe("WorkspaceStore", () => {
     expect(node.contentKind).toBe("document");
     expect(node.content).toMatchObject({ kind: "document", markdown: "# Kept markdown" });
     expect(reopened.getProject(project.id)?.graphRevision).toBe(0);
+    reopened.close();
+  });
+
+  it("migrates legacy canvas contexts to unbound and cancels legacy active tasks", () => {
+    const db = store(); const scene = getScenePack("free-brainstorming")!;
+    const project = db.createProject({ title: "Legacy task", goal: "", scenePack: scene });
+    const timestamp = new Date().toISOString();
+    const legacyContext = { version: 1, canvasSessionId: "legacy-canvas", workspaceDir: db.workspaceDir, projectId: project.id, scenePackId: scene.id, scenePackVersion: scene.version, graphRevision: 0, viewId: project.defaultViewId, viewType: scene.defaultView, selectedNodeIds: [], selectedEdgeIds: [], selectedGroupIds: [], pinnedContextNodeIds: [], viewport: { x: 0, y: 0, zoom: 1 }, sequence: 1, updatedAt: timestamp };
+    const legacyTask = { taskId: "legacy-task", canvasSessionId: "legacy-canvas", workspaceDir: db.workspaceDir, projectId: project.id, actionKey: "develop_selection", selectedNodeIds: [], selectedEdgeIds: [], pinnedContextNodeIds: [], expectedGraphRevision: 0, contextResourceUri: "weaver://legacy", attachmentResourceUris: [], status: "running", createdAt: timestamp, updatedAt: timestamp };
+    db.db.prepare("INSERT INTO canvas_session(id, project_id, sequence, data) VALUES (?, ?, ?, ?)").run("legacy-canvas", project.id, 1, JSON.stringify(legacyContext));
+    db.db.prepare("INSERT INTO agent_task(id, project_id, data) VALUES (?, ?, ?)").run("legacy-task", project.id, JSON.stringify(legacyTask));
+    const workspaceDir = db.workspaceDir; db.close();
+    const reopened = new WorkspaceStore(workspaceDir);
+    expect(reopened.getCanvasContext("legacy-canvas")).toMatchObject({ version: 2, agentEligible: false });
+    expect(reopened.getAgentTask("legacy-task")).toMatchObject({ chatSessionKey: "legacy-unbound", bindingRevision: 0, status: "cancelled", error: { code: "LEGACY_TASK_UNBOUND" } });
     reopened.close();
   });
 
@@ -91,8 +152,9 @@ describe("WorkspaceStore", () => {
     const project = db.createProject({ title: "Guarded", goal: "", scenePack: scene });
     const timestamp = new Date().toISOString();
     db.db.prepare("INSERT INTO node(id, project_id, data) VALUES (?, ?, ?)").run("note", project.id, JSON.stringify({ id: "note", projectId: project.id, type: "idea", title: "Note", body: "", contentKind: "document", content: { kind: "document", mode: "note", markdown: "", excerpt: "", embeddedAssetIds: [] }, properties: {}, archived: false, createdAt: timestamp, updatedAt: timestamp }));
-    db.syncCanvasContext({ version: 1, canvasSessionId: "unsafe-session", workspaceDir: db.workspaceDir, projectId: project.id, scenePackId: scene.id, scenePackVersion: scene.version, graphRevision: 0, viewId: project.defaultViewId, viewType: scene.defaultView, selectedNodeIds: ["note"], selectedEdgeIds: [], selectedGroupIds: [], pinnedContextNodeIds: [], viewport: { x: 0, y: 0, zoom: 1 }, sequence: 1, updatedAt: timestamp });
-    const task = db.prepareAgentTask({ canvasSessionId: "unsafe-session", actionKey: "develop_selection" });
+    const chatSessionKey = bindCanvas(db, project, scene, "unsafe-session", { selectedNodeIds: ["note"] });
+    const task = db.prepareAgentTask({ canvasSessionId: "unsafe-session", actionKey: "develop_selection", chatSessionKey });
+    dispatchAndStart(db, task);
     db.submitChangeSet({ id: "unsafe", taskId: task.taskId, projectId: project.id, baseGraphRevision: 0, baseLayoutRevisions: {}, graphOperations: [{ type: "set-node-content", nodeId: "note", content: { kind: "image", assetId: "/tmp/not-an-asset", alt: "", caption: "" } }], layoutOperations: [], rationale: "Try bypass", riskLevel: "high", status: "pending", createdAt: timestamp, updatedAt: timestamp });
     expect(() => db.applyChangeSet("unsafe")).toThrow("ASSET_NOT_FOUND_OR_CROSS_PROJECT");
     expect(db.getProject(project.id)?.graphRevision).toBe(0);
@@ -104,13 +166,14 @@ describe("WorkspaceStore", () => {
     const scene = getScenePack("free-brainstorming")!;
     const project = db.createProject({ title: "Events", goal: "", scenePack: scene });
     const timestamp = new Date().toISOString();
-    db.syncCanvasContext({ version: 1, canvasSessionId: "event-session", workspaceDir: db.workspaceDir, projectId: project.id, scenePackId: scene.id, scenePackVersion: scene.version, graphRevision: 0, viewId: project.defaultViewId, viewType: scene.defaultView, selectedNodeIds: [], selectedEdgeIds: [], selectedGroupIds: [], pinnedContextNodeIds: [], viewport: { x: 0, y: 0, zoom: 1 }, presence: { visible: true, focused: true, lastSeenAt: timestamp }, sequence: 1, updatedAt: timestamp });
-    const task = db.prepareAgentTask({ canvasSessionId: "event-session", actionKey: "develop_selection" });
+    const chatSessionKey = bindCanvas(db, project, scene, "event-session");
+    const task = db.prepareAgentTask({ canvasSessionId: "event-session", actionKey: "develop_selection", chatSessionKey });
+    dispatchAndStart(db, task);
     db.submitChangeSet({ id: "event-change", taskId: task.taskId, projectId: project.id, baseGraphRevision: 0, baseLayoutRevisions: {}, graphOperations: [], layoutOperations: [], rationale: "No-op review", riskLevel: "low", status: "pending", createdAt: timestamp, updatedAt: timestamp });
     const events = db.listProjectEvents(project.id);
     expect(events.map((event) => event.sequence)).toEqual([...events.map((event) => event.sequence)].sort((a, b) => a - b));
-    expect(events.filter((event) => event.kind === "task.updated")).toHaveLength(2);
-    expect(db.getAgentTask(task.taskId)).toMatchObject({ status: "pending_review", taskRevision: 1, results: { changeSetId: "event-change" } });
+    expect(events.filter((event) => event.kind === "task.updated")).toHaveLength(4);
+    expect(db.getAgentTask(task.taskId)).toMatchObject({ status: "pending_review", taskRevision: 3, results: { changeSetId: "event-change" } });
     db.close();
   });
 
@@ -118,8 +181,9 @@ describe("WorkspaceStore", () => {
     const db = store(); const scene = getScenePack("free-brainstorming")!;
     const project = db.createProject({ title: "Mixed", goal: "", scenePack: scene });
     const timestamp = new Date().toISOString();
-    db.syncCanvasContext({ version: 1, canvasSessionId: "mixed-session", workspaceDir: db.workspaceDir, projectId: project.id, scenePackId: scene.id, scenePackVersion: scene.version, graphRevision: 0, viewId: project.defaultViewId, viewType: scene.defaultView, selectedNodeIds: [], selectedEdgeIds: [], selectedGroupIds: [], pinnedContextNodeIds: [], viewport: { x: 0, y: 0, zoom: 1 }, presence: { visible: true, focused: true, lastSeenAt: timestamp }, sequence: 1, updatedAt: timestamp });
-    const task = db.prepareAgentTask({ canvasSessionId: "mixed-session", actionKey: "develop_then_layout" });
+    const chatSessionKey = bindCanvas(db, project, scene, "mixed-session");
+    const task = db.prepareAgentTask({ canvasSessionId: "mixed-session", actionKey: "develop_then_layout", chatSessionKey });
+    dispatchAndStart(db, task);
     db.submitChangeSet({ id: "mixed-change", taskId: task.taskId, projectId: project.id, baseGraphRevision: 0, baseLayoutRevisions: {}, graphOperations: [{ type: "add-node", node: { id: "agent-node", projectId: project.id, type: "idea", title: "Agent node", body: "", contentKind: "document", content: { kind: "document", mode: "note", markdown: "", excerpt: "", embeddedAssetIds: [] }, properties: {}, archived: false, createdAt: timestamp, updatedAt: timestamp } }], layoutOperations: [], rationale: "Add one idea", riskLevel: "low", status: "pending", createdAt: timestamp, updatedAt: timestamp });
     const applied = db.applyChangeSet("mixed-change");
     expect(applied.graphRevision).toBe(1);
@@ -129,15 +193,188 @@ describe("WorkspaceStore", () => {
     db.close();
   });
 
-  it("resolves a uniquely focused recent canvas and rejects ambiguity", () => {
+  it("serializes active canvas tasks and validates dispatch transitions", () => {
     const db = store(); const scene = getScenePack("free-brainstorming")!;
-    const project = db.createProject({ title: "Presence", goal: "", scenePack: scene });
+    const project = db.createProject({ title: "Dispatch", goal: "", scenePack: scene });
     const timestamp = new Date().toISOString();
-    const snapshot = (canvasSessionId: string, focused: boolean, sequence: number) => ({ version: 1 as const, canvasSessionId, workspaceDir: db.workspaceDir, projectId: project.id, scenePackId: scene.id, scenePackVersion: scene.version, graphRevision: 0, viewId: project.defaultViewId, viewType: scene.defaultView, selectedNodeIds: [], selectedEdgeIds: [], selectedGroupIds: [], pinnedContextNodeIds: [], viewport: { x: 0, y: 0, zoom: 1 }, presence: { visible: true, focused, lastSeenAt: timestamp }, sequence, updatedAt: timestamp });
-    db.syncCanvasContext(snapshot("focused", true, 1)); db.syncCanvasContext(snapshot("background", false, 1));
-    expect(db.resolveActiveCanvas().canvasSessionId).toBe("focused");
-    db.syncCanvasContext(snapshot("also-focused", true, 1));
-    expect(() => db.resolveActiveCanvas()).toThrow("AMBIGUOUS_ACTIVE_CANVAS");
+    const chatSessionKey = bindCanvas(db, project, scene, "dispatch-session");
+    const first = db.prepareAgentTask({ canvasSessionId: "dispatch-session", actionKey: "develop_selection", dispatchKey: "dispatch-1", chatSessionKey });
+    expect(db.prepareAgentTask({ canvasSessionId: "dispatch-session", actionKey: "develop_selection", dispatchKey: "dispatch-1", chatSessionKey }).taskId).toBe(first.taskId);
+    expect(() => db.prepareAgentTask({ canvasSessionId: "dispatch-session", actionKey: "layout_view", dispatchKey: "dispatch-2", chatSessionKey })).toThrow(`ACTIVE_CANVAS_TASK_EXISTS:${first.taskId}`);
+    expect(() => db.updateAgentTask(first.taskId, { status: "running" })).toThrow("TASK_TRANSITION_INVALID:prepared->running");
+    const dispatched = db.confirmAgentDispatch(first.taskId, "dispatch-1");
+    expect(dispatched).toMatchObject({ status: "dispatched", dispatches: [{ state: "accepted" }] });
+    expect(db.confirmAgentDispatch(first.taskId, "dispatch-1")).toMatchObject({ status: "dispatched" });
+    db.updateAgentTask(first.taskId, { status: "cancelled" });
+    expect(() => db.updateAgentTask(first.taskId, { status: "running" })).toThrow("TASK_TRANSITION_INVALID:cancelled->running");
+    expect(() => db.submitChangeSet({ id: "late-write", taskId: first.taskId, projectId: project.id, baseGraphRevision: 0, baseLayoutRevisions: {}, graphOperations: [], layoutOperations: [], rationale: "Too late", riskLevel: "low", status: "pending", createdAt: timestamp, updatedAt: timestamp })).toThrow("TASK_TERMINAL:cancelled");
     db.close();
   });
+
+  it("expires an abandoned prepared task before accepting a replacement", () => {
+    const db = store(); const scene = getScenePack("free-brainstorming")!;
+    const project = db.createProject({ title: "Expiry", goal: "", scenePack: scene }); const timestamp = new Date().toISOString();
+    const chatSessionKey = bindCanvas(db, project, scene, "expiry-session");
+    const abandoned = db.prepareAgentTask({ canvasSessionId: "expiry-session", actionKey: "develop_selection", dispatchKey: "abandoned", chatSessionKey });
+    db.db.prepare("UPDATE agent_task SET data = json_set(data, '$.updatedAt', ?) WHERE id = ?").run(new Date(Date.now() - 121_000).toISOString(), abandoned.taskId);
+    const replacement = db.prepareAgentTask({ canvasSessionId: "expiry-session", actionKey: "layout_view", dispatchKey: "replacement", chatSessionKey });
+    expect(replacement.taskId).not.toBe(abandoned.taskId);
+    expect(db.getAgentTask(abandoned.taskId)).toMatchObject({ status: "failed", error: { code: "PREPARED_TASK_EXPIRED" } });
+    db.close();
+  });
+
+  it("claims a mixed-task continuation once", () => {
+    const db = store(); const scene = getScenePack("free-brainstorming")!;
+    const project = db.createProject({ title: "Continuation", goal: "", scenePack: scene });
+    const timestamp = new Date().toISOString();
+    const chatSessionKey = bindCanvas(db, project, scene, "continuation-session");
+    const task = db.prepareAgentTask({ canvasSessionId: "continuation-session", actionKey: "develop_then_layout", dispatchKey: "content-dispatch", chatSessionKey }); dispatchAndStart(db, task);
+    db.submitChangeSet({ id: "continue-change", taskId: task.taskId, projectId: project.id, baseGraphRevision: 0, baseLayoutRevisions: {}, graphOperations: [], layoutOperations: [], rationale: "Review", riskLevel: "low", status: "pending", createdAt: timestamp, updatedAt: timestamp });
+    db.applyChangeSet("continue-change");
+    const ready = db.getAgentTask(task.taskId)!;
+    const claimed = db.beginAgentContinuation({ taskId: task.taskId, dispatchKey: "layout-dispatch", expectedTaskRevision: ready.taskRevision });
+    expect(claimed).toMatchObject({ status: "prepared", activeStage: "layout" });
+    expect(db.beginAgentContinuation({ taskId: task.taskId, dispatchKey: "layout-dispatch", expectedTaskRevision: ready.taskRevision }).taskRevision).toBe(claimed.taskRevision);
+    expect(() => db.beginAgentContinuation({ taskId: task.taskId, dispatchKey: "other", expectedTaskRevision: ready.taskRevision })).toThrow("TASK_REVISION_CONFLICT");
+    db.close();
+  });
+
+  it("isolates two Codex chats that open the same project", () => {
+    const db = store(); const scene = getScenePack("free-brainstorming")!;
+    const project = db.createProject({ title: "Shared graph", goal: "", scenePack: scene });
+    const firstChat = bindCanvas(db, project, scene, "chat-a-canvas");
+    const secondChat = bindCanvas(db, project, scene, "chat-b-canvas");
+    const firstTask = db.prepareAgentTask({ canvasSessionId: "chat-a-canvas", actionKey: "develop_selection", chatSessionKey: firstChat });
+    const secondTask = db.prepareAgentTask({ canvasSessionId: "chat-b-canvas", actionKey: "layout_view", chatSessionKey: secondChat });
+    expect(firstTask.canvasSessionId).not.toBe(secondTask.canvasSessionId);
+    expect(firstTask.chatSessionKey).not.toBe(secondTask.chatSessionKey);
+    expect(() => db.assertTaskChat(firstTask.taskId, secondChat)).toThrow("TASK_CHAT_MISMATCH");
+    expect(db.assertTaskChat(secondTask.taskId, secondChat).taskId).toBe(secondTask.taskId);
+    db.close();
+  });
+
+  it("invalidates the old lease and pending task when a chat switches canvas", () => {
+    const db = store(); const scene = getScenePack("free-brainstorming")!;
+    const firstProject = db.createProject({ title: "First", goal: "", scenePack: scene });
+    const secondProject = db.createProject({ title: "Second", goal: "", scenePack: scene });
+    const chatSessionKey = bindCanvas(db, firstProject, scene, "rebound-canvas");
+    const task = db.prepareAgentTask({ canvasSessionId: "rebound-canvas", actionKey: "develop_selection", chatSessionKey });
+    dispatchAndStart(db, task);
+    const current = db.getChatCanvasBinding(chatSessionKey)!;
+    const switched = db.switchChatCanvasBinding({ chatSessionKey, leaseId: current.leaseId, bindingRevision: current.bindingRevision, projectId: secondProject.id, viewId: secondProject.defaultViewId });
+    expect(switched).toMatchObject({ status: "opening", bindingRevision: current.bindingRevision + 1, projectId: secondProject.id });
+    expect(db.getAgentTask(task.taskId)).toMatchObject({ status: "cancelled", error: { code: "CHAT_CANVAS_REBOUND" } });
+    expect(() => db.switchChatCanvasBinding({ chatSessionKey, leaseId: current.leaseId, bindingRevision: current.bindingRevision, projectId: firstProject.id, viewId: firstProject.defaultViewId })).toThrow("CHAT_CANVAS_LEASE_STALE");
+    expect(db.listProjectEvents(firstProject.id).some((event) => event.kind === "chat.binding.changed")).toBe(true);
+    db.close();
+  });
+
+  it("fails closed for offline and browser-preview canvases", () => {
+    const db = store(); const scene = getScenePack("free-brainstorming")!;
+    const project = db.createProject({ title: "Presence", goal: "", scenePack: scene });
+    const offlineChat = bindCanvas(db, project, scene, "offline-canvas", { lastSeenAt: new Date(Date.now() - 31_000).toISOString() });
+    expect(() => db.getBoundCanvas(offlineChat, true)).toThrow("BOUND_CANVAS_OFFLINE");
+    const timestamp = new Date().toISOString();
+    db.syncCanvasContext({ version: 2, canvasSessionId: "browser-canvas", workspaceDir: db.workspaceDir, projectId: project.id, scenePackId: scene.id, scenePackVersion: scene.version, graphRevision: 0, viewId: project.defaultViewId, viewType: scene.defaultView, selectedNodeIds: [], selectedEdgeIds: [], selectedGroupIds: [], pinnedContextNodeIds: [], viewport: { x: 0, y: 0, zoom: 1 }, agentEligible: false, sequence: 1, updatedAt: timestamp });
+    expect(() => db.prepareAgentTask({ canvasSessionId: "browser-canvas", actionKey: "develop_selection", chatSessionKey: offlineChat })).toThrow("BROWSER_PREVIEW_AGENT_UNAVAILABLE");
+    db.close();
+  });
+
+  it("creates one catalog entry for every persisted layout", () => {
+    const db = store(); const scene = getScenePack("free-brainstorming")!;
+    const project = db.createProject({ title: "Catalog", goal: "", scenePack: scene });
+    db.ensureView({ projectId: project.id, viewId: "graph-default", viewType: "graph", strategy: "force" });
+    const views = (db as any).listProjectViews(project.id);
+    expect(views.map((view: any) => view.id)).toEqual(expect.arrayContaining([project.defaultViewId, "graph-default"]));
+    expect(views.find((view: any) => view.id === project.defaultViewId)).toMatchObject({ status: "active", pinned: true });
+    expect((db.getProject(project.id) as any).viewCatalogRevision).toBeGreaterThan(0);
+    db.close();
+  });
+
+  it("records template metadata in the View catalog", () => {
+    const db = store(); const scene = getScenePack("free-brainstorming")!;
+    const project = db.createProject({ title: "Templates", goal: "", scenePack: scene });
+    const template = getVisualTemplate("blank-canvas")!;
+    const layout = db.createViewFromVisualTemplate({ projectId: project.id, template, baseGraphRevision: 0, viewName: "Workshop" });
+    expect((db as any).getProjectView(project.id, layout.viewId)).toMatchObject({ id: layout.viewId, name: "Workshop", templateRef: { id: "blank-canvas", version: "1.0.0" }, createdBy: "template" });
+    db.close();
+  });
+
+  it("renames and pins Views without changing graph or layout revisions", () => {
+    const db = store(); const scene = getScenePack("free-brainstorming")!;
+    const project = db.createProject({ title: "Metadata", goal: "", scenePack: scene });
+    const graphView = db.ensureView({ projectId: project.id, viewId: "graph-default", viewType: "graph", strategy: "force" });
+    const beforeCatalogRevision = Number((db.getProject(project.id) as any).viewCatalogRevision);
+    const renamed = (db as any).renameProjectView({ projectId: project.id, viewId: graphView.viewId, name: "关系网络", baseCatalogRevision: beforeCatalogRevision });
+    const pinned = (db as any).pinProjectView({ projectId: project.id, viewId: graphView.viewId, pinned: true, baseCatalogRevision: renamed.project.viewCatalogRevision });
+    expect(pinned.view).toMatchObject({ name: "关系网络", pinned: true });
+    expect(db.getProject(project.id)?.graphRevision).toBe(0);
+    expect(db.getLayout(project.id, graphView.viewId)?.layoutRevision).toBe(0);
+    expect(pinned.project.viewCatalogRevision).toBe(beforeCatalogRevision + 2);
+    db.close();
+  });
+
+  it("moves a current default View to trash and atomically falls back", () => {
+    const db = store(); const scene = getScenePack("free-brainstorming")!;
+    const project = db.createProject({ title: "Trash", goal: "", scenePack: scene });
+    const fallback = db.ensureView({ projectId: project.id, viewId: "graph-default", viewType: "graph", strategy: "force" });
+    const chatSessionKey = bindCanvas(db, db.getProject(project.id)!, scene, "trash-canvas");
+    const task = db.prepareAgentTask({ canvasSessionId: "trash-canvas", actionKey: "develop_selection", chatSessionKey }); dispatchAndStart(db, task);
+    const before = db.getProject(project.id)!; const layoutRevision = db.getLayout(project.id, project.defaultViewId)!.layoutRevision;
+    const trashed = (db as any).trashProjectView({ projectId: project.id, viewId: project.defaultViewId, fallbackViewId: fallback.viewId, baseCatalogRevision: (before as any).viewCatalogRevision });
+    expect(trashed.view).toMatchObject({ status: "trashed" });
+    expect(trashed.project.defaultViewId).toBe(fallback.viewId);
+    expect(db.getChatCanvasBinding(chatSessionKey)).toMatchObject({ viewId: fallback.viewId, status: "opening" });
+    expect(db.getAgentTask(task.taskId)).toMatchObject({ status: "cancelled", error: { code: "VIEW_TRASHED" } });
+    expect(db.getLayout(project.id, project.defaultViewId)?.layoutRevision).toBe(layoutRevision);
+    expect(db.getProject(project.id)?.graphRevision).toBe(0);
+    db.close();
+  });
+
+  it("protects the last active View and supports restore then permanent purge", () => {
+    const db = store(); const scene = getScenePack("free-brainstorming")!;
+    const project = db.createProject({ title: "Recovery", goal: "", scenePack: scene });
+    expect(() => (db as any).trashProjectView({ projectId: project.id, viewId: project.defaultViewId, baseCatalogRevision: (db.getProject(project.id) as any).viewCatalogRevision })).toThrow("LAST_ACTIVE_VIEW");
+    const second = db.ensureView({ projectId: project.id, viewId: "graph-default", viewType: "graph", strategy: "force" });
+    let revision = (db.getProject(project.id) as any).viewCatalogRevision;
+    (db as any).trashProjectView({ projectId: project.id, viewId: second.viewId, baseCatalogRevision: revision });
+    revision = (db.getProject(project.id) as any).viewCatalogRevision;
+    expect((db as any).restoreProjectView({ projectId: project.id, viewId: second.viewId, baseCatalogRevision: revision }).view.status).toBe("active");
+    revision = (db.getProject(project.id) as any).viewCatalogRevision;
+    (db as any).trashProjectView({ projectId: project.id, viewId: second.viewId, baseCatalogRevision: revision });
+    revision = (db.getProject(project.id) as any).viewCatalogRevision;
+    (db as any).purgeProjectView({ projectId: project.id, viewId: second.viewId, baseCatalogRevision: revision });
+    expect((db as any).getProjectView(project.id, second.viewId)).toBeNull();
+    expect(db.getLayout(project.id, second.viewId)).toBeNull();
+    db.close();
+  });
+
+  it("duplicates a View and persists independent per-session View state", () => {
+    const db = store(); const scene = getScenePack("free-brainstorming")!;
+    const project = db.createProject({ title: "Duplicate", goal: "", scenePack: scene });
+    const source = db.getLayout(project.id, project.defaultViewId)!; source.nodes.example = { nodeId: "example", x: 120, y: 80, width: 220, height: 112, rotation: 0, zIndex: 0, pinned: false, hidden: false, collapsed: false }; db.saveLayout(source);
+    const duplicated = (db as any).duplicateProjectView({ projectId: project.id, viewId: project.defaultViewId, name: "Canvas for presentation", baseCatalogRevision: (db.getProject(project.id) as any).viewCatalogRevision });
+    expect(duplicated.view).toMatchObject({ name: "Canvas for presentation", pinned: false });
+    expect(duplicated.layout.viewId).not.toBe(project.defaultViewId);
+    expect(duplicated.layout.nodes.example).toMatchObject({ x: 120, y: 80 });
+    const state = { canvasSessionId: "state-session", viewId: duplicated.view.id, viewport: { x: 40, y: 50, zoom: 1.4 }, selectedNodeIds: ["example"], focusedNodeId: "example", lastOpenedAt: new Date().toISOString() };
+    (db as any).saveCanvasViewState(state);
+    expect((db as any).getCanvasViewState("state-session", duplicated.view.id)).toMatchObject({ viewport: state.viewport, selectedNodeIds: ["example"] });
+    db.close();
+  });
+
+  it("purges recycle-bin Views after their retention deadline", () => {
+    const db = store(); const scene = getScenePack("free-brainstorming")!;
+    const project = db.createProject({ title: "Retention", goal: "", scenePack: scene });
+    const second = db.ensureView({ projectId: project.id, viewId: "graph-default", viewType: "graph", strategy: "force" });
+    (db as any).trashProjectView({ projectId: project.id, viewId: second.viewId, baseCatalogRevision: (db.getProject(project.id) as any).viewCatalogRevision });
+    const expired = { ...(db as any).getProjectView(project.id, second.viewId), purgeAfter: new Date(Date.now() - 1_000).toISOString() };
+    db.db.prepare("UPDATE project_view SET data = ? WHERE id = ?").run(JSON.stringify(expired), second.viewId);
+    const workspaceDir = db.workspaceDir; db.close();
+    const reopened = new WorkspaceStore(workspaceDir);
+    expect((reopened as any).getProjectView(project.id, second.viewId)).toBeNull();
+    expect(reopened.getLayout(project.id, second.viewId)).toBeNull();
+    reopened.close();
+  });
+
 });

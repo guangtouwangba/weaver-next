@@ -1,6 +1,6 @@
 # Weaver 产品需求文档 · 第一性原理重做版
 
-> **版本**: 4.0 (Scene Space · MCP + Agent + Layout)
+> **版本**: 4.4 (Scene Space · MCP + Agent + Visual View Catalog)
 > **日期**: 2026-07-10
 > **状态**: 实施中
 > **配套文档**: `competitive-analysis-2026.md`（NotebookLM / YouMind 竞品分析与学习改造）
@@ -20,6 +20,46 @@
 - **双轴节点**：场景语义 `type` 与内容形态分离。第一阶段内容形态为 Markdown document、project-local image Asset 和安全 enrichment 的 public link；媒体二进制不进入图谱 JSON，完整内容由 MCP 显式按需读取。
 - **Codex 插件优先**：正式入口是原生 widget；MCP 提供结构化状态与 ChangeSet；Skills 提供稳定工作流；浏览器只用于开发预览。
 - **原分支隔离保留**：它成为 branching/argument 等场景的 `ancestor_path` 上下文策略；其他场景可使用有类型邻域 + 用户钉选，禁止默认读取整个图。
+
+### v4.1 Structured Visual 模板系统
+
+- **统一内容，多种投影**：Node、Edge 和 properties 是内容权威；思维导图、逻辑树、关系网络、流程、时间线、看板、矩阵和表格均为只读 Projection。
+- **模板职责**：`VisualTemplate` 是本地、不可变、带版本的纯数据，声明 Starter Blueprint、Scene Pack bindings、Projection、LayoutPreset 和 ViewTheme，不执行脚本。
+- **创建边界**：新项目可由模板原子生成内容骨架与默认视图；已有项目应用模板只能创建独立 View，不插入节点、不改变 `graphRevision`、不覆盖既有布局。
+- **首期目录**：八个视觉家族各两个内置模板，共 16 个；矩阵复用 Board Renderer。统计图表、信息图、幻灯片、自定义模板和在线模板市场不在首期。
+- **准备度**：模板先校验 Scene Pack 兼容性和属性字段准备度。必需字段缺失时禁止直接创建 View，可由用户补充或由 Agent 提交独立 ChangeSet，模板应用不得静默修改内容。
+- **版本与同步**：View 保存模板版本、Projection 和 Theme 快照；样式与投影只递增 `layoutRevision`。新视图通过 `view.created` SSE 事件同步，不重置其他 session 的当前 View 或 viewport。
+
+### v4.2 Canvas ↔ Codex 协作通道
+
+- **单一语言入口**：自然语言只在 Codex 对话中输入。Widget 不复制聊天输入框，也不提供 `Copy for Codex`；它负责画布操作、任务状态、预览和确认。
+- **主动上下文**：Canvas 静默同步 selection、focused node、Pin、viewport、viewId 与 graph/layout revisions。Codex 调用 `weaver_prepare_task_from_active_canvas` 获取当前 Chat 精确绑定的画布，不要求用户搬运 Task ID 或 Prompt，也不使用最近焦点兜底。
+- **可靠状态机**：每个 Canvas Session 同时只允许一个非终态任务。任务按 `prepared → dispatched → running` 推进；Agent 必须重新读取任务并确认有效后才能开始和写回。
+- **混合任务**：内容应用后进入 `ready_to_continue`。用户在 Codex 中说“继续布局”时，`weaver_prepare_task_from_active_canvas` 原子领取同一任务的布局阶段并返回 dispatched Task；已应用内容不会回滚。
+- **持久化优先**：取消、失败、过期和 stale Task 的后续写回由服务端拒绝。Codex 的执行结果以 SQLite 状态与事务化事件为权威，由 SSE 增量推送任务、图谱、布局和视图变化。
+- **浏览器边界**：localhost 不启动 Agent、Codex CLI 或后台 daemon；它可编辑画布，但明确显示 `Browser preview. Agent unavailable`，且不能创建 AgentTask。
+
+### v4.3 Codex Chat 与 Canvas 精确绑定
+
+- **一对一当前绑定**：可信 Codex `threadId` 在 MCP Server 内哈希为 `chatSessionKey`；一个 Chat 同时只绑定一个当前 Project/View/Canvas Session，同一 Project 可被多个 Chat 以独立 Session 打开。
+- **身份不可伪造**：Server 从 Tool Request `_meta.threadId` 读取身份，并与 `x-codex-turn-metadata.thread_id` 交叉校验。客户端参数、模型消息、SQLite、SSE 和日志均不保存原始 thread ID。
+- **lease 与 revision**：Widget bootstrap 获得 256-bit `leaseId` 和 `bindingRevision`。Project/View 显式切换递增 revision；selection、viewport、Pin 和 presence 更新不递增。旧 Widget 的 lease 立即失效。
+- **严格任务隔离**：AgentTask 固定 `chatSessionKey + bindingRevision`。prepare、start、读取结果、提交 ChangeSet、生成 LayoutRun、apply/reject 和混合任务续派均重新验证当前 Chat binding。
+- **切换语义**：Chat 切换 Canvas 时取消旧绑定的非终态任务，拒绝 pending ChangeSet/LayoutRun，并通过 `chat.binding.changed` SSE 让旧 Widget 进入 detached；已应用内容与布局不回滚。
+- **在线要求**：5 秒 presence heartbeat，30 秒未同步视为 Canvas offline。Binding 继续持久化，但 Agent 不得基于最后快照继续写入；重新从该 Chat 打开 Weaver 后取得新 lease。
+- **fork 语义**：Chat fork 获得新的 thread identity，默认未绑定，必须显式打开或创建 Weaver Canvas。
+
+### v4.4 Visual View 管理
+
+- **View 是持久化投影，不是临时 tab**：`ProjectView` 独立保存名称、模板引用、固定顺序、默认状态、最近打开时间和回收状态；`LayoutDocument` 继续只负责该 View 的投影、主题与几何布局。
+- **四类 revision 相互隔离**：内容变更递增 `graphRevision`；坐标、Projection 与 Theme 递增对应 View 的 `layoutRevision`；View 的重命名、固定、排序、默认项和回收递增 `viewCatalogRevision`；Chat 切换当前 View 递增 `bindingRevision`。
+- **顶部切换器保持克制**：只展示已固定 View，以及当前正在查看但未固定的 View；所有历史 View 通过左侧 `View Library` 查找，避免创建模板后顶部 tab 无限增长。
+- **View Library 是完整入口**：提供搜索、固定、重命名、复制、设为默认、回收和恢复；按 `固定 / 最近 / 全部 / 回收站` 组织，并显示模板、节点数、更新时间和当前/default 状态。
+- **删除是可恢复的**：首期没有 Archive；删除进入 30 天回收站。最后一个活动 View 不可删除。删除当前或默认 View 时必须原子选择 fallback、更新 Chat binding，并取消旧 View 上未完成的 AgentTask。
+- **恢复位置属于 Canvas Session**：viewport、selection 与 focused node 按 `canvasSessionId + viewId` 保存；切换 View 前 flush 文章编辑和拖拽状态，返回时恢复原位置且不关闭已打开的文章编辑器。
+- **模板重复可见但不禁止**：模板库展示当前项目已有实例，优先允许直接打开；用户仍可显式“再创建一个 View”，并可以在创建前命名。模板应用不改变 Graph。
+- **项目与 Chat 各有恢复语义**：Project 保存 default View；每个 Codex Chat 通过精确 binding 恢复自己最后打开的 View。同一 Project 的多个 Chat 不共享 viewport、selection 或当前 View。
+- **同步只传目录 delta**：所有 View 元数据变化统一写入 `view.catalog.changed` 事务事件；Widget 以 `viewCatalogRevision` 幂等应用，不重新加载 Graph、不重置 viewport。
 
 ---
 

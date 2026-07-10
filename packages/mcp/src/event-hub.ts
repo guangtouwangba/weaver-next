@@ -168,8 +168,11 @@ export class SseEventHub {
     try {
       return (database.prepare(`
         SELECT sequence, project_id, canvas_session_id, task_id, kind, graph_revision, view_id, layout_revision, payload, created_at
-        FROM project_event WHERE project_id = ? AND sequence > ? ORDER BY sequence ASC LIMIT 500
-      `).all(grant.projectId, afterSequence) as any[]).map((row) => projectEventSchema.parse({
+        FROM project_event
+        WHERE project_id = ? AND sequence > ?
+          AND (kind NOT IN ('task.updated', 'chat.binding.changed') OR canvas_session_id = ?)
+        ORDER BY sequence ASC LIMIT 500
+      `).all(grant.projectId, afterSequence, grant.canvasSessionId) as any[]).map((row) => projectEventSchema.parse({
         sequence: Number(row.sequence), projectId: row.project_id, canvasSessionId: row.canvas_session_id ?? undefined,
         taskId: row.task_id ?? undefined, kind: row.kind, graphRevision: row.graph_revision ?? undefined,
         viewId: row.view_id ?? undefined, layoutRevision: row.layout_revision ?? undefined,

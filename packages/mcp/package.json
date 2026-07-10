@@ -14,6 +14,7 @@
     "@weaver/layout-engine": "0.1.0",
     "@weaver/scene-packs": "0.1.0",
     "@weaver/storage": "0.1.0",
+    "@weaver/visual-templates": "0.1.0",
     "zod": "^4.4.3"
   }
 }

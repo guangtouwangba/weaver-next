@@ -12,6 +12,7 @@
     "@weaver/contracts": "0.1.0",
     "@weaver/core": "0.1.0",
     "@weaver/scene-packs": "0.1.0",
+    "@weaver/visual-templates": "0.1.0",
     "sharp": "^0.34.5"
   }
 }

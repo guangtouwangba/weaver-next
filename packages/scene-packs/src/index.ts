@@ -1,4 +1,22 @@
-import { scenePackSchema, type ScenePack, type ViewType } from "@weaver/contracts";
+import { scenePackSchema, type PropertyDefinition, type ScenePack, type ViewType } from "@weaver/contracts";
+
+const recommendedTemplates: Record<string, string[]> = {
+  "free-brainstorming": ["blank-canvas", "topic-cluster", "radial-mind-map"], "problem-decomposition": ["logic-tree", "radial-mind-map", "comparison-table"],
+  "decision-comparison": ["comparison-table", "swot-matrix", "priority-matrix", "kanban-board"], "argument-map": ["concept-network", "comparison-table", "research-catalog"],
+  "situational-vocabulary": ["radial-mind-map", "topic-cluster"], "concept-learning": ["concept-network", "logic-tree", "research-catalog"], "learning-path": ["project-roadmap", "process-flow"],
+  "entity-relationship": ["concept-network", "people-network", "research-catalog"], "people-organization-network": ["people-network", "event-timeline"],
+  "causal-map": ["causal-chain", "concept-network"], "event-timeline": ["event-timeline", "research-catalog"], "project-breakdown": ["project-roadmap", "kanban-board", "priority-matrix", "logic-tree"],
+  "process-design": ["process-flow", "role-swimlane"],
+};
+
+const commonProperties: Record<string, Record<string, PropertyDefinition[]>> = {
+  "event-timeline": { event: [{ key: "occurredAt", label: "发生时间", type: "datetime", required: true }, { key: "period", label: "阶段", type: "string", required: false }] },
+  "people-organization-network": { event: [{ key: "occurredAt", label: "发生时间", type: "datetime", required: false }] },
+  "project-breakdown": { task: [{ key: "status", label: "状态", type: "enum", required: false, options: ["待处理", "进行中", "已完成"] }, { key: "owner", label: "负责人", type: "string", required: false }, { key: "startAt", label: "开始时间", type: "date", required: false }, { key: "endAt", label: "结束时间", type: "date", required: false }, { key: "phase", label: "阶段", type: "string", required: false }, { key: "urgency", label: "紧急性", type: "number", required: false }, { key: "importance", label: "重要性", type: "number", required: false }] },
+  "decision-comparison": { option: [{ key: "status", label: "状态", type: "enum", required: false, options: ["待处理", "进行中", "已完成"] }, { key: "impact", label: "影响", type: "number", required: false }, { key: "effort", label: "投入", type: "number", required: false }, { key: "urgency", label: "紧急性", type: "number", required: false }, { key: "importance", label: "重要性", type: "number", required: false }] },
+  "learning-path": { module: [{ key: "startAt", label: "开始时间", type: "date", required: false }, { key: "endAt", label: "结束时间", type: "date", required: false }, { key: "phase", label: "阶段", type: "string", required: false }] },
+  "process-design": { step: [{ key: "status", label: "状态", type: "enum", required: false, options: ["待处理", "进行中", "已完成"] }, { key: "owner", label: "负责人", type: "string", required: false }] },
+};
 
 type PackInput = {
   id: string;
@@ -21,7 +39,7 @@ function pack(input: PackInput): ScenePack {
     name: input.name,
     category: input.category,
     description: input.description,
-    nodeTypes: input.nodeTypes.map(([key, label, color]) => ({ key, label, color, defaultWidth: 220, defaultHeight: 112, requiredProperties: [], defaultContentKind: "document", allowedContentKinds: ["document", "image", "link"] })),
+    nodeTypes: input.nodeTypes.map(([key, label, color]) => ({ key, label, color, defaultWidth: 220, defaultHeight: 112, requiredProperties: [], properties: commonProperties[input.id]?.[key] ?? [], defaultContentKind: "document", allowedContentKinds: ["document", "image", "link"] })),
     edgeTypes: input.edgeTypes.map(([key, label, directed = true]) => ({ key, label, directed, sourceTypes: [], targetTypes: [] })),
     recommendedViews: input.views,
     defaultView: input.views[0],
@@ -31,6 +49,7 @@ function pack(input: PackInput): ScenePack {
     contextPolicy: { modes: ["selected_nodes", "pinned_nodes", "typed_neighborhood"], maxNodes: 40, maxHops: 2 },
     artifactTypes: input.artifacts,
     scoringWeights: input.weights ?? { overlap: 10, crossings: 4, displacement: 2, compactness: 1 },
+    recommendedTemplateIds: recommendedTemplates[input.id] ?? ["blank-canvas"],
   });
 }
 

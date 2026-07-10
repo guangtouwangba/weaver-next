@@ -101,10 +101,18 @@ export const projectSchema = z.object({
   automationLevel: automationLevelSchema.default("collaborative"),
   defaultViewId: z.string().min(1),
   graphRevision: z.number().int().nonnegative().default(0),
+  viewCatalogRevision: z.number().int().nonnegative().default(0),
+  createdFromTemplate: z.object({ id: z.string(), version: z.string() }).optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
 export type SpaceProject = z.infer<typeof projectSchema>;
+
+export const propertyDefinitionSchema = z.object({
+  key: z.string().min(1), label: z.string().min(1), type: z.enum(["string", "number", "boolean", "date", "datetime", "enum", "node-reference"]),
+  required: z.boolean().default(false), options: z.array(z.string()).optional(), defaultValue: z.unknown().optional(),
+});
+export type PropertyDefinition = z.infer<typeof propertyDefinitionSchema>;
 
 const nodeTypeDefinitionSchema = z.object({
   key: z.string().min(1),
@@ -113,6 +121,7 @@ const nodeTypeDefinitionSchema = z.object({
   defaultWidth: z.number().positive().default(220),
   defaultHeight: z.number().positive().default(112),
   requiredProperties: z.array(z.string()).default([]),
+  properties: z.array(propertyDefinitionSchema).default([]),
   defaultContentKind: contentKindSchema.default("document"),
   allowedContentKinds: z.array(contentKindSchema).min(1).default(["document", "image", "link"]),
 });
@@ -127,6 +136,27 @@ const edgeTypeDefinitionSchema = z.object({
 
 export const viewTypeSchema = z.enum(["canvas", "tree", "graph", "board", "timeline", "flow", "table"]);
 export type ViewType = z.infer<typeof viewTypeSchema>;
+
+export const projectViewSchema = z.object({
+  id: z.string().min(1), projectId: z.string().min(1), name: z.string().trim().min(1).max(120), viewType: viewTypeSchema,
+  templateRef: z.object({ id: z.string().min(1), version: z.string().min(1) }).optional(),
+  status: z.enum(["active", "trashed"]).default("active"), pinned: z.boolean().default(false), pinnedOrder: z.number().int().nonnegative().optional(),
+  createdBy: z.enum(["user", "agent", "template"]).default("user"), createdAt: z.string(), updatedAt: z.string(), lastOpenedAt: z.string(),
+  trashedAt: z.string().optional(), purgeAfter: z.string().optional(),
+});
+export type ProjectView = z.infer<typeof projectViewSchema>;
+
+export const canvasViewStateSchema = z.object({
+  canvasSessionId: z.string().min(1), viewId: z.string().min(1),
+  viewport: z.object({ x: z.number(), y: z.number(), zoom: z.number().positive() }), selectedNodeIds: z.array(z.string()).default([]), focusedNodeId: z.string().optional(), lastOpenedAt: z.string(),
+});
+export type CanvasViewState = z.infer<typeof canvasViewStateSchema>;
+
+export const viewCatalogDeltaSchema = z.object({
+  projectId: z.string().min(1), fromRevision: z.number().int().nonnegative(), toRevision: z.number().int().nonnegative(),
+  upsertedViews: z.array(projectViewSchema).default([]), removedViewIds: z.array(z.string()).default([]), defaultViewId: z.string().optional(),
+});
+export type ViewCatalogDelta = z.infer<typeof viewCatalogDeltaSchema>;
 
 export const scenePackSchema = z.object({
   id: z.string().min(1),
@@ -148,6 +178,7 @@ export const scenePackSchema = z.object({
   }),
   artifactTypes: z.array(z.string()).default([]),
   scoringWeights: z.record(z.string(), z.number()).default({}),
+  recommendedTemplateIds: z.array(z.string()).default([]),
 });
 export type ScenePack = z.infer<typeof scenePackSchema>;
 
@@ -178,8 +209,20 @@ export const graphOperationSchema = z.discriminatedUnion("type", [
 ]);
 export type GraphOperation = z.infer<typeof graphOperationSchema>;
 
+export const chatCanvasBindingSchema = z.object({
+  chatSessionKey: z.string().regex(/^[a-f0-9]{64}$/),
+  bindingRevision: z.number().int().positive(),
+  leaseId: z.string().regex(/^[a-f0-9]{64}$/),
+  projectId: z.string().optional(),
+  viewId: z.string().optional(),
+  canvasSessionId: z.string().optional(),
+  status: z.enum(["opening", "active", "detached"]),
+  lastSeenAt: z.string(),
+});
+export type ChatCanvasBinding = z.infer<typeof chatCanvasBindingSchema>;
+
 export const canvasContextSnapshotSchema = z.object({
-  version: z.literal(1),
+  version: z.literal(2),
   canvasSessionId: z.string().min(1),
   workspaceDir: z.string().min(1),
   projectId: z.string().min(1),
@@ -199,6 +242,11 @@ export const canvasContextSnapshotSchema = z.object({
     focused: z.boolean().default(false),
     lastSeenAt: z.string(),
   }).optional(),
+  chatBinding: z.object({
+    leaseId: z.string().regex(/^[a-f0-9]{64}$/),
+    bindingRevision: z.number().int().positive(),
+  }).optional(),
+  agentEligible: z.boolean().default(false),
   sequence: z.number().int().nonnegative(),
   updatedAt: z.string(),
 });
@@ -209,6 +257,15 @@ export type AgentTaskIntent = z.infer<typeof agentTaskIntentSchema>;
 export const agentTaskStageSchema = z.enum(["content", "layout"]);
 export type AgentTaskStage = z.infer<typeof agentTaskStageSchema>;
 export const agentTaskStatusSchema = z.enum(["prepared", "dispatched", "running", "pending_review", "ready_to_continue", "completed", "stale", "failed", "cancelled"]);
+export const agentDispatchRecordSchema = z.object({
+  dispatchKey: z.string().min(1),
+  stage: agentTaskStageSchema,
+  state: z.enum(["prepared", "accepted", "rejected", "unconfirmed"]),
+  attemptedAt: z.string(),
+  acceptedAt: z.string().optional(),
+  error: z.object({ code: z.string(), message: z.string() }).optional(),
+});
+export type AgentDispatchRecord = z.infer<typeof agentDispatchRecordSchema>;
 const agentTaskErrorSchema = z.preprocess(
   (value) => typeof value === "string" ? { code: "TASK_FAILED", message: value } : value,
   z.object({ code: z.string(), message: z.string() }).optional(),
@@ -218,6 +275,9 @@ export const agentTaskSchema = z.object({
   canvasSessionId: z.string().min(1),
   workspaceDir: z.string().min(1),
   projectId: z.string().min(1),
+  viewId: z.string().default(""),
+  chatSessionKey: z.string().min(1).default("legacy-unbound"),
+  bindingRevision: z.number().int().nonnegative().default(0),
   actionKey: z.string().min(1),
   selectedNodeIds: z.array(z.string()).default([]),
   selectedEdgeIds: z.array(z.string()).default([]),
@@ -231,6 +291,7 @@ export const agentTaskSchema = z.object({
   intent: agentTaskIntentSchema.default("develop_selection"),
   activeStage: agentTaskStageSchema.default("content"),
   results: z.object({ changeSetId: z.string().optional(), layoutRunId: z.string().optional() }).default({}),
+  dispatches: z.array(agentDispatchRecordSchema).default([]),
   // Legacy fields remain readable while stored tasks migrate to `results`.
   layoutRunId: z.string().optional(),
   changeSetId: z.string().optional(),
@@ -247,7 +308,7 @@ export const agentTaskSchema = z.object({
 }));
 export type AgentTask = z.infer<typeof agentTaskSchema>;
 
-export const projectEventKindSchema = z.enum(["task.updated", "graph.changed", "layout.changed", "stream.reset"]);
+export const projectEventKindSchema = z.enum(["task.updated", "graph.changed", "layout.changed", "view.created", "view.catalog.changed", "chat.binding.changed", "stream.reset"]);
 export const projectEventSchema = z.object({
   sequence: z.number().int().positive(),
   projectId: z.string().min(1),

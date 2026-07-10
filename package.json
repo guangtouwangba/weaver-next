@@ -15,7 +15,7 @@
     "dev:web": "npm --workspace apps/web run dev",
     "build:web": "npm --workspace apps/web run build",
     "lint:web": "npm --workspace apps/web run lint",
-    "build:packages": "npm --workspace @weaver/contracts run build && npm --workspace @weaver/core run build && npm --workspace @weaver/layout-engine run build && npm --workspace @weaver/storage run build && npm --workspace @weaver/scene-packs run build && npm --workspace @weaver/mcp run build",
+    "build:packages": "npm --workspace @weaver/contracts run build && npm --workspace @weaver/core run build && npm --workspace @weaver/layout-engine run build && npm --workspace @weaver/scene-packs run build && npm --workspace @weaver/visual-templates run build && npm --workspace @weaver/storage run build && npm --workspace @weaver/mcp run build",
     "build:widget": "npm --workspace @weaver/widget run build",
     "build:plugin": "npm run build:packages && npm run build:widget",
     "test:ts": "vitest run",
