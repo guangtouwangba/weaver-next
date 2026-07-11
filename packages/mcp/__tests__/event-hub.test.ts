@@ -35,6 +35,24 @@ describe("SseEventHub", () => {
     expect(response.status).toBe(401);
   });
 
+  it("serves immutable widget assets only through its runtime token", async () => {
+    const hub = new SseEventHub(); hubs.push(hub); await hub.start();
+    const html = hub.widgetHtml();
+    const assetUrl = html.match(/(?:src|href)="(http:\/\/127\.0\.0\.1:[^"]+\.(?:js|css))"/)?.[1];
+    expect(assetUrl).toBeTruthy();
+    const response = await fetch(assetUrl!);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toContain("immutable");
+    const invalid = await fetch(assetUrl!.replace(/\/widget-assets\/([^/]+)\/[^/]+\//, "/widget-assets/$1/invalid/"));
+    expect(invalid.status).toBe(401);
+  });
+
+  it("bakes its loopback endpoint into the native Codex widget HTML", async () => {
+    const hub = new SseEventHub(); hubs.push(hub); await hub.start();
+    const html = hub.inlineWidgetHtml();
+    expect(html).toContain(`window.__weaverCodexLoopback=${JSON.stringify({ origin: hub.origin, token: hub.previewToken })}`);
+  });
+
   it("streams durable task events after the granted cursor", async () => {
     const { root, store, project, chatSessionKey } = fixture();
     const hub = new SseEventHub(); hubs.push(hub); await hub.start();
@@ -92,6 +110,20 @@ describe("SseEventHub", () => {
     const reader = response.body!.getReader(); const decoder = new TextDecoder(); let text = "";
     await Promise.race([(async () => { while (!text.includes(own.taskId)) { const chunk = await reader.read(); if (chunk.done) break; text += decoder.decode(chunk.value, { stream: true }); } })(), new Promise((_, reject) => setTimeout(() => reject(new Error("SSE filter timeout")), 2_000))]);
     expect(text).toContain(own.taskId); expect(text).not.toContain(other.taskId);
+    controller.abort(); store.close();
+  });
+
+  it("broadcasts project graph events across Canvas sessions", async () => {
+    const { root, store, project } = fixture();
+    const hub = new SseEventHub(); hubs.push(hub); await hub.start();
+    const grant = hub.openStream({ workspaceDir: root, projectId: project.id, canvasSessionId: "canvas-sse" });
+    const controller = new AbortController();
+    const response = await fetch(grant.eventStreamUrl, { signal: controller.signal });
+    store.appendProjectEvent({ projectId: project.id, canvasSessionId: "another-canvas", kind: "graph.changed", graphRevision: 1, payload: { fromRevision: 0, toRevision: 1, addedNodes: [], updatedNodes: [], archivedNodeIds: [], addedEdges: [], updatedEdges: [], archivedEdgeIds: [] } });
+    hub.notifyWorkspace(root);
+    const reader = response.body!.getReader(); const decoder = new TextDecoder(); let text = "";
+    await Promise.race([(async () => { while (!text.includes("graph.changed")) { const chunk = await reader.read(); if (chunk.done) break; text += decoder.decode(chunk.value, { stream: true }); } })(), new Promise((_, reject) => setTimeout(() => reject(new Error("SSE graph broadcast timeout")), 2_000))]);
+    expect(text).toContain("event: graph.changed");
     controller.abort(); store.close();
   });
 });

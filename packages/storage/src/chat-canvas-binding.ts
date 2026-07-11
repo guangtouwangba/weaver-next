@@ -57,8 +57,13 @@ export function openChatCanvasBinding(db: DatabaseSync, input: { chatSessionKey:
       const target = getProjectView(db, input.projectId, input.viewId); if (!target || target.status !== "active") throw new Error("VIEW_NOT_FOUND");
     }
     const current = getChatCanvasBinding(db, input.chatSessionKey);
+    if (current && !input.projectId && !input.viewId) return current;
     const sameTarget = current?.projectId === input.projectId && current?.viewId === input.viewId;
-    if (current && sameTarget && current.status === "opening") return current;
+    // Opening the same Project/View is idempotent even after the Widget has
+    // claimed the binding. The host may render the app tool more than once;
+    // rotating the lease here would detach the healthy Canvas just because a
+    // duplicate tab was created.
+    if (current && sameTarget) return current;
     if (current) rejectBindingWork(db, current);
     const binding = saveChatCanvasBinding(db, {
       chatSessionKey: input.chatSessionKey,
@@ -116,14 +121,46 @@ export function getBoundCanvas(db: DatabaseSync, chatSessionKey: string, require
 }
 
 export function syncCanvasContext(db: DatabaseSync, snapshot: CanvasContextSnapshot, chatSessionKey?: string) {
-  const validated = canvasContextSnapshotSchema.parse(snapshot);
+  let validated = canvasContextSnapshotSchema.parse(snapshot);
   transaction(db, () => {
     const existing = db.prepare("SELECT sequence FROM canvas_session WHERE id = ?").get(validated.canvasSessionId) as any;
-    if (existing && Number(existing.sequence) >= validated.sequence) throw new Error("STALE_CANVAS_SEQUENCE");
+    if (existing && Number(existing.sequence) >= validated.sequence) {
+      if (validated.syncPurpose !== "claim") throw new Error("STALE_CANVAS_SEQUENCE");
+      // Claim is an explicit, lease-checked page activation. Advance it
+      // atomically from the authoritative server sequence so a reload or a
+      // second embedded instance cannot get stuck behind its stale local
+      // sessionStorage counter. Passive state updates remain strictly
+      // monotonic and are still rejected above.
+      validated = canvasContextSnapshotSchema.parse({ ...validated, sequence: Number(existing.sequence) + 1 });
+    }
     if (validated.agentEligible) {
       if (!chatSessionKey || !validated.chatBinding) throw new Error("CODEX_THREAD_CONTEXT_REQUIRED");
       const binding = validateBindingLease(db, { chatSessionKey, ...validated.chatBinding });
       if ((binding.projectId && binding.projectId !== validated.projectId) || (binding.viewId && binding.viewId !== validated.viewId)) throw new Error("CHAT_CANVAS_LEASE_STALE");
+      if (binding.status === "active" && binding.canvasSessionId && binding.canvasSessionId !== validated.canvasSessionId) {
+        const activeContext = getCanvasContext(db, binding.canvasSessionId);
+        const activeSeenAt = Date.parse(activeContext?.presence?.lastSeenAt ?? activeContext?.updatedAt ?? binding.lastSeenAt);
+        const activeOnline = Number.isFinite(activeSeenAt) && Date.now() - activeSeenAt <= canvasOfflineAfterMs;
+        // An explicit `claim` (page load / manual reconnect) is deliberate user
+        // intent, so it takes over even while the previous session still looks
+        // online — otherwise a page refresh fails for the full offline window
+        // because the just-closed session's last heartbeat is still recent.
+        // A passive `state` sync from a different session is a background/dup
+        // tab and must not steal an online canvas.
+        if (activeOnline && validated.syncPurpose !== "claim") throw new Error("CANVAS_ALREADY_ACTIVE");
+
+        // The previous Canvas has stopped heartbeating (or is being taken over
+        // by an explicit claim). Cancel work scoped to that dead session and
+        // notify it before allowing the new Widget to
+        // take over the existing lease.
+        rejectBindingWork(db, binding);
+        appendProjectEvent(db, {
+          projectId: binding.projectId ?? validated.projectId,
+          canvasSessionId: binding.canvasSessionId,
+          kind: "chat.binding.changed",
+          payload: { bindingRevision: binding.bindingRevision, status: "detached", reason: "CANVAS_TAKEN_OVER" },
+        });
+      }
       saveChatCanvasBinding(db, {
         ...binding,
         projectId: validated.projectId,
@@ -136,7 +173,9 @@ export function syncCanvasContext(db: DatabaseSync, snapshot: CanvasContextSnaps
       throw new Error("BROWSER_PREVIEW_AGENT_UNAVAILABLE");
     }
     db.prepare("INSERT INTO canvas_session(id, project_id, sequence, data) VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET project_id=excluded.project_id, sequence=excluded.sequence, data=excluded.data").run(validated.canvasSessionId, validated.projectId, validated.sequence, json(validated));
-    saveCanvasViewState(db, { canvasSessionId: validated.canvasSessionId, viewId: validated.viewId, viewport: validated.viewport, selectedNodeIds: validated.selectedNodeIds, focusedNodeId: validated.focusedNodeId, lastOpenedAt: validated.presence?.lastSeenAt ?? validated.updatedAt });
+    if (validated.syncPurpose === "state") {
+      saveCanvasViewState(db, { canvasSessionId: validated.canvasSessionId, viewId: validated.viewId, viewport: validated.viewport, selectedNodeIds: validated.selectedNodeIds, focusedNodeId: validated.focusedNodeId, lastOpenedAt: validated.presence?.lastSeenAt ?? validated.updatedAt });
+    }
     const projectView = getProjectView(db, validated.projectId, validated.viewId);
     if (projectView?.status === "active") putProjectView(db, { ...projectView, lastOpenedAt: validated.presence?.lastSeenAt ?? validated.updatedAt });
   });

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Review Weaver Changes"
+  short_description: "Review and apply pending graph or layout ChangeSets."
+  default_prompt: "Review pending Weaver changes."

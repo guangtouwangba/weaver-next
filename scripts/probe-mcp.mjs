@@ -7,7 +7,12 @@ import sharp from "sharp";
 
 const workspaceDir = join(tmpdir(), `weaver-mcp-probe-${process.pid}`);
 mkdirSync(workspaceDir, { recursive: true });
-const transport = new StdioClientTransport({ command: "node", args: ["./scripts/start-mcp.mjs"], cwd: process.cwd(), stderr: "pipe" });
+const transport = new StdioClientTransport({
+  command: process.env.WEAVER_PROBE_COMMAND ?? "node",
+  args: process.env.WEAVER_PROBE_ARGS ? JSON.parse(process.env.WEAVER_PROBE_ARGS) : ["./scripts/start-mcp.mjs"],
+  cwd: process.env.WEAVER_PROBE_CWD ?? process.cwd(),
+  stderr: "pipe",
+});
 const client = new Client({ name: "weaver-probe", version: "0.1.0" });
 const threadId = `weaver-probe-thread-${process.pid}`;
 const threadMeta = { threadId, "x-codex-turn-metadata": { thread_id: threadId } };
@@ -25,9 +30,10 @@ try {
   for (const name of required) if (!tools.tools.some((tool) => tool.name === name)) throw new Error(`Missing MCP tool ${name}`);
   const resources = await client.listResources();
   const resourceTemplates = await client.listResourceTemplates();
-  if (!resources.resources.some((resource) => resource.uri === "ui://widget/weaver/workspace.html")) throw new Error("Missing Weaver widget resource");
+  const widgetResource = resources.resources.find((resource) => /^ui:\/\/widget\/weaver\/workspace-[a-f0-9]{12}\.html$/.test(resource.uri));
+  if (!widgetResource) throw new Error("Missing versioned Weaver widget resource");
   for (const uriTemplate of ["weaver://projects/{projectId}/nodes/{nodeId}/content", "weaver://projects/{projectId}/assets/{assetId}", "weaver://projects/{projectId}/assets/{assetId}/thumbnail"]) if (!resourceTemplates.resourceTemplates.some((resource) => resource.uriTemplate === uriTemplate)) throw new Error(`Missing MCP resource template ${uriTemplate}`);
-  const widget = await client.readResource({ uri: "ui://widget/weaver/workspace.html" });
+  const widget = await client.readResource({ uri: widgetResource.uri });
   const widgetHtml = widget.contents.find((content) => "text" in content)?.text ?? "";
   if (!widgetHtml.includes("Weaver Space") || !widgetHtml.includes("<script type=\"module\">")) throw new Error("Widget resource was not bundled inline");
 

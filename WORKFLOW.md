@@ -1,0 +1,195 @@
+# Weaver Development Workflow
+
+本文定义 Weaver 的强制开发工作流。目标不是“代码能编译”，而是用可重复证据证明行为正确，并避免 Graph/Layout、Chat/Canvas 和浏览器/MCP 多运行时之间的回归。
+
+## 1. 开始前
+
+1. 阅读 [AGENTS.md](AGENTS.md)、[product.md](product.md) 和任务相关 PRD/architecture 文档。
+2. 检查 `git status`，识别用户已有改动；不得覆盖或清理无关内容。
+3. 明确本次变更属于哪些边界：Widget、Contracts、Core、Storage、MCP、Layout Engine、API、Plugin packaging。
+4. 写出可验证的验收条件，至少包含正常路径、失败路径和 revision/持久化影响。
+5. 若问题来自 UI，先在真实页面复现并记录：操作步骤、当前 DOM/视觉状态、错误信息、相关网络/console 信号。
+
+## 2. TDD：Red → Green → Refactor
+
+所有缺陷修复和可测试功能默认按 TDD 开发。
+
+### Red：先证明问题存在
+
+- 在最接近行为所有者的层级增加最小失败测试。
+- 纯领域规则测试放在 `packages/*/__tests__/` 或 Widget 的 `src/__tests__/`。
+- Storage 测试要验证事务结果和 revisions，不只验证返回值。
+- MCP 测试要验证 Tool 的结构化输出、错误码、Session/Chat 隔离和事件可见性。
+- UI 问题先保留真实页面复现证据，再为可抽离逻辑增加测试；不要用脆弱快照代替行为断言。
+- 运行测试并确认它因预期原因失败，而不是因为环境、fixture 或语法错误失败。
+
+### Green：实现最小正确变更
+
+- 只实现让验收条件成立的最小改动。
+- 不绕过 schema、revision、lease、ChangeSet 或 path confinement。
+- 不用固定 sleep、无限重试、静默 catch 或整页 reload 掩盖竞态。
+- 跨层数据先修改 `packages/contracts`，再更新生产者、消费者和 legacy 默认值。
+- 修改 Layout/Theme/viewport 时显式确认 `graphRevision` 未变化。
+
+### Refactor：消除偶然复杂度
+
+- 测试保持绿色后再整理命名、拆分 hook/module、去重和收紧类型。
+- 保持 Core 纯函数化，把 IO、身份和持久化留在 Storage/MCP 边界。
+- 检查是否存在 stale closure、旧 revision、并发写入、重复 Session 或旧 MCP 进程等多运行时问题。
+- 重跑相关测试，确认重构没有改变外部行为。
+
+## 3. 测试分层
+
+按风险逐层扩大，不用完整测试替代针对性测试。
+
+### A. 针对性测试
+
+每次改动首先运行最接近代码的测试，例如：
+
+```bash
+npm run test:ts -- --run apps/widget/src/__tests__/canvas-theme-and-edges.test.ts
+npm run test:ts -- --run packages/storage/__tests__/workspace-store.test.ts
+```
+
+### B. 静态检查与构建
+
+```bash
+npm run typecheck:widget
+npm run build:packages
+npm run build:widget
+```
+
+### C. 完整回归
+
+以下情况必须执行 `npm test`：
+
+- Contracts、Storage schema 或事务变化。
+- MCP Tool、Chat binding、Canvas Session、SSE 或事件过滤变化。
+- Graph/Layout revision 规则变化。
+- 跨两个以上 workspace package 的改动。
+- 插件发布、安装或开发启动链路变化。
+
+Python API 由 `npm test` 中的 pytest 一并覆盖。
+
+## 4. UI 改动的真实页面验收
+
+任何用户可见改动都必须执行本节，包括颜色、Theme、间距、响应式、按钮、表单、拖拽、缩放、Selection、Loading、错误态、SSE 重连和 viewport 恢复。
+
+### 强制规则
+
+- 单元测试、DOM snapshot 和构建成功都不能单独证明 UI 完成。
+- 必须启动真实本地页面，并使用浏览器实际点击、输入、拖动、缩放、刷新或切换可见性。
+- 优先复用用户当前打开的 localhost 页面；不要无必要创建重复标签。
+- 每次交互后检查一个权威信号：可访问名称、`data-*` 状态、实际 style、可见文本、revision 状态或明确的成功/错误提示。
+- 对切换类功能至少验证一个完整往返，例如 light → dark → light，而不是只验证第一次点击。
+- 对持久化功能必须刷新页面后再次验证。
+- 对响应式改动至少验证目标断点两侧。
+- 检查浏览器 console error；已有无关错误要说明，新错误必须修复。
+
+### UI 验收步骤
+
+1. 启动或确认 Widget 开发服务：
+
+   ```bash
+   npm --workspace @weaver/widget run dev
+   ```
+
+2. 若修改过 Contracts、MCP 或插件资源，先重建并重启 Vite/MCP 子进程。热更新前端代码不代表 Node 子进程已加载新 schema。
+3. 在目标 Project URL 打开/复用页面，等待权威数据加载完成。
+4. 按验收条件执行真实交互。
+5. 读取最小必要 DOM/视觉状态确认结果；视觉问题使用截图辅助，但截图不能替代状态断言。
+6. 刷新后复验持久化和恢复行为。
+7. 在最终报告中记录：
+   - 测试 URL/Project。
+   - 实际点击或输入步骤。
+   - 每一步观察到的结果。
+   - 页面刷新后的结果。
+   - console/network 是否出现新错误。
+
+### UI 任务完成门槛
+
+满足以下全部条件才可声明完成：
+
+- 相关自动化测试通过。
+- Widget typecheck/build 通过。
+- 真实页面操作通过。
+- 目标状态与服务端持久化一致。
+- 页面刷新/恢复后仍正确。
+- 没有新增 console error。
+
+## 5. MCP、插件与多进程验证
+
+- `apps/widget/vite.config.ts` 会懒启动 MCP 子进程；修改 MCP/Contracts 后必须重启 Vite 才能获得新进程。
+- Claude 宿主(`scripts/start-mcp-claude.mjs`)开发态会按需重读 widget dist 并在重建时经 SSE `widget.reload` 自动刷新浏览器：**只改 widget 前端时 `npm run build:widget` 后浏览器自动刷新即可，不必重启 MCP**；改服务端(MCP/Contracts/scene-packs)仍必须重启 MCP。
+- 安装态验证前运行 `npm run build:plugin`，再刷新本地插件缓存。
+- 区分“已安装”和“当前 Codex Chat 已加载”。当前 Chat 已启动的 MCP 进程不会因覆盖缓存自动热更新；需要重启或新建 Chat。
+- 校验 workspace build、Widget build ID、MCP Server 版本和插件缓存是否一致。
+- loopback 端点必须只绑定本机、只读、带 token，并保持 CSP 最小开放。
+
+### 5.0 两个宿主跑的是不同副本（改代码为什么“没生效”）
+
+这是最容易吃亏、也最难自查的一点：**Claude 和 Codex 运行的不是同一份代码**。
+
+- **Claude 预览宿主**：`scripts/start-mcp-claude.mjs` 直接从**仓库**跑，`cwd = 仓库根`。所以仓库里 `npm run build:plugin` + 在 Claude 里重连 `weaver-preview` 就能拿到新代码。
+- **Codex**：`weaver_mcp` 由 Codex 从**本地 marketplace 安装的缓存副本**跑，链路是三跳：
+
+  ```
+  仓库 /Users/kids/Documents/weaver-next        ← 你在这里改 / build
+    ↓ 需要“发布”
+  marketplace /Users/kids/.agents/weaver-marketplace   ← Codex 的安装源（config.toml: marketplaces.weaver-local, source_type=local）
+    ↓ Codex 安装一份拷贝
+  缓存 ~/.codex/plugins/cache/weaver-local/weaver-next/<version>/   ← Codex 实际运行的就是这份
+  ```
+
+  **只在仓库里 build，Codex 永远看不到**——它跑的是缓存副本。症状就是“改了半天、Codex 里依旧报旧问题 / `MCP proxy request failed`”。用 `lsof -a -p <pid> -d cwd` 看某个 `start-mcp.mjs` 的 cwd，落在 `~/.codex/plugins/cache/...` 就是 Codex 那份、落在仓库就是 Claude/dev 那份。
+
+- **改完代码要让 Codex 生效的完整步骤**：
+  1. 仓库 `npm run build:plugin`；
+  2. **发布到 marketplace** `/Users/kids/.agents/weaver-marketplace`（用你既有的发布流程；缓存里 `plugin-install-*` 目录的时间戳能确认最近一次安装是否拿到了新代码）；
+  3. 在 **Codex** 里更新 / 重装 `weaver-local` 插件并重连 `weaver_mcp`（新建 Chat 也行）。
+  4. 存量僵尸进程：只 `kill` 父进程为 `launchd`(PID 1) 的孤儿 `start-mcp.mjs`；父进程是 ChatGPT/Codex app-server 或某个 Claude 会话的**不要**动（那是活跃连接）。
+
+- 排查时读 **Codex 那份**的日志，而不是仓库的：
+  ```bash
+  tail -f ~/.codex/plugins/cache/weaver-local/weaver-next/*/.weaver/logs/mcp-*.jsonl
+  grep '"level":"error"' ~/.codex/plugins/cache/weaver-local/weaver-next/*/.weaver/logs/*.jsonl
+  ```
+  或直接在 Codex 里调 `weaver_get_diagnostics`（见 §5.1）。
+
+### 5.1 可观测性（排查 MCP“黑盒”问题）
+
+MCP server 走 stdio，不能 `console.log`（会污染协议），所以所有诊断走两个 host 无关的出口：
+
+- **结构化日志文件**：每个进程写 `<workspace>/.weaver/logs/mcp-<pid>.jsonl`（append-only JSONL，已被 `.gitignore` 忽略）。人可直接看：
+  - `tail -f .weaver/logs/mcp-*.jsonl` 看实时活动；
+  - `grep '"level":"error"' .weaver/logs/mcp-*.jsonl` 找崩溃/报错；
+  - 每行含 `pid/host/buildId`，用来分辨多进程（僵尸）到底是谁。
+- **stderr 镜像**：宿主捕获的 stderr 也有同样的行（默认 `info` 起，`WEAVER_LOG_LEVEL=debug` 可放开 `tool.call`）。
+- **诊断工具 `weaver_get_diagnostics`**（Codex 与 Claude 都可调，且在 loopback 白名单里）：返回 `pid/host/uptime/buildId/previewUrl` + 最近日志与最近错误。排查“画布连接失败 / MCP proxy request failed”时，先调它看服务端到底发生了什么。
+- 记录点覆盖：`server.boot`、每个工具的 `tool.call/tool.result/tool.error`（带 `durationMs`）、loopback 的 `rpc.toolNotAllowed/rpc.workspaceScopeViolation/asset.notFound`、进程级 `process.uncaughtException/unhandledRejection/signal` 与 `transport.closed`——即“为什么进程悄悄死了”。
+- 这是服务端代码：改完要**重启/重连 MCP** 才生效。
+
+## 6. 数据与状态机专项检查
+
+每次相关变更都回答以下问题：
+
+- 这是 Graph 内容变化还是 Layout/View/Binding 变化？递增了正确的 revision 吗？
+- 重复请求是否幂等？旧 sequence/revision 是否被拒绝？
+- 两个 Chat 或两个 Canvas Session 是否会互相污染？
+- Session offline、duplicate、detached、stale、build mismatch 时是否 fail closed？
+- SSE 丢事件后能否通过权威 revision 恢复？
+- claim 是否避免覆盖保存的 viewport？state 是否最终保存恢复后的 viewport？
+- AgentTask 取消或失效后，晚到写入是否被拒绝？
+- 用户已有内容、布局和未提交工作是否被保留？
+
+## 7. 完成与交付
+
+提交结果前：
+
+1. 查看最终 diff，确认没有无关或生成物污染。
+2. 运行与风险相称的测试、构建和真实页面验证。
+3. 更新受影响的 README、AGENTS、WORKFLOW、product、PRD 或 architecture 文档。
+4. 报告具体结果，不只写“已测试”：列出测试数量、命令和真实页面操作。
+5. 明确仍需用户执行的动作，例如重启 Codex、新建 Chat 或重新打开 Widget。
+
+若任何必需验证因环境原因无法执行，不得宣称完成；应说明阻塞条件、已验证部分和最短下一步。

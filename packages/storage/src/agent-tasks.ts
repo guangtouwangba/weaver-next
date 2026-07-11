@@ -25,11 +25,14 @@ export function prepareAgentTask(db: DatabaseSync, input: { canvasSessionId: str
     }
     throw new Error(`ACTIVE_CANVAS_TASK_EXISTS:${task.taskId}`);
   }
-  const intent = ["develop_selection", "layout_view", "develop_then_layout"].includes(input.actionKey) ? input.actionKey : input.actionKey === "layout_view" ? "layout_view" : "develop_selection";
+  const intent = ["develop_selection", "follow_up_ask", "layout_view", "develop_then_layout"].includes(input.actionKey) ? input.actionKey : "develop_selection";
   const task = agentTaskSchema.parse({
     taskId: randomUUID(), canvasSessionId: context.canvasSessionId, workspaceDir: context.workspaceDir, projectId: context.projectId, viewId: context.viewId,
     chatSessionKey: input.chatSessionKey, bindingRevision: binding.bindingRevision,
-    actionKey: input.actionKey, selectedNodeIds: context.selectedNodeIds, selectedEdgeIds: context.selectedEdgeIds,
+    actionKey: input.actionKey, selectedNodeIds: context.selectedNodeIds,
+    anchorNodeId: context.focusedNodeId ?? context.selectedNodeIds[0],
+    referencedNodeIds: context.selectedNodeIds.filter((nodeId) => nodeId !== (context.focusedNodeId ?? context.selectedNodeIds[0])),
+    selectedEdgeIds: context.selectedEdgeIds,
     pinnedContextNodeIds: context.pinnedContextNodeIds, userInstruction: input.userInstruction, expectedGraphRevision: context.graphRevision,
     baseLayoutRevision: getLayout(db, context.projectId, context.viewId)?.layoutRevision ?? 0,
     contextResourceUri: `weaver://canvas-sessions/${context.canvasSessionId}/context`, attachmentResourceUris: [],

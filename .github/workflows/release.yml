@@ -1,0 +1,38 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - run: npm run build:release
+      - run: npm run check:release
+      - run: npm run probe:release
+      - run: npx vitest run packages/mcp/__tests__/plugin-package.test.ts
+      - name: Verify tag version
+        run: |
+          test "${GITHUB_REF_NAME#v}" = "$(node -p "require('./package.json').version")"
+      - name: Package release
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          tar -czf "weaver-next-${version}-macos-arm64.tar.gz" -C plugins weaver-next
+          shasum -a 256 "weaver-next-${version}-macos-arm64.tar.gz" > "weaver-next-${version}-macos-arm64.tar.gz.sha256"
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            weaver-next-*-macos-arm64.tar.gz
+            weaver-next-*-macos-arm64.tar.gz.sha256

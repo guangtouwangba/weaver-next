@@ -31,14 +31,22 @@ export const defaultProjectionByView = {
 const nodeStyleSchema = z.object({ fill: z.string(), borderColor: z.string(), textColor: z.string(), accentColor: z.string().optional(), borderRadius: z.number().nonnegative(), titleScale: z.number().positive() });
 const edgeStyleSchema = z.object({ color: z.string(), width: z.number().positive(), dashed: z.boolean(), routing: z.enum(["straight", "bezier", "orthogonal", "bundled"]), marker: z.enum(["none", "arrow"]) });
 export const viewThemeSchema = z.object({
-  canvas: z.object({ backgroundColor: z.string(), pattern: z.enum(["dots", "grid", "plain"]), patternColor: z.string() }),
+  canvas: z.object({
+    mode: z.enum(["dark", "light"]).default("light"),
+    backgroundColor: z.string(),
+    pattern: z.enum(["dots", "grid", "plain"]),
+    patternGap: z.number().positive().default(20),
+    patternSize: z.number().positive().default(1),
+    patternColor: z.string(),
+    patternOpacity: z.number().min(0).max(1).default(0.55),
+  }),
   nodeStyles: z.record(z.string(), nodeStyleSchema),
   edgeStyles: z.record(z.string(), edgeStyleSchema),
 });
 export type ViewTheme = z.infer<typeof viewThemeSchema>;
 
 export const defaultViewTheme: ViewTheme = {
-  canvas: { backgroundColor: "#f2f3ed", pattern: "dots", patternColor: "#cdd1ca" },
+  canvas: { mode: "light", backgroundColor: "#f2f3ed", pattern: "dots", patternGap: 20, patternSize: 1, patternColor: "#aeb5aa", patternOpacity: 0.42 },
   nodeStyles: { default: { fill: "#fbfbf6", borderColor: "#cbd0c6", textColor: "#20231f", accentColor: "#315cf6", borderRadius: 8, titleScale: 1 } },
   edgeStyles: { default: { color: "#7e867c", width: 1.5, dashed: false, routing: "bezier", marker: "arrow" } },
 };

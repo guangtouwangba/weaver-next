@@ -4,24 +4,40 @@ import { getScenePack, builtinScenePacks } from "@weaver/scene-packs";
 import { builtinVisualTemplates, getVisualTemplate } from "@weaver/visual-templates";
 import { workspaceByProject, workspaceByTask } from "./shared/workspace-registry.js";
 import { withStore } from "./shared/tool-runtime.js";
-import { bundledWidgetHtml } from "./widget.js";
+import { log } from "./logger.js";
 import type { SseEventHub } from "./event-hub.js";
 
 export type ResourcesCtx = { eventHub: SseEventHub; widgetUri: string };
+
+export const LEGACY_WIDGET_URI = "ui://widget/weaver/workspace.html";
 
 /** MCP resources: the widget app resource plus declarative reads for scene-packs/templates/tasks/views/assets. */
 export function registerResources(server: McpServer, ctx: ResourcesCtx) {
   const { eventHub, widgetUri } = ctx;
 
-  registerAppResource(server, "weaver-workspace-widget", widgetUri, {
+  const widgetResourceOptions = {
     title: "Weaver Semantic Space",
     description: "A native semantic node canvas with natural-language layout tasks and deterministic previews.",
     _meta: {
-      ui: { prefersBorder: false, csp: { connectDomains: [eventHub.origin], resourceDomains: ["data:", "blob:"] } },
+      ui: { prefersBorder: false, csp: { connectDomains: [eventHub.origin], resourceDomains: ["data:", "blob:", eventHub.origin] } },
       "openai/widgetDescription": "Weaver semantic knowledge space",
       "openai/widgetPrefersBorder": false,
     },
-  }, async () => ({ contents: [{ uri: widgetUri, mimeType: RESOURCE_MIME_TYPE, text: bundledWidgetHtml(), _meta: { "openai/widgetPrefersBorder": false } }] }));
+  };
+  // Log every widget HTML read so a Codex `resources/read` (the render path that
+  // used to fail with -32602) is traceable in .weaver/logs against the host logs.
+  const readWidget = (uri: string) => async () => {
+    log("info", "resource.read", { uri, buildId: eventHub.buildId });
+    return { contents: [{ uri, mimeType: RESOURCE_MIME_TYPE, text: eventHub.inlineWidgetHtml(), _meta: { "openai/widgetPrefersBorder": false } }] };
+  };
+
+  registerAppResource(server, "weaver-workspace-widget", widgetUri, widgetResourceOptions, readWidget(widgetUri));
+  // Existing Codex tasks can retain an older tool descriptor after the plugin
+  // process upgrades. Keep its stable outputTemplate readable while all newly
+  // advertised tools use the immutable build-versioned URI above.
+  if (widgetUri !== LEGACY_WIDGET_URI) {
+    registerAppResource(server, "weaver-workspace-widget-legacy", LEGACY_WIDGET_URI, widgetResourceOptions, readWidget(LEGACY_WIDGET_URI));
+  }
 
   server.registerResource("weaver-scene-packs", "weaver://scene-packs", { title: "Weaver Scene Packs", description: "The built-in versioned scene catalog.", mimeType: "application/json" }, async (uri) => ({ contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(builtinScenePacks) }] }));
   server.registerResource("weaver-visual-templates", "weaver://visual-templates", { title: "Weaver Visual Templates", description: "The built-in immutable structured visual template catalog.", mimeType: "application/json" }, async (uri) => ({ contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(builtinVisualTemplates) }] }));

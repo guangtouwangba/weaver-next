@@ -104,6 +104,21 @@ export function updateNodeContent(db: DatabaseSync, input: { projectId: string; 
   return { node: next.nodes.find((node) => node.id === input.nodeId)!, project: getProject(db, input.projectId) };
 }
 
+export function archiveNode(db: DatabaseSync, input: { projectId: string; nodeId: string; baseGraphRevision: number }) {
+  const graph = getGraph(db, input.projectId);
+  if (graph.revision !== input.baseGraphRevision) throw new Error(`GRAPH_REVISION_CONFLICT:Expected ${input.baseGraphRevision}, current ${graph.revision}`);
+  const current = graph.nodes.find((node) => node.id === input.nodeId);
+  if (!current) throw new Error(`NODE_NOT_FOUND:${input.nodeId}`);
+  // Soft-delete: archive the node and every edge that touches it in one revision.
+  const operations: Parameters<typeof applyGraphOperations>[1] = [{ type: "archive-node", nodeId: input.nodeId }];
+  for (const edge of graph.edges) {
+    if (!edge.archived && (edge.sourceNodeId === input.nodeId || edge.targetNodeId === input.nodeId)) operations.push({ type: "archive-edge", edgeId: edge.id });
+  }
+  const next = applyGraphOperations(graph, operations);
+  replaceGraph(db, next);
+  return { node: next.nodes.find((node) => node.id === input.nodeId)!, project: getProject(db, input.projectId) };
+}
+
 export function attachAsset(db: DatabaseSync, input: { projectId: string; nodeId: string; assetId: string; role: "embedded" | "cover"; baseGraphRevision: number }) {
   const asset = getAsset(db, input.assetId);
   if (!asset || asset.projectId !== input.projectId) throw new Error("ASSET_NOT_FOUND_OR_CROSS_PROJECT");

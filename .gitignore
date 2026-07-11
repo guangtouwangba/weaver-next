@@ -20,5 +20,12 @@ __pycache__/
 .ai-toolkit/
 .weaver/
 .agents/
+!.agents/
+!.agents/plugins/
+!.agents/plugins/marketplace.json
 .claude/
 .worktrees/
+.gstack/
+!plugins/weaver-next/
+!plugins/weaver-next/**
+plugins/weaver-next/.weaver/

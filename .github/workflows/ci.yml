@@ -53,5 +53,11 @@ jobs:
       - name: Build widget
         run: npm run build:widget
 
+      - name: Build and validate installable plugin
+        run: |
+          node scripts/build-plugin-release.mjs
+          npm run check:release
+          npm run probe:release
+
       - name: Web build
         run: npm run build:web

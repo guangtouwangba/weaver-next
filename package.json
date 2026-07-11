@@ -18,6 +18,12 @@
     "build:packages": "npm --workspace @weaver/contracts run build && npm --workspace @weaver/core run build && npm --workspace @weaver/layout-engine run build && npm --workspace @weaver/scene-packs run build && npm --workspace @weaver/visual-templates run build && npm --workspace @weaver/storage run build && npm --workspace @weaver/mcp run build",
     "build:widget": "npm --workspace @weaver/widget run build",
     "build:plugin": "npm run build:packages && npm run build:widget",
+    "build:release": "npm run build:plugin && node scripts/build-plugin-release.mjs",
+    "check:release": "node scripts/check-plugin-release.mjs",
+    "probe:release": "WEAVER_PROBE_CWD=plugins/weaver-next WEAVER_PROBE_ARGS='[\"./scripts/start-mcp.mjs\"]' node scripts/probe-mcp.mjs",
+    "capture:readme": "node scripts/capture-readme-assets.mjs",
+    "dev:codex-plugin": "npm run build:plugin && node scripts/start-mcp-dev.mjs",
+    "install:claude-skills": "node scripts/install-claude-skills.mjs",
     "typecheck:widget": "npm --workspace @weaver/widget run typecheck",
     "lint": "biome lint .",
     "lint:fix": "biome lint --write .",
@@ -32,8 +38,10 @@
   "devDependencies": {
     "@biomejs/biome": "2.5.3",
     "@types/node": "^24.10.0",
+    "esbuild": "^0.28.1",
     "npm-run-all": "^4.1.5",
     "openapi-typescript": "^7.13.0",
+    "playwright": "^1.61.1",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
   }

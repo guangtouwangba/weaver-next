@@ -13,12 +13,19 @@ export type { DocumentContent, ImageContent, LinkContent, NodeContent } from "@w
 
 export type ToolResult<T> = { structuredContent?: T; isError?: boolean; content?: Array<{ type: string; text?: string }> };
 export type ChatBindingBootstrap = { leaseId: string; bindingRevision: number; projectId?: string; viewId?: string };
-export type Bootstrap = { workspaceDir: string; projectId?: string; preferredDisplayMode?: string; chatBinding?: ChatBindingBootstrap };
+export type Bootstrap = {
+  version?: number; widget?: string; workspaceDir: string; projectId?: string; preferredDisplayMode?: string; chatBinding?: ChatBindingBootstrap;
+  serverVersion?: string; widgetBuildId?: string; workspaceWidgetBuildId?: string;
+  runtimeMode?: "development" | "installed"; buildMismatch?: boolean;
+};
+export type CanvasAccessState = "claiming" | "claim-failed" | "active" | "duplicate" | "detached" | "build-mismatch";
 
 // Kept local: contracts' SpaceProject requires `goal`, `automationLevel`, `createdAt`, `updatedAt`
 // (all non-optional in the schema's inferred output) which the widget's demo/seed Project
-// literal does not populate.
-export type Project = { id: string; title: string; defaultViewId: string; graphRevision: number; viewCatalogRevision: number; scenePackId: string; scenePackVersion: string };
+// literal does not populate. The optional fields below mirror what weaver_list_projects
+// actually returns at runtime (the server sends the full SpaceProject) — used for display
+// in ProjectPickerModal without forcing the demo path to fabricate them.
+export type Project = { id: string; title: string; defaultViewId: string; graphRevision: number; viewCatalogRevision: number; scenePackId: string; scenePackVersion: string; goal?: string; automationLevel?: string; createdAt?: string; updatedAt?: string };
 
 // Kept local: contracts' Asset schema requires `projectId`, `kind`, `size`, `sha256`,
 // `storageUri`, `createdAt` and a strict `mimeType` union; the widget only ever constructs
@@ -48,7 +55,8 @@ export type LayoutGroup = { groupId: string; x: number; y: number; width: number
 // Kept local: contracts' LayoutDocument requires `projectId`, `strategy`, `config`, `edges`,
 // `bounds`, `createdBy` which the widget's demo layout and layout-mutation call sites don't
 // construct or need — the widget only ever needs the node/theme/projection subset for rendering.
-export type Layout = { viewId: string; viewName: string; viewType: string; graphRevision: number; layoutRevision: number; templateRef?: { id: string; version: string }; projection?: { kind: string; [key: string]: any }; theme?: ViewTheme; nodes: Record<string, LayoutNode>; groups?: Record<string, LayoutGroup> };
+export type LayoutEdge = { edgeId: string; routing: "straight" | "bezier" | "orthogonal" | "bundled"; sourcePort?: string; targetPort?: string; waypoints: Array<{ x: number; y: number }>; hidden?: boolean };
+export type Layout = { viewId: string; viewName: string; viewType: string; graphRevision: number; layoutRevision: number; templateRef?: { id: string; version: string }; projection?: { kind: string; [key: string]: any }; theme?: ViewTheme; nodes: Record<string, LayoutNode>; edges?: Record<string, LayoutEdge>; groups?: Record<string, LayoutGroup> };
 
 // Kept local: contracts' LayoutCandidate.document is LayoutDocument (kept local above, see
 // Layout), and its metrics require several fields (overlapArea, edgeLength, pinnedNodeMoves,

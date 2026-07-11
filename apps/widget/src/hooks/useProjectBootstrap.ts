@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import type { Edge, Node, Viewport } from "@xyflow/react";
-import { callTool, isLocalDevelopment, mcp } from "../mcp-client";
+import { callTool, connectMcpApp, hostMode, mcp, setCodexLoopback, weaverPreview } from "../mcp-client";
+import { shouldPromptForProject } from "../lib/graph-view";
 import type { Bootstrap, ChatBindingBootstrap, GraphEdge, GraphNode, Layout, Manifest, Project, ProjectView, ToolResult, VisualTemplate } from "../types";
 
 // Domain A: bootstrap/project/graph load. Owns the project/manifest/layout/graph state and
@@ -32,6 +33,7 @@ export function useProjectBootstrap(params: {
   const [layout, setLayout] = useState<Layout | null>(null);
   const [graphNodes, setGraphNodes] = useState<GraphNode[]>([]);
   const [graphEdges, setGraphEdges] = useState<GraphEdge[]>([]);
+  const [projectChoices, setProjectChoices] = useState<Project[] | null>(null);
   const [status, setStatus] = useState("Connecting to Weaver…");
   const [busy, setBusy] = useState(false);
   const projectRef = useRef<Project | null>(null);
@@ -51,10 +53,21 @@ export function useProjectBootstrap(params: {
   useEffect(() => { bindingRef.current = bootstrap.chatBinding; }, [bootstrap.chatBinding]);
 
   useEffect(() => {
-    const onToolResult = (result: unknown) => { const payload = (result as ToolResult<Bootstrap> | undefined)?.structuredContent; if (payload?.workspaceDir) setBootstrap(payload); };
-    if (!standaloneDemo && !isLocalDevelopment) {
+    const onToolResult = (result: unknown) => {
+      const payload = (result as ToolResult<Bootstrap> | undefined)?.structuredContent as (Bootstrap & { previewUrl?: string; previewToken?: string }) | undefined;
+      if (payload?.widget === "weaver-workspace" && payload.workspaceDir) {
+        // Route this widget's tool calls to the loopback (bypassing Codex's -32000
+        // proxy) using the endpoint the tool result carries.
+        setCodexLoopback(payload.previewUrl, payload.previewToken);
+        setBootstrap(payload);
+      }
+    };
+    if (hostMode === "codex" && !standaloneDemo) {
+      // Some Codex builds seed the tool output synchronously; use it if present.
+      const seeded = initial as Partial<Bootstrap> & { previewUrl?: string; previewToken?: string };
+      setCodexLoopback(seeded.previewUrl, seeded.previewToken);
       mcp.addEventListener("toolresult", onToolResult);
-      void mcp.connect().then(() => {
+      void connectMcpApp().then(() => {
         setStatus("Codex connected to this canvas");
         return mcp.requestDisplayMode?.({ mode: "fullscreen" });
       }).catch((error) => setStatus(String(error)));
@@ -63,12 +76,22 @@ export function useProjectBootstrap(params: {
   }, [standaloneDemo]);
 
   useEffect(() => {
-    if (!isLocalDevelopment || standaloneDemo || bootstrap.workspaceDir) return;
-    void fetch("/api/bootstrap").then((response) => response.json()).then((value: Bootstrap) => setBootstrap(value)).catch((error) => setStatus(String(error)));
+    if (standaloneDemo || bootstrap.workspaceDir) return;
+    if (hostMode === "claude" && weaverPreview) {
+      void fetch(weaverPreview.bootstrapPath, { headers: { "x-weaver-preview-token": weaverPreview.token } })
+        .then((response) => response.json())
+        .then((value: { workspaceDir: string; chatBinding?: ChatBindingBootstrap; runtimeMode?: "development" | "installed"; buildId?: string }) =>
+          setBootstrap({ workspaceDir: value.workspaceDir, projectId: value.chatBinding?.projectId, chatBinding: value.chatBinding, runtimeMode: value.runtimeMode, widgetBuildId: value.buildId }))
+        .catch((error) => setStatus(String(error)));
+      return;
+    }
+    if (hostMode === "dev") {
+      void fetch("/api/bootstrap").then((response) => response.json()).then((value: Bootstrap) => setBootstrap(value)).catch((error) => setStatus(String(error)));
+    }
   }, [bootstrap.workspaceDir, standaloneDemo]);
 
   const ensureBindingTarget = useCallback(async (projectId: string, viewId: string) => {
-    if (isLocalDevelopment || standaloneDemo) return undefined;
+    if (hostMode === "dev" || standaloneDemo) return undefined;
     const current = bindingRef.current;
     if (!current) throw new Error("CODEX_THREAD_CONTEXT_REQUIRED");
     if (current.projectId === projectId && current.viewId === viewId) return current;
@@ -89,6 +112,18 @@ export function useProjectBootstrap(params: {
     previewCache.current = { ...previewCache.current, ...Object.fromEntries(entries) };
     setAssetPreviews(previewCache.current);
   }, [bootstrap.workspaceDir, previewCache, setAssetPreviews, standaloneDemo]);
+
+  const startFromTemplateGallery = useCallback(async () => {
+    setProject(null); setLayout(null); setGraphNodes([]); setGraphEdges([]); setProjectViews([]); setNodes([]); setEdges([]); setProjectChoices(null);
+    setTemplateMode("project"); setTemplateGallery(true);
+    try { setTemplates(await callTool<VisualTemplate[]>("weaver_list_visual_templates", {})); setStatus("Choose a visual template or start with a blank canvas"); }
+    catch (error) { setStatus(error instanceof Error ? error.message : String(error)); }
+  }, [setEdges, setNodes, setTemplateGallery, setTemplateMode, setTemplates]);
+
+  const chooseProject = useCallback((projectId: string) => {
+    setProjectChoices(null);
+    setBootstrap((current) => ({ ...current, projectId }));
+  }, [setBootstrap]);
 
   const load = useCallback(async () => {
     if (standaloneDemo) {
@@ -112,7 +147,9 @@ export function useProjectBootstrap(params: {
     setBusy(true);
     try {
       const projects = await callTool<Project[]>("weaver_list_projects", { workspaceDir: bootstrap.workspaceDir });
-      if (!projects.length) { setProject(null); setLayout(null); setGraphNodes([]); setGraphEdges([]); setProjectViews([]); setNodes([]); setEdges([]); setTemplateMode("project"); setTemplateGallery(true); setTemplates(await callTool<VisualTemplate[]>("weaver_list_visual_templates", {})); setStatus("Choose a visual template or start with a blank canvas"); return; }
+      if (!projects.length) { await startFromTemplateGallery(); return; }
+      if (shouldPromptForProject(projects, bootstrap.projectId)) { setProjectChoices(projects); setStatus("Choose a project to open"); return; }
+      setProjectChoices(null);
       const active = projects.find((item) => item.id === bootstrap.projectId) ?? projects[0];
       const [nextManifest, nextViews] = await Promise.all([
         callTool<Manifest>("weaver_get_project_manifest", { workspaceDir: bootstrap.workspaceDir, projectId: active.id }),
@@ -124,23 +161,31 @@ export function useProjectBootstrap(params: {
       const graph = await callTool<{ project: Project; nodes: GraphNode[]; edges: GraphEdge[]; layout: Layout }>("weaver_get_project_graph", { workspaceDir: bootstrap.workspaceDir, projectId: active.id, viewId });
       const alreadyShowingView = projectRef.current?.id === graph.project.id && layoutRef.current?.viewId === graph.layout.viewId;
       if (!alreadyShowingView) { pendingInitialFitView.current = graph.layout.viewId; pendingViewportRestore.current = null; }
-      setProject(graph.project); setManifest(nextManifest); setProjectViews(nextViews); setLayout(graph.layout); setGraphNodes(graph.nodes); setActiveViewId(graph.layout.viewId);
-      setGraphEdges(graph.edges);
+      // Never render soft-deleted (archived) nodes/edges — otherwise a deleted
+      // node reappears on every reload. (get_project_graph returns them for
+      // history; the live canvas only shows active graph content.)
+      const liveNodes = graph.nodes.filter((node) => !node.archived);
+      const liveNodeIds = new Set(liveNodes.map((node) => node.id));
+      const liveEdges = graph.edges.filter((edge) => !(edge as { archived?: boolean }).archived && liveNodeIds.has(edge.sourceNodeId) && liveNodeIds.has(edge.targetNodeId));
+      setProject(graph.project); setManifest(nextManifest); setProjectViews(nextViews); setLayout(graph.layout); setGraphNodes(liveNodes); setActiveViewId(graph.layout.viewId);
+      setGraphEdges(liveEdges);
       if (!alreadyShowingView) {
         const savedViewState = await callTool<any>("weaver_get_canvas_view_state", { workspaceDir: bootstrap.workspaceDir, canvasSessionId: sessionId.current, viewId: graph.layout.viewId });
         if (!savedViewState.firstOpen) { pendingInitialFitView.current = null; pendingViewportRestore.current = { viewId: graph.layout.viewId, viewport: savedViewState.viewport }; setSelection(savedViewState.selectedNodeIds ?? []); }
       }
-      void hydratePreviews(graph.project.id, graph.nodes);
-      setStatus(`${graph.nodes.length} nodes · graph r${graph.project.graphRevision} · layout r${graph.layout.layoutRevision}`);
+      void hydratePreviews(graph.project.id, liveNodes);
+      const runtime = bootstrap.runtimeMode === "development" ? ` · Development ${bootstrap.widgetBuildId ?? "unknown"}` : "";
+      setStatus(`${liveNodes.length} nodes · graph r${graph.project.graphRevision} · layout r${graph.layout.layoutRevision}${runtime}`);
     } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); }
     finally { setBusy(false); }
-  }, [activeViewId, bootstrap.projectId, bootstrap.workspaceDir, demoImage, ensureBindingTarget, fitView, hydratePreviews, setEdges, setViewport, standaloneDemo]);
+  }, [activeViewId, bootstrap.projectId, bootstrap.runtimeMode, bootstrap.widgetBuildId, bootstrap.workspaceDir, demoImage, ensureBindingTarget, fitView, hydratePreviews, setEdges, setViewport, standaloneDemo, startFromTemplateGallery]);
 
   useEffect(() => { void load(); }, [load]);
 
   return {
     bootstrap, setBootstrap, project, setProject, manifest, setManifest, layout, setLayout, graphNodes, setGraphNodes, graphEdges, setGraphEdges, status, setStatus, busy, setBusy,
     projectRef, layoutRef, graphNodesRef, graphEdgesRef, bindingRef, pendingInitialFitView, pendingViewportRestore,
+    projectChoices, chooseProject, startFromTemplateGallery,
     load, ensureBindingTarget, hydratePreviews,
   };
 }

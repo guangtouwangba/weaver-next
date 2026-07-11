@@ -1,0 +1,4 @@
+interface:
+  display_name: "Develop Weaver Space"
+  short_description: "Expand selected semantic nodes through MCP ChangeSets."
+  default_prompt: "Develop the current Weaver selection."

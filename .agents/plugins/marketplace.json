@@ -1,0 +1,20 @@
+{
+  "name": "weaver",
+  "interface": {
+    "displayName": "Weaver"
+  },
+  "plugins": [
+    {
+      "name": "weaver-next",
+      "source": {
+        "source": "local",
+        "path": "./plugins/weaver-next"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

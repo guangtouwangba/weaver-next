@@ -24,7 +24,7 @@ export function registerAgentTasksTools(server: McpServer, ctx: AgentTasksToolsC
   server.registerTool("weaver_prepare_task_from_active_canvas", {
     title: "Prepare Task From Active Canvas",
     description: "Create a durable Weaver task only from the exact Canvas bound to the current Codex chat.",
-    inputSchema: { ...workspaceSchema.shape, actionKey: z.enum(["develop_selection", "layout_view", "develop_then_layout"]), userInstruction: z.string().optional() },
+    inputSchema: { ...workspaceSchema.shape, actionKey: z.enum(["develop_selection", "follow_up_ask", "layout_view", "develop_then_layout"]), userInstruction: z.string().optional() },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
   }, defineTool(async ({ workspaceDir, actionKey, userInstruction }, extra) => {
     const chatSessionKey = chatSessionKeyFromRequest(extra);

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Create Weaver Space"
+  short_description: "Create a Weaver space from a scene and visual template."
+  default_prompt: "Create a Weaver space and recommend a structured visual template for my goal."

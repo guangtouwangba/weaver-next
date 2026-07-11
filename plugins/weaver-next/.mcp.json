@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "weaver_mcp": {
+      "title": "Weaver Semantic Space MCP",
+      "description": "Open and operate project-local Weaver semantic spaces.",
+      "command": "node",
+      "args": [
+        "./scripts/start-mcp.mjs"
+      ],
+      "cwd": "."
+    }
+  }
+}

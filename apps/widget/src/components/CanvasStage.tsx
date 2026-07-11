@@ -1,9 +1,8 @@
-import { Background, BackgroundVariant, Controls, MiniMap, PanOnScrollMode, ReactFlow, SelectionMode, type Edge, type Node } from "@xyflow/react";
-import { Sparkles } from "lucide-react";
-import type { Dispatch, MutableRefObject, SetStateAction } from "react";
-import { isLocalDevelopment } from "../mcp-client";
-import { nodeTypes } from "../lib/graph-view";
-import { AgentTaskBanner } from "./AgentTaskBanner";
+import { Background, BackgroundVariant, MiniMap, PanOnScrollMode, ReactFlow, SelectionMode, type Edge, type Node, type Viewport } from "@xyflow/react";
+import type { Dispatch, MutableRefObject, ReactNode, SetStateAction } from "react";
+import { edgeTypes, nodeTypes } from "../lib/graph-view";
+import { canvasPatternOpacity, MAX_CANVAS_ZOOM, MIN_CANVAS_ZOOM, type CanvasInteraction, type CanvasViewportState } from "../lib/canvas-viewport";
+import { CanvasNavigation } from "./CanvasNavigation";
 import { ChangeSetPreviewPanel } from "./ChangeSetPreviewPanel";
 import { LayoutCandidatePanel } from "./LayoutCandidatePanel";
 import { StaleTaskBanner } from "./StaleTaskBanner";
@@ -18,12 +17,25 @@ export function CanvasStage(props: {
   onEdgesChange: (changes: any) => void;
   layout: Layout | null;
   handleCanvasWheel: (event: React.WheelEvent<HTMLElement>) => void;
+  viewportState: CanvasViewportState;
+  miniMapOpen: boolean;
+  setMiniMapOpen: Dispatch<SetStateAction<boolean>>;
+  beginViewportInteraction: (interaction: Exclude<CanvasInteraction, "idle" | "programmatic">) => void;
+  handleViewportMove: (viewport: Viewport) => void;
+  handleViewportMoveEnd: (viewport: Viewport) => void;
+  zoomBy: (factor: number, bounds?: DOMRect) => void;
+  fitAll: () => void;
+  focusSelection: () => void;
+  toggleCanvasTheme: () => void | Promise<void>;
+  onNodeClick: (nodeId: string) => void;
+  followUpComposer?: ReactNode;
   handleNodeDrag: (event: MouseEvent | TouchEvent, node: Node) => void;
   handleSelectionChange: (params: { nodes: Node[] }) => void;
+  archiveNodes: (nodeIds: string[]) => void | Promise<void>;
   draggingNodeId: MutableRefObject<string | null>;
   viewport: MutableRefObject<{ x: number; y: number; zoom: number }>;
   setStatus: Dispatch<SetStateAction<string>>;
-  syncContext: () => Promise<void>;
+  syncContext: () => Promise<boolean | undefined>;
   persistNodeFrame: (node: Node) => void | Promise<void>;
   openNodeViewer: (nodeId: string) => void | Promise<void>;
   bindingRef: MutableRefObject<ChatBindingBootstrap | undefined>;
@@ -43,24 +55,29 @@ export function CanvasStage(props: {
   setViewToast: Dispatch<SetStateAction<{ message: string; undoViewId?: string } | null>>;
   restoreProjectView: (viewId: string) => void | Promise<void>;
 }) {
-  const { standaloneDemo, displayedNodes, edges, onNodesChange, onEdgesChange, layout, handleCanvasWheel, handleNodeDrag, handleSelectionChange, draggingNodeId, viewport, setStatus, syncContext, persistNodeFrame, openNodeViewer, bindingRef, selection, activeTask, cancelActiveTask, changePreview, rejectChangeSet, applyChangeSet, candidates, candidateIndex, setCandidateIndex, rejectLayout, applyCandidate, staleTask, viewToast, setViewToast, restoreProjectView } = props;
-  return <section className="canvas-wrap" onWheelCapture={handleCanvasWheel} style={{ "--canvas-background": layout?.theme?.canvas.backgroundColor ?? "#f2f3ed", "--canvas-accent": layout?.theme?.nodeStyles.default?.accentColor ?? "#315cf6" } as React.CSSProperties}>
-    <ReactFlow nodes={displayedNodes} edges={edges} nodeTypes={nodeTypes} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
+  const { displayedNodes, edges, onNodesChange, onEdgesChange, layout, handleCanvasWheel, viewportState, miniMapOpen, setMiniMapOpen, beginViewportInteraction, handleViewportMove, handleViewportMoveEnd, zoomBy, fitAll, focusSelection, toggleCanvasTheme, onNodeClick, followUpComposer, handleNodeDrag, handleSelectionChange, archiveNodes, draggingNodeId, viewport, setStatus, syncContext, persistNodeFrame, openNodeViewer, selection, changePreview, rejectChangeSet, applyChangeSet, candidates, candidateIndex, setCandidateIndex, rejectLayout, applyCandidate, staleTask, viewToast, setViewToast, restoreProjectView } = props;
+  const canvas = layout?.theme?.canvas;
+  const patternOpacity = canvasPatternOpacity(viewportState.zoom, canvas?.patternOpacity ?? 0.5);
+  // TapNow is dark-first: treat an unset mode as dark, only an explicit "light" theme stays light.
+  const dark = canvas?.mode !== "light";
+  return <section className="canvas-wrap" data-lod={viewportState.lod} data-theme={dark ? "dark" : "light"} onWheelCapture={handleCanvasWheel} style={{ "--canvas-background": canvas?.backgroundColor ?? "#0a0a0a", "--canvas-accent": layout?.theme?.nodeStyles.default?.accentColor ?? "#1fa2dc" } as React.CSSProperties}>
+    <ReactFlow nodes={displayedNodes} edges={edges} nodeTypes={nodeTypes} edgeTypes={edgeTypes} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
       nodesDraggable elementsSelectable nodeDragThreshold={1} selectNodesOnDrag
       panOnDrag panOnScroll panOnScrollMode={PanOnScrollMode.Free} panOnScrollSpeed={0.72} panActivationKeyCode="Space"
       zoomOnScroll={false} zoomOnPinch zoomOnDoubleClick={false} selectionOnDrag={false} selectionMode={SelectionMode.Partial} selectionKeyCode="Shift"
       autoPanOnNodeDrag autoPanOnConnect autoPanOnSelection autoPanSpeed={18}
-      onMove={(_event, nextViewport) => { viewport.current = nextViewport; }} onMoveEnd={(_event, nextViewport) => { viewport.current = nextViewport; void syncContext(); }}
-      onNodeDrag={handleNodeDrag} onNodeDragStart={(_event, node) => { draggingNodeId.current = node.id; setStatus("Moving node…"); }} onNodeDragStop={(_event, node) => { draggingNodeId.current = null; void persistNodeFrame(node); }} onNodeDoubleClick={(_event, node) => void openNodeViewer(node.id)} onSelectionChange={handleSelectionChange}
-      fitView fitViewOptions={{ padding: 0.18, maxZoom: 1.15 }} minZoom={0.05} maxZoom={4}>
-      {layout?.theme?.canvas.pattern !== "plain" ? <Background variant={layout?.theme?.canvas.pattern === "grid" ? BackgroundVariant.Lines : BackgroundVariant.Dots} gap={20} size={1} color={layout?.theme?.canvas.patternColor ?? "#cdd1ca"} /> : null}<Controls showInteractive={false} /><MiniMap pannable zoomable nodeColor={(node) => node.type === "image" ? "#eb775f" : node.type === "link" ? "#282d28" : layout?.theme?.nodeStyles.default?.accentColor ?? "#315cf6"} />
+      onMoveStart={() => beginViewportInteraction("pan")} onMove={(_event, nextViewport) => { viewport.current = nextViewport; handleViewportMove(nextViewport); }} onMoveEnd={(_event, nextViewport) => { viewport.current = nextViewport; handleViewportMoveEnd(nextViewport); void syncContext(); }}
+      onNodeClick={(_event, node) => onNodeClick(node.id)} onNodeDrag={handleNodeDrag} onNodeDragStart={(_event, node) => { draggingNodeId.current = node.id; setStatus("Moving node…"); }} onNodeDragStop={(_event, node) => { draggingNodeId.current = null; void persistNodeFrame(node); }} onNodeDoubleClick={(_event, node) => void openNodeViewer(node.id)} onSelectionChange={handleSelectionChange} onNodesDelete={(deleted) => void archiveNodes(deleted.map((node) => node.id))}
+      fitView fitViewOptions={{ padding: 0.18, maxZoom: 1.15 }} minZoom={MIN_CANVAS_ZOOM} maxZoom={MAX_CANVAS_ZOOM}>
+      {canvas?.pattern !== "plain" ? <Background variant={canvas?.pattern === "grid" ? BackgroundVariant.Lines : BackgroundVariant.Dots} gap={viewportState.zoom < .25 ? (canvas?.patternGap ?? 20) * 2 : canvas?.patternGap ?? 20} size={canvas?.patternSize ?? 1} color={canvas?.patternColor ?? "#aeb5aa"} style={{ opacity: patternOpacity, transition: "opacity 120ms ease" }} /> : null}
+      {miniMapOpen ? <MiniMap pannable zoomable nodeStrokeWidth={0} maskColor={dark ? "rgba(13,15,14,.72)" : "rgba(242,243,237,.72)"} nodeColor={(node) => node.type === "image" ? "#eb775f" : node.type === "link" ? dark ? "#d9ddd8" : "#282d28" : layout?.theme?.nodeStyles.default?.accentColor ?? "#315cf6"} /> : null}
     </ReactFlow>
+    <CanvasNavigation state={viewportState} miniMapOpen={miniMapOpen} hasSelection={Boolean(selection.length)} dark={dark} onZoomOut={(bounds) => zoomBy(1 / 1.2, bounds)} onZoomIn={(bounds) => zoomBy(1.2, bounds)} onFit={fitAll} onFocus={focusSelection} onToggleMiniMap={() => setMiniMapOpen((open) => !open)} onToggleTheme={() => void toggleCanvasTheme()} onDeleteSelection={() => void archiveNodes(selection)} selectionCount={selection.length} />
     <div className="canvas-gesture-hint"><span>Drag canvas</span><span>Scroll to pan</span><span>⌘/Ctrl + scroll to zoom</span><span>Shift to select</span></div>
-    <div className="codex-context-status"><Sparkles size={13} /><span>{isLocalDevelopment || standaloneDemo ? "Browser preview. Agent unavailable" : !bindingRef.current ? "Canvas is not bound to a Codex chat" : selection.length ? `${selection.length} selected · bound to this Codex chat` : "Bound to this Codex chat"}</span></div>
-    <AgentTaskBanner activeTask={activeTask} cancelActiveTask={cancelActiveTask} />
     <ChangeSetPreviewPanel changePreview={changePreview} rejectChangeSet={rejectChangeSet} applyChangeSet={applyChangeSet} />
     <LayoutCandidatePanel candidates={candidates} candidateIndex={candidateIndex} setCandidateIndex={setCandidateIndex} rejectLayout={rejectLayout} applyCandidate={applyCandidate} />
     <StaleTaskBanner staleTask={staleTask} changePreview={changePreview} candidates={candidates} />
     <ViewToast viewToast={viewToast} setViewToast={setViewToast} restoreProjectView={restoreProjectView} />
+    {followUpComposer}
   </section>;
 }

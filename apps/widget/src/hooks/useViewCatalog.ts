@@ -27,7 +27,7 @@ export function useViewCatalog(params: {
   resetLayoutRun: () => void;
   saveStateRef: MutableRefObject<"saved" | "dirty" | "saving" | "conflict">;
   saveDocument: () => Promise<boolean>;
-  syncContext: () => Promise<void>;
+  syncContext: () => Promise<boolean | undefined>;
   setSelection: Dispatch<SetStateAction<string[]>>;
 }) {
   const { standaloneDemo, bootstrap, project, layout, projectRef, setProject, setStatus, ensureBindingTarget, bindingRef, setBootstrap, load, activeViewId, setActiveViewId, projectViews, setProjectViews, projectViewsRef, viewToast, setViewToast, resetLayoutRun, saveStateRef, saveDocument, syncContext, setSelection } = params;

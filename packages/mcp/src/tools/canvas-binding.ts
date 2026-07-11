@@ -1,5 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { canvasContextSnapshotSchema } from "@weaver/contracts";
 import { resolveSceneContext } from "@weaver/core";
 import { getScenePack } from "@weaver/scene-packs";
 import { workspaceSchema } from "../shared/schemas.js";
@@ -14,11 +15,31 @@ export function registerCanvasBindingTools(server: McpServer, ctx: CanvasBinding
 
   server.registerTool("weaver_sync_canvas_context", {
     title: "Sync Canvas Context", description: "Widget-only idempotent sync of selection, viewport, pinned nodes and independent graph/layout revisions.",
-    inputSchema: { ...workspaceSchema.shape, snapshot: z.any() }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    _meta: { ui: { visibility: ["app"] } },
+    // `snapshot` is the fully-typed context schema (not z.any()) so hosts that
+    // validate/serialize widget args against the input schema before proxying —
+    // Codex's Apps-SDK does — can actually send the call. An untyped z.any()
+    // produced an empty schema Codex refused to proxy (-32000, the call never
+    // reached the server), which was the whole "画布连接失败" claim failure.
+    // readOnlyHint MUST be true: Codex's Apps-SDK proxy blocks widget-initiated
+    // *writes* (readOnlyHint:false) with -32000, and this is the one write the
+    // widget makes on load — the "画布连接失败" claim. It is an idempotent context
+    // sync (selection/viewport/heartbeat), not a destructive graph mutation, so
+    // read-only is an honest annotation that lets the proxy deliver the call.
+    inputSchema: { ...workspaceSchema.shape, snapshot: canvasContextSnapshotSchema }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    _meta: { ui: { visibility: ["app"] }, "openai/widgetAccessible": true },
   }, defineTool(async ({ workspaceDir, snapshot }, extra) => {
     const chatSessionKey = snapshot?.agentEligible ? chatSessionKeyFromRequest(extra) : chatSessionKeyFromRequest(extra, false);
-    return result(mutateWithStore(workspaceDir, (store) => store.syncCanvasContext(snapshot, chatSessionKey)));
+    const output = mutateWithStore(workspaceDir, (store) => {
+      const context = store.syncCanvasContext(snapshot, chatSessionKey);
+      const project = store.getProject(context.projectId); if (!project) throw new Error("PROJECT_NOT_FOUND");
+      const layout = store.getLayout(context.projectId, context.viewId); if (!layout) throw new Error("LAYOUT_NOT_FOUND");
+      const binding = chatSessionKey ? store.getChatCanvasBinding(chatSessionKey) : undefined;
+      return {
+        context, bindingStatus: binding?.status ?? "detached", canvasSessionId: context.canvasSessionId,
+        graphRevision: project.graphRevision, layoutRevision: layout.layoutRevision,
+      };
+    });
+    return result(output);
   }));
 
   server.registerTool("weaver_switch_chat_canvas", {
@@ -35,6 +56,7 @@ export function registerCanvasBindingTools(server: McpServer, ctx: CanvasBinding
     title: "Get Bound Canvas", description: "Resolve the exact Project, View and Canvas currently bound to this Codex chat. Never guesses from focus or recency.",
     inputSchema: workspaceSchema.shape,
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    _meta: { ui: { visibility: ["app", "model"] } },
   }, defineTool(async ({ workspaceDir }, extra) => {
     const chatSessionKey = chatSessionKeyFromRequest(extra);
     const output = withStore(workspaceDir, (store) => {
@@ -42,7 +64,11 @@ export function registerCanvasBindingTools(server: McpServer, ctx: CanvasBinding
       const project = store.getProject(context.projectId); if (!project) throw new Error("PROJECT_NOT_FOUND");
       const layout = store.getLayout(context.projectId, context.viewId); if (!layout) throw new Error("LAYOUT_NOT_FOUND");
       const seenAt = Date.parse(context.presence?.lastSeenAt ?? context.updatedAt);
-      return { projectId: context.projectId, viewId: context.viewId, canvasSessionId: context.canvasSessionId, online: Date.now() - seenAt <= 30_000, graphRevision: project.graphRevision, layoutRevision: layout.layoutRevision, bindingRevision: binding.bindingRevision };
+      return {
+        projectId: context.projectId, viewId: context.viewId, canvasSessionId: context.canvasSessionId,
+        bindingStatus: binding.status, online: Date.now() - seenAt <= 30_000, lastSeenAt: context.presence?.lastSeenAt ?? context.updatedAt,
+        graphRevision: project.graphRevision, layoutRevision: layout.layoutRevision, bindingRevision: binding.bindingRevision,
+      };
     });
     return result(output);
   }));

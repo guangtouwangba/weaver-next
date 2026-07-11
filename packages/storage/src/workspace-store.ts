@@ -102,6 +102,7 @@ export class WorkspaceStore {
   replaceGraph(snapshot: GraphSnapshot, eventContext: { taskId?: string; canvasSessionId?: string } = {}) { return graph.replaceGraph(this.db, snapshot, eventContext); }
   createContentNode(input: { projectId: string; viewId: string; type: string; title: string; content: NodeContent; x: number; y: number }) { return graph.createContentNode(this.db, input); }
   updateNodeContent(input: { projectId: string; nodeId: string; baseGraphRevision: number; title?: string; type?: string; content?: NodeContent }) { return graph.updateNodeContent(this.db, input); }
+  archiveNode(input: { projectId: string; nodeId: string; baseGraphRevision: number }) { return graph.archiveNode(this.db, input); }
   attachAsset(input: { projectId: string; nodeId: string; assetId: string; role: "embedded" | "cover"; baseGraphRevision: number }) { return graph.attachAsset(this.db, input); }
 
   // --- layout documents / view templates ---

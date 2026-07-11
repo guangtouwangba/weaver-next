@@ -53,6 +53,37 @@ describe("WorkspaceStore", () => {
     db.close();
   });
 
+  it("atomically advances a stale explicit claim while still rejecting stale state", () => {
+    const db = store();
+    const scene = getScenePack("free-brainstorming")!;
+    const project = db.createProject({ title: "Claim recovery", goal: "", scenePack: scene });
+    const snapshot = { version: 2 as const, canvasSessionId: "recoverable", workspaceDir: db.workspaceDir, projectId: project.id, scenePackId: scene.id, scenePackVersion: scene.version, graphRevision: 0, viewId: project.defaultViewId, viewType: scene.defaultView, selectedNodeIds: [], selectedEdgeIds: [], selectedGroupIds: [], pinnedContextNodeIds: [], viewport: { x: 0, y: 0, zoom: 1 }, agentEligible: false, sequence: 7, updatedAt: new Date().toISOString() };
+    db.syncCanvasContext(snapshot);
+
+    const claimed = db.syncCanvasContext({ ...snapshot, syncPurpose: "claim", sequence: 1 });
+
+    expect(claimed.sequence).toBe(8);
+    expect(db.getCanvasContext("recoverable")?.sequence).toBe(8);
+    expect(() => db.syncCanvasContext({ ...snapshot, syncPurpose: "state", sequence: 2 })).toThrow("STALE_CANVAS_SEQUENCE");
+    db.close();
+  });
+
+  it("claims a Canvas session without overwriting its saved viewport", () => {
+    const db = store(); const scene = getScenePack("free-brainstorming")!;
+    const project = db.createProject({ title: "Claim", goal: "", scenePack: scene });
+    const chatSessionKey = createHash("sha256").update("claim-chat").digest("hex");
+    const binding = db.openChatCanvasBinding({ chatSessionKey, projectId: project.id, viewId: project.defaultViewId });
+    db.saveCanvasViewState({ canvasSessionId: "claim-session", viewId: project.defaultViewId, viewport: { x: 50, y: 60, zoom: .8 }, selectedNodeIds: ["kept"], lastOpenedAt: new Date().toISOString() });
+    const timestamp = new Date().toISOString();
+    const base = { version: 2 as const, canvasSessionId: "claim-session", workspaceDir: db.workspaceDir, projectId: project.id, scenePackId: scene.id, scenePackVersion: scene.version, graphRevision: 0, viewId: project.defaultViewId, viewType: scene.defaultView, selectedNodeIds: [], selectedEdgeIds: [], selectedGroupIds: [], pinnedContextNodeIds: [], presence: { visible: true, focused: true, lastSeenAt: timestamp }, chatBinding: { leaseId: binding.leaseId, bindingRevision: binding.bindingRevision }, agentEligible: true, updatedAt: timestamp };
+    db.syncCanvasContext({ ...base, syncPurpose: "claim", viewport: { x: 0, y: 0, zoom: 1 }, sequence: 1 }, chatSessionKey);
+    expect(db.getCanvasViewState("claim-session", project.defaultViewId)).toMatchObject({ viewport: { x: 50, y: 60, zoom: .8 }, selectedNodeIds: ["kept"] });
+    const later = new Date(Date.parse(timestamp) + 1).toISOString();
+    db.syncCanvasContext({ ...base, syncPurpose: "state", viewport: { x: 10, y: 20, zoom: .7 }, selectedNodeIds: ["saved"], presence: { visible: true, focused: true, lastSeenAt: later }, updatedAt: later, sequence: 2 }, chatSessionKey);
+    expect(db.getCanvasViewState("claim-session", project.defaultViewId)).toMatchObject({ viewport: { x: 10, y: 20, zoom: .7 }, selectedNodeIds: ["saved"] });
+    db.close();
+  });
+
   it("stores independent layouts for multiple views", () => {
     const db = store();
     const scene = getScenePack("free-brainstorming")!;
@@ -143,6 +174,25 @@ describe("WorkspaceStore", () => {
     const updated = db.updateNodeContent({ projectId: project.id, nodeId: created.node.id, baseGraphRevision: 1, title: "Updated image" });
     expect(updated.project?.graphRevision).toBe(2);
     expect(db.getLayout(project.id, project.defaultViewId)?.layoutRevision).toBe(1);
+    db.close();
+  });
+
+  it("archives a node so a reload no longer resurrects it", async () => {
+    const db = store();
+    const scene = getScenePack("free-brainstorming")!;
+    const project = db.createProject({ title: "Delete", goal: "", scenePack: scene });
+    const png = await sharp({ create: { width: 60, height: 40, channels: 4, background: "#315cf6" } }).png().toBuffer();
+    const asset = await db.importImageAsset({ projectId: project.id, mimeType: "image/png", data: png });
+    const keep = db.createContentNode({ projectId: project.id, viewId: project.defaultViewId, type: "idea", title: "Keep", content: { kind: "image", assetId: asset.asset.id, alt: "", caption: "" }, x: 0, y: 0 });
+    const remove = db.createContentNode({ projectId: project.id, viewId: project.defaultViewId, type: "idea", title: "Remove", content: { kind: "image", assetId: asset.asset.id, alt: "", caption: "" }, x: 100, y: 0 });
+    const rev = db.getProject(project.id)!.graphRevision;
+    const res = db.archiveNode({ projectId: project.id, nodeId: remove.node.id, baseGraphRevision: rev });
+    expect(res.project?.graphRevision).toBe(rev + 1);
+    const nodes = db.getGraph(project.id).nodes;
+    expect(nodes.find((node) => node.id === remove.node.id)?.archived).toBe(true);
+    expect(nodes.find((node) => node.id === keep.node.id)?.archived).toBe(false);
+    expect(() => db.archiveNode({ projectId: project.id, nodeId: remove.node.id, baseGraphRevision: rev })).toThrow("GRAPH_REVISION_CONFLICT");
+    expect(() => db.archiveNode({ projectId: project.id, nodeId: "nope", baseGraphRevision: rev + 1 })).toThrow("NODE_NOT_FOUND");
     db.close();
   });
 
@@ -277,6 +327,68 @@ describe("WorkspaceStore", () => {
     const timestamp = new Date().toISOString();
     db.syncCanvasContext({ version: 2, canvasSessionId: "browser-canvas", workspaceDir: db.workspaceDir, projectId: project.id, scenePackId: scene.id, scenePackVersion: scene.version, graphRevision: 0, viewId: project.defaultViewId, viewType: scene.defaultView, selectedNodeIds: [], selectedEdgeIds: [], selectedGroupIds: [], pinnedContextNodeIds: [], viewport: { x: 0, y: 0, zoom: 1 }, agentEligible: false, sequence: 1, updatedAt: timestamp });
     expect(() => db.prepareAgentTask({ canvasSessionId: "browser-canvas", actionKey: "develop_selection", chatSessionKey: offlineChat })).toThrow("BROWSER_PREVIEW_AGENT_UNAVAILABLE");
+    db.close();
+  });
+
+  it("keeps one online Canvas active and permits takeover after it goes offline", () => {
+    const db = store(); const scene = getScenePack("free-brainstorming")!;
+    const project = db.createProject({ title: "Single Canvas", goal: "", scenePack: scene });
+    const chatSessionKey = createHash("sha256").update("single-canvas-chat").digest("hex");
+    const binding = db.openChatCanvasBinding({ chatSessionKey, projectId: project.id, viewId: project.defaultViewId });
+    const snapshot = (canvasSessionId: string, sequence: number, timestamp: string) => ({
+      version: 2 as const, canvasSessionId, workspaceDir: db.workspaceDir, projectId: project.id,
+      scenePackId: scene.id, scenePackVersion: scene.version, graphRevision: project.graphRevision,
+      viewId: project.defaultViewId, viewType: scene.defaultView, selectedNodeIds: [], selectedEdgeIds: [],
+      selectedGroupIds: [], pinnedContextNodeIds: [], viewport: { x: 0, y: 0, zoom: 1 },
+      presence: { visible: true, focused: true, lastSeenAt: timestamp },
+      chatBinding: { leaseId: binding.leaseId, bindingRevision: binding.bindingRevision },
+      agentEligible: true, sequence, updatedAt: timestamp,
+    });
+    const now = new Date().toISOString();
+    db.syncCanvasContext(snapshot("canvas-a", 1, now), chatSessionKey);
+    expect(() => db.syncCanvasContext(snapshot("canvas-b", 1, now), chatSessionKey)).toThrow("CANVAS_ALREADY_ACTIVE");
+    expect(db.getChatCanvasBinding(chatSessionKey)).toMatchObject({ canvasSessionId: "canvas-a", status: "active" });
+
+    const old = new Date(Date.now() - 31_000).toISOString();
+    db.db.prepare("UPDATE canvas_session SET data = json_set(data, '$.presence.lastSeenAt', ?, '$.updatedAt', ?) WHERE id = ?").run(old, old, "canvas-a");
+    db.syncCanvasContext(snapshot("canvas-b", 2, new Date().toISOString()), chatSessionKey);
+    expect(db.getChatCanvasBinding(chatSessionKey)).toMatchObject({ canvasSessionId: "canvas-b", status: "active" });
+    expect(db.listProjectEvents(project.id).some((event) => event.kind === "chat.binding.changed" && event.canvasSessionId === "canvas-a")).toBe(true);
+    db.close();
+  });
+
+  it("lets an explicit claim take over an online Canvas (page refresh reclaims instantly)", () => {
+    const db = store(); const scene = getScenePack("free-brainstorming")!;
+    const project = db.createProject({ title: "Refresh reclaim", goal: "", scenePack: scene });
+    const chatSessionKey = createHash("sha256").update("refresh-reclaim-chat").digest("hex");
+    const binding = db.openChatCanvasBinding({ chatSessionKey, projectId: project.id, viewId: project.defaultViewId });
+    const snapshot = (canvasSessionId: string, sequence: number, syncPurpose: "claim" | "state", timestamp: string) => ({
+      version: 2 as const, canvasSessionId, workspaceDir: db.workspaceDir, projectId: project.id,
+      scenePackId: scene.id, scenePackVersion: scene.version, graphRevision: project.graphRevision,
+      viewId: project.defaultViewId, viewType: scene.defaultView, selectedNodeIds: [], selectedEdgeIds: [],
+      selectedGroupIds: [], pinnedContextNodeIds: [], viewport: { x: 0, y: 0, zoom: 1 },
+      presence: { visible: true, focused: true, lastSeenAt: timestamp },
+      chatBinding: { leaseId: binding.leaseId, bindingRevision: binding.bindingRevision },
+      agentEligible: true, sequence, syncPurpose, updatedAt: timestamp,
+    });
+    const now = new Date().toISOString();
+    db.syncCanvasContext(snapshot("canvas-old", 1, "claim", now), chatSessionKey);
+    // The old session is still "online" (heartbeat just now), but a fresh page
+    // load issues a `claim` and must take over rather than throw.
+    db.syncCanvasContext(snapshot("canvas-new", 1, "claim", new Date().toISOString()), chatSessionKey);
+    expect(db.getChatCanvasBinding(chatSessionKey)).toMatchObject({ canvasSessionId: "canvas-new", status: "active" });
+    expect(db.listProjectEvents(project.id).some((event) => event.kind === "chat.binding.changed" && event.canvasSessionId === "canvas-old")).toBe(true);
+    db.close();
+  });
+
+  it("opens the same active Project/View without rotating its lease", () => {
+    const db = store(); const scene = getScenePack("free-brainstorming")!;
+    const project = db.createProject({ title: "Idempotent open", goal: "", scenePack: scene });
+    const chatSessionKey = bindCanvas(db, project, scene, "idempotent-canvas");
+    const before = db.getChatCanvasBinding(chatSessionKey)!;
+    const reopened = db.openChatCanvasBinding({ chatSessionKey, projectId: project.id, viewId: project.defaultViewId });
+    expect(reopened).toEqual(before);
+    expect(db.openChatCanvasBinding({ chatSessionKey })).toEqual(before);
     db.close();
   });
 

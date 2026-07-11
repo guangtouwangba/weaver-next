@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
-import { callTool } from "../mcp-client";
+import { callTool, hostMode, isLocalDevelopment } from "../mcp-client";
 import { applyGraphDelta, applyLayoutOperations, applyViewCatalogDelta, type GraphDelta, type LayoutOperation } from "../sync";
-import type { AgentTask, Bootstrap, Candidate, ChangeSetPreview, ChatBindingBootstrap, GraphEdge, GraphNode, Layout, Manifest, Project, ProjectEvent, ProjectView } from "../types";
+import type { AgentTask, Bootstrap, Candidate, CanvasAccessState, ChangeSetPreview, ChatBindingBootstrap, GraphEdge, GraphNode, Layout, Manifest, Project, ProjectEvent, ProjectView } from "../types";
 
 // Domain D: SSE stream + task/changeset/candidate lifecycle. The largest, most self-contained
 // domain — owns the EventSource connection, live task/changeset/layout-candidate state, and
@@ -27,7 +27,7 @@ export function useCanvasEventStream(params: {
   bindingRef: MutableRefObject<ChatBindingBootstrap | undefined>;
   load: () => Promise<void>;
   hydratePreviews: (projectId: string, items: GraphNode[]) => Promise<void>;
-  syncContext: () => Promise<void>;
+  syncContext: () => Promise<boolean | undefined>;
   saveStateRef: MutableRefObject<"saved" | "dirty" | "saving" | "conflict">;
   activeDocumentRef: MutableRefObject<GraphNode | null>;
   setSaveState: Dispatch<SetStateAction<"saved" | "dirty" | "saving" | "conflict">>;
@@ -35,13 +35,20 @@ export function useCanvasEventStream(params: {
   projectViewsRef: MutableRefObject<ProjectView[]>;
   setProjectViews: Dispatch<SetStateAction<ProjectView[]>>;
   setViewToast: Dispatch<SetStateAction<{ message: string; undoViewId?: string } | null>>;
+  openNodeViewer: (nodeId: string) => void | Promise<void>;
   setActiveViewId: Dispatch<SetStateAction<string>>;
   sessionId: MutableRefObject<string>;
   stream: MutableRefObject<EventSource | null>;
+  accessState: CanvasAccessState;
+  setAccessState: Dispatch<SetStateAction<CanvasAccessState>>;
 }) {
-  const { standaloneDemo, bootstrap, project, layout, setProject, setLayout, setGraphNodes, setGraphEdges, setManifest, setStatus, setBusy, setBootstrap, projectRef, layoutRef, graphNodesRef, graphEdgesRef, bindingRef, load, hydratePreviews, syncContext, saveStateRef, activeDocumentRef, setSaveState, draggingNodeId, projectViewsRef, setProjectViews, setViewToast, setActiveViewId, sessionId, stream } = params;
+  const { standaloneDemo, bootstrap, project, layout, setProject, setLayout, setGraphNodes, setGraphEdges, setManifest, setStatus, setBusy, setBootstrap, projectRef, layoutRef, graphNodesRef, graphEdgesRef, bindingRef, load, hydratePreviews, syncContext, saveStateRef, activeDocumentRef, setSaveState, draggingNodeId, projectViewsRef, setProjectViews, setViewToast, openNodeViewer, setActiveViewId, sessionId, stream, accessState, setAccessState } = params;
 
-  const [streamState, setStreamState] = useState<"connecting" | "online" | "offline">("connecting");
+  // "polling" is the Codex live path: the native panel's sandboxed iframe cannot
+  // hold an EventSource to the loopback /events (SSE fails there even though plain
+  // fetch to /mcp-rpc works), so Codex never opens one — it polls over the proven
+  // fetch path instead. It is a healthy "Live" state, not a degraded one.
+  const [streamState, setStreamState] = useState<"connecting" | "online" | "offline" | "polling">("connecting");
   const [streamGeneration, setStreamGeneration] = useState(0);
   const [layoutRunId, setLayoutRunId] = useState<string | null>(null);
   const [activeTask, setActiveTask] = useState<AgentTask | null>(null);
@@ -50,6 +57,20 @@ export function useCanvasEventStream(params: {
   const [staleTask, setStaleTask] = useState<AgentTask | null>(null);
   const [candidateIndex, setCandidateIndex] = useState(0);
   const lastEventSequence = useRef(0);
+  const polledTaskRevs = useRef<Map<string, number>>(new Map());
+
+  const reconcileRevisions = useCallback(async () => {
+    if (isLocalDevelopment) return;
+    if (!bootstrap.workspaceDir || !projectRef.current || !layoutRef.current) return;
+    const bound = await callTool<{ projectId: string; viewId: string; canvasSessionId: string; bindingStatus: string; graphRevision: number; layoutRevision: number }>("weaver_get_bound_canvas", { workspaceDir: bootstrap.workspaceDir });
+    if (bound.bindingStatus !== "active" || bound.canvasSessionId !== sessionId.current) {
+      stream.current?.close(); setAccessState("detached"); setStatus("Detached. This Chat is now attached to another Canvas"); return;
+    }
+    const currentProject = projectRef.current; const currentLayout = layoutRef.current;
+    if (bound.projectId !== currentProject.id || bound.viewId !== currentLayout.viewId || bound.graphRevision > currentProject.graphRevision || bound.layoutRevision > currentLayout.layoutRevision) {
+      setStatus("Server revision changed · refreshing canvas"); await load();
+    }
+  }, [bootstrap.workspaceDir, load, projectRef, layoutRef, sessionId, setAccessState, setStatus, stream]);
 
   async function handleTaskUpdate(task: AgentTask) {
     setActiveTask(task);
@@ -119,27 +140,30 @@ export function useCanvasEventStream(params: {
       } catch { setStatus("View catalog event gap detected · refreshing once"); void load(); }
     }
     else if (event.kind === "view.created") void (async () => { if (!projectRef.current) return; const next = await callTool<Manifest>("weaver_get_project_manifest", { workspaceDir: bootstrap.workspaceDir, projectId: projectRef.current.id }); setManifest(next); })();
-    else if (event.kind === "chat.binding.changed" && event.payload?.status === "detached" && Number(event.payload.bindingRevision) > Number(bindingRef.current?.bindingRevision ?? 0)) {
+    else if (event.kind === "chat.binding.changed" && event.payload?.status === "detached" && (event.payload.reason === "CANVAS_TAKEN_OVER" || Number(event.payload.bindingRevision) > Number(bindingRef.current?.bindingRevision ?? 0))) {
       if (event.payload.reason === "VIEW_TRASHED" && bindingRef.current && event.payload.fallbackViewId) {
         const nextBinding = { ...bindingRef.current, bindingRevision: Number(event.payload.bindingRevision), viewId: String(event.payload.fallbackViewId) };
         bindingRef.current = nextBinding; setBootstrap((current) => ({ ...current, chatBinding: nextBinding })); setActiveViewId(nextBinding.viewId!); setViewToast({ message: "The current View was moved to Recycle Bin" });
-      } else { stream.current?.close(); setStreamState("offline"); setStatus("Detached. This Chat is now attached to another Canvas"); }
+      } else { stream.current?.close(); setStreamState("offline"); setAccessState("detached"); setStatus("Detached. This Chat is now attached to another Canvas"); }
     }
     else if (event.kind === "stream.reset") void load();
   }
 
   useEffect(() => {
-    if (standaloneDemo || !project?.id || !layout?.viewId || !bootstrap.workspaceDir) return;
+    if (standaloneDemo || accessState !== "active" || !project?.id || !layout?.viewId || !bootstrap.workspaceDir) return;
     let disposed = false;
     setStreamState("connecting");
     void (async () => {
       try {
         await syncContext();
-        const grant = await callTool<{ eventStreamUrl: string; currentSequence: number }>("weaver_open_canvas_event_stream", { workspaceDir: bootstrap.workspaceDir, projectId: project.id, canvasSessionId: sessionId.current });
-        await load();
+        await reconcileRevisions();
         const recoverableTasks = await callTool<AgentTask[]>("weaver_list_canvas_tasks", { workspaceDir: bootstrap.workspaceDir, canvasSessionId: sessionId.current });
         for (const task of recoverableTasks.reverse()) await handleTaskUpdate(task);
         if (disposed) return;
+        // Codex: no EventSource — the sandbox can't reach the loopback SSE. Enter
+        // the polling live state (the effect below drives it) with an honest status.
+        if (hostMode === "codex") { setStreamState("polling"); setStatus((current) => current.includes("Agent task") ? current : "实时同步已连接（轮询）"); return; }
+        const grant = await callTool<{ eventStreamUrl: string; currentSequence: number }>("weaver_open_canvas_event_stream", { workspaceDir: bootstrap.workspaceDir, projectId: project.id, canvasSessionId: sessionId.current });
         lastEventSequence.current = Math.max(lastEventSequence.current, grant.currentSequence);
         const source = new EventSource(grant.eventStreamUrl); stream.current?.close(); stream.current = source;
         source.onopen = () => { setStreamState("online"); setStatus((current) => current.includes("Agent task") ? current : "Live sync connected"); };
@@ -148,14 +172,76 @@ export function useCanvasEventStream(params: {
           try { handleProjectEvent(JSON.parse((message as MessageEvent).data) as ProjectEvent); }
           catch (error) { setStatus(`Invalid live event · ${error instanceof Error ? error.message : String(error)}`); }
         });
+        // Development-only: the MCP process pushes this when the widget bundle is rebuilt.
+        source.addEventListener("widget.reload", () => location.reload());
       } catch (error) { if (!disposed) { setStreamState("offline"); setStatus(error instanceof Error ? error.message : String(error)); } }
     })();
     return () => { disposed = true; stream.current?.close(); stream.current = null; };
-  }, [bootstrap.workspaceDir, project?.id, layout?.viewId, standaloneDemo, streamGeneration]);
+  }, [accessState, bootstrap.workspaceDir, project?.id, layout?.viewId, reconcileRevisions, standaloneDemo, streamGeneration]);
+
+  useEffect(() => {
+    if (standaloneDemo || accessState !== "active") return;
+    const reconcile = () => { if (!document.hidden) void reconcileRevisions(); };
+    window.addEventListener("focus", reconcile);
+    document.addEventListener("visibilitychange", reconcile);
+    return () => { window.removeEventListener("focus", reconcile); document.removeEventListener("visibilitychange", reconcile); };
+  }, [accessState, reconcileRevisions, standaloneDemo]);
+
+  // Codex live-update fallback. The embedded ui:// widget calls tools over the
+  // Apps-SDK proxy (callServerTool), but the loopback SSE (/events) may be
+  // unreachable from that sandboxed iframe. When the stream isn't online in Codex,
+  // poll for graph/task/ChangeSet changes over the (working) proxy path so agent
+  // ChangeSets still surface. Only runs while active AND the SSE is not online, so
+  // it costs nothing when SSE works or the canvas is idle/detached.
+  useEffect(() => {
+    if (standaloneDemo || hostMode !== "codex" || accessState !== "active" || streamState === "online") return;
+    if (!bootstrap.workspaceDir || !project?.id) return;
+    let stopped = false;
+    const tick = async () => {
+      if (stopped) return;
+      try {
+        await reconcileRevisions();
+        const tasks = await callTool<AgentTask[]>("weaver_list_canvas_tasks", { workspaceDir: bootstrap.workspaceDir, canvasSessionId: sessionId.current });
+        for (const task of tasks) {
+          if (polledTaskRevs.current.get(task.taskId) === task.taskRevision) continue;
+          polledTaskRevs.current.set(task.taskId, task.taskRevision);
+          await handleTaskUpdate(task);
+        }
+      } catch { /* transient proxy hiccup; next tick retries */ }
+    };
+    // Poll fast while a task is in flight (a ChangeSet may land any second), calm
+    // when idle (just catching external edits). These are local loopback calls —
+    // zero model tokens — but the slower idle cadence keeps logs and CPU quiet.
+    const id = window.setInterval(() => void tick(), activeTask ? 3500 : 10000);
+    void tick();
+    return () => { stopped = true; window.clearInterval(id); };
+  }, [standaloneDemo, accessState, streamState, bootstrap.workspaceDir, project?.id, reconcileRevisions, Boolean(activeTask)]);
 
   async function cancelActiveTask() { if (!activeTask) return; try { await callTool("weaver_cancel_agent_task", { workspaceDir: bootstrap.workspaceDir, taskId: activeTask.taskId }); setStatus("Agent task cancelled · later writes will be rejected"); } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); } }
 
-  async function applyChangeSet() { if (!changePreview) return; setBusy(true); try { await callTool("weaver_apply_changeset", { workspaceDir: bootstrap.workspaceDir, changeSetId: changePreview.changeSet.id }); setChangePreview(null); } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); } finally { setBusy(false); } }
+  async function applyChangeSet() {
+    if (!changePreview) return;
+    const changeSet = changePreview.changeSet;
+    setBusy(true);
+    try {
+      await callTool("weaver_apply_changeset", { workspaceDir: bootstrap.workspaceDir, changeSetId: changeSet.id });
+      setChangePreview(null);
+      // A ChangeSet often expands a node's *body*, which is invisible on the
+      // small card face — so tell the user what changed and open the node so the
+      // new content is actually visible, otherwise Apply feels like a no-op.
+      const contentNodeIds = [...new Set(changeSet.graphOperations.flatMap((op: any) =>
+        op.type === "set-node-content" || op.type === "update-node" ? [op.nodeId as string] : op.type === "add-node" ? [op.node.id as string] : []))];
+      const titleOf = (id: string) => graphNodesRef.current.find((node) => node.id === id)?.title ?? "节点";
+      if (contentNodeIds.length === 1) {
+        setViewToast({ message: `已更新「${titleOf(contentNodeIds[0])}」，已展开该节点` });
+        void openNodeViewer(contentNodeIds[0]);
+      } else if (contentNodeIds.length > 1) {
+        setViewToast({ message: `已更新 ${contentNodeIds.length} 个节点，包括「${titleOf(contentNodeIds[0])}」` });
+      } else {
+        setViewToast({ message: "改动已应用到画布" });
+      }
+    } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); } finally { setBusy(false); }
+  }
   async function rejectChangeSet() { if (!changePreview) return; setBusy(true); try { await callTool("weaver_reject_changeset", { workspaceDir: bootstrap.workspaceDir, changeSetId: changePreview.changeSet.id }); setChangePreview(null); } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); } finally { setBusy(false); } }
   async function applyCandidate() { const candidate = candidates[candidateIndex]; if (!candidate || !layoutRunId) return; setBusy(true); try { await callTool("weaver_apply_layout", { workspaceDir: bootstrap.workspaceDir, layoutRunId, candidateId: candidate.id }); setCandidates([]); setLayoutRunId(null); } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); } finally { setBusy(false); } }
   async function rejectLayout() { if (!layoutRunId) return; setBusy(true); try { await callTool("weaver_reject_layout", { workspaceDir: bootstrap.workspaceDir, layoutRunId }); setCandidates([]); setLayoutRunId(null); } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); } finally { setBusy(false); } }

@@ -223,6 +223,7 @@ export type ChatCanvasBinding = z.infer<typeof chatCanvasBindingSchema>;
 
 export const canvasContextSnapshotSchema = z.object({
   version: z.literal(2),
+  syncPurpose: z.enum(["claim", "state"]).default("state"),
   canvasSessionId: z.string().min(1),
   workspaceDir: z.string().min(1),
   projectId: z.string().min(1),
@@ -252,7 +253,7 @@ export const canvasContextSnapshotSchema = z.object({
 });
 export type CanvasContextSnapshot = z.infer<typeof canvasContextSnapshotSchema>;
 
-export const agentTaskIntentSchema = z.enum(["develop_selection", "layout_view", "develop_then_layout"]);
+export const agentTaskIntentSchema = z.enum(["develop_selection", "follow_up_ask", "layout_view", "develop_then_layout"]);
 export type AgentTaskIntent = z.infer<typeof agentTaskIntentSchema>;
 export const agentTaskStageSchema = z.enum(["content", "layout"]);
 export type AgentTaskStage = z.infer<typeof agentTaskStageSchema>;
@@ -280,6 +281,8 @@ export const agentTaskSchema = z.object({
   bindingRevision: z.number().int().nonnegative().default(0),
   actionKey: z.string().min(1),
   selectedNodeIds: z.array(z.string()).default([]),
+  anchorNodeId: z.string().optional(),
+  referencedNodeIds: z.array(z.string()).default([]),
   selectedEdgeIds: z.array(z.string()).default([]),
   pinnedContextNodeIds: z.array(z.string()).default([]),
   userInstruction: z.string().optional(),

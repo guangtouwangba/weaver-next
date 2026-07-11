@@ -7,7 +7,7 @@ export function NodeShell({ children, data, className, id, selected }: { childre
   const minimum = data.contentKind === "image" ? { width: 160, height: 140 } : data.contentKind === "link" ? { width: 220, height: 120 } : { width: 180, height: 100 };
   return <>
     <NodeResizer isVisible={selected} minWidth={minimum.width} minHeight={minimum.height} maxWidth={900} maxHeight={700} color="#315cf6" onResizeStart={() => data.onResizeStart?.(id)} onResizeEnd={(_event, frame) => data.onResizeEnd?.(id, frame)} />
-    <article className={`content-card ${className}`} data-pinned={data.pinned}>
+    <article className={`content-card ${className}`} data-pinned={data.pinned} data-selected={selected}>
       <Handle id="target-left" type="target" position={Position.Left} /><Handle id="source-left" type="source" position={Position.Left} />
       <Handle id="target-top" type="target" position={Position.Top} /><Handle id="source-top" type="source" position={Position.Top} />
       {children}<div className="card-open-hint"><Maximize2 size={10} /> double-click</div>

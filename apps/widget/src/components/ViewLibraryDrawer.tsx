@@ -22,9 +22,13 @@ export function ViewActionsMenu({ view, project, projectViews, beginRename, pinP
   </div>;
 }
 
-export function ViewLibraryRow({ view, options = {}, layout, project, projectViews, purgeConfirmId, renamingViewId, renameValue, setRenameValue, setRenamingViewId, viewMenuId, setViewMenuId, switchView, restoreProjectView, purgeProjectView, renameProjectView, beginRename, pinProjectView, duplicateProjectView, setDefaultView, trashProjectView }: {
+export function ViewLibraryRow({ view, options = {}, menuScope, layout, project, projectViews, purgeConfirmId, renamingViewId, renameValue, setRenameValue, setRenamingViewId, viewMenuId, setViewMenuId, switchView, restoreProjectView, purgeProjectView, renameProjectView, beginRename, pinProjectView, duplicateProjectView, setDefaultView, trashProjectView }: {
   view: ProjectView;
   options?: { compact?: boolean };
+  // The same view renders in several sections at once (Fixed / Recent / All / the
+  // top-bar tab); a bare view.id menu key would open every copy of its menu
+  // simultaneously. Scope the key per render location so only the clicked one opens.
+  menuScope: string;
   layout: Layout | null;
   purgeConfirmId: string | null;
   renamingViewId: string | null;
@@ -39,6 +43,7 @@ export function ViewLibraryRow({ view, options = {}, layout, project, projectVie
   renameProjectView: (viewId: string) => void | Promise<void>;
 } & ViewRowActions) {
   const current = layout?.viewId === view.id;
+  const menuKey = `${menuScope}:${view.id}`;
   if (view.status === "trashed") return <div className="view-library-row trashed" key={`trash-${view.id}`}>
     <div className="view-miniature" data-type={view.viewType}><span /><span /><span /></div>
     <div className="view-row-copy"><strong>{view.name}</strong><small>{view.viewType} · deletes {view.purgeAfter ? new Date(view.purgeAfter).toLocaleDateString() : "in 30 days"}</small></div>
@@ -47,7 +52,7 @@ export function ViewLibraryRow({ view, options = {}, layout, project, projectVie
   return <div className="view-library-row" data-current={current} key={`${options.compact ? "compact" : "all"}-${view.id}`} onClick={() => void switchView(view.id)}>
     <div className="view-miniature" data-type={view.viewType}><span /><span /><span /></div>
     <div className="view-row-copy">{renamingViewId === view.id ? <input data-rename-view={view.id} value={renameValue} onChange={(event) => setRenameValue(event.target.value)} onClick={(event) => event.stopPropagation()} onKeyDown={(event) => { if (event.key === "Enter") void renameProjectView(view.id); if (event.key === "Escape") setRenamingViewId(null); }} onBlur={() => renameValue.trim() && renameValue !== view.name ? void renameProjectView(view.id) : setRenamingViewId(null)} /> : <><strong>{view.name}{project?.defaultViewId === view.id ? <Home size={11} /> : null}</strong><small>{view.viewType}{view.templateRef ? ` · ${view.templateRef.id}` : ""}{typeof view.nodeCount === "number" ? ` · ${view.nodeCount} nodes` : ""}</small></>}</div>
-    <div className="view-row-actions" onClick={(event) => event.stopPropagation()}><button aria-label={view.pinned ? `Unpin ${view.name}` : `Pin ${view.name}`} onClick={() => void pinProjectView(view)}><PinIcon size={14} fill={view.pinned ? "currentColor" : "none"} /></button><button aria-label={`More actions for ${view.name}`} onClick={() => setViewMenuId(viewMenuId === view.id ? null : view.id)}><MoreHorizontal size={16} /></button>{viewMenuId === view.id ? <ViewActionsMenu view={view} project={project} projectViews={projectViews} beginRename={beginRename} pinProjectView={pinProjectView} duplicateProjectView={duplicateProjectView} setDefaultView={setDefaultView} trashProjectView={trashProjectView} /> : null}</div>
+    <div className="view-row-actions" onClick={(event) => event.stopPropagation()}><button aria-label={view.pinned ? `Unpin ${view.name}` : `Pin ${view.name}`} onClick={() => void pinProjectView(view)}><PinIcon size={14} fill={view.pinned ? "currentColor" : "none"} /></button><button aria-label={`More actions for ${view.name}`} onClick={() => setViewMenuId(viewMenuId === menuKey ? null : menuKey)}><MoreHorizontal size={16} /></button>{viewMenuId === menuKey ? <ViewActionsMenu view={view} project={project} projectViews={projectViews} beginRename={beginRename} pinProjectView={pinProjectView} duplicateProjectView={duplicateProjectView} setDefaultView={setDefaultView} trashProjectView={trashProjectView} /> : null}</div>
   </div>;
 }
 
@@ -80,10 +85,10 @@ export function ViewLibraryDrawer(props: {
     <header><div><span>PROJECT VIEWS</span><h2>All Views</h2></div><button aria-label="Close View Library" onClick={() => setViewLibrary(false)}><PanelLeftClose size={18} /></button></header>
     <label className="view-library-search"><Search size={15} /><input id="view-library-search" value={viewQuery} onChange={(event) => setViewQuery(event.target.value)} placeholder="Search views…" /></label>
     <div className="view-library-scroll">
-      {fixedCatalogViews.length ? <section><h3><PinIcon size={12} /> Fixed <span>{fixedCatalogViews.length}</span></h3>{fixedCatalogViews.map((view) => <ViewLibraryRow key={`compact-${view.id}`} view={view} options={{ compact: true }} {...rowProps} />)}</section> : null}
-      {!viewQuery && recentCatalogViews.length ? <section><h3>Recent <span>{recentCatalogViews.length}</span></h3>{recentCatalogViews.map((view) => <ViewLibraryRow key={`compact-${view.id}`} view={view} options={{ compact: true }} {...rowProps} />)}</section> : null}
-      <section><h3>All Views <span>{activeCatalogViews.length}</span></h3>{activeCatalogViews.length ? activeCatalogViews.map((view) => <ViewLibraryRow key={`all-${view.id}`} view={view} {...rowProps} />) : <div className="view-library-empty">No Views match "{viewQuery}".</div>}</section>
-      <section className="recycle-section"><h3><Trash2 size={12} /> Recycle Bin <span>{trashedCatalogViews.length}</span></h3>{trashedCatalogViews.length ? trashedCatalogViews.map((view) => <ViewLibraryRow key={`all-${view.id}`} view={view} {...rowProps} />) : <div className="view-library-empty">Deleted Views stay here for 30 days.</div>}</section>
+      {fixedCatalogViews.length ? <section><h3><PinIcon size={12} /> Fixed <span>{fixedCatalogViews.length}</span></h3>{fixedCatalogViews.map((view) => <ViewLibraryRow key={`compact-${view.id}`} menuScope="fixed" view={view} options={{ compact: true }} {...rowProps} />)}</section> : null}
+      {!viewQuery && recentCatalogViews.length ? <section><h3>Recent <span>{recentCatalogViews.length}</span></h3>{recentCatalogViews.map((view) => <ViewLibraryRow key={`compact-${view.id}`} menuScope="recent" view={view} options={{ compact: true }} {...rowProps} />)}</section> : null}
+      <section><h3>All Views <span>{activeCatalogViews.length}</span></h3>{activeCatalogViews.length ? activeCatalogViews.map((view) => <ViewLibraryRow key={`all-${view.id}`} menuScope="all" view={view} {...rowProps} />) : <div className="view-library-empty">No Views match "{viewQuery}".</div>}</section>
+      <section className="recycle-section"><h3><Trash2 size={12} /> Recycle Bin <span>{trashedCatalogViews.length}</span></h3>{trashedCatalogViews.length ? trashedCatalogViews.map((view) => <ViewLibraryRow key={`all-${view.id}`} menuScope="trash" view={view} {...rowProps} />) : <div className="view-library-empty">Deleted Views stay here for 30 days.</div>}</section>
     </div>
     <footer><span>⌘/Ctrl + Shift + V</span><button onClick={() => { setViewLibrary(false); void openTemplateGallery("view"); }}><Plus size={13} /> New visual view</button></footer>
   </aside></div>;
