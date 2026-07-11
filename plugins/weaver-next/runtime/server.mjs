@@ -123702,6 +123702,18 @@ function diffLayoutDocuments(before, after) {
       operations.push({ type: "set-node-frame", viewId: after.viewId, nodeId, frame: { x: node.x, y: node.y, width: node.width, height: node.height } });
     }
   }
+  for (const [nodeId, node] of Object.entries(after.nodes)) {
+    const previous = before.nodes[nodeId];
+    if ((previous?.groupId ?? void 0) !== (node.groupId ?? void 0)) {
+      operations.push({ type: "assign-node-to-group", viewId: after.viewId, nodeId, groupId: node.groupId ?? null });
+    }
+  }
+  for (const [groupId, group] of Object.entries(after.groups)) {
+    const previous = before.groups[groupId];
+    if (!previous || previous.x !== group.x || previous.y !== group.y || previous.width !== group.width || previous.height !== group.height) {
+      operations.push({ type: "set-group-frame", viewId: after.viewId, groupId, frame: { x: group.x, y: group.y, width: group.width, height: group.height } });
+    }
+  }
   for (const [edgeId, edge] of Object.entries(after.edges)) {
     const previous = before.edges[edgeId];
     if (JSON.stringify(previous) !== JSON.stringify(edge)) operations.push({ type: "set-edge-route", viewId: after.viewId, edgeId, route: edge });
@@ -128078,10 +128090,58 @@ function orientation(a2, b, c2) {
 function intersects(a2, b, c2, d2) {
   return orientation(a2, b, c2) !== orientation(a2, b, d2) && orientation(c2, d2, a2) !== orientation(c2, d2, b);
 }
-function scoreLayout(document2, edges, previous) {
+var OVERLAP_MULT = 50;
+var CROSSINGS_MULT = 4.5;
+var DISPLACEMENT_MULT = 5e-3;
+var COMPACTNESS_MULT = 80;
+var EDGE_LENGTH_MULT = 2e-3;
+var CLUSTER_SEP_MULT = 40;
+var DIRECTION_MULT = 20;
+var DEFAULT_WEIGHTS = { overlap: 10, crossings: 4, displacement: 2, compactness: 1 };
+var INTER_GAP_TARGET = 180;
+function clusterSeparation(document2) {
+  const groups = Object.values(document2.groups);
+  if (groups.length < 2) return 0;
+  let minGap = Infinity;
+  for (let i = 0; i < groups.length; i += 1) {
+    for (let j2 = i + 1; j2 < groups.length; j2 += 1) {
+      const a2 = groups[i];
+      const b = groups[j2];
+      const gapX = Math.max(a2.x - (b.x + b.width), b.x - (a2.x + a2.width));
+      const gapY = Math.max(a2.y - (b.y + b.height), b.y - (a2.y + a2.height));
+      const gap = Math.max(gapX, gapY);
+      minGap = Math.min(minGap, gap);
+    }
+  }
+  if (!Number.isFinite(minGap)) return 0;
+  return Math.max(0, Math.min(1, minGap / INTER_GAP_TARGET));
+}
+var DIRECTION_AXIS = {
+  "left-right": { axis: "x", sign: 1 },
+  "right-left": { axis: "x", sign: -1 },
+  "top-bottom": { axis: "y", sign: 1 },
+  "bottom-top": { axis: "y", sign: -1 }
+};
+function directionFlow(document2, edges, direction) {
+  if (!direction) return 0;
+  const { axis, sign } = DIRECTION_AXIS[direction];
+  const directed = edges.filter((edge) => !edge.archived && edge.directed);
+  if (!directed.length) return 0;
+  let aligned = 0;
+  for (const edge of directed) {
+    const source = document2.nodes[edge.sourceNodeId];
+    const target = document2.nodes[edge.targetNodeId];
+    if (!source || !target) continue;
+    const delta = axis === "x" ? target.x - source.x : target.y - source.y;
+    if (delta * sign > 0) aligned += 1;
+  }
+  return aligned / directed.length;
+}
+function scoreLayout(document2, edges, previous, options = {}) {
+  const weights = { ...DEFAULT_WEIGHTS, ...options.weights };
   const nodes = Object.values(document2.nodes).filter((node) => !node.hidden);
   let overlapCount = 0;
-  let overlapArea = 0;
+  let overlapArea2 = 0;
   let pinnedNodeMoves = 0;
   let displacement = 0;
   for (let index2 = 0; index2 < nodes.length; index2 += 1) {
@@ -128089,7 +128149,7 @@ function scoreLayout(document2, edges, previous) {
       const area2 = overlap(nodes[index2], nodes[other]);
       if (area2 > 0) {
         overlapCount += 1;
-        overlapArea += area2;
+        overlapArea2 += area2;
       }
     }
     const before = previous?.nodes[nodes[index2].nodeId];
@@ -128124,14 +128184,489 @@ function scoreLayout(document2, edges, previous) {
   const area = Math.max(1, bounds.width * bounds.height);
   const occupied = nodes.reduce((sum, node) => sum + node.width * node.height, 0);
   const compactness = occupied / area;
+  const separation = clusterSeparation(document2);
+  const flow = directionFlow(document2, edges, options.direction);
   const hardViolations = [];
   if (overlapCount) hardViolations.push(`NODE_OVERLAP:${overlapCount}`);
   if (pinnedNodeMoves) hardViolations.push(`PINNED_NODE_MOVED:${pinnedNodeMoves}`);
-  const score = 1e3 - overlapCount * 500 - edgeCrossings * 18 - edgeLength * 2e-3 - displacement * 0.01 + compactness * 80;
-  return { overlapCount, overlapArea, edgeCrossings, edgeLength, pinnedNodeMoves, displacement, compactness, hardViolations, score };
+  const score = 1e3 - overlapCount * (OVERLAP_MULT * weights.overlap) - edgeCrossings * (CROSSINGS_MULT * weights.crossings) - edgeLength * EDGE_LENGTH_MULT - displacement * (DISPLACEMENT_MULT * weights.displacement) + compactness * (COMPACTNESS_MULT * weights.compactness) + separation * (CLUSTER_SEP_MULT * (weights.clusterSeparation ?? 1)) + flow * (DIRECTION_MULT * (weights.direction ?? 0));
+  return { overlapCount, overlapArea: overlapArea2, edgeCrossings, edgeLength, pinnedNodeMoves, displacement, compactness, clusterSeparation: separation, directionFlow: flow, hardViolations, score };
+}
+
+// packages/layout-engine/src/semantic/constraints.ts
+function normalizeConstraints(plan, current) {
+  const emphasisIds = [];
+  const groups = [];
+  const separations = [];
+  const fixedIds = /* @__PURE__ */ new Set();
+  let spacingMultiplier = 1;
+  for (const constraint of plan.constraints) {
+    switch (constraint.type) {
+      case "emphasis":
+        for (const id of constraint.nodeIds) if (!emphasisIds.includes(id)) emphasisIds.push(id);
+        break;
+      case "group":
+        if (constraint.nodeIds.length) groups.push({ label: typeof constraint.value === "string" ? constraint.value : "", nodeIds: [...constraint.nodeIds] });
+        break;
+      case "separation":
+        for (let i = 0; i < constraint.nodeIds.length; i += 1) {
+          for (let j2 = i + 1; j2 < constraint.nodeIds.length; j2 += 1) separations.push([constraint.nodeIds[i], constraint.nodeIds[j2]]);
+        }
+        break;
+      case "spacing":
+        if (typeof constraint.value === "number" && constraint.value > 0) spacingMultiplier = constraint.value;
+        break;
+      case "pin":
+      case "preserve-position":
+        for (const id of constraint.nodeIds) fixedIds.add(id);
+        break;
+      default:
+        break;
+    }
+  }
+  if (plan.preserve.pinnedNodes) {
+    for (const [nodeId, node] of Object.entries(current.nodes)) {
+      if (node.pinned) fixedIds.add(nodeId);
+    }
+  }
+  return {
+    emphasisIds,
+    groups: groups.sort((a2, b) => a2.label.localeCompare(b.label)),
+    separations,
+    direction: plan.direction ?? current.config.direction,
+    spacingMultiplier,
+    fixedIds,
+    preserveManualGroups: plan.preserve.manualGroups
+  };
+}
+
+// packages/layout-engine/src/semantic/detect.ts
+var LAYER_KEY = "layer";
+var MISC_LABEL = "\u5206\u6790\u8981\u70B9";
+function buildTopology(nodes, edges) {
+  const inScope = new Set(nodes.map((n) => n.id));
+  const degree = /* @__PURE__ */ new Map();
+  const adjacency = /* @__PURE__ */ new Map();
+  for (const node of nodes) {
+    degree.set(node.id, 0);
+    adjacency.set(node.id, /* @__PURE__ */ new Map());
+  }
+  for (const edge of edges) {
+    if (edge.archived || !inScope.has(edge.sourceNodeId) || !inScope.has(edge.targetNodeId) || edge.sourceNodeId === edge.targetNodeId) continue;
+    degree.set(edge.sourceNodeId, (degree.get(edge.sourceNodeId) ?? 0) + 1);
+    degree.set(edge.targetNodeId, (degree.get(edge.targetNodeId) ?? 0) + 1);
+    const a2 = adjacency.get(edge.sourceNodeId);
+    a2.set(edge.targetNodeId, (a2.get(edge.targetNodeId) ?? 0) + 1);
+    const b = adjacency.get(edge.targetNodeId);
+    b.set(edge.sourceNodeId, (b.get(edge.sourceNodeId) ?? 0) + 1);
+  }
+  return { degree, adjacency };
+}
+function layerOf(node) {
+  const raw = node.properties?.[LAYER_KEY];
+  return typeof raw === "string" ? raw.trim() : "";
+}
+function median(values) {
+  if (!values.length) return 0;
+  const sorted = [...values].sort((a2, b) => a2 - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+function edgesInto(nodeId, members, adjacency) {
+  let total = 0;
+  for (const [other, count] of adjacency.get(nodeId) ?? []) if (members.has(other)) total += count;
+  return total;
+}
+function detectClusters(nodes, edges, constraints, current) {
+  const sorted = [...nodes].sort((a2, b) => a2.id.localeCompare(b.id));
+  const { degree, adjacency } = buildTopology(sorted, edges);
+  const assigned = /* @__PURE__ */ new Map();
+  const clusters = [];
+  const push = (cluster) => {
+    clusters.push(cluster);
+    for (const id of cluster.memberIds) assigned.set(id, cluster.id);
+  };
+  const unassigned = () => sorted.filter((n) => !assigned.has(n.id));
+  constraints.groups.forEach((group, index2) => {
+    const members = group.nodeIds.filter((id) => degree.has(id) && !assigned.has(id));
+    if (members.length) push({ id: `group-${index2}`, label: group.label || `\u5206\u7EC4 ${index2 + 1}`, memberIds: members });
+  });
+  if (constraints.preserveManualGroups) {
+    const byGroup = /* @__PURE__ */ new Map();
+    for (const node of unassigned()) {
+      const gid = current.nodes[node.id]?.groupId;
+      if (gid) (byGroup.get(gid) ?? byGroup.set(gid, []).get(gid)).push(node.id);
+    }
+    for (const gid of [...byGroup.keys()].sort()) {
+      const members = byGroup.get(gid);
+      if (members.length) push({ id: `manual-${gid}`, label: gid.includes(":") ? gid.split(":").slice(1).join(":") : gid, memberIds: members });
+    }
+  }
+  const degrees = sorted.map((n) => degree.get(n.id) ?? 0);
+  const hubThreshold = Math.max(2, 2 * median(degrees.filter((d2) => d2 > 0)));
+  const centerCandidate = [...sorted].sort((a2, b) => degree.get(b.id) - degree.get(a2.id) || a2.id.localeCompare(b.id))[0];
+  const centerId = centerCandidate && !assigned.has(centerCandidate.id) && (degree.get(centerCandidate.id) ?? 0) >= hubThreshold ? centerCandidate.id : void 0;
+  const rest = unassigned().filter((n) => n.id !== centerId);
+  const byLayer = /* @__PURE__ */ new Map();
+  const noLayer = [];
+  for (const node of rest) {
+    const layer = layerOf(node);
+    if (layer) (byLayer.get(layer) ?? byLayer.set(layer, []).get(layer)).push(node.id);
+    else noLayer.push(node.id);
+  }
+  const bigLayers = [...byLayer.entries()].filter(([, m3]) => m3.length >= 2).sort((a2, b) => a2[0].localeCompare(b[0]));
+  for (const [layer, members] of bigLayers) push({ id: `layer-${layer}`, label: layer, memberIds: members });
+  const singletonLayerIds = [...byLayer.entries()].filter(([, m3]) => m3.length < 2).flatMap(([, m3]) => m3);
+  const orphans = [...singletonLayerIds, ...noLayer].filter((id) => !assigned.has(id)).sort((a2, b) => a2.localeCompare(b));
+  if (clusters.length === 0 && !centerId && orphans.length) {
+    return hubStar(sorted, degree, adjacency, constraints);
+  }
+  if (orphans.length >= 2) {
+    push({ id: "misc", label: MISC_LABEL, memberIds: orphans });
+  } else if (orphans.length === 1) {
+    const largest = [...clusters].filter((c2) => !c2.isCenter).sort((a2, b) => b.memberIds.length - a2.memberIds.length || a2.id.localeCompare(b.id))[0];
+    if (largest) {
+      largest.memberIds.push(orphans[0]);
+      assigned.set(orphans[0], largest.id);
+    } else push({ id: "misc", label: MISC_LABEL, memberIds: orphans });
+  }
+  if (centerId) {
+    const centerNode = sorted.find((n) => n.id === centerId);
+    clusters.unshift({ id: "center", label: layerOf(centerNode) || centerNode.title || "\u6838\u5FC3", memberIds: [centerId], isCenter: true });
+    assigned.set(centerId, "center");
+  }
+  applySeparations(clusters, constraints, degree, adjacency);
+  assignHubs(clusters, constraints, degree);
+  return clusters.filter((c2) => c2.memberIds.length > 0);
+}
+function hubStar(nodes, degree, adjacency, constraints) {
+  const degrees = nodes.map((n) => degree.get(n.id) ?? 0);
+  const med = median(degrees.filter((d2) => d2 > 0));
+  const anchorFloor = Math.max(3, 2 * med);
+  const anchorCap = Math.max(1, Math.ceil(nodes.length / 6));
+  const anchors = [...nodes].filter((n) => (degree.get(n.id) ?? 0) >= anchorFloor || constraints.emphasisIds.includes(n.id)).sort((a2, b) => degree.get(b.id) - degree.get(a2.id) || a2.id.localeCompare(b.id)).slice(0, anchorCap);
+  if (!anchors.length) return [{ id: "all", label: "\u5168\u90E8", memberIds: nodes.map((n) => n.id).sort((a2, b) => a2.localeCompare(b)) }];
+  const anchorIds = new Set(anchors.map((a2) => a2.id));
+  const clusters = anchors.map((a2) => ({ id: `hub-${a2.id}`, label: a2.title || a2.id, memberIds: [a2.id], hubId: a2.id }));
+  const clusterByAnchor = new Map(clusters.map((c2) => [c2.hubId, c2]));
+  const leftover = [];
+  for (const node of nodes) {
+    if (anchorIds.has(node.id)) continue;
+    let best;
+    let bestScore = 0;
+    for (const anchor of anchors) {
+      const score = adjacency.get(node.id)?.get(anchor.id) ?? 0;
+      if (score > bestScore) {
+        bestScore = score;
+        best = clusterByAnchor.get(anchor.id);
+      }
+    }
+    if (best) best.memberIds.push(node.id);
+    else leftover.push(node.id);
+  }
+  if (leftover.length) clusters.push({ id: "misc", label: MISC_LABEL, memberIds: leftover.sort((a2, b) => a2.localeCompare(b)) });
+  applySeparations(clusters, constraints, degree, adjacency);
+  assignHubs(clusters, constraints, degree);
+  return clusters;
+}
+function applySeparations(clusters, constraints, degree, adjacency) {
+  if (!constraints.separations.length) return;
+  const clusterOf = /* @__PURE__ */ new Map();
+  for (const cluster of clusters) for (const id of cluster.memberIds) clusterOf.set(id, cluster);
+  for (const [a2, b] of constraints.separations) {
+    const ca = clusterOf.get(a2);
+    const cb = clusterOf.get(b);
+    if (!ca || !cb || ca !== cb) continue;
+    const mover = (degree.get(a2) ?? 0) <= (degree.get(b) ?? 0) ? a2 : b;
+    ca.memberIds = ca.memberIds.filter((id) => id !== mover);
+    const target = clusters.filter((c2) => c2 !== ca && !c2.isCenter).map((c2) => ({ c: c2, score: edgesInto(mover, new Set(c2.memberIds), adjacency) })).sort((x3, y3) => y3.score - x3.score || x3.c.id.localeCompare(y3.c.id))[0];
+    if (target) {
+      target.c.memberIds.push(mover);
+      clusterOf.set(mover, target.c);
+    } else {
+      const spill = { id: `split-${mover}`, label: MISC_LABEL, memberIds: [mover] };
+      clusters.push(spill);
+      clusterOf.set(mover, spill);
+    }
+  }
+}
+function assignHubs(clusters, constraints, degree) {
+  for (const cluster of clusters) {
+    if (!cluster.hubId || !cluster.memberIds.includes(cluster.hubId)) {
+      const emphasis = cluster.memberIds.filter((id) => constraints.emphasisIds.includes(id)).sort((a2, b) => a2.localeCompare(b))[0];
+      cluster.hubId = emphasis ?? [...cluster.memberIds].sort((a2, b) => (degree.get(b) ?? 0) - (degree.get(a2) ?? 0) || a2.localeCompare(b))[0];
+    }
+    const hubId = cluster.hubId;
+    const others = cluster.memberIds.filter((id) => id !== hubId);
+    const maxOther = others.length ? Math.max(...others.map((id) => degree.get(id) ?? 0)) : -1;
+    cluster.hubProminent = Boolean(cluster.isCenter || constraints.emphasisIds.includes(hubId) || (degree.get(hubId) ?? 0) > maxOther);
+  }
+}
+
+// packages/layout-engine/src/semantic/size.ts
+var ENGINE_SIZES = /* @__PURE__ */ new Set(["220x112", "280x160", "300x180", "340x190", "260x140"]);
+var HUB_SIZE = { width: 340, height: 190 };
+var LEAF_SIZE = { width: 220, height: 112 };
+var BODY_SIZE = { width: 260, height: 140 };
+var DOC_MIN = { width: 180, height: 100 };
+function isManuallyResized(width, height) {
+  return !ENGINE_SIZES.has(`${Math.round(width)}x${Math.round(height)}`);
+}
+function applySizeHierarchy(document2, clusters, nodesById, preserveNodeSizes, fixedIds) {
+  if (preserveNodeSizes) return;
+  const hubIds = new Set(clusters.filter((c2) => c2.hubProminent).map((c2) => c2.hubId).filter((id) => Boolean(id)));
+  for (const cluster of clusters) {
+    for (const id of cluster.memberIds) {
+      const frame2 = document2.nodes[id];
+      const node = nodesById.get(id);
+      if (!frame2 || !node || fixedIds.has(id)) continue;
+      if (node.contentKind !== "document") continue;
+      if (isManuallyResized(frame2.width, frame2.height)) continue;
+      const target = hubIds.has(id) ? HUB_SIZE : node.type === "attribute" || node.type === "source" ? LEAF_SIZE : BODY_SIZE;
+      frame2.width = Math.max(DOC_MIN.width, target.width);
+      frame2.height = Math.max(DOC_MIN.height, target.height);
+    }
+  }
+}
+
+// packages/layout-engine/src/semantic/geometry.ts
+function bboxOf(frames, padding = 0) {
+  if (!frames.length) return { x: 0, y: 0, width: 0, height: 0 };
+  const minX = Math.min(...frames.map((f2) => f2.x));
+  const minY = Math.min(...frames.map((f2) => f2.y));
+  const maxX = Math.max(...frames.map((f2) => f2.x + f2.width));
+  const maxY = Math.max(...frames.map((f2) => f2.y + f2.height));
+  return { x: minX - padding, y: minY - padding, width: maxX - minX + padding * 2, height: maxY - minY + padding * 2 };
+}
+function overlapArea(a2, b) {
+  const w2 = Math.max(0, Math.min(a2.x + a2.width, b.x + b.width) - Math.max(a2.x, b.x));
+  const h2 = Math.max(0, Math.min(a2.y + a2.height, b.y + b.height) - Math.max(a2.y, b.y));
+  return w2 * h2;
+}
+function translateNode(node, dx, dy) {
+  node.x += dx;
+  node.y += dy;
+}
+function circleRadius(node) {
+  return Math.hypot(node.width, node.height) / 2;
+}
+
+// packages/layout-engine/src/semantic/micro.ts
+var GROUP_PADDING = 32;
+function layoutClusterLocal(cluster, document2, spacing, variant) {
+  const memberFrames = cluster.memberIds.map((id) => document2.nodes[id]).filter(Boolean);
+  if (!memberFrames.length) return { x: 0, y: 0, width: 0, height: 0 };
+  const hubId = cluster.hubId && document2.nodes[cluster.hubId] ? cluster.hubId : cluster.memberIds[0];
+  const hub = document2.nodes[hubId];
+  const satellites = cluster.memberIds.filter((id) => id !== hubId && document2.nodes[id]).sort((a2, b) => a2.localeCompare(b));
+  hub.x = -hub.width / 2;
+  hub.y = -hub.height / 2;
+  if (satellites.length) {
+    if (variant === "rows") placeRows(hub, satellites, document2, spacing);
+    else placeRadial(hub, satellites, document2, spacing);
+  }
+  return bboxOf(memberFrames, GROUP_PADDING);
+}
+function placeRadial(hub, satellites, document2, spacing) {
+  const hubR = circleRadius(hub);
+  const maxSatR = Math.max(...satellites.map((id) => circleRadius(document2.nodes[id])));
+  const baseR = hubR + spacing + maxSatR;
+  let index2 = 0;
+  let ring2 = 0;
+  while (index2 < satellites.length) {
+    const r2 = baseR + ring2 * (2 * maxSatR + spacing);
+    const ratio = Math.min(0.999, (maxSatR + spacing / 2) / r2);
+    const capacity = Math.max(1, Math.floor(Math.PI / Math.asin(ratio)));
+    const count = Math.min(capacity, satellites.length - index2);
+    for (let k2 = 0; k2 < count; k2 += 1) {
+      const angle = Math.PI * 2 * k2 / count - Math.PI / 2;
+      const cx = Math.cos(angle) * r2;
+      const cy = Math.sin(angle) * r2;
+      const node = document2.nodes[satellites[index2 + k2]];
+      node.x = cx - node.width / 2;
+      node.y = cy - node.height / 2;
+    }
+    index2 += count;
+    ring2 += 1;
+  }
+}
+function placeRows(hub, satellites, document2, spacing) {
+  const cols = Math.max(1, Math.ceil(Math.sqrt(satellites.length)));
+  const cellWidth = Math.max(...satellites.map((id) => document2.nodes[id].width)) + spacing;
+  const cellHeight = Math.max(...satellites.map((id) => document2.nodes[id].height)) + spacing;
+  const gridWidth = cols * cellWidth;
+  const startX = -gridWidth / 2 + cellWidth / 2;
+  const gridTop = hub.height / 2 + spacing;
+  satellites.forEach((id, index2) => {
+    const col = index2 % cols;
+    const row = Math.floor(index2 / cols);
+    const cx = startX + col * cellWidth;
+    const cy = gridTop + cellHeight / 2 + row * cellHeight;
+    const node = document2.nodes[id];
+    node.x = cx - node.width / 2;
+    node.y = cy - node.height / 2;
+  });
+}
+
+// packages/layout-engine/src/semantic/macro.ts
+function macroPlace(document2, clusters, bboxes, edges, clusterOf, fixedIds, current, spacing, variant, seed) {
+  const interGap = 2.5 * spacing;
+  const placed = clusters.map((cluster) => {
+    const bbox = bboxes.get(cluster.id) ?? { x: 0, y: 0, width: 0, height: 0 };
+    const localCenter = { x: bbox.x + bbox.width / 2, y: bbox.y + bbox.height / 2 };
+    const fixedMember = cluster.memberIds.filter((id) => fixedIds.has(id)).sort((a2, b) => a2.localeCompare(b))[0];
+    let center = localCenter;
+    let fixed = false;
+    if (fixedMember && current.nodes[fixedMember]) {
+      const local = document2.nodes[fixedMember];
+      const localAnchor = { x: local.x + local.width / 2, y: local.y + local.height / 2 };
+      const orig = current.nodes[fixedMember];
+      const origAnchor = { x: orig.x + orig.width / 2, y: orig.y + orig.height / 2 };
+      center = { x: localCenter.x + (origAnchor.x - localAnchor.x), y: localCenter.y + (origAnchor.y - localAnchor.y) };
+      fixed = true;
+    }
+    return { cluster, bbox, w: bbox.width, h: bbox.height, center, fixed, memberCount: cluster.memberIds.length };
+  });
+  if (variant === "grid") packGrid(placed, interGap, current.config.viewportWidth);
+  else {
+    packForce(placed, edges, clusterOf, interGap, seed);
+    const converged = separate(placed, interGap);
+    if (!converged) packGrid(placed, interGap, current.config.viewportWidth);
+  }
+  document2.groups = {};
+  for (const item of placed) {
+    const dx = item.center.x - (item.bbox.x + item.bbox.width / 2);
+    const dy = item.center.y - (item.bbox.y + item.bbox.height / 2);
+    for (const id of item.cluster.memberIds) {
+      const node = document2.nodes[id];
+      if (node) translateNode(node, dx, dy);
+    }
+    if (!item.cluster.isCenter && item.cluster.memberIds.length >= 2) {
+      const groupId = `cluster:${item.cluster.label}`;
+      document2.groups[groupId] = { groupId, x: item.bbox.x + dx, y: item.bbox.y + dy, width: item.bbox.width, height: item.bbox.height, direction: variant === "grid" ? "vertical" : "radial", padding: 32, collapsed: false };
+      for (const id of item.cluster.memberIds) {
+        if (document2.nodes[id]) document2.nodes[id].groupId = groupId;
+      }
+    } else {
+      for (const id of item.cluster.memberIds) {
+        if (document2.nodes[id]) document2.nodes[id].groupId = void 0;
+      }
+    }
+  }
+}
+function packForce(placed, edges, clusterOf, interGap, seed) {
+  const radius = (item) => Math.hypot(item.w, item.h) / 2 + interGap / 2;
+  const nodes = placed.map((item, index2) => {
+    const angle = index2 * 2.399963229728653;
+    const spiral = 120 * Math.sqrt(index2 + 1);
+    return { id: item.cluster.id, x: item.fixed ? item.center.x : Math.cos(angle) * spiral, y: item.fixed ? item.center.y : Math.sin(angle) * spiral, fx: item.fixed ? item.center.x : void 0, fy: item.fixed ? item.center.y : void 0, item };
+  });
+  const counts = /* @__PURE__ */ new Map();
+  for (const edge of edges) {
+    if (edge.archived) continue;
+    const a2 = clusterOf.get(edge.sourceNodeId);
+    const b = clusterOf.get(edge.targetNodeId);
+    if (!a2 || !b || a2 === b) continue;
+    const key = a2 < b ? `${a2}|${b}` : `${b}|${a2}`;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  const links = [...counts.entries()].sort((x3, y3) => x3[0].localeCompare(y3[0])).map(([key, count]) => {
+    const [a2, b] = key.split("|");
+    return { source: a2, target: b, count };
+  });
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const simulation = simulation_default(nodes).force("link", link_default(links).id((n) => n.id).distance((link) => radius(byId.get(link.source.id).item) + radius(byId.get(link.target.id).item) + interGap).strength((link) => Math.min(0.9, link.count / (link.count + 2)))).force("charge", manyBody_default().strength(-1)).force("center", center_default(0, 0)).force("collide", collide_default((n) => radius(n.item)).strength(1)).stop();
+  for (let tick = 0; tick < 300; tick += 1) simulation.tick();
+  for (const node of nodes) {
+    if (!node.item.fixed) node.item.center = { x: node.x ?? 0, y: node.y ?? 0 };
+  }
+}
+function separate(placed, interGap) {
+  const half = interGap / 2;
+  const box = (item) => ({ x: item.center.x - item.w / 2 - half, y: item.center.y - item.h / 2 - half, width: item.w + interGap, height: item.h + interGap });
+  for (let iter = 0; iter < 400; iter += 1) {
+    let moved = false;
+    for (let i = 0; i < placed.length; i += 1) {
+      for (let j2 = i + 1; j2 < placed.length; j2 += 1) {
+        const a2 = placed[i];
+        const b = placed[j2];
+        const ba = box(a2);
+        const bb = box(b);
+        if (overlapArea(ba, bb) <= 0) continue;
+        const ox = Math.min(ba.x + ba.width, bb.x + bb.width) - Math.max(ba.x, bb.x);
+        const oy = Math.min(ba.y + ba.height, bb.y + bb.height) - Math.max(ba.y, bb.y);
+        const bothMovable = !a2.fixed && !b.fixed;
+        if (ox < oy) {
+          const dir = a2.center.x <= b.center.x ? -1 : 1;
+          const shift = bothMovable ? ox / 2 : ox;
+          if (!a2.fixed) a2.center.x += dir * shift;
+          if (!b.fixed) b.center.x -= dir * shift;
+          if (a2.fixed && b.fixed) continue;
+        } else {
+          const dir = a2.center.y <= b.center.y ? -1 : 1;
+          const shift = bothMovable ? oy / 2 : oy;
+          if (!a2.fixed) a2.center.y += dir * shift;
+          if (!b.fixed) b.center.y -= dir * shift;
+          if (a2.fixed && b.fixed) continue;
+        }
+        moved = true;
+      }
+    }
+    if (!moved) return true;
+  }
+  for (let i = 0; i < placed.length; i += 1) {
+    for (let j2 = i + 1; j2 < placed.length; j2 += 1) {
+      const a2 = placed[i];
+      const b = placed[j2];
+      const ba = box(a2);
+      const bb = box(b);
+      if (overlapArea(ba, bb) > 0) return false;
+    }
+  }
+  return true;
+}
+function packGrid(placed, interGap, viewportWidth) {
+  const target = Math.max(viewportWidth * 1.6, Math.max(...placed.map((p2) => p2.w)) + interGap);
+  const order = [...placed].sort((a2, b) => b.memberCount - a2.memberCount || a2.cluster.id.localeCompare(b.cluster.id));
+  let cursorX = 0;
+  let cursorY = 0;
+  let rowHeight = 0;
+  for (const item of order) {
+    if (cursorX > 0 && cursorX + item.w > target) {
+      cursorX = 0;
+      cursorY += rowHeight + interGap;
+      rowHeight = 0;
+    }
+    item.center = { x: cursorX + item.w / 2, y: cursorY + item.h / 2 };
+    cursorX += item.w + interGap;
+    rowHeight = Math.max(rowHeight, item.h);
+  }
+}
+
+// packages/layout-engine/src/semantic/index.ts
+function semanticClusterLayout(params) {
+  const { nodes, edges, plan, document: document2, current, spacing, seed, micro, macro } = params;
+  const constraints = normalizeConstraints(plan, current);
+  const clusters = detectClusters(nodes, edges, constraints, current);
+  const nodesById = new Map(nodes.map((node) => [node.id, node]));
+  applySizeHierarchy(document2, clusters, nodesById, plan.preserve.nodeSizes, constraints.fixedIds);
+  const bboxes = /* @__PURE__ */ new Map();
+  for (const cluster of clusters) bboxes.set(cluster.id, layoutClusterLocal(cluster, document2, spacing, micro));
+  const clusterOf = /* @__PURE__ */ new Map();
+  for (const cluster of clusters) for (const id of cluster.memberIds) clusterOf.set(id, cluster.id);
+  macroPlace(document2, clusters, bboxes, edges, clusterOf, constraints.fixedIds, current, spacing, macro, seed);
+  return { clusterOf };
 }
 
 // packages/layout-engine/src/engine.ts
+var SEMANTIC_STRATEGIES = /* @__PURE__ */ new Set(["cluster", "hybrid"]);
+var CLUSTER_VARIANTS = [
+  { label: "\u8BED\u4E49\u805A\u7C7B", micro: "radial", macro: "force", density: 1 },
+  { label: "\u5206\u533A\u77E9\u9635", micro: "rows", macro: "force", density: 1 },
+  { label: "\u7D27\u51D1\u7F51\u683C", micro: "rows", macro: "grid", density: 0.85 },
+  { label: "\u8BED\u4E49\u805A\u7C7B \xB7 \u5BBD\u677E", micro: "radial", macro: "force", density: 1.3 },
+  { label: "\u8BED\u4E49\u805A\u7C7B \xB7 \u7D27\u51D1", micro: "radial", macro: "force", density: 0.75 }
+];
 function seededRandom(seed) {
   let state = Number.parseInt(createHash6("sha256").update(seed).digest("hex").slice(0, 8), 16) || 1;
   return () => {
@@ -128178,17 +128713,19 @@ function updateBounds(document2) {
   const maxY = Math.max(...nodes.map((node) => node.y + node.height));
   document2.bounds = { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
 }
-function routeEdges(document2, edges, orthogonal) {
+function routeEdges(document2, edges, orthogonal, clusterOf) {
   for (const edge of edges) {
     const source = document2.nodes[edge.sourceNodeId];
     const target = document2.nodes[edge.targetNodeId];
     if (!source || !target) continue;
     const a2 = { x: source.x + source.width / 2, y: source.y + source.height / 2 };
     const b = { x: target.x + target.width / 2, y: target.y + target.height / 2 };
+    const crossCluster = clusterOf ? clusterOf.get(edge.sourceNodeId) !== clusterOf.get(edge.targetNodeId) : false;
+    const useOrthogonal = clusterOf ? crossCluster : orthogonal;
     document2.edges[edge.id] = {
       edgeId: edge.id,
-      routing: orthogonal ? "orthogonal" : "bezier",
-      waypoints: orthogonal ? [a2, { x: (a2.x + b.x) / 2, y: a2.y }, { x: (a2.x + b.x) / 2, y: b.y }, b] : [a2, b],
+      routing: useOrthogonal ? "orthogonal" : "bezier",
+      waypoints: useOrthogonal ? [a2, { x: (a2.x + b.x) / 2, y: a2.y }, { x: (a2.x + b.x) / 2, y: b.y }, b] : [a2, b],
       hidden: false
     };
   }
@@ -128266,21 +128803,37 @@ async function generateLayoutCandidates(input) {
   const count = input.plan.candidateCount;
   const candidates = [];
   const labels = ["Balanced", "Preserve positions", "Compact", "Spacious", "Alternative"];
+  const isSemantic = SEMANTIC_STRATEGIES.has(input.plan.strategy);
   for (let index2 = 0; index2 < count; index2 += 1) {
     const document2 = cloneDocument(input);
-    const density = index2 === 1 ? 1.25 : index2 === 2 ? 0.75 : 1;
-    const spacing = document2.config.nodeSpacing * density;
-    if (["tree", "layered", "timeline", "swimlane"].includes(input.plan.strategy)) await elkLayout(input, document2, spacing);
-    else if (["force", "cluster", "hybrid"].includes(input.plan.strategy)) forceLayout(input, document2, spacing, `${input.plan.projectId}:${input.plan.viewId}:${input.layoutRunId ?? "standalone"}:${index2}`);
-    else if (input.plan.strategy === "radial") radialLayout(input, document2, spacing);
-    else gridLayout(input, document2, spacing);
+    const seed = `${input.plan.projectId}:${input.plan.viewId}:${input.layoutRunId ?? "standalone"}:${index2}`;
+    let clusterOf;
+    let label;
+    if (isSemantic) {
+      const variant = CLUSTER_VARIANTS[index2] ?? CLUSTER_VARIANTS[0];
+      const spacing = document2.config.nodeSpacing * variant.density;
+      const scoped = scopeIds(input);
+      const nodes = input.nodes.filter((node) => scoped.has(node.id));
+      const edges = input.edges.filter((edge) => scoped.has(edge.sourceNodeId) && scoped.has(edge.targetNodeId));
+      ({ clusterOf } = semanticClusterLayout({ nodes, edges, plan: input.plan, document: document2, current: input.current, spacing, seed, micro: variant.micro, macro: variant.macro }));
+      label = variant.label;
+    } else {
+      const density = index2 === 1 ? 1.25 : index2 === 2 ? 0.75 : 1;
+      const spacing = document2.config.nodeSpacing * density;
+      if (["tree", "layered", "timeline", "swimlane"].includes(input.plan.strategy)) await elkLayout(input, document2, spacing);
+      else if (input.plan.strategy === "force") forceLayout(input, document2, spacing, seed);
+      else if (input.plan.strategy === "radial") radialLayout(input, document2, spacing);
+      else gridLayout(input, document2, spacing);
+      label = labels[index2];
+    }
     if (input.plan.preserve.pinnedNodes) restorePinned(input.current, document2);
-    routeEdges(document2, input.edges, ["tree", "layered", "timeline", "swimlane"].includes(input.plan.strategy));
+    routeEdges(document2, input.edges, ["tree", "layered", "timeline", "swimlane"].includes(input.plan.strategy), clusterOf);
     updateBounds(document2);
-    const metrics = scoreLayout(document2, input.edges, input.current);
-    const id = createHash6("sha256").update(`${input.plan.projectId}:${input.plan.viewId}:${input.layoutRunId ?? "standalone"}:${index2}`).digest("hex").slice(0, 24);
-    candidates.push({ id, label: labels[index2], document: document2, operations: diffLayoutDocuments(input.current, document2), metrics });
+    const metrics = scoreLayout(document2, input.edges, input.current, isSemantic ? { weights: input.weights, direction: input.plan.direction ?? document2.config.direction } : void 0);
+    const id = createHash6("sha256").update(seed).digest("hex").slice(0, 24);
+    candidates.push({ id, label, document: document2, operations: diffLayoutDocuments(input.current, document2), metrics });
   }
+  if (isSemantic) return candidates.sort((left, right) => Number(left.metrics.hardViolations.length > 0) - Number(right.metrics.hardViolations.length > 0));
   return candidates.sort((left, right) => right.metrics.score - left.metrics.score);
 }
 
@@ -128315,7 +128868,9 @@ function registerLayoutTools(server2, ctx) {
             throw new Error("LAYOUT_REVISION_CONFLICT");
           }
           const layoutRunId = randomUUID10();
-          const candidates = await generateLayoutCandidates({ nodes: graph.nodes, edges: graph.edges, current, plan, layoutRunId });
+          const project = store.getProject(plan.projectId);
+          const weights = project ? getScenePack(project.scenePackId, project.scenePackVersion)?.scoringWeights : void 0;
+          const candidates = await generateLayoutCandidates({ nodes: graph.nodes, edges: graph.edges, current, plan, layoutRunId, weights });
           const run = store.saveLayoutRun({ id: layoutRunId, projectId: plan.projectId, viewId: plan.viewId, taskId, plan, candidates });
           store.updateAgentTask(taskId, { status: "pending_review", activeStage: "layout", results: { ...task.results, layoutRunId: run.id } });
           return { layoutRunId: run.id, candidates: candidates.map((candidate) => ({ id: candidate.id, label: candidate.label, metrics: candidate.metrics })) };
@@ -128372,7 +128927,26 @@ function registerLayoutTools(server2, ctx) {
     if (!layout) throw new Error("LAYOUT_NOT_FOUND");
     return result(layout);
   }));
-  server2.registerTool("weaver_get_layout_capabilities", { title: "Get Layout Capabilities", description: "Read available deterministic layout strategies and semantic constraints.", inputSchema: {}, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } }, async () => result({ strategies: ["tree", "layered", "radial", "force", "cluster", "grid", "timeline", "swimlane", "hybrid"], constraints: ["pin", "align", "distribute", "order", "rank", "group", "containment", "separation", "relative-position", "direction", "spacing", "avoid-overlap", "preserve-position", "edge-length", "edge-routing", "emphasis", "viewport-fit"], candidateCount: { min: 1, max: 5, default: 3 } }));
+  server2.registerTool("weaver_get_layout_capabilities", { title: "Get Layout Capabilities", description: "Read available deterministic layout strategies and the constraints each honors.", inputSchema: {}, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } }, async () => result({
+    strategies: ["tree", "layered", "radial", "force", "cluster", "grid", "timeline", "swimlane", "hybrid"],
+    // `cluster`/`hybrid` run the semantic hierarchy layout: it groups nodes into
+    // labeled regions (by each node's `properties.layer`, explicit `group`
+    // constraints, or graph topology), enlarges hub nodes, and separates regions
+    // with wide whitespace — the best choice for a knowledge/industry map an
+    // analyst must read at a glance. It emits three structurally distinct
+    // candidates (语义聚类 / 分区矩阵 / 紧凑网格) and honors these constraints:
+    recommendedStrategy: "cluster",
+    honoredConstraints: {
+      cluster: ["emphasis", "group", "direction", "separation", "spacing", "pin", "preserve-position"],
+      layered: ["direction", "emphasis"],
+      tree: ["direction"],
+      radial: ["emphasis"],
+      force: [],
+      grid: []
+    },
+    constraints: ["pin", "align", "distribute", "order", "rank", "group", "containment", "separation", "relative-position", "direction", "spacing", "avoid-overlap", "preserve-position", "edge-length", "edge-routing", "emphasis", "viewport-fit"],
+    candidateCount: { min: 1, max: 5, default: 3 }
+  }));
   server2.registerTool("weaver_validate_layout_plan", { title: "Validate LayoutPlan", description: "Validate semantic layout constraints without calculating or applying coordinates.", inputSchema: { plan: external_exports.any() }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } }, defineTool(async ({ plan }) => result({ valid: true, plan: layoutPlanSchema.parse(plan) })));
 }
 
