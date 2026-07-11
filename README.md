@@ -6,7 +6,9 @@ Weaver is a local-first semantic canvas where you and your coding agent can bran
 
 > Early development · macOS · [MIT](LICENSE) · [中文介绍](#中文介绍)
 
-![Weaver semantic canvas](docs/assets/weaver-overview.png)
+![Codex and Weaver working side by side on the same research space](docs/assets/demo-01-chat-side.jpg)
+
+<p align="center"><em>Talk through the work on the left. See and shape its structure on the right.</em></p>
 
 ## Why Weaver
 
@@ -19,6 +21,23 @@ Weaver keeps the structure itself:
 - **Review every AI edit.** Agents submit auditable ChangeSets and semantic layout plans. You preview, apply, reject, or undo them.
 - **Project one graph into many views.** Use Canvas, Tree, Graph, Flow, Timeline, Board, Matrix, or Table without duplicating the underlying content.
 - **Keep your data local.** SQLite-backed project state stays under `<workspace>/.weaver/`.
+
+## Work Side by Side
+
+Weaver is built for collaboration without tab-hopping or copy-pasting context. The conversation and the canvas stay visible together: use language for intent, and use the canvas for structure, selection, review, and control.
+
+<table>
+  <tr>
+    <td width="34%"><img src="docs/assets/demo03-sendmessage-01.jpg" alt="Asking a question from a selected canvas node" /></td>
+    <td width="66%"><img src="docs/assets/demo-02-sendmessage.jpg" alt="Sending the selected Weaver canvas context to Codex" /></td>
+  </tr>
+  <tr>
+    <td><strong>1. Ask from where you are.</strong><br />Select a node, type the next question, and keep the branch visible while the agent works.</td>
+    <td><strong>2. Hand off authoritative context.</strong><br />Weaver packages the active anchor, selection, and safety instructions into the next Codex turn. The agent reads the bound canvas instead of guessing from an old chat message.</td>
+  </tr>
+</table>
+
+The result returns to the same canvas as a reviewable ChangeSet or layout candidate. Apply it, reject it, or undo it; the coding agent never silently replaces the graph.
 
 ## Install
 
@@ -66,7 +85,24 @@ flowchart LR
 4. Review the proposed content or layout before it changes the authoritative graph.
 5. Continue exploring, then crystallize the useful structure into a scene-defined artifact.
 
-![Weaver canvas overview](docs/assets/weaver-canvas-loop.gif)
+## One Graph, Many Views
+
+A visual template does not create a disconnected copy. It projects the same typed graph into another working structure, with its own layout, theme, and viewport.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/assets/weaver-template-gallery.png" alt="Weaver visual template gallery" /></td>
+    <td width="50%"><img src="docs/assets/weaver-template-detail.png" alt="Weaver template compatibility and preview details" /></td>
+  </tr>
+  <tr>
+    <td><strong>Browse compatible structures.</strong><br />Choose among Canvas, hierarchy, relationship, flow, temporal, board, matrix, and table families.</td>
+    <td><strong>Inspect before creating.</strong><br />Preview the projection, see existing instances, and verify that the current graph has the fields the template requires.</td>
+  </tr>
+</table>
+
+![Weaver View Library with saved and recoverable views](docs/assets/weaver-view-library.png)
+
+Each View remains independently named, pinned, searchable, restorable, and reversible while the underlying content stays authoritative.
 
 ## What Ships Today
 

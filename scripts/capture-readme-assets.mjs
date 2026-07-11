@@ -34,12 +34,12 @@ try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
   const errors = [];
   page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
-  await page.goto(opened.previewUrl, { waitUntil: "networkidle" });
+  await page.goto(opened.previewUrl, { waitUntil: "domcontentloaded", timeout: 15_000 });
   await page.locator("#root").waitFor({ state: "visible" });
   const projectChoice = page.getByText("机器人产业全景图（2026）", { exact: true });
   if (await projectChoice.count()) {
-    await projectChoice.click();
-    await projectChoice.waitFor({ state: "hidden" });
+    await projectChoice.first().click({ timeout: 5_000 });
+    await projectChoice.first().waitFor({ state: "hidden", timeout: 5_000 });
   }
   await page.waitForTimeout(1500);
   await page.screenshot({ path: resolve(output, "weaver-overview.png"), fullPage: false });
@@ -50,6 +50,26 @@ try {
   } else {
     await page.screenshot({ path: resolve(output, "weaver-social-preview.png"), fullPage: false });
   }
+
+  const newView = page.getByRole("button", { name: "New visual view" });
+  await newView.click({ timeout: 5_000 });
+  const gallery = page.getByRole("dialog", { name: "Visual Template Gallery" });
+  await gallery.waitFor({ state: "visible", timeout: 5_000 });
+  await page.screenshot({ path: resolve(output, "weaver-template-gallery.png"), fullPage: false });
+
+  const templateCard = gallery.getByRole("button", { name: /概念关系网络/ });
+  if (await templateCard.count()) {
+    await templateCard.first().click({ timeout: 5_000 });
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: resolve(output, "weaver-template-detail.png"), fullPage: false });
+  }
+  await page.getByRole("button", { name: "Close template gallery" }).click({ timeout: 5_000 });
+
+  const allViews = page.getByRole("button", { name: /All Views/ });
+  await allViews.click({ timeout: 5_000 });
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: resolve(output, "weaver-view-library.png"), fullPage: false });
+
   if (errors.length) throw new Error(`Browser console errors: ${errors.join(" | ")}`);
   console.log(`Captured README assets in ${output}`);
 } finally {
