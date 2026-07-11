@@ -17,7 +17,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "24"
           cache: npm
 
       - name: Install API dependencies
@@ -44,14 +44,14 @@ jobs:
       - name: Build workspace packages
         run: npm run build:packages
 
+      - name: Build widget
+        run: npm run build:widget
+
       - name: TS unit tests
         run: npm run test:ts
 
       - name: Widget typecheck
         run: npm run typecheck:widget
-
-      - name: Build widget
-        run: npm run build:widget
 
       - name: Build and validate installable plugin
         run: |
