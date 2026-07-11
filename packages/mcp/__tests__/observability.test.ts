@@ -16,7 +16,7 @@ function workspace() {
 describe("observability", () => {
   it("logs boot, every tool call, and errors — and weaver_get_diagnostics reads them back", async () => {
     const root = workspace();
-    const { dispatch, close } = await createWeaverServer({ previewWorkspaceDir: root });
+    const { dispatch, close } = await createWeaverServer({ previewWorkspaceDir: root, logOptions: { fileLogging: true, fileLevel: "debug" } });
     try {
       // A successful call and a failing call both flow through the logging wrap.
       await dispatch("weaver_list_projects", { workspaceDir: root });
@@ -29,6 +29,9 @@ describe("observability", () => {
       expect(body.server.pid).toBe(process.pid);
       expect(body.server.uptimeMs).toBeGreaterThanOrEqual(0);
       expect(typeof body.server.buildId).toBe("string");
+      expect(body.server.previewUrl).toBeUndefined();
+      expect(body.server.logFile).toBeUndefined();
+      expect(body.server.fileLogging).toBe(true);
 
       const events = body.recent.map((entry: any) => `${entry.event}:${entry.tool ?? ""}`);
       expect(events).toContain("server.boot:");
@@ -45,5 +48,24 @@ describe("observability", () => {
       expect(lines.some((entry) => entry.event === "server.boot")).toBe(true);
       expect(lines.every((entry) => entry.pid === process.pid && typeof entry.ts === "string")).toBe(true);
     } finally { await close(); }
+  });
+
+  it("never returns a Claude preview capability URL through diagnostics", async () => {
+    const root = workspace();
+    const previousHost = process.env.WEAVER_HOST_KIND;
+    process.env.WEAVER_HOST_KIND = "claude";
+    const { dispatch, close } = await createWeaverServer({ previewWorkspaceDir: root });
+    try {
+      const diagnostics = await dispatch("weaver_get_diagnostics", {}) as any;
+      const serialized = JSON.stringify(diagnostics.structuredContent);
+      expect(diagnostics.structuredContent.server.previewAvailable).toBe(true);
+      expect(serialized).not.toContain("previewUrl");
+      expect(serialized).not.toContain("token=");
+      expect(serialized).not.toContain("preview-secret");
+    } finally {
+      await close();
+      if (previousHost === undefined) delete process.env.WEAVER_HOST_KIND;
+      else process.env.WEAVER_HOST_KIND = previousHost;
+    }
   });
 });

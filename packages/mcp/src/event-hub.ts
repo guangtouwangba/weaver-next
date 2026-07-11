@@ -1,5 +1,5 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import { chmodSync, mkdirSync, readFileSync, watch, writeFileSync, type FSWatcher } from "node:fs";
+import { chmodSync, mkdirSync, readFileSync, rmSync, watch, writeFileSync, type FSWatcher } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -121,24 +121,36 @@ export class SseEventHub {
     return inlineWidgetHtml(this.resolveBundle()).replace("<body>", `<body>${boot}`);
   }
 
-  /** Enable the standalone-browser preview host (Claude Code). */
-  configurePreview(config: PreviewConfig) { this.preview = config; }
+  /** Enable the token-gated loopback host used by Claude preview and Codex widgets. */
+  configurePreview(config: PreviewConfig) {
+    this.preview = config;
+    // Earlier versions kept the cross-process target in the plugin/workspace.
+    // It is no longer read; remove the stale absolute-path record during upgrade.
+    try { rmSync(join(config.workspaceDir, ".weaver", "preview-target.json"), { force: true }); }
+    catch { /* read-only installation or workspace */ }
+  }
 
   /**
    * Realign the preview to the workspace the agent is actually operating on.
    * Codex runs the MCP from its plugin cache dir, so the boot-time cwd is NOT
-   * the user's repo — the preview would otherwise bind an empty cache `.weaver`
+   * the user's repo — the preview would otherwise bind an empty cache workspace
    * (no projects, no binding → the widget hangs at "Connecting"). The agent
    * passes the real `workspaceDir` to `weaver_open_workspace_widget`; we retarget
    * the preview store + RPC pin + preview.json to it. Returns true if it changed.
    */
   retargetPreviewWorkspace(workspaceDir: string) {
     if (!this.preview) return false;
-    // Publish the target so whichever sibling process is the preview leader serves
+    // Publish the target in owner-only runtime state so whichever sibling process is the preview leader serves
     // this workspace — even when THIS process (which handled the tool call) is only
     // a follower. The leader reads it per request via currentWorkspace().
     if (!process.env.VITEST) {
-      try { mkdirSync(join(process.cwd(), ".weaver"), { recursive: true }); writeFileSync(this.targetFile(), `${JSON.stringify({ workspaceDir })}\n`, { mode: 0o600 }); }
+      try {
+        const runtimeDir = this.runtimeDir();
+        mkdirSync(runtimeDir, { recursive: true, mode: 0o700 });
+        chmodSync(runtimeDir, 0o700);
+        writeFileSync(this.targetFile(), `${JSON.stringify({ workspaceDir })}\n`, { mode: 0o600 });
+        chmodSync(this.targetFile(), 0o600);
+      }
       catch { /* best effort */ }
     }
     const changed = this.preview.workspaceDir !== workspaceDir;
@@ -158,7 +170,8 @@ export class SseEventHub {
   writePreviewFile() {
     if (!this.preview) return;
     const dir = join(this.preview.workspaceDir, ".weaver");
-    mkdirSync(dir, { recursive: true });
+    mkdirSync(dir, { recursive: true, mode: 0o700 });
+    chmodSync(dir, 0o700);
     const file = join(dir, "preview.json");
     writeFileSync(file, `${JSON.stringify({ url: this.previewUrl, token: this.rpcToken, origin: this.origin, buildId: this.resolveBundle().buildId }, null, 2)}\n`, { mode: 0o600 });
     chmodSync(file, 0o600);
@@ -185,15 +198,19 @@ export class SseEventHub {
     const dir = join(homedir(), ".weaver");
     const file = join(dir, "preview-secret");
     let secret: Buffer;
-    try { secret = readFileSync(file); }
+    try { secret = readFileSync(file); chmodSync(file, 0o600); }
     catch {
       secret = randomBytes(32);
-      try { mkdirSync(dir, { recursive: true }); writeFileSync(file, secret, { mode: 0o600, flag: "wx" }); }
+      try { mkdirSync(dir, { recursive: true, mode: 0o700 }); chmodSync(dir, 0o700); writeFileSync(file, secret, { mode: 0o600, flag: "wx" }); }
       catch { try { secret = readFileSync(file); } catch { /* lost the create race harmlessly; keep generated */ } }
     }
     return createHash("sha256").update(secret).update(process.cwd()).digest("hex");
   }
-  private targetFile() { return join(process.cwd(), ".weaver", "preview-target.json"); }
+  private runtimeDir() {
+    const instanceId = createHash("sha256").update(process.cwd()).digest("hex").slice(0, 32);
+    return join(homedir(), ".weaver", "runtime", instanceId);
+  }
+  private targetFile() { return join(this.runtimeDir(), "preview-target.json"); }
   /** The workspace the preview currently serves — read fresh so a sibling's retarget is honored.
    *  Under VITEST the shared file is disabled (many hubs share one cwd), using in-memory state. */
   private currentWorkspace(): string {

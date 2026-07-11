@@ -20,7 +20,7 @@ import { registerTemplatesTools } from "./tools/templates.js";
 import { registerViewCatalogTools } from "./tools/view-catalog.js";
 import { registerWorkspaceTools } from "./tools/workspace.js";
 import { registerDiagnosticsTools } from "./tools/diagnostics.js";
-import { initLog, log, nextRequestId, summarizeArgs } from "./logger.js";
+import { initLog, log, nextRequestId, summarizeArgs, type LogOptions } from "./logger.js";
 import { widgetResourceUri, widgetRoot } from "./widget.js";
 
 /**
@@ -61,8 +61,8 @@ export type WeaverServer = {
  * so — under the Claude host — it resolves the same synthetic chat session key
  * as the stdio agent, converging both transports on one binding.
  */
-export async function createWeaverServer(options: { previewWorkspaceDir?: string } = {}): Promise<WeaverServer> {
-  initLog(options.previewWorkspaceDir ?? process.cwd());
+export async function createWeaverServer(options: { previewWorkspaceDir?: string; logOptions?: LogOptions } = {}): Promise<WeaverServer> {
+  initLog(options.previewWorkspaceDir ?? process.cwd(), options.logOptions);
   const manifest = JSON.parse(readFileSync(resolve(process.cwd(), ".codex-plugin", "plugin.json"), "utf8"));
   const serverVersion = manifest.version as string;
   const server = new McpServer({ name: "weaver-mcp-server", version: serverVersion }, { instructions: "Use Weaver tools to create semantic spaces, recommend immutable VisualTemplates, project one content graph into independent views, read concise graph summaries, propose LayoutPlan constraints, and submit auditable ChangeSets. Never invent template ids, final coordinates, or direct asset paths. Applying a template to an existing project must not mutate graph content." });
@@ -137,7 +137,6 @@ export async function createWeaverServer(options: { previewWorkspaceDir?: string
 
   if (previewHost()) {
     eventHub.configurePreview({ workspaceDir: options.previewWorkspaceDir ?? widgetRoot(), chatSessionKey: syntheticChatSessionKey(), dispatch, allowlist: PREVIEW_TOOL_ALLOWLIST });
-    eventHub.writePreviewFile();
   }
 
   return { server, eventHub, dispatch, toolMeta: (name: string) => registry.get(name)?.meta, serverVersion, close: () => eventHub.close() };

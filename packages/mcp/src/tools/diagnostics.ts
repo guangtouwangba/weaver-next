@@ -1,7 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { hostKind } from "../session-identity.js";
-import { bootedAt, currentLogFile, recentEntries, recentErrors } from "../logger.js";
+import { bootedAt, fileLoggingEnabled, recentEntries, recentErrors } from "../logger.js";
 import { defineTool, result } from "../shared/tool-runtime.js";
 import type { SseEventHub } from "../event-hub.js";
 
@@ -30,8 +30,8 @@ export function registerDiagnosticsTools(server: McpServer, ctx: DiagnosticsTool
       nodeVersion: process.version,
       uptimeMs: Date.now() - bootedAt(),
       buildId: eventHub.buildId,
-      previewUrl: preview ? eventHub.previewUrl : undefined,
-      logFile: currentLogFile(),
+      previewAvailable: preview,
+      fileLogging: fileLoggingEnabled(),
     };
     return result({ server, errors: recentErrors(50), recent: errorsOnly ? [] : recentEntries(limit ?? 120) }, "Weaver server diagnostics.");
   }));

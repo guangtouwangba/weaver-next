@@ -110,11 +110,12 @@ rm -rf ~/.local/share/weaver-next
 ## Data, network, and permissions
 
 - Authoritative project state: `<workspace>/.weaver/weaver.db`.
-- Assets and logs: `<workspace>/.weaver/`.
+- Assets and authoritative data: `<workspace>/.weaver/`.
 - Claude runtime checkout: `~/.local/share/weaver-next`.
 - Claude skills: `~/.claude/skills/weaver-open` and `~/.claude/skills/weaver-watch`.
 - Codex plugin cache: managed by Codex; do not edit it manually.
-- Browser preview and SSE endpoints bind only to `127.0.0.1` and require a random process token.
+- Browser preview and SSE endpoints bind only to `127.0.0.1` and require an owner-secret-derived capability token.
+- Preview metadata is created only after you explicitly open a workspace. `<workspace>/.weaver/preview.json` and `~/.weaver/runtime/` are owner-only (`0600` files inside `0700` directories); do not share their contents.
 - Link enrichment makes outbound HTTP/HTTPS requests only when you explicitly add a public link. Private-network targets are blocked.
 
 ## Troubleshooting
@@ -141,7 +142,11 @@ Keep only the user-scoped `weaver-preview` registration for Claude. The reposito
 
 ### Inspect diagnostics
 
-Ask the active agent to call `weaver_get_diagnostics`, or inspect `<workspace>/.weaver/logs/`. Logs can contain project names and paths; redact them before sharing.
+Ask the active agent to call `weaver_get_diagnostics`. It returns bounded, redacted in-memory events and server health without returning the preview capability URL or local log paths.
+
+Persistent logs are disabled by default. For a short troubleshooting session only, start the MCP with `WEAVER_FILE_LOG=1`. Files use `0600`, record `warn` and `error` by default, rotate at 1 MB, keep three files, and expire after seven days. Disable the variable and restart Weaver when diagnosis is complete; startup removes legacy `mcp-*.jsonl` files.
+
+Stderr logging is also disabled by default because Codex or Claude may persist it. Use `WEAVER_STDERR_LOG=1` only for a short live diagnosis; optionally set `WEAVER_LOG_LEVEL=warn|error`. Disable both variables and restart Weaver afterward.
 
 ## Build from source
 

@@ -122936,7 +122936,7 @@ var EMPTY_COMPLETION_RESULT = {
 
 // packages/mcp/src/event-hub.ts
 import { createHash as createHash4, randomBytes as randomBytes2, timingSafeEqual } from "node:crypto";
-import { chmodSync, mkdirSync as mkdirSync4, readFileSync as readFileSync3, watch, writeFileSync as writeFileSync3 } from "node:fs";
+import { chmodSync as chmodSync2, mkdirSync as mkdirSync4, readFileSync as readFileSync3, rmSync as rmSync2, watch, writeFileSync as writeFileSync4 } from "node:fs";
 import { createServer } from "node:http";
 import { homedir } from "node:os";
 import { join as join5 } from "node:path";
@@ -123402,7 +123402,10 @@ var layoutPlanSchema = external_exports.object({
     pinnedNodes: external_exports.boolean().default(true),
     manualGroups: external_exports.boolean().default(true),
     relativeOrder: external_exports.boolean().default(true),
-    mentalMapWeight: external_exports.number().min(0).max(1).default(0.6)
+    mentalMapWeight: external_exports.number().min(0).max(1).default(0.6),
+    // When true the engine leaves every node's width/height untouched (no size
+    // hierarchy). Default false so the semantic cluster layout may enlarge hubs.
+    nodeSizes: external_exports.boolean().default(false)
   }),
   candidateCount: external_exports.number().int().min(1).max(5).default(3),
   rationale: external_exports.string().default("")
@@ -123434,6 +123437,11 @@ var layoutMetricsSchema = external_exports.object({
   pinnedNodeMoves: external_exports.number().int().nonnegative(),
   displacement: external_exports.number().nonnegative(),
   compactness: external_exports.number().nonnegative(),
+  // Whitespace between cluster group boxes (0 when no groups); higher = cleaner
+  // de-clustered separation. Optional so older persisted layout runs still parse.
+  clusterSeparation: external_exports.number().nonnegative().optional(),
+  // Fraction of directed edges pointing along the plan direction (0..1). Optional.
+  directionFlow: external_exports.number().optional(),
   hardViolations: external_exports.array(external_exports.string()),
   score: external_exports.number()
 });
@@ -125324,7 +125332,7 @@ function bundledWidgetHtml(assetBaseUrl, bundle) {
 }
 
 // packages/mcp/src/logger.ts
-import { appendFileSync, mkdirSync as mkdirSync3 } from "node:fs";
+import { appendFileSync, chmodSync, existsSync as existsSync2, mkdirSync as mkdirSync3, readdirSync, rmSync, rmdirSync, statSync as statSync2, writeFileSync as writeFileSync3 } from "node:fs";
 import { join as join4 } from "node:path";
 
 // packages/mcp/src/session-identity.ts
@@ -125342,37 +125350,193 @@ function syntheticChatSessionKey() {
 }
 
 // packages/mcp/src/logger.ts
-var RING_MAX = 500;
+var RING_MAX = 200;
+var DEFAULT_MAX_BYTES = 1048576;
+var DEFAULT_MAX_FILES = 3;
+var DEFAULT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1e3;
+var LEVEL_ORDER = { debug: 10, info: 20, warn: 30, error: 40 };
 var ring = [];
 var bootedAtMs = Date.now();
 var logFile = null;
-var LEVEL_ORDER = { debug: 10, info: 20, warn: 30, error: 40 };
-var stderrThreshold = LEVEL_ORDER[process.env.WEAVER_LOG_LEVEL in LEVEL_ORDER ? process.env.WEAVER_LOG_LEVEL : "info"];
+var logsDir = null;
+var rotation = 0;
+var fileThreshold = LEVEL_ORDER.warn;
+var maxBytes = DEFAULT_MAX_BYTES;
+var maxFiles = DEFAULT_MAX_FILES;
+var maxAgeMs = DEFAULT_MAX_AGE_MS;
+function levelFromEnv(name, fallback) {
+  const value = process.env[name];
+  return value in LEVEL_ORDER ? value : fallback;
+}
 var stderrDead = false;
 process.stderr.on("error", () => {
   stderrDead = true;
 });
-function initLog(dir) {
+function stderrEnabled(level) {
+  return process.env.WEAVER_STDERR_LOG === "1" && LEVEL_ORDER[level] >= LEVEL_ORDER[levelFromEnv("WEAVER_LOG_LEVEL", "error")];
+}
+var SECRET_KEY = /(token|secret|password|authorization|cookie|lease|api[-_]?key)/i;
+var PATH_KEY = /(^|_)(workspaceDir|cwd|logFile|path|requested|filePath|root|directory)$/i;
+var SAFE_STRING_KEYS = /* @__PURE__ */ new Set([
+  "tool",
+  "requestId",
+  "code",
+  "signal",
+  "transport",
+  "serverVersion",
+  "hostKind",
+  "runtimeMode",
+  "buildId",
+  "requestedBuildId",
+  "currentBuildId",
+  "origin",
+  "node",
+  "opener",
+  "status",
+  "actionKey",
+  "projectId",
+  "viewId",
+  "nodeId",
+  "taskId",
+  "changeSetId",
+  "canvasSessionId",
+  "assetId",
+  "templateId",
+  "semanticType"
+]);
+var SIMPLE_REASON = /^[a-zA-Z0-9_.:-]{1,120}$/;
+var CAPABILITY = /\b[a-f0-9]{48,}\b/gi;
+var ABSOLUTE_PATH = /(?:\/[A-Za-z0-9._~ -]+){2,}/g;
+function safeString(value, limit = 160) {
+  const scrubbed = value.replace(CAPABILITY, "[redacted]").replace(ABSOLUTE_PATH, "[redacted-path]");
+  return scrubbed.length > limit ? `${scrubbed.slice(0, limit - 1)}\u2026` : scrubbed;
+}
+function sanitizeValue(key, value) {
+  if (SECRET_KEY.test(key)) return "[redacted]";
+  if (PATH_KEY.test(key)) return "[redacted-path]";
+  if (key === "stack") return "[redacted]";
+  if (value == null || typeof value === "number" || typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    if (key === "message") return "[redacted-error]";
+    if (key === "reason") return SIMPLE_REASON.test(value) ? value : "[redacted-error]";
+    if (SAFE_STRING_KEYS.has(key)) return safeString(value);
+    return `[string:${value.length}]`;
+  }
+  if (key === "args" && typeof value === "object" && !Array.isArray(value)) {
+    return sanitizeFields(value);
+  }
+  if (Array.isArray(value)) return `[array:${value.length}]`;
+  return "[object]";
+}
+function sanitizeFields(fields) {
+  return Object.fromEntries(Object.entries(fields).map(([key, value]) => [key, sanitizeValue(key, value)]));
+}
+function envInt(name, fallback) {
+  const parsed = Number.parseInt(process.env[name] ?? "", 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+function boundedEnvInt(name, fallback, minimum, maximum) {
+  return Math.min(maximum, Math.max(minimum, envInt(name, fallback)));
+}
+function removeLegacyLogs(dir) {
+  const legacyDir = join4(dir, ".weaver", "logs");
+  if (!existsSync2(legacyDir)) return;
   try {
-    const logsDir = join4(dir, ".weaver", "logs");
-    mkdirSync3(logsDir, { recursive: true });
-    logFile = join4(logsDir, `mcp-${process.pid}.jsonl`);
+    for (const name of readdirSync(legacyDir)) {
+      if (/^mcp-.*\.jsonl$/.test(name)) rmSync(join4(legacyDir, name), { force: true });
+    }
+    if (readdirSync(legacyDir).length === 0) rmdirSync(legacyDir);
   } catch {
-    logFile = null;
   }
 }
-function currentLogFile() {
-  return logFile;
+function listLogFiles() {
+  if (!logsDir) return [];
+  try {
+    return readdirSync(logsDir).filter((name) => /^mcp-.*\.jsonl$/.test(name)).map((name) => ({ name, mtimeMs: statSync2(join4(logsDir, name)).mtimeMs })).sort((a2, b) => b.mtimeMs - a2.mtimeMs);
+  } catch {
+    return [];
+  }
+}
+function pruneLogs(now3 = Date.now()) {
+  if (!logsDir) return;
+  const files = listLogFiles();
+  for (const file2 of files) {
+    const expired = now3 - file2.mtimeMs > maxAgeMs;
+    if (expired) {
+      try {
+        rmSync(join4(logsDir, file2.name), { force: true });
+      } catch {
+      }
+    }
+  }
+  const retained = listLogFiles();
+  for (const file2 of retained.slice(maxFiles)) {
+    if (join4(logsDir, file2.name) === logFile) continue;
+    try {
+      rmSync(join4(logsDir, file2.name), { force: true });
+    } catch {
+    }
+  }
+}
+function createLogFile() {
+  if (!logsDir) return;
+  const suffix = rotation ? `-${Date.now()}-${rotation}` : "";
+  logFile = join4(logsDir, `mcp-${process.pid}${suffix}.jsonl`);
+  writeFileSync3(logFile, "", { flag: "a", mode: 384 });
+  chmodSync(logFile, 384);
+  pruneLogs();
+}
+function initLog(dir, options = {}) {
+  logFile = null;
+  logsDir = null;
+  rotation = 0;
+  const fileLogging = options.fileLogging ?? process.env.WEAVER_FILE_LOG === "1";
+  if (!fileLogging) {
+    removeLegacyLogs(dir);
+    return;
+  }
+  try {
+    logsDir = join4(dir, ".weaver", "logs");
+    mkdirSync3(logsDir, { recursive: true, mode: 448 });
+    chmodSync(logsDir, 448);
+    fileThreshold = LEVEL_ORDER[options.fileLevel ?? levelFromEnv("WEAVER_FILE_LOG_LEVEL", "warn")];
+    maxBytes = options.maxBytes ?? boundedEnvInt("WEAVER_LOG_MAX_BYTES", DEFAULT_MAX_BYTES, 4096, 10 * 1048576);
+    maxFiles = options.maxFiles ?? boundedEnvInt("WEAVER_LOG_MAX_FILES", DEFAULT_MAX_FILES, 1, 10);
+    maxAgeMs = options.maxAgeMs ?? boundedEnvInt("WEAVER_LOG_MAX_AGE_MS", DEFAULT_MAX_AGE_MS, 6e4, 30 * 24 * 60 * 60 * 1e3);
+    pruneLogs();
+    createLogFile();
+  } catch {
+    logFile = null;
+    logsDir = null;
+  }
+}
+function fileLoggingEnabled() {
+  return Boolean(logFile);
 }
 function bootedAt() {
   return bootedAtMs;
 }
+function appendBounded(line) {
+  if (!logFile || !logsDir) return;
+  try {
+    const bytes = Buffer.byteLength(line) + 1;
+    if (bytes > maxBytes) return;
+    if (statSync2(logFile).size + bytes > maxBytes) {
+      rotation += 1;
+      createLogFile();
+    }
+    appendFileSync(logFile, `${line}
+`, { encoding: "utf8", mode: 384 });
+    pruneLogs();
+  } catch {
+  }
+}
 function log(level, event, fields = {}) {
-  const entry = { ts: (/* @__PURE__ */ new Date()).toISOString(), level, pid: process.pid, host: hostKind() ?? "codex", event, ...fields };
+  const entry = { ts: (/* @__PURE__ */ new Date()).toISOString(), level, pid: process.pid, host: hostKind() ?? "codex", event, ...sanitizeFields(fields) };
   ring.push(entry);
   if (ring.length > RING_MAX) ring.shift();
   const line = JSON.stringify(entry);
-  if (!stderrDead && LEVEL_ORDER[level] >= stderrThreshold) {
+  if (!stderrDead && stderrEnabled(level)) {
     try {
       process.stderr.write(`${line}
 `);
@@ -125380,16 +125544,10 @@ function log(level, event, fields = {}) {
       stderrDead = true;
     }
   }
-  if (logFile) {
-    try {
-      appendFileSync(logFile, `${line}
-`);
-    } catch {
-    }
-  }
+  if (LEVEL_ORDER[level] >= fileThreshold) appendBounded(line);
 }
 function recentEntries(limit = 100) {
-  return ring.slice(-Math.max(1, limit));
+  return ring.slice(-Math.min(RING_MAX, Math.max(1, limit)));
 }
 function recentErrors(limit = 50) {
   return ring.filter((entry) => entry.level === "error" || entry.level === "warn").slice(-Math.max(1, limit));
@@ -125399,19 +125557,23 @@ function nextRequestId() {
   seq = (seq + 1) % 1e6;
   return `${process.pid.toString(36)}-${seq.toString(36)}`;
 }
-var ID_KEYS = /* @__PURE__ */ new Set(["workspaceDir", "projectId", "viewId", "nodeId", "taskId", "changeSetId", "canvasSessionId", "actionKey", "assetId", "templateId", "status", "semanticType", "baseGraphRevision", "baseLayoutRevision"]);
+var ID_KEYS = /* @__PURE__ */ new Set(["projectId", "viewId", "nodeId", "taskId", "changeSetId", "canvasSessionId", "actionKey", "assetId", "templateId", "status", "semanticType", "baseGraphRevision", "baseLayoutRevision"]);
 var REDACT_KEYS = /* @__PURE__ */ new Set(["token", "previewToken", "leaseId", "rpcToken"]);
 function summarizeArgs(args) {
   if (!args || typeof args !== "object") return {};
   const out = {};
   for (const [key, value] of Object.entries(args)) {
-    if (REDACT_KEYS.has(key)) {
+    if (REDACT_KEYS.has(key) || SECRET_KEY.test(key)) {
       out[key] = "[redacted]";
+      continue;
+    }
+    if (key === "workspaceDir" || PATH_KEY.test(key)) {
+      out[key] = "[redacted-path]";
       continue;
     }
     if (value == null) continue;
     if (ID_KEYS.has(key)) {
-      out[key] = typeof value === "string" && value.length > 120 ? `${value.slice(0, 117)}\u2026` : value;
+      out[key] = typeof value === "string" ? safeString(value, 120) : value;
       continue;
     }
     if (typeof value === "object") {
@@ -125419,7 +125581,7 @@ function summarizeArgs(args) {
       continue;
     }
     if (typeof value === "string") {
-      out[key] = value.length > 80 ? `${value.slice(0, 77)}\u2026` : value;
+      out[key] = `[string:${value.length}]`;
       continue;
     }
     out[key] = value;
@@ -125509,14 +125671,18 @@ var SseEventHub = class {
     const boot = `<script>window.__weaverCodexLoopback=${JSON.stringify({ origin: this.origin, token: this.rpcToken })};</script>`;
     return inlineWidgetHtml(this.resolveBundle()).replace("<body>", `<body>${boot}`);
   }
-  /** Enable the standalone-browser preview host (Claude Code). */
+  /** Enable the token-gated loopback host used by Claude preview and Codex widgets. */
   configurePreview(config2) {
     this.preview = config2;
+    try {
+      rmSync2(join5(config2.workspaceDir, ".weaver", "preview-target.json"), { force: true });
+    } catch {
+    }
   }
   /**
    * Realign the preview to the workspace the agent is actually operating on.
    * Codex runs the MCP from its plugin cache dir, so the boot-time cwd is NOT
-   * the user's repo — the preview would otherwise bind an empty cache `.weaver`
+   * the user's repo — the preview would otherwise bind an empty cache workspace
    * (no projects, no binding → the widget hangs at "Connecting"). The agent
    * passes the real `workspaceDir` to `weaver_open_workspace_widget`; we retarget
    * the preview store + RPC pin + preview.json to it. Returns true if it changed.
@@ -125525,9 +125691,12 @@ var SseEventHub = class {
     if (!this.preview) return false;
     if (!process.env.VITEST) {
       try {
-        mkdirSync4(join5(process.cwd(), ".weaver"), { recursive: true });
-        writeFileSync3(this.targetFile(), `${JSON.stringify({ workspaceDir })}
+        const runtimeDir = this.runtimeDir();
+        mkdirSync4(runtimeDir, { recursive: true, mode: 448 });
+        chmodSync2(runtimeDir, 448);
+        writeFileSync4(this.targetFile(), `${JSON.stringify({ workspaceDir })}
 `, { mode: 384 });
+        chmodSync2(this.targetFile(), 384);
       } catch {
       }
     }
@@ -125549,11 +125718,12 @@ var SseEventHub = class {
   writePreviewFile() {
     if (!this.preview) return;
     const dir = join5(this.preview.workspaceDir, ".weaver");
-    mkdirSync4(dir, { recursive: true });
+    mkdirSync4(dir, { recursive: true, mode: 448 });
+    chmodSync2(dir, 448);
     const file2 = join5(dir, "preview.json");
-    writeFileSync3(file2, `${JSON.stringify({ url: this.previewUrl, token: this.rpcToken, origin: this.origin, buildId: this.resolveBundle().buildId }, null, 2)}
+    writeFileSync4(file2, `${JSON.stringify({ url: this.previewUrl, token: this.rpcToken, origin: this.origin, buildId: this.resolveBundle().buildId }, null, 2)}
 `, { mode: 384 });
-    chmodSync(file2, 384);
+    chmodSync2(file2, 384);
     return file2;
   }
   // A STABLE loopback endpoint. Codex renders the canvas by opening this preview
@@ -125574,11 +125744,13 @@ var SseEventHub = class {
     let secret;
     try {
       secret = readFileSync3(file2);
+      chmodSync2(file2, 384);
     } catch {
       secret = randomBytes2(32);
       try {
-        mkdirSync4(dir, { recursive: true });
-        writeFileSync3(file2, secret, { mode: 384, flag: "wx" });
+        mkdirSync4(dir, { recursive: true, mode: 448 });
+        chmodSync2(dir, 448);
+        writeFileSync4(file2, secret, { mode: 384, flag: "wx" });
       } catch {
         try {
           secret = readFileSync3(file2);
@@ -125588,8 +125760,12 @@ var SseEventHub = class {
     }
     return createHash4("sha256").update(secret).update(process.cwd()).digest("hex");
   }
+  runtimeDir() {
+    const instanceId = createHash4("sha256").update(process.cwd()).digest("hex").slice(0, 32);
+    return join5(homedir(), ".weaver", "runtime", instanceId);
+  }
   targetFile() {
-    return join5(process.cwd(), ".weaver", "preview-target.json");
+    return join5(this.runtimeDir(), "preview-target.json");
   }
   /** The workspace the preview currently serves — read fresh so a sibling's retarget is honored.
    *  Under VITEST the shared file is disabled (many hubs share one cwd), using in-memory state. */
@@ -128583,8 +128759,8 @@ function registerDiagnosticsTools(server2, ctx) {
       nodeVersion: process.version,
       uptimeMs: Date.now() - bootedAt(),
       buildId: eventHub2.buildId,
-      previewUrl: preview ? eventHub2.previewUrl : void 0,
-      logFile: currentLogFile()
+      previewAvailable: preview,
+      fileLogging: fileLoggingEnabled()
     };
     return result({ server: server3, errors: recentErrors(50), recent: errorsOnly ? [] : recentEntries(limit ?? 120) }, "Weaver server diagnostics.");
   }));
@@ -128636,7 +128812,7 @@ var PREVIEW_TOOL_ALLOWLIST = /* @__PURE__ */ new Set([
   "weaver_get_diagnostics"
 ]);
 async function createWeaverServer(options = {}) {
-  initLog(options.previewWorkspaceDir ?? process.cwd());
+  initLog(options.previewWorkspaceDir ?? process.cwd(), options.logOptions);
   const manifest = JSON.parse(readFileSync4(resolve4(process.cwd(), ".codex-plugin", "plugin.json"), "utf8"));
   const serverVersion = manifest.version;
   const server2 = new McpServer({ name: "weaver-mcp-server", version: serverVersion }, { instructions: "Use Weaver tools to create semantic spaces, recommend immutable VisualTemplates, project one content graph into independent views, read concise graph summaries, propose LayoutPlan constraints, and submit auditable ChangeSets. Never invent template ids, final coordinates, or direct asset paths. Applying a template to an existing project must not mutate graph content." });
@@ -128693,7 +128869,6 @@ async function createWeaverServer(options = {}) {
   };
   if (previewHost()) {
     eventHub2.configurePreview({ workspaceDir: options.previewWorkspaceDir ?? widgetRoot(), chatSessionKey: syntheticChatSessionKey(), dispatch: dispatch2, allowlist: PREVIEW_TOOL_ALLOWLIST });
-    eventHub2.writePreviewFile();
   }
   return { server: server2, eventHub: eventHub2, dispatch: dispatch2, toolMeta: (name) => registry2.get(name)?.meta, serverVersion, close: () => eventHub2.close() };
 }

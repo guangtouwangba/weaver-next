@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it } from "vitest";
@@ -24,6 +24,17 @@ function workspaceWithProject() {
 }
 
 describe("weaver_open_workspace_widget under the Claude host", () => {
+  it("does not persist preview capability metadata before a workspace is explicitly opened", async () => {
+    process.env.WEAVER_HOST_KIND = "codex";
+    const cacheDir = mkdtempSync(join(tmpdir(), "weaver-cache-")); roots.push(cacheDir);
+    mkdirSync(join(cacheDir, ".weaver"));
+    writeFileSync(join(cacheDir, ".weaver", "preview-target.json"), JSON.stringify({ workspaceDir: "/private/legacy" }));
+    const srv = await createWeaverServer({ previewWorkspaceDir: cacheDir }); servers.push(srv);
+
+    expect(() => readFileSync(join(cacheDir, ".weaver", "preview.json"), "utf8")).toThrow();
+    expect(() => readFileSync(join(cacheDir, ".weaver", "preview-target.json"), "utf8")).toThrow();
+  });
+
   it("returns a tokenized preview URL and publishes preview.json", async () => {
     process.env.WEAVER_HOST_KIND = "claude";
     const { root, projectId } = workspaceWithProject();

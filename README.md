@@ -124,7 +124,9 @@ The latest product boundary is documented in the [PRD](docs/PRD-Weaver-Redesign-
 
 The graph is content authority; every View has an independent layout document. Content changes increment `graphRevision`. Moving, pinning, routing, theming, or changing a projection increments only that View's `layoutRevision`.
 
-An agent never writes SQLite directly or invents final coordinates. MCP tools validate the active Project, View, Canvas Session, lease, and revision before accepting a ChangeSet or LayoutPlan. A deterministic engine computes layout candidates. Loopback HTTP remains on `127.0.0.1`, uses a random token, and recovers dropped events through sequence and revision checks.
+An agent never writes SQLite directly or invents final coordinates. MCP tools validate the active Project, View, Canvas Session, lease, and revision before accepting a ChangeSet or LayoutPlan. A deterministic engine computes layout candidates. Loopback HTTP remains on `127.0.0.1`, requires an owner-secret-derived capability token, and recovers dropped events through sequence and revision checks. Preview metadata is written only after an explicit workspace open and is owner-readable only.
+
+Persistent MCP logs and stderr output are off by default. Diagnostics stay in a bounded, redacted memory buffer and never expose preview capability URLs, raw prompts, absolute paths, or stack traces. Temporary logging is explicit, redacted, and bounded; file logging is also owner-only, rotated, and retention-limited.
 
 ## Develop from Source
 

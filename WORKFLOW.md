@@ -149,23 +149,16 @@ Python API 由 `npm test` 中的 pytest 一并覆盖。
   3. 在 **Codex** 里更新 / 重装 `weaver-local` 插件并重连 `weaver_mcp`（新建 Chat 也行）。
   4. 存量僵尸进程：只 `kill` 父进程为 `launchd`(PID 1) 的孤儿 `start-mcp.mjs`；父进程是 ChatGPT/Codex app-server 或某个 Claude 会话的**不要**动（那是活跃连接）。
 
-- 排查时读 **Codex 那份**的日志，而不是仓库的：
-  ```bash
-  tail -f ~/.codex/plugins/cache/weaver-local/weaver-next/*/.weaver/logs/mcp-*.jsonl
-  grep '"level":"error"' ~/.codex/plugins/cache/weaver-local/weaver-next/*/.weaver/logs/*.jsonl
-  ```
-  或直接在 Codex 里调 `weaver_get_diagnostics`（见 §5.1）。
+- 排查时优先在 Codex 里调 `weaver_get_diagnostics`（见 §5.1），不要默认依赖缓存目录里的持久日志。
 
 ### 5.1 可观测性（排查 MCP“黑盒”问题）
 
 MCP server 走 stdio，不能 `console.log`（会污染协议），所以所有诊断走两个 host 无关的出口：
 
-- **结构化日志文件**：每个进程写 `<workspace>/.weaver/logs/mcp-<pid>.jsonl`（append-only JSONL，已被 `.gitignore` 忽略）。人可直接看：
-  - `tail -f .weaver/logs/mcp-*.jsonl` 看实时活动；
-  - `grep '"level":"error"' .weaver/logs/mcp-*.jsonl` 找崩溃/报错；
-  - 每行含 `pid/host/buildId`，用来分辨多进程（僵尸）到底是谁。
-- **stderr 镜像**：宿主捕获的 stderr 也有同样的行（默认 `info` 起，`WEAVER_LOG_LEVEL=debug` 可放开 `tool.call`）。
-- **诊断工具 `weaver_get_diagnostics`**（Codex 与 Claude 都可调，且在 loopback 白名单里）：返回 `pid/host/uptime/buildId/previewUrl` + 最近日志与最近错误。排查“画布连接失败 / MCP proxy request failed”时，先调它看服务端到底发生了什么。
+- **默认不写持久日志**：运行信息只进入 200 条、全字段脱敏的内存环。启动时会清理旧版本遗留的 `.weaver/logs/mcp-*.jsonl`，避免进程重启持续堆积文件。
+- **诊断工具 `weaver_get_diagnostics`**（Codex 与 Claude 都可调，且在 loopback 白名单里）：返回 `pid/host/uptime/buildId`、是否有 preview、是否启用文件日志，以及脱敏后的最近事件。不得返回 `previewUrl`、capability token、绝对日志路径、原始 prompt 或 stack。
+- **文件日志仅限临时排障**：显式设置 `WEAVER_FILE_LOG=1` 才会创建文件。默认只记 `warn/error`，权限 `0600`，1 MB 轮转、最多 3 个文件、保留 7 天；即使通过环境变量调整，也硬限制在单文件 10 MB、10 个文件和 30 天以内。排障结束后必须关闭该变量并重启。
+- **stderr 默认关闭**：宿主可能把 stderr 再次持久化，因此只有显式设置 `WEAVER_STDERR_LOG=1` 才输出脱敏诊断；阈值由 `WEAVER_LOG_LEVEL` 控制，排障结束后必须关闭并重启。
 - 记录点覆盖：`server.boot`、每个工具的 `tool.call/tool.result/tool.error`（带 `durationMs`）、loopback 的 `rpc.toolNotAllowed/rpc.workspaceScopeViolation/asset.notFound`、进程级 `process.uncaughtException/unhandledRejection/signal` 与 `transport.closed`——即“为什么进程悄悄死了”。
 - 这是服务端代码：改完要**重启/重连 MCP** 才生效。
 
