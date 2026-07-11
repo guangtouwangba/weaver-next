@@ -1,6 +1,7 @@
 import { FileText, ImagePlus, Link2, LayoutTemplate, Lock, MoreHorizontal, Pin as PinIcon, Plus, RotateCcw, Sparkles, Unlock, Library } from "lucide-react";
 import type { Dispatch, SetStateAction } from "react";
 import { ViewActionsMenu, type ViewRowActions } from "./ViewLibraryDrawer";
+import { ProjectSwitcher } from "./ProjectSwitcher";
 import type { Layout, Project, ProjectView } from "../types";
 
 export function TopBar(props: {
@@ -33,10 +34,13 @@ export function TopBar(props: {
   standaloneDemo: boolean;
   togglePinned: () => void | Promise<void>;
   revertLayout: () => void | Promise<void>;
+  workspaceDir?: string;
+  chooseProject: (projectId: string) => void;
+  startFromTemplateGallery: () => void | Promise<void>;
 } & ViewRowActions) {
-  const { project, status, switcherViews, layout, draggedViewId, setDraggedViewId, reorderPinnedViews, switchView, busy, viewMenuId, setViewMenuId, setViewLibrary, projectViews, openTemplateGallery, streamState, reconnect, createMenu, setCreateMenu, linkComposer, setLinkComposer, createArticle, chooseImage, linkUrl, setLinkUrl, createLink, selection, standaloneDemo, togglePinned, revertLayout, beginRename, pinProjectView, duplicateProjectView, setDefaultView, trashProjectView } = props;
+  const { project, status, switcherViews, layout, draggedViewId, setDraggedViewId, reorderPinnedViews, switchView, busy, viewMenuId, setViewMenuId, setViewLibrary, projectViews, openTemplateGallery, streamState, reconnect, createMenu, setCreateMenu, linkComposer, setLinkComposer, createArticle, chooseImage, linkUrl, setLinkUrl, createLink, selection, standaloneDemo, togglePinned, revertLayout, beginRename, pinProjectView, duplicateProjectView, setDefaultView, trashProjectView, workspaceDir, chooseProject, startFromTemplateGallery } = props;
   return <header className="topbar">
-    <div className="brand"><span>W</span><div><strong title={project?.title ?? "Weaver"}>{project?.title ?? "Weaver"}</strong><small>{status}</small></div></div>
+    <ProjectSwitcher project={project} status={status} workspaceDir={workspaceDir} standaloneDemo={standaloneDemo} busy={busy} chooseProject={chooseProject} startFromTemplateGallery={startFromTemplateGallery} />
     <nav className="view-tabs" aria-label="Project views">{switcherViews.map((view) => <div className="view-tab" data-active={layout?.viewId === view.id} data-dragging={draggedViewId === view.id} draggable={view.pinned} onDragStart={() => view.pinned && setDraggedViewId(view.id)} onDragOver={(event) => view.pinned && event.preventDefault()} onDrop={() => void reorderPinnedViews(view.id)} onDragEnd={() => setDraggedViewId(null)} key={view.id}><button onClick={() => void switchView(view.id)} disabled={busy}>{view.pinned ? <PinIcon size={10} fill="currentColor" /> : null}{view.name}</button><button className="view-tab-more" aria-label={`More actions for ${view.name}`} onClick={() => setViewMenuId(viewMenuId === `tab:${view.id}` ? null : `tab:${view.id}`)}><MoreHorizontal size={13} /></button>{viewMenuId === `tab:${view.id}` ? <ViewActionsMenu view={view} project={project} projectViews={projectViews} beginRename={beginRename} pinProjectView={pinProjectView} duplicateProjectView={duplicateProjectView} setDefaultView={setDefaultView} trashProjectView={trashProjectView} /> : null}</div>)}<button className="all-views-button" onClick={() => setViewLibrary(true)} disabled={!project}><Library size={12} /> All Views <span>{projectViews.filter((view) => view.status === "active").length}</span></button><button className="new-view" aria-label="New visual view" onClick={() => void openTemplateGallery("view")} disabled={!project || busy}><Plus size={12} /></button></nav>
     <div className="top-actions">
       <button className="stream-status" data-state={streamState} onClick={() => streamState === "offline" && reconnect()} title={streamState === "offline" ? "Reconnect live sync" : streamState === "polling" ? "Live sync (polling)" : "SSE live sync status"}><span /> {streamState === "online" || streamState === "polling" ? "Live" : streamState === "connecting" ? "Connecting" : "Reconnect"}</button>

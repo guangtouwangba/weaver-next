@@ -127,6 +127,7 @@ function WeaverWidget() {
       createMenu={createMenu} setCreateMenu={setCreateMenu} linkComposer={linkComposer} setLinkComposer={setLinkComposer} createArticle={createArticle} chooseImage={chooseImage} linkUrl={linkUrl} setLinkUrl={setLinkUrl} createLink={createLink}
       selection={selection} standaloneDemo={standaloneDemo} togglePinned={togglePinned} revertLayout={revertLayout}
       beginRename={beginRename} pinProjectView={pinProjectView} duplicateProjectView={duplicateProjectView} setDefaultView={setDefaultView} trashProjectView={trashProjectView}
+      workspaceDir={bootstrap.workspaceDir} chooseProject={chooseProject} startFromTemplateGallery={startFromTemplateGallery}
     />
     <section className="workspace-stage">
       {!standaloneDemo && (accessState === "build-mismatch" || (project && accessState !== "active")) ? <div className="canvas-access-blocker" role="alert">
