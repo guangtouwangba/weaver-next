@@ -75,6 +75,22 @@ export function diffLayoutDocuments(before: LayoutDocument, after: LayoutDocumen
       operations.push({ type: "set-node-frame", viewId: after.viewId, nodeId, frame: { x: node.x, y: node.y, width: node.width, height: node.height } });
     }
   }
+  for (const [nodeId, node] of Object.entries(after.nodes)) {
+    const previous = before.nodes[nodeId];
+    if ((previous?.groupId ?? undefined) !== (node.groupId ?? undefined)) {
+      operations.push({ type: "assign-node-to-group", viewId: after.viewId, nodeId, groupId: node.groupId ?? null });
+    }
+  }
+  // Group boxes. Deletions are not representable as an operation (there is no
+  // remove-group in the union) — acceptable because applyLayoutCandidate persists
+  // the whole document, so the group set is authoritative; these ops only enrich
+  // the audit/event stream.
+  for (const [groupId, group] of Object.entries(after.groups)) {
+    const previous = before.groups[groupId];
+    if (!previous || previous.x !== group.x || previous.y !== group.y || previous.width !== group.width || previous.height !== group.height) {
+      operations.push({ type: "set-group-frame", viewId: after.viewId, groupId, frame: { x: group.x, y: group.y, width: group.width, height: group.height } });
+    }
+  }
   for (const [edgeId, edge] of Object.entries(after.edges)) {
     const previous = before.edges[edgeId];
     if (JSON.stringify(previous) !== JSON.stringify(edge)) operations.push({ type: "set-edge-route", viewId: after.viewId, edgeId, route: edge });

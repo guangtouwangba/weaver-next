@@ -106,6 +106,9 @@ export const layoutPlanSchema = z.object({
     manualGroups: z.boolean().default(true),
     relativeOrder: z.boolean().default(true),
     mentalMapWeight: z.number().min(0).max(1).default(0.6),
+    // When true the engine leaves every node's width/height untouched (no size
+    // hierarchy). Default false so the semantic cluster layout may enlarge hubs.
+    nodeSizes: z.boolean().default(false),
   }),
   candidateCount: z.number().int().min(1).max(5).default(3),
   rationale: z.string().default(""),
@@ -141,6 +144,11 @@ export const layoutMetricsSchema = z.object({
   pinnedNodeMoves: z.number().int().nonnegative(),
   displacement: z.number().nonnegative(),
   compactness: z.number().nonnegative(),
+  // Whitespace between cluster group boxes (0 when no groups); higher = cleaner
+  // de-clustered separation. Optional so older persisted layout runs still parse.
+  clusterSeparation: z.number().nonnegative().optional(),
+  // Fraction of directed edges pointing along the plan direction (0..1). Optional.
+  directionFlow: z.number().optional(),
   hardViolations: z.array(z.string()),
   score: z.number(),
 });

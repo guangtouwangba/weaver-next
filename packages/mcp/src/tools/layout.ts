@@ -4,6 +4,7 @@ import { z } from "zod";
 import { layoutOperationSchema, layoutPlanSchema } from "@weaver/contracts";
 import { applyLayoutOperations } from "@weaver/core";
 import { generateLayoutCandidates } from "@weaver/layout-engine";
+import { getScenePack } from "@weaver/scene-packs";
 import { WorkspaceStore } from "@weaver/storage";
 import { projectSchema, workspaceSchema } from "../shared/schemas.js";
 import { defineTool, failure, result, withStore, type MutateWithStore } from "../shared/tool-runtime.js";
@@ -36,7 +37,12 @@ export function registerLayoutTools(server: McpServer, ctx: LayoutToolsCtx) {
         const current = store.getLayout(plan.projectId, plan.viewId); if (!current) throw new Error("LAYOUT_NOT_FOUND");
         if (current.layoutRevision !== plan.baseLayoutRevision) { store.updateAgentTask(taskId, { status: "stale", error: { code: "LAYOUT_REVISION_CONFLICT", message: `Expected layout r${plan.baseLayoutRevision}, current r${current.layoutRevision}` } }); throw new Error("LAYOUT_REVISION_CONFLICT"); }
         const layoutRunId = randomUUID();
-        const candidates = await generateLayoutCandidates({ nodes: graph.nodes, edges: graph.edges, current, plan, layoutRunId });
+        // Feed the project's scene-pack scoringWeights into the engine so the
+        // semantic layout ranks candidates by the pack's priorities (e.g.
+        // semanticDistance/direction) instead of the hardcoded defaults.
+        const project = store.getProject(plan.projectId);
+        const weights = project ? getScenePack(project.scenePackId, project.scenePackVersion)?.scoringWeights : undefined;
+        const candidates = await generateLayoutCandidates({ nodes: graph.nodes, edges: graph.edges, current, plan, layoutRunId, weights });
         const run = store.saveLayoutRun({ id: layoutRunId, projectId: plan.projectId, viewId: plan.viewId, taskId, plan, candidates });
         store.updateAgentTask(taskId, { status: "pending_review", activeStage: "layout", results: { ...task.results, layoutRunId: run.id } });
         return { layoutRunId: run.id, candidates: candidates.map((candidate) => ({ id: candidate.id, label: candidate.label, metrics: candidate.metrics })) };
@@ -56,6 +62,21 @@ export function registerLayoutTools(server: McpServer, ctx: LayoutToolsCtx) {
   server.registerTool("weaver_revert_layout", { title: "Undo Layout", description: "Restore the previous archived layout as a new layout revision.", inputSchema: { ...projectSchema.shape, viewId: z.string() }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false } }, defineTool(async ({ workspaceDir, projectId, viewId }) => result(mutateWithStore(workspaceDir, (store) => store.revertLayout(projectId, viewId)), "Restored previous layout.")));
 
   server.registerTool("weaver_get_layout", { title: "Get Weaver Layout", description: "Read one independent view layout and layoutRevision.", inputSchema: { ...projectSchema.shape, viewId: z.string() }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } }, defineTool(async ({ workspaceDir, projectId, viewId }) => { const layout = withStore(workspaceDir, (store) => store.getLayout(projectId, viewId)); if (!layout) throw new Error("LAYOUT_NOT_FOUND"); return result(layout); }));
-  server.registerTool("weaver_get_layout_capabilities", { title: "Get Layout Capabilities", description: "Read available deterministic layout strategies and semantic constraints.", inputSchema: {}, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } }, async () => result({ strategies: ["tree", "layered", "radial", "force", "cluster", "grid", "timeline", "swimlane", "hybrid"], constraints: ["pin", "align", "distribute", "order", "rank", "group", "containment", "separation", "relative-position", "direction", "spacing", "avoid-overlap", "preserve-position", "edge-length", "edge-routing", "emphasis", "viewport-fit"], candidateCount: { min: 1, max: 5, default: 3 } }));
+  server.registerTool("weaver_get_layout_capabilities", { title: "Get Layout Capabilities", description: "Read available deterministic layout strategies and the constraints each honors.", inputSchema: {}, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } }, async () => result({
+    strategies: ["tree", "layered", "radial", "force", "cluster", "grid", "timeline", "swimlane", "hybrid"],
+    // `cluster`/`hybrid` run the semantic hierarchy layout: it groups nodes into
+    // labeled regions (by each node's `properties.layer`, explicit `group`
+    // constraints, or graph topology), enlarges hub nodes, and separates regions
+    // with wide whitespace — the best choice for a knowledge/industry map an
+    // analyst must read at a glance. It emits three structurally distinct
+    // candidates (语义聚类 / 分区矩阵 / 紧凑网格) and honors these constraints:
+    recommendedStrategy: "cluster",
+    honoredConstraints: {
+      cluster: ["emphasis", "group", "direction", "separation", "spacing", "pin", "preserve-position"],
+      layered: ["direction", "emphasis"], tree: ["direction"], radial: ["emphasis"], force: [], grid: [],
+    },
+    constraints: ["pin", "align", "distribute", "order", "rank", "group", "containment", "separation", "relative-position", "direction", "spacing", "avoid-overlap", "preserve-position", "edge-length", "edge-routing", "emphasis", "viewport-fit"],
+    candidateCount: { min: 1, max: 5, default: 3 },
+  }));
   server.registerTool("weaver_validate_layout_plan", { title: "Validate LayoutPlan", description: "Validate semantic layout constraints without calculating or applying coordinates.", inputSchema: { plan: z.any() }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } }, defineTool(async ({ plan }) => result({ valid: true, plan: layoutPlanSchema.parse(plan) })));
 }

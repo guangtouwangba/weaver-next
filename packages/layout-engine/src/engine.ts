@@ -4,8 +4,29 @@ import ELK from "elkjs/lib/elk.bundled.js";
 import type { LayoutCandidate, LayoutDocument, LayoutPlan, NodeLayout, SpaceEdge, SpaceNode } from "@weaver/contracts";
 import { diffLayoutDocuments } from "@weaver/core";
 import { scoreLayout } from "./score.js";
+import { semanticClusterLayout, type MacroVariant, type MicroVariant } from "./semantic/index.js";
 
-export interface LayoutInput { nodes: SpaceNode[]; edges: SpaceEdge[]; current: LayoutDocument; plan: LayoutPlan; layoutRunId?: string }
+export interface LayoutInput {
+  nodes: SpaceNode[];
+  edges: SpaceEdge[];
+  current: LayoutDocument;
+  plan: LayoutPlan;
+  layoutRunId?: string;
+  /** Optional scene-pack scoringWeights, plumbed by the MCP layer so the score
+   * reflects the pack's priorities (e.g. semanticDistance) instead of the defaults. */
+  weights?: Record<string, number>;
+}
+
+const SEMANTIC_STRATEGIES = new Set(["cluster", "hybrid"]);
+// Structurally distinct cluster candidates (not density clones): different micro
+// (radial vs rows) AND macro (force vs grid) arrangements of the same clusters.
+const CLUSTER_VARIANTS: Array<{ label: string; micro: MicroVariant; macro: MacroVariant; density: number }> = [
+  { label: "语义聚类", micro: "radial", macro: "force", density: 1 },
+  { label: "分区矩阵", micro: "rows", macro: "force", density: 1 },
+  { label: "紧凑网格", micro: "rows", macro: "grid", density: 0.85 },
+  { label: "语义聚类 · 宽松", micro: "radial", macro: "force", density: 1.3 },
+  { label: "语义聚类 · 紧凑", micro: "radial", macro: "force", density: 0.75 },
+];
 
 function seededRandom(seed: string) {
   let state = Number.parseInt(createHash("sha256").update(seed).digest("hex").slice(0, 8), 16) || 1;
@@ -51,17 +72,21 @@ function updateBounds(document: LayoutDocument) {
   document.bounds = { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
 }
 
-function routeEdges(document: LayoutDocument, edges: SpaceEdge[], orthogonal: boolean) {
+function routeEdges(document: LayoutDocument, edges: SpaceEdge[], orthogonal: boolean, clusterOf?: Map<string, string>) {
   for (const edge of edges) {
     const source = document.nodes[edge.sourceNodeId];
     const target = document.nodes[edge.targetNodeId];
     if (!source || !target) continue;
     const a = { x: source.x + source.width / 2, y: source.y + source.height / 2 };
     const b = { x: target.x + target.width / 2, y: target.y + target.height / 2 };
+    // Cluster-aware routing: keep intra-cluster edges as short beziers, route
+    // cross-cluster edges orthogonally so the inter-region links read cleanly.
+    const crossCluster = clusterOf ? clusterOf.get(edge.sourceNodeId) !== clusterOf.get(edge.targetNodeId) : false;
+    const useOrthogonal = clusterOf ? crossCluster : orthogonal;
     document.edges[edge.id] = {
       edgeId: edge.id,
-      routing: orthogonal ? "orthogonal" : "bezier",
-      waypoints: orthogonal ? [a, { x: (a.x + b.x) / 2, y: a.y }, { x: (a.x + b.x) / 2, y: b.y }, b] : [a, b],
+      routing: useOrthogonal ? "orthogonal" : "bezier",
+      waypoints: useOrthogonal ? [a, { x: (a.x + b.x) / 2, y: a.y }, { x: (a.x + b.x) / 2, y: b.y }, b] : [a, b],
       hidden: false,
     };
   }
@@ -148,20 +173,40 @@ export async function generateLayoutCandidates(input: LayoutInput): Promise<Layo
   const count = input.plan.candidateCount;
   const candidates: LayoutCandidate[] = [];
   const labels = ["Balanced", "Preserve positions", "Compact", "Spacious", "Alternative"];
+  const isSemantic = SEMANTIC_STRATEGIES.has(input.plan.strategy);
   for (let index = 0; index < count; index += 1) {
     const document = cloneDocument(input);
-    const density = index === 1 ? 1.25 : index === 2 ? 0.75 : 1;
-    const spacing = document.config.nodeSpacing * density;
-    if (["tree", "layered", "timeline", "swimlane"].includes(input.plan.strategy)) await elkLayout(input, document, spacing);
-    else if (["force", "cluster", "hybrid"].includes(input.plan.strategy)) forceLayout(input, document, spacing, `${input.plan.projectId}:${input.plan.viewId}:${input.layoutRunId ?? "standalone"}:${index}`);
-    else if (input.plan.strategy === "radial") radialLayout(input, document, spacing);
-    else gridLayout(input, document, spacing);
+    const seed = `${input.plan.projectId}:${input.plan.viewId}:${input.layoutRunId ?? "standalone"}:${index}`;
+    let clusterOf: Map<string, string> | undefined;
+    let label: string;
+    if (isSemantic) {
+      const variant = CLUSTER_VARIANTS[index] ?? CLUSTER_VARIANTS[0];
+      const spacing = document.config.nodeSpacing * variant.density;
+      const scoped = scopeIds(input);
+      const nodes = input.nodes.filter((node) => scoped.has(node.id));
+      const edges = input.edges.filter((edge) => scoped.has(edge.sourceNodeId) && scoped.has(edge.targetNodeId));
+      ({ clusterOf } = semanticClusterLayout({ nodes, edges, plan: input.plan, document, current: input.current, spacing, seed, micro: variant.micro, macro: variant.macro }));
+      label = variant.label;
+    } else {
+      const density = index === 1 ? 1.25 : index === 2 ? 0.75 : 1;
+      const spacing = document.config.nodeSpacing * density;
+      if (["tree", "layered", "timeline", "swimlane"].includes(input.plan.strategy)) await elkLayout(input, document, spacing);
+      else if (input.plan.strategy === "force") forceLayout(input, document, spacing, seed);
+      else if (input.plan.strategy === "radial") radialLayout(input, document, spacing);
+      else gridLayout(input, document, spacing);
+      label = labels[index];
+    }
     if (input.plan.preserve.pinnedNodes) restorePinned(input.current, document);
-    routeEdges(document, input.edges, ["tree", "layered", "timeline", "swimlane"].includes(input.plan.strategy));
+    routeEdges(document, input.edges, ["tree", "layered", "timeline", "swimlane"].includes(input.plan.strategy), clusterOf);
     updateBounds(document);
-    const metrics = scoreLayout(document, input.edges, input.current);
-    const id = createHash("sha256").update(`${input.plan.projectId}:${input.plan.viewId}:${input.layoutRunId ?? "standalone"}:${index}`).digest("hex").slice(0, 24);
-    candidates.push({ id, label: labels[index], document, operations: diffLayoutDocuments(input.current, document), metrics });
+    const metrics = scoreLayout(document, input.edges, input.current, isSemantic ? { weights: input.weights, direction: input.plan.direction ?? document.config.direction } : undefined);
+    const id = createHash("sha256").update(seed).digest("hex").slice(0, 24);
+    candidates.push({ id, label, document, operations: diffLayoutDocuments(input.current, document), metrics });
   }
+  // Semantic candidates keep their authored order so the recommended "语义聚类"
+  // (spacious, hub-and-region) leads — the score's compactness term would otherwise
+  // rank the tight grid first, which is exactly the dense look this layout replaces.
+  // Applicable candidates (no hard violations) still float above violating ones.
+  if (isSemantic) return candidates.sort((left, right) => Number(left.metrics.hardViolations.length > 0) - Number(right.metrics.hardViolations.length > 0));
   return candidates.sort((left, right) => right.metrics.score - left.metrics.score);
 }
