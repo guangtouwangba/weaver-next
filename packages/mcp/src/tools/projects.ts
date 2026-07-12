@@ -2,6 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { builtinScenePacks, getScenePack } from "@weaver/scene-packs";
 import { projectSchema, workspaceSchema } from "../shared/schemas.js";
+import { readProjectManifest } from "../shared/graph-reads.js";
 import { track } from "../shared/workspace-registry.js";
 import { defineTool, result, withStore, type MutateWithStore } from "../shared/tool-runtime.js";
 import { chatSessionKeyFromRequest } from "../thread-context.js";
@@ -33,8 +34,12 @@ export function registerProjectsTools(server: McpServer, ctx: ProjectsToolsCtx) 
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
   }, defineTool(async ({ workspaceDir, title, goal, scenePackId, automationLevel }, extra) => { const scene = getScenePack(scenePackId); if (!scene) throw new Error(`SCENE_PACK_NOT_FOUND:${scenePackId}`); const chatSessionKey = chatSessionKeyFromRequest(extra, false); const created = mutateWithStore(workspaceDir, (store) => store.createSeededProject({ title, goal, scenePack: scene, automationLevel, chatSessionKey })); track(workspaceDir, created.project.id); const binding = created.binding ? { leaseId: created.binding.leaseId, bindingRevision: created.binding.bindingRevision, projectId: created.binding.projectId, viewId: created.binding.viewId } : undefined; return result({ ...created.project, binding }, `Created ${created.project.title}.`); }));
 
+  // Widget-only: the preview widget reads the manifest here, so it stays REGISTERED
+  // under this exact name with `_meta.ui.visibility=["app"]` (off the model surface).
+  // The model reads it via weaver_read_graph(resource:"manifest"); both call the same
+  // shared helper (see shared/graph-reads.ts) so they never drift.
   server.registerTool("weaver_get_project_manifest", {
     title: "Get Project Manifest", description: "Get a project's pinned scene rules, available node/edge types, views, artifacts, revisions and automation level.", inputSchema: projectSchema.shape,
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-  }, defineTool(async ({ workspaceDir, projectId }) => { const output = withStore(workspaceDir, (store) => { const project = store.getProject(projectId); if (!project) throw new Error("PROJECT_NOT_FOUND"); const scenePack = getScenePack(project.scenePackId, project.scenePackVersion); return { project, scenePack, views: store.listProjectViews(projectId, "active").map((view) => ({ ...view, viewId: view.id, viewName: view.name, layoutRevision: store.getLayout(projectId, view.id)?.layoutRevision ?? 0 })) }; }); track(workspaceDir, projectId); return result(output); }));
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } },
+  }, defineTool(async ({ workspaceDir, projectId }) => { const output = withStore(workspaceDir, (store) => readProjectManifest(store, projectId)); track(workspaceDir, projectId); return result(output); }));
 }

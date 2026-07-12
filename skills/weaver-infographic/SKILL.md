@@ -17,7 +17,7 @@ The native Weaver widget is open for the active project. Weaver state is read an
 
 2. Gather the source content.
    - Read the selection: `weaver_read_session(resource:"canvas_context")` and `weaver_read_session(resource:"resolved_context")`.
-   - Pull full bodies only for the nodes you will visualize: `weaver_get_node_content`.
+   - Pull full bodies only for the nodes you will visualize: `weaver_read_graph(resource:"node")`.
    - If the user described a topic instead of selecting nodes, use that text as the brief.
 
 3. Plan the infographic (do not skip). Decide, and keep these:

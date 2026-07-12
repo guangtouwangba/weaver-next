@@ -13,7 +13,7 @@ Native Weaver widget open for the active project. Weaver MCP tools only; never b
 
 ## Workflow
 
-1. `weaver_read_session(resource:"bound_canvas")`. Determine the subject: the selected node's title/body (`weaver_get_node_content`) or the user's described topic.
+1. `weaver_read_session(resource:"bound_canvas")`. Determine the subject: the selected node's title/body (`weaver_read_graph(resource:"node")`) or the user's described topic.
 2. Choose `style` from `references/styles.md` (default `elegant`), `aspect` (`2.35:1` article default, `16:9`, or `1:1` social), and whether to include a title (default: include, <= 8 chars, hand-drawn).
 3. Compose the generation prompt from `references/base-prompt.md`: hand-drawn illustration, ample whitespace, focal visual centered/slightly-left, title area on the right if a title is included, style palette + elements, aspect ratio. All text hand-drawn, in the content's language.
 4. Generate with the host image model (Codex). On Claude or when the title must be crisp, author an SVG cover and use `weaver_render_svg_image`.
