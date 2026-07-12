@@ -4,8 +4,9 @@ import { viewTypeSchema } from "@weaver/contracts";
 import { getScenePack } from "@weaver/scene-packs";
 import { builtinVisualTemplates, getVisualTemplate, validateVisualTemplateForProject } from "@weaver/visual-templates";
 import { projectSchema, workspaceSchema } from "../shared/schemas.js";
+import { listVisualTemplates } from "../shared/catalog-reads.js";
 import { track } from "../shared/workspace-registry.js";
-import { defineTool, failure, result, withStore, type MutateWithStore } from "../shared/tool-runtime.js";
+import { defineTool, result, withStore, type MutateWithStore } from "../shared/tool-runtime.js";
 import { chatSessionKeyFromRequest } from "../thread-context.js";
 
 export type TemplatesToolsCtx = { mutateWithStore: MutateWithStore };
@@ -14,16 +15,16 @@ export type TemplatesToolsCtx = { mutateWithStore: MutateWithStore };
 export function registerTemplatesTools(server: McpServer, ctx: TemplatesToolsCtx) {
   const { mutateWithStore } = ctx;
 
+  // Widget-only: the preview widget lists templates here, so it stays REGISTERED
+  // under this exact name with `_meta.ui.visibility=["app"]` (off the model surface).
+  // The model lists templates via weaver_read_catalog(resource:"template.list"); both
+  // call the same shared helper (see shared/catalog-reads.ts) so they never drift.
+  // `weaver_get_visual_template` was model-only and is now folded into weaver_read_catalog.
   server.registerTool("weaver_list_visual_templates", {
     title: "List Visual Templates", description: "List the built-in versioned structured visual templates, optionally filtered by scene, family or renderer.",
     inputSchema: { scenePackId: z.string().optional(), family: z.enum(["canvas", "hierarchy", "relationship", "flow", "temporal", "board", "matrix", "table"]).optional(), renderer: viewTypeSchema.optional() },
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-  }, async ({ scenePackId, family, renderer }) => result(builtinVisualTemplates.filter((item) => (!scenePackId || item.compatibleScenePackIds.includes(scenePackId)) && (!family || item.family === family) && (!renderer || item.renderer === renderer))));
-
-  server.registerTool("weaver_get_visual_template", {
-    title: "Get Visual Template", description: "Read one immutable VisualTemplate definition.", inputSchema: { templateId: z.string(), version: z.string().default("1.0.0") },
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-  }, async ({ templateId, version }) => { const item = getVisualTemplate(templateId, version); return item ? result(item) : failure(new Error("VISUAL_TEMPLATE_NOT_FOUND")); });
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } },
+  }, async ({ scenePackId, family, renderer }) => result(listVisualTemplates({ scenePackId, family, renderer })));
 
   server.registerTool("weaver_recommend_visual_templates", {
     title: "Recommend Visual Templates", description: "Recommend compatible visual templates for a natural-language goal without changing data.",

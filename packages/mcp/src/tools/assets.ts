@@ -5,13 +5,12 @@ import { WorkspaceStore } from "@weaver/storage";
 import { projectSchema } from "../shared/schemas.js";
 import { defineTool, failure, result, withStore } from "../shared/tool-runtime.js";
 
-/** Asset handling: read metadata/preview of an imported image, and import new image bytes. */
+/**
+ * Asset handling: read a preview thumbnail of an imported image, and import new
+ * image bytes. `weaver_get_asset_metadata` was model-only and is now folded into
+ * weaver_read_catalog(resource:"asset.metadata").
+ */
 export function registerAssetsTools(server: McpServer) {
-  server.registerTool("weaver_get_asset_metadata", {
-    title: "Get Image Asset Metadata", description: "Read safe metadata for a project-local image asset without loading its original binary.",
-    inputSchema: { ...projectSchema.shape, assetId: z.string().min(1) }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-  }, defineTool(async ({ workspaceDir, projectId, assetId }) => { const asset = withStore(workspaceDir, (store) => store.getAsset(assetId)); if (!asset || asset.projectId !== projectId) throw new Error("ASSET_NOT_FOUND_OR_CROSS_PROJECT"); return result(asset); }));
-
   server.registerTool("weaver_get_asset_preview", {
     title: "Get Image Asset Preview", description: "Widget-only read of a size-bounded thumbnail data URL for an image card.",
     inputSchema: { ...projectSchema.shape, assetId: z.string().min(1) }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } },

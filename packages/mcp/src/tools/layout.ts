@@ -8,6 +8,7 @@ import { previewClusters } from "@weaver/layout-engine/semantic";
 import { getScenePack } from "@weaver/scene-packs";
 import { WorkspaceStore } from "@weaver/storage";
 import { projectSchema, workspaceSchema } from "../shared/schemas.js";
+import { readLayoutRun } from "../shared/catalog-reads.js";
 import { defineTool, failure, result, withStore, type MutateWithStore } from "../shared/tool-runtime.js";
 import { chatSessionKeyFromRequest } from "../thread-context.js";
 import type { SseEventHub } from "../event-hub.js";
@@ -97,7 +98,11 @@ export function registerLayoutTools(server: McpServer, ctx: LayoutToolsCtx) {
     return result(output, `Generated ${output.candidates.length} deterministic layout candidates.`);
   } catch (error) { return failure(error); } });
 
-  server.registerTool("weaver_get_layout_run", { title: "Get Layout Run", description: "Read layout candidates and quality metrics for the current chat-bound task.", inputSchema: { ...workspaceSchema.shape, layoutRunId: z.string() }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } }, defineTool(async ({ workspaceDir, layoutRunId }, extra) => { const chatSessionKey = chatSessionKeyFromRequest(extra); const run = withStore(workspaceDir, (store) => { const item = store.getLayoutRun(layoutRunId); if (!item) throw new Error("LAYOUT_RUN_NOT_FOUND"); if (item.taskId) store.assertTaskChat(item.taskId, chatSessionKey, false); return item; }); return result(run); }));
+  // Widget-only: the preview widget reads the layout run here, so it stays REGISTERED
+  // under this exact name with `_meta.ui.visibility=["app"]` (off the model surface).
+  // The model reads it via weaver_read_review(resource:"layout.run"); both call the
+  // same shared helper (see shared/catalog-reads.ts) so they never drift.
+  server.registerTool("weaver_get_layout_run", { title: "Get Layout Run", description: "Read layout candidates and quality metrics for the current chat-bound task.", inputSchema: { ...workspaceSchema.shape, layoutRunId: z.string() }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } } }, defineTool(async ({ workspaceDir, layoutRunId }, extra) => { const chatSessionKey = chatSessionKeyFromRequest(extra); return result(withStore(workspaceDir, (store) => readLayoutRun(store, layoutRunId, chatSessionKey))); }));
 
   server.registerTool("weaver_apply_layout", { title: "Apply Layout Candidate", description: "Apply one valid preview candidate, archive the previous view layout, and increment layoutRevision without changing graphRevision.", inputSchema: { ...workspaceSchema.shape, layoutRunId: z.string(), candidateId: z.string() }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false } }, defineTool(async ({ workspaceDir, layoutRunId, candidateId }, extra) => { const chatSessionKey = chatSessionKeyFromRequest(extra); return result(mutateWithStore(workspaceDir, (store) => { const run = store.getLayoutRun(layoutRunId); if (!run) throw new Error("LAYOUT_RUN_NOT_FOUND"); if (run.taskId) store.assertTaskChat(run.taskId, chatSessionKey); return store.applyLayoutCandidate(layoutRunId, candidateId); }), "Applied layout candidate."); }));
   server.registerTool("weaver_reject_layout", { title: "Reject Layout Run", description: "Reject a pending layout preview without changing graph or layout revisions.", inputSchema: { ...workspaceSchema.shape, layoutRunId: z.string() }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } }, defineTool(async ({ workspaceDir, layoutRunId }, extra) => { const chatSessionKey = chatSessionKeyFromRequest(extra); return result(mutateWithStore(workspaceDir, (store) => { const run = store.getLayoutRun(layoutRunId); if (!run) throw new Error("LAYOUT_RUN_NOT_FOUND"); if (run.taskId) store.assertTaskChat(run.taskId, chatSessionKey); return store.rejectLayoutRun(layoutRunId); }), "Rejected layout preview."); }));
@@ -106,26 +111,8 @@ export function registerLayoutTools(server: McpServer, ctx: LayoutToolsCtx) {
 
   server.registerTool("weaver_revert_layout", { title: "Undo Layout", description: "Restore the previous archived layout as a new layout revision.", inputSchema: { ...projectSchema.shape, viewId: z.string() }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false } }, defineTool(async ({ workspaceDir, projectId, viewId }) => result(mutateWithStore(workspaceDir, (store) => store.revertLayout(projectId, viewId)), "Restored previous layout.")));
 
-  server.registerTool("weaver_get_layout", { title: "Get Weaver Layout", description: "Read one independent view layout and layoutRevision.", inputSchema: { ...projectSchema.shape, viewId: z.string() }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } }, defineTool(async ({ workspaceDir, projectId, viewId }) => { const layout = withStore(workspaceDir, (store) => store.getLayout(projectId, viewId)); if (!layout) throw new Error("LAYOUT_NOT_FOUND"); return result(layout); }));
-  server.registerTool("weaver_get_layout_capabilities", { title: "Get Layout Capabilities", description: "Read available deterministic layout strategies and the constraints each honors.", inputSchema: {}, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } }, async () => result({
-    strategies: ["tree", "layered", "radial", "force", "cluster", "grid", "timeline", "swimlane", "hybrid"],
-    // `cluster`/`hybrid` run the semantic hierarchy layout: it groups nodes into
-    // labeled regions (by each node's `properties.layer`, explicit `group`
-    // constraints, or graph topology), enlarges hub nodes, and separates regions
-    // with wide whitespace — the best choice for a knowledge/industry map an
-    // analyst must read at a glance. It emits three structurally distinct
-    // candidates (语义聚类 / 分区矩阵 / 紧凑网格) and honors these constraints.
-    // New graph/canvas views are already seeded with this semantic arrangement on
-    // first open (no layout pass needed). To pick a strategy for a specific graph,
-    // call weaver_recommend_layout first — it returns a ready-to-run LayoutPlan draft.
-    recommendedStrategy: "cluster",
-    honoredConstraints: {
-      cluster: ["emphasis", "group", "direction", "separation", "spacing", "pin", "preserve-position"],
-      layered: ["direction", "emphasis"], tree: ["direction"], radial: ["emphasis"], force: [], grid: [],
-    },
-    constraints: ["pin", "align", "distribute", "order", "rank", "group", "containment", "separation", "relative-position", "direction", "spacing", "avoid-overlap", "preserve-position", "edge-length", "edge-routing", "emphasis", "viewport-fit"],
-    candidateCount: { min: 1, max: 5, default: 3 },
-  }));
+  // `weaver_get_layout` and `weaver_get_layout_capabilities` were model-only and are
+  // now folded into weaver_read_review(resource:"layout.get" / "layout.capabilities").
   server.registerTool("weaver_validate_layout_plan", { title: "Validate LayoutPlan", description: "Validate semantic layout constraints without calculating or applying coordinates.", inputSchema: { plan: z.any() }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } }, defineTool(async ({ plan }) => result({ valid: true, plan: layoutPlanSchema.parse(plan) })));
 
   // Advisory planner: analyze the current graph and recommend which layout best

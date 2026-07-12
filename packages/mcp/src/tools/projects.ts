@@ -3,6 +3,7 @@ import { z } from "zod";
 import { builtinScenePacks, getScenePack } from "@weaver/scene-packs";
 import { projectSchema, workspaceSchema } from "../shared/schemas.js";
 import { readProjectManifest } from "../shared/graph-reads.js";
+import { listProjects } from "../shared/catalog-reads.js";
 import { track } from "../shared/workspace-registry.js";
 import { defineTool, result, withStore, type MutateWithStore } from "../shared/tool-runtime.js";
 import { chatSessionKeyFromRequest } from "../thread-context.js";
@@ -13,10 +14,14 @@ export type ProjectsToolsCtx = { mutateWithStore: MutateWithStore };
 export function registerProjectsTools(server: McpServer, ctx: ProjectsToolsCtx) {
   const { mutateWithStore } = ctx;
 
+  // Widget-only: the preview widget lists projects here, so it stays REGISTERED
+  // under this exact name with `_meta.ui.visibility=["app"]` (off the model surface).
+  // The model lists projects via weaver_read_catalog(resource:"project.list"); both
+  // call the same shared helper (see shared/catalog-reads.ts) so they never drift.
   server.registerTool("weaver_list_projects", {
     title: "List Weaver Projects", description: "List projects stored in <workspaceDir>/.weaver.", inputSchema: workspaceSchema.shape,
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-  }, defineTool(async ({ workspaceDir }) => { const projects = withStore(workspaceDir, (store) => store.listProjects()); projects.forEach((project) => track(workspaceDir, project.id)); return result(projects, `${projects.length} Weaver projects.`); }));
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } },
+  }, defineTool(async ({ workspaceDir }) => { const projects = withStore(workspaceDir, (store) => listProjects(store)); projects.forEach((project) => track(workspaceDir, project.id)); return result(projects, `${projects.length} Weaver projects.`); }));
 
   server.registerTool("weaver_recommend_scene", {
     title: "Recommend Weaver Scene", description: "Recommend scene packs from a natural-language goal without creating a project.",

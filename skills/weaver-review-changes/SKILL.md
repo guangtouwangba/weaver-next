@@ -6,7 +6,7 @@ description: Review, explain, apply, reject, or revert pending Weaver graph and 
 # Review Weaver Changes
 
 1. Call `weaver_read_session(resource:"bound_canvas")`, then read the explicit ChangeSet or LayoutRun id from the conversation or widget task. Stop if the current Chat binding is missing, offline, or stale.
-2. Load the project manifest and proposed operations through MCP. Use `weaver_preview_changeset` for content and `weaver_get_layout_run` for layout.
+2. Load the project manifest and proposed operations through MCP. Use `weaver_read_review(resource:"changeset.preview")` for content and `weaver_read_review(resource:"layout.run")` for layout.
 3. Summarize content changes separately from layout changes.
 4. Highlight archives, type changes, pinned-node movement, hard layout violations, and revision conflicts.
 5. Re-read the bound Canvas and AgentTask immediately before applying or rejecting. Apply only after the user's permission level and explicit request allow it.

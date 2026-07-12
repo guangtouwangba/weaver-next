@@ -13,7 +13,7 @@ The canvas prompt only moves when this loop is running — without it, a submitt
 
 Run the `weaver-open-preview` flow first (unless a canvas is already bound and online):
 1. `workspaceDir` = git top-level of the current dir (fall back to cwd).
-2. `weaver_list_projects` → pick the project (the named one; else the most recently updated, and say which).
+2. `weaver_read_catalog(resource:"project.list")` → pick the project (the named one; else the most recently updated, and say which).
 3. `weaver_open_workspace_widget` with that `workspaceDir` + `projectId`. The MCP process opens the
    browser preview automatically and returns a tokenized `previewUrl`.
    - No `previewUrl` → the MCP isn't a preview host; tell the user to (re)connect it (Claude Code:

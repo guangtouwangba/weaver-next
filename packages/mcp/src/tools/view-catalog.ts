@@ -4,6 +4,7 @@ import { viewTypeSchema, type LayoutDocument } from "@weaver/contracts";
 import { getScenePack } from "@weaver/scene-packs";
 import type { WorkspaceStore } from "@weaver/storage";
 import { projectSchema } from "../shared/schemas.js";
+import { listProjectViews } from "../shared/catalog-reads.js";
 import { track } from "../shared/workspace-registry.js";
 import { defineTool, failure, result, withStore, type MutateWithStore } from "../shared/tool-runtime.js";
 import { chatSessionKeyFromRequest } from "../thread-context.js";
@@ -59,22 +60,17 @@ function registerViewMutationTool(
 export function registerViewCatalogTools(server: McpServer, ctx: ViewCatalogToolsCtx) {
   const { mutateWithStore } = ctx;
 
+  // Widget-only: the preview widget lists Views here, so it stays REGISTERED under
+  // this exact name with `_meta.ui.visibility=["app"]` (off the model surface). The
+  // model lists/searches/reads Views via weaver_read_catalog(resource:"view.*");
+  // both call the same shared helper (see shared/catalog-reads.ts) so they never drift.
+  // `weaver_search_project_views` and `weaver_get_project_view` were model-only and
+  // are now folded into weaver_read_catalog.
   server.registerTool("weaver_list_project_views", {
     title: "List Project Views", description: "List durable saved Visual Views, including fixed order and recycle-bin status.",
     inputSchema: { ...projectSchema.shape, status: z.enum(["active", "trashed"]).optional() },
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-  }, defineTool(async ({ workspaceDir, projectId, status }) => result(withStore(workspaceDir, (store) => store.listProjectViews(projectId, status).map((view) => ({ ...view, nodeCount: Object.keys(store.getLayout(projectId, view.id)?.nodes ?? {}).length }))))));
-
-  server.registerTool("weaver_search_project_views", {
-    title: "Search Project Views", description: "Search View names, types and template ids without loading graph content.",
-    inputSchema: { ...projectSchema.shape, query: z.string().default(""), status: z.enum(["active", "trashed"]).default("active") },
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-  }, defineTool(async ({ workspaceDir, projectId, query, status }) => result(withStore(workspaceDir, (store) => store.searchProjectViews(projectId, query, status).map((view) => ({ ...view, nodeCount: Object.keys(store.getLayout(projectId, view.id)?.nodes ?? {}).length }))))));
-
-  server.registerTool("weaver_get_project_view", {
-    title: "Get Project View", description: "Read one saved View catalog record.", inputSchema: { ...projectSchema.shape, viewId: z.string() },
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-  }, defineTool(async ({ workspaceDir, projectId, viewId }) => { const view = withStore(workspaceDir, (store) => store.getProjectView(projectId, viewId)); if (!view) throw new Error("VIEW_NOT_FOUND"); return result(view); }));
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } },
+  }, defineTool(async ({ workspaceDir, projectId, status }) => result(withStore(workspaceDir, (store) => listProjectViews(store, projectId, status)))));
 
   const viewMutationBase = { ...projectSchema.shape, viewId: z.string(), baseCatalogRevision: z.number().int().nonnegative(), leaseId: z.string().optional(), bindingRevision: z.number().int().positive().optional() };
   const appVisibility = { ui: { visibility: ["app"] } };
