@@ -48,3 +48,19 @@ describe("weaver_ingest_image", () => {
     expect(res.isError).toBe(true);
   });
 });
+
+describe("weaver_render_svg_image", () => {
+  it("rasterizes an SVG (with text) to a PNG asset", async () => {
+    const { root, server, project } = await setup();
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="200"><rect width="320" height="200" fill="#0f1f33"/><text x="20" y="60" font-size="28" fill="#fff">机器人产业</text></svg>`;
+    const res = await server.dispatch("weaver_render_svg_image", { workspaceDir: root, projectId: project.id, svg, scale: 2 }) as any;
+    expect(res.structuredContent.assetId).toMatch(/.+/);
+    expect(res.structuredContent.width).toBeGreaterThanOrEqual(320);
+  });
+
+  it("errors on non-SVG input", async () => {
+    const { root, server, project } = await setup();
+    const res = await server.dispatch("weaver_render_svg_image", { workspaceDir: root, projectId: project.id, svg: "not svg at all", scale: 2 }) as any;
+    expect(res.isError).toBe(true);
+  });
+});
