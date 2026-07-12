@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { builtinScenePacks, getScenePack } from "@weaver/scene-packs";
+import { getScenePack } from "@weaver/scene-packs";
 import { projectSchema, workspaceSchema } from "../shared/schemas.js";
 import { readProjectManifest } from "../shared/graph-reads.js";
 import { listProjects } from "../shared/catalog-reads.js";
@@ -24,15 +24,9 @@ export function registerProjectsTools(server: McpServer, ctx: ProjectsToolsCtx) 
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } },
   }, defineTool(async ({ workspaceDir }) => { const projects = withStore(workspaceDir, (store) => listProjects(store)); projects.forEach((project) => track(workspaceDir, project.id)); return result(projects, `${projects.length} Weaver projects.`); }));
 
-  server.registerTool("weaver_recommend_scene", {
-    title: "Recommend Weaver Scene", description: "Recommend scene packs from a natural-language goal without creating a project.",
-    inputSchema: { goal: z.string().min(1) }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-  }, async ({ goal }) => {
-    const normalized = goal.toLowerCase();
-    const preferred = normalized.match(/word|vocab|单词|词汇/) ? "situational-vocabulary" : normalized.match(/cause|因果/) ? "causal-map" : normalized.match(/timeline|时间线|历史/) ? "event-timeline" : normalized.match(/project|项目/) ? "project-breakdown" : "free-brainstorming";
-    const ordered = [...builtinScenePacks].sort((left) => left.id === preferred ? -1 : 1).slice(0, 3).map((scene, index) => ({ scenePackId: scene.id, viewType: scene.defaultView, confidence: index === 0 ? 0.9 : 0.55, rationale: index === 0 ? `Goal best matches ${scene.name}.` : `Alternative ${scene.name}.` }));
-    return result(ordered, `Recommended ${ordered[0].scenePackId}.`);
-  });
+  // `weaver_recommend_scene` was an advisory model-only tool that mapped a goal
+  // to a scene pack via keyword matching; that guidance now lives in the
+  // weaver-create-space skill, so the model chooses a scenePackId directly.
 
   // The single model-facing create tool. Without `template` it seeds a plain
   // project with one semantic root node (original behavior). With `template` it

@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { viewTypeSchema } from "@weaver/contracts";
 import { getScenePack } from "@weaver/scene-packs";
-import { builtinVisualTemplates, getVisualTemplate, validateVisualTemplateForProject } from "@weaver/visual-templates";
+import { getVisualTemplate, validateVisualTemplateForProject } from "@weaver/visual-templates";
 import { projectSchema, workspaceSchema } from "../shared/schemas.js";
 import { listVisualTemplates } from "../shared/catalog-reads.js";
 import { createProjectFromTemplate } from "../shared/create-project.js";
@@ -27,23 +27,31 @@ export function registerTemplatesTools(server: McpServer, ctx: TemplatesToolsCtx
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } },
   }, async ({ scenePackId, family, renderer }) => result(listVisualTemplates({ scenePackId, family, renderer })));
 
-  server.registerTool("weaver_recommend_visual_templates", {
-    title: "Recommend Visual Templates", description: "Recommend compatible visual templates for a natural-language goal without changing data.",
-    inputSchema: { goal: z.string().min(1), scenePackId: z.string().optional() }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-  }, async ({ goal, scenePackId }) => {
-    const text = goal.toLowerCase(); const family = text.match(/时间|路线|timeline|roadmap/) ? "temporal" : text.match(/流程|因果|flow|cause/) ? "flow" : text.match(/看板|泳道|kanban|lane/) ? "board" : text.match(/矩阵|象限|matrix|swot/) ? "matrix" : text.match(/表格|对比|table|compare/) ? "table" : text.match(/树|思维导图|tree|mind/) ? "hierarchy" : text.match(/关系|网络|network|relation/) ? "relationship" : "canvas";
-    const matches = builtinVisualTemplates.filter((item) => item.family === family && (!scenePackId || item.compatibleScenePackIds.includes(scenePackId))).slice(0, 3).map((template, index) => ({ templateId: template.id, version: template.version, confidence: index === 0 ? .92 : .72, rationale: `${template.name} matches the requested ${family} visual.` }));
-    return result(matches, `Recommended ${matches.length} visual templates.`);
-  });
+  // `weaver_recommend_visual_templates` was an advisory model-only tool that
+  // mapped a goal to a template family via keyword matching; that guidance now
+  // lives in the weaver-create-space / weaver-layout-space skills, so the model
+  // browses weaver_read_catalog(resource:"template.list") and chooses directly.
 
+  // Widget-only: the preview widget's template gallery validates a candidate
+  // template here (apps/widget useVisualTemplateGallery), so it stays REGISTERED
+  // under this exact name with `_meta.ui.visibility=["app"]` (off the model
+  // surface). The model instead reads the template metadata via
+  // weaver_read_catalog(resource:"template.get") and reasons about compatibility
+  // and field readiness per the weaver-layout-space skill.
   server.registerTool("weaver_validate_visual_template", {
     title: "Validate Visual Template", description: "Check scene compatibility and current graph field readiness without writing data.",
-    inputSchema: { ...projectSchema.shape, templateId: z.string(), version: z.string().default("1.0.0") }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    inputSchema: { ...projectSchema.shape, templateId: z.string(), version: z.string().default("1.0.0") }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } },
   }, defineTool(async ({ workspaceDir, projectId, templateId, version }) => { const template = getVisualTemplate(templateId, version); if (!template) throw new Error("VISUAL_TEMPLATE_NOT_FOUND"); const output = withStore(workspaceDir, (store) => { const project = store.getProject(projectId); if (!project) throw new Error("PROJECT_NOT_FOUND"); const scene = getScenePack(project.scenePackId, project.scenePackVersion); if (!scene) throw new Error("SCENE_PACK_NOT_FOUND"); return validateVisualTemplateForProject(template, scene, store.getGraph(projectId).nodes); }); return result(output); }));
 
+  // Widget-only: the preview widget's template gallery previews a candidate
+  // template here (apps/widget useVisualTemplateGallery), so it stays REGISTERED
+  // under this exact name with `_meta.ui.visibility=["app"]` (off the model
+  // surface). The model does not preview standalone — it creates the View via
+  // weaver_manage_view(action:"create_from_template") (the new View IS the
+  // preview) per the weaver-layout-space skill.
   server.registerTool("weaver_preview_visual_template", {
     title: "Preview Visual Template", description: "Project current graph data into a temporary template LayoutDocument without persisting it.",
-    inputSchema: { ...projectSchema.shape, templateId: z.string(), version: z.string().default("1.0.0"), baseGraphRevision: z.number().int().nonnegative(), viewName: z.string().optional() }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    inputSchema: { ...projectSchema.shape, templateId: z.string(), version: z.string().default("1.0.0"), baseGraphRevision: z.number().int().nonnegative(), viewName: z.string().optional() }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } },
   }, defineTool(async ({ workspaceDir, projectId, templateId, version, baseGraphRevision, viewName }) => { const template = getVisualTemplate(templateId, version); if (!template) throw new Error("VISUAL_TEMPLATE_NOT_FOUND"); const output = withStore(workspaceDir, (store) => store.previewVisualTemplate({ projectId, template, baseGraphRevision, viewName })); return result(output); }));
 
   // Widget-only: the preview widget's template gallery creates projects here
