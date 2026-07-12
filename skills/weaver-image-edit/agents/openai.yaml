@@ -1,0 +1,7 @@
+interface:
+  display_name: "Weaver Image Edit"
+  short_description: "Apply annotation-screenshot edits to a Weaver image"
+  default_prompt: "Use $weaver:weaver-image-edit to apply the edits marked in the provided screenshot."
+
+policy:
+  allow_implicit_invocation: true
