@@ -13,7 +13,7 @@ description: Drive the Weaver canvas as the bound agent from a terminal session 
 
 ## Develop or edit content
 1. `weaver_read_session(resource:"bound_canvas")` — confirm `online:true` and capture `projectId`, `viewId`, `canvasSessionId`, revisions. Stop on `NO_CANVAS_BOUND_TO_CHAT` / `BOUND_CANVAS_NOT_READY` / `BOUND_CANVAS_OFFLINE`.
-2. `weaver_prepare_task_from_active_canvas` with the matching `actionKey` (`develop_selection`, `follow_up_ask`, `develop_then_layout`). This captures the exact live selection and **self-confirms the dispatch** — do not call `weaver_confirm_agent_dispatch` / `weaver_mark_task_dispatched`; those are legacy embedded-widget dispatch steps and are not needed on the browser-preview path (either host).
+2. `weaver_prepare_task_from_active_canvas` with the matching `actionKey` (`develop_selection`, `follow_up_ask`, `develop_then_layout`). This captures the exact live selection and **self-confirms the dispatch** — do not call `weaver_confirm_agent_dispatch`; that is a legacy embedded-widget dispatch step and is not needed on the browser-preview path (either host).
 3. `weaver_start_agent_task` with the returned `taskId`; verify `status=running`, `activeStage=content`.
 4. `weaver_read_graph(resource:"manifest")`, `weaver_read_session(resource:"canvas_context")`, `weaver_read_session(resource:"resolved_context")` — work only within the scene's permitted node/edge types and the bounded context. Read full node bodies with `weaver_read_graph(resource:"node")` only when needed.
 5. Do the reasoning/research with your own permissions. Build GraphOperations from allowed semantic types only; reference only Weaver-returned asset IDs (never filesystem paths or invented IDs).

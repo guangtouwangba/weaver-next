@@ -66,8 +66,16 @@ describe("observability", () => {
       expect(surface.modelFacingNames).toContain("weaver_start_agent_task");
       expect(surface.criticalPresent.weaver_submit_changeset).toBe(true);
       expect(surface.criticalPresent.weaver_start_agent_task).toBe(true);
+      // Every critical develop-loop tool must stay on the model surface.
+      expect(Object.values(surface.criticalPresent).every((present) => present === true)).toBe(true);
+      // Regression guard: the model surface must not silently bloat back. It is 19
+      // after dropping the legacy task-dispatch tools; keep a small headroom.
+      expect(surface.modelFacing).toBeLessThanOrEqual(20);
       // A widget-only tool (visibility ["app"], not in the preview allowlist) stays hidden from the model.
       expect(surface.modelFacingNames).not.toContain("weaver_confirm_agent_dispatch");
+      // The legacy dispatch tools are off the model surface (removed / reclassified app-only).
+      expect(surface.modelFacingNames).not.toContain("weaver_mark_task_dispatched");
+      expect(surface.modelFacingNames).not.toContain("weaver_prepare_agent_task");
     } finally { await close(); }
   });
 
