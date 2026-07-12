@@ -10,8 +10,8 @@ import { enrichPublicLink } from "../link-enrichment.js";
 export function registerCanvasActionTool(server: McpServer, { mutateWithStore }: { mutateWithStore: MutateWithStore }) {
   const shape = {
     ...workspaceSchema.shape,
-    action: z.enum(["claim", "sync", "switch", "create_node", "update_node", "archive_node", "attach_asset", "enrich_link", "layout_operations", "revert_layout"]),
-    snapshot: z.unknown().optional(), projectId: z.string().optional(), viewId: z.string().optional(), nodeId: z.string().optional(), assetId: z.string().optional(), role: z.enum(["embedded", "cover"]).optional(),
+    action: z.enum(["claim", "sync", "switch", "create_node", "update_node", "archive_node", "attach_asset", "enrich_link", "link_nodes", "layout_operations", "revert_layout"]),
+    snapshot: z.unknown().optional(), projectId: z.string().optional(), viewId: z.string().optional(), nodeId: z.string().optional(), sourceNodeId: z.string().optional(), targetNodeId: z.string().optional(), edgeType: z.string().optional(), directed: z.boolean().optional(), assetId: z.string().optional(), role: z.enum(["embedded", "cover"]).optional(),
     leaseId: z.string().optional(), bindingRevision: z.number().int().positive().optional(), baseGraphRevision: z.number().int().nonnegative().optional(), baseLayoutRevision: z.number().int().nonnegative().optional(),
     semanticType: z.string().optional(), title: z.string().optional(), content: z.unknown().optional(), x: z.number().optional(), y: z.number().optional(), operations: z.array(layoutOperationSchema).optional(),
   } as const;
@@ -37,6 +37,7 @@ export function registerCanvasActionTool(server: McpServer, { mutateWithStore }:
       if (args.action === "create_node") return store.graphChanges.createNode({ projectId, viewId: required(args.viewId, "viewId"), type: required(args.semanticType, "semanticType"), title: required(args.title, "title"), content: nodeContentSchema.parse(args.content), x: args.x ?? 0, y: args.y ?? 0 });
       if (args.action === "update_node") return store.graphChanges.updateNode({ projectId, nodeId: required(args.nodeId, "nodeId"), baseGraphRevision: required(args.baseGraphRevision, "baseGraphRevision"), title: args.title, type: args.semanticType, content: args.content ? nodeContentSchema.parse(args.content) : undefined });
       if (args.action === "archive_node") return store.graphChanges.archiveNode({ projectId, nodeId: required(args.nodeId, "nodeId"), baseGraphRevision: required(args.baseGraphRevision, "baseGraphRevision") });
+      if (args.action === "link_nodes") return store.graphChanges.linkNodes({ projectId, sourceNodeId: required(args.sourceNodeId, "sourceNodeId"), targetNodeId: required(args.targetNodeId, "targetNodeId"), type: required(args.edgeType, "edgeType"), baseGraphRevision: required(args.baseGraphRevision, "baseGraphRevision"), directed: args.directed });
       if (args.action === "attach_asset") return store.graphChanges.attachAsset({ projectId, nodeId: required(args.nodeId, "nodeId"), assetId: required(args.assetId, "assetId"), role: required(args.role, "role"), baseGraphRevision: required(args.baseGraphRevision, "baseGraphRevision") });
       const viewId = required(args.viewId, "viewId");
       if (args.action === "revert_layout") return store.layoutReviews.revert(projectId, viewId);

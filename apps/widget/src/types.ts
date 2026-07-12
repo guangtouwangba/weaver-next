@@ -23,7 +23,7 @@ export type Candidate = WidgetCandidate;
 export type ProjectView = WidgetProjectView;
 export type Manifest = WidgetManifest;
 
-export type CardData = { title: string; semanticType: string; pinned: boolean; contentKind: NodeContent["kind"]; excerpt?: string; imageSrc?: string; caption?: string; domain?: string; description?: string; status?: string; chart?: ChartContent; fetchMarkdown?: (nodeId: string) => Promise<string>; saveMarkdown?: (nodeId: string, markdown: string) => Promise<void>; onResizeStart?: (nodeId: string) => void; onResizeEnd?: (nodeId: string, frame: { x: number; y: number; width: number; height: number }) => void };
+export type CardData = { title: string; semanticType: string; pinned: boolean; contentKind: NodeContent["kind"]; excerpt?: string; imageSrc?: string; caption?: string; domain?: string; description?: string; status?: string; chart?: ChartContent; fetchMarkdown?: (nodeId: string) => Promise<string>; saveMarkdown?: (nodeId: string, markdown: string) => Promise<void>; references?: { id: string; title: string }[]; linkReference?: (sourceNodeId: string, targetNodeId: string) => Promise<void>; onResizeStart?: (nodeId: string) => void; onResizeEnd?: (nodeId: string, frame: { x: number; y: number; width: number; height: number }) => void };
 export type EditorDraft = { title: string; semanticType: string; markdown: string; excerpt: string; coverAssetId?: string; embeddedAssetIds: string[] };
 
 export type ChangeSetPreview = WidgetChangeSetPreview;

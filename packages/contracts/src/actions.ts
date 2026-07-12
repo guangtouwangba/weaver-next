@@ -29,6 +29,7 @@ export const canvasActionSchema = z.discriminatedUnion("action", [
   z.object({ ...graphEdit, action: z.literal("archive_node"), nodeId: z.string().min(1) }),
   z.object({ ...graphEdit, action: z.literal("attach_asset"), nodeId: z.string().min(1), assetId: z.string().min(1), role: z.enum(["embedded", "cover"]) }),
   z.object({ ...graphEdit, action: z.literal("enrich_link"), nodeId: z.string().min(1) }),
+  z.object({ ...graphEdit, action: z.literal("link_nodes"), sourceNodeId: z.string().min(1), targetNodeId: z.string().min(1), edgeType: z.string().min(1), directed: z.boolean().optional() }),
   z.object({ ...workspace, action: z.literal("layout_operations"), projectId: z.string().min(1), viewId: z.string().min(1), baseLayoutRevision: z.number().int().nonnegative(), operations: z.array(layoutOperationSchema) }),
   z.object({ ...workspace, action: z.literal("revert_layout"), projectId: z.string().min(1), viewId: z.string().min(1) }),
 ]);

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Node, NodeProps } from "@xyflow/react";
 import { ExternalLink, FileImage, FileText, Lock } from "lucide-react";
 import type { CardData } from "../../types";
@@ -18,13 +18,15 @@ export function DocumentCard({ data, id, selected }: NodeProps<Node<CardData>>) 
     void data.fetchMarkdown(id).then(setMarkdown).finally(() => setLoading(false));
   }, [selected, markdown, loading, id, data]);
   const onSave = useCallback((next: string) => { setMarkdown(next); void data.saveMarkdown?.(id, next); }, [data, id]);
+  const onLink = useCallback((targetNodeId: string) => { void data.linkReference?.(id, targetNodeId); }, [data, id]);
+  const references = useMemo(() => (data.references ?? []).filter((node) => node.id !== id), [data.references, id]);
   const hasDoc = markdown !== null && markdown.trim().length > 0;
   return <NodeShell data={data} className="document-card" id={id} selected={selected}>
     {data.imageSrc ? <img className="document-cover" src={data.imageSrc} alt="" /> : null}
     <div className="card-kicker"><FileText size={11} /> {data.semanticType}</div>
     <strong>{data.title || t("untitledArticle")}</strong>
     {markdown !== null
-      ? <div className="node-doc" onDoubleClick={(event) => selected && event.stopPropagation()}><NodeBlockEditor markdown={markdown} editable={selected} placeholder={t("blockPlaceholder")} onSave={onSave} /></div>
+      ? <div className="node-doc" onDoubleClick={(event) => selected && event.stopPropagation()}><NodeBlockEditor markdown={markdown} editable={selected} placeholder={t("blockPlaceholder")} references={references} onLink={onLink} onSave={onSave} /></div>
       : <p className="node-doc-rest">{data.excerpt || t("openToWrite")}</p>}
     <div className="card-foot">{data.pinned ? <><Lock size={11} /> {t("fixedLabel")}</> : hasDoc || loading ? t("document") : t("openToWrite")}</div>
   </NodeShell>;

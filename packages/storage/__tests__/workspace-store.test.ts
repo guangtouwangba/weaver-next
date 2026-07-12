@@ -147,6 +147,33 @@ describe("WorkspaceStore", () => {
     db.close();
   });
 
+  it("links two nodes with a typed reference edge and de-duplicates", () => {
+    const db = store();
+    const scene = getScenePack("entity-relationship")!;
+    const project = db.catalog.createProject({ title: "Refs", goal: "", scenePack: scene });
+    const doc = () => ({ kind: "document", mode: "note", markdown: "", excerpt: "", embeddedAssetIds: [] } as const);
+    const a = db.graphChanges.createNode({ projectId: project.id, viewId: project.defaultViewId, type: "entity", title: "A", content: doc(), x: 0, y: 0 });
+    const b = db.graphChanges.createNode({ projectId: project.id, viewId: project.defaultViewId, type: "entity", title: "B", content: doc(), x: 300, y: 0 });
+    const base = db.graphChanges.read(project.id).revision;
+
+    const linked = db.graphChanges.linkNodes({ projectId: project.id, sourceNodeId: a.node.id, targetNodeId: b.node.id, type: "reference", baseGraphRevision: base });
+    expect(linked.created).toBe(true);
+    const afterGraph = db.graphChanges.read(project.id);
+    expect(afterGraph.revision).toBe(base + 1);
+    expect(afterGraph.edges.filter((edge) => !edge.archived)).toHaveLength(1);
+    expect(afterGraph.edges[0]).toMatchObject({ type: "reference", sourceNodeId: a.node.id, targetNodeId: b.node.id });
+
+    // Same ordered pair + type is idempotent: returns the existing edge, no new revision.
+    const again = db.graphChanges.linkNodes({ projectId: project.id, sourceNodeId: a.node.id, targetNodeId: b.node.id, type: "reference", baseGraphRevision: afterGraph.revision });
+    expect(again.created).toBe(false);
+    expect(again.edge.id).toBe(linked.edge.id);
+    expect(db.graphChanges.read(project.id).edges.filter((edge) => !edge.archived)).toHaveLength(1);
+
+    expect(() => db.graphChanges.linkNodes({ projectId: project.id, sourceNodeId: a.node.id, targetNodeId: a.node.id, type: "reference", baseGraphRevision: db.graphChanges.read(project.id).revision })).toThrow(/EDGE_SELF_LINK/);
+    expect(() => db.graphChanges.linkNodes({ projectId: project.id, sourceNodeId: a.node.id, targetNodeId: b.node.id, type: "reference", baseGraphRevision: 0 })).toThrow(/GRAPH_REVISION_CONFLICT/);
+    db.close();
+  });
+
   it("creates a project atomically from a visual template", () => {
     const db = store(); const scene = getScenePack("problem-decomposition")!; const template = getVisualTemplate("logic-tree")!;
     const chatSessionKey = createHash("sha256").update("template-chat").digest("hex");

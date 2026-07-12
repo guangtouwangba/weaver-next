@@ -126,6 +126,18 @@ export function useCanvasGraph(params: {
     } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); await load(); }
   }
 
+  // `@` reference from the in-card editor → a typed "reference" edge in the Graph
+  // (idempotent server-side). Edges are Graph content, so this bumps graphRevision.
+  async function linkReference(sourceNodeId: string, targetNodeId: string) {
+    if (standaloneDemo) { setStatus("Reference added"); return; }
+    const currentProject = projectRef.current ?? project; if (!currentProject) return;
+    try {
+      await callTool("weaver_canvas_action", { action: "link_nodes", workspaceDir: bootstrap.workspaceDir, projectId: currentProject.id, sourceNodeId, targetNodeId, edgeType: "reference", baseGraphRevision: currentProject.graphRevision });
+      setStatus("Reference added");
+      await load();
+    } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); await load(); }
+  }
+
   async function togglePinned() { if (!project || !layout || !selection.length || standaloneDemo) return; const shouldPin = selection.some((id) => !layout.nodes[id]?.pinned); try { const next = await callTool<Layout>("weaver_canvas_action", { workspaceDir: bootstrap.workspaceDir, action: "layout_operations", projectId: project.id, viewId: layout.viewId, baseLayoutRevision: layout.layoutRevision, operations: selection.map((nodeId) => ({ type: shouldPin ? "pin-node" : "unpin-node", viewId: layout.viewId, nodeId })) }); setLayout(next); setStatus(`${shouldPin ? "Pinned" : "Unpinned"} ${selection.length} nodes`); } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); } }
 
   async function toggleCanvasTheme() {
@@ -147,11 +159,12 @@ export function useCanvasGraph(params: {
   useEffect(() => {
     if (!layout) return;
     const visualGroups: Node[] = Object.values(layout.groups ?? {}).map((group) => ({ id: `visual-group:${group.groupId}`, type: "visualGroup", position: { x: group.x, y: group.y }, data: { label: group.groupId.split(":").slice(1).join(":"), kind: layout.projection?.kind ?? "group" }, style: { width: group.width, height: group.height, zIndex: -1 }, draggable: false, selectable: false, connectable: false }));
+    const references = graphNodes.map((node) => ({ id: node.id, title: node.title }));
     setNodes([...visualGroups, ...graphNodes.map((item, index) => {
       const frame = layout.nodes[item.id] ?? { x: (index % 4) * 300, y: Math.floor(index / 4) * 190, width: item.contentKind === "chart" ? 320 : item.contentKind === "link" ? 300 : 280, height: item.contentKind === "chart" ? 220 : 160, pinned: false };
       const coverId = item.content.kind === "document" ? item.content.coverAssetId : item.content.kind === "image" ? item.content.assetId : item.content.kind === "link" ? item.content.imageAssetId : undefined;
       const nodeTheme = layout.theme?.nodeStyles[item.type] ?? layout.theme?.nodeStyles.default;
-      const data: CardData = { title: item.title, semanticType: item.type, pinned: frame.pinned, contentKind: item.contentKind, excerpt: item.content.kind === "document" ? item.content.excerpt : undefined, imageSrc: coverId ? assetPreviews[coverId] : undefined, caption: item.content.kind === "image" ? item.content.caption : undefined, domain: item.content.kind === "link" ? item.content.domain : undefined, description: item.content.kind === "link" ? item.content.description : undefined, status: item.content.kind === "link" ? item.content.enrichmentStatus : undefined, chart: item.content.kind === "chart" ? item.content : undefined, fetchMarkdown, saveMarkdown, onResizeStart: (nodeId) => { draggingNodeId.current = nodeId; setStatus("Resizing node…"); }, onResizeEnd: persistNodeResize };
+      const data: CardData = { title: item.title, semanticType: item.type, pinned: frame.pinned, contentKind: item.contentKind, excerpt: item.content.kind === "document" ? item.content.excerpt : undefined, imageSrc: coverId ? assetPreviews[coverId] : undefined, caption: item.content.kind === "image" ? item.content.caption : undefined, domain: item.content.kind === "link" ? item.content.domain : undefined, description: item.content.kind === "link" ? item.content.description : undefined, status: item.content.kind === "link" ? item.content.enrichmentStatus : undefined, chart: item.content.kind === "chart" ? item.content : undefined, fetchMarkdown, saveMarkdown, references, linkReference, onResizeStart: (nodeId) => { draggingNodeId.current = nodeId; setStatus("Resizing node…"); }, onResizeEnd: persistNodeResize };
       return { id: item.id, type: item.contentKind, position: { x: frame.x, y: frame.y }, data, style: { width: frame.width, height: frame.height, "--node-fill": nodeTheme?.fill, "--node-border": nodeTheme?.borderColor, "--node-text": nodeTheme?.textColor, "--node-accent": nodeTheme?.accentColor, "--node-radius": `${nodeTheme?.borderRadius ?? 8}px`, "--node-title-scale": nodeTheme?.titleScale ?? 1 } as React.CSSProperties };
     })]);
   }, [assetPreviews, graphNodes, layout, setNodes]);

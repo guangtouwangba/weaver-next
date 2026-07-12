@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
-import { nodeContentSchema, nodeSchema, type NodeContent, type SpaceEdge, type SpaceNode } from "@weaver/contracts";
+import { edgeSchema, nodeContentSchema, nodeSchema, type NodeContent, type SpaceEdge, type SpaceNode } from "@weaver/contracts";
 import { applyGraphOperations, type GraphSnapshot } from "@weaver/core";
 import { json, now, parse } from "./store-internal.js";
 import { transaction } from "./migrations.js";
@@ -117,6 +117,26 @@ export function archiveNode(db: DatabaseSync, input: { projectId: string; nodeId
   const next = applyGraphOperations(graph, operations);
   replaceGraph(db, next);
   return { node: next.nodes.find((node) => node.id === input.nodeId)!, project: getProject(db, input.projectId) };
+}
+
+// Create a typed relationship between two existing nodes (the `@` reference in
+// the in-card editor and any user "connect these" gesture). Idempotent: a
+// non-archived edge of the same type between the same ordered pair is returned
+// as-is instead of duplicated. Bumps graphRevision — edges are Graph content.
+export function linkNodes(db: DatabaseSync, input: { projectId: string; sourceNodeId: string; targetNodeId: string; type: string; baseGraphRevision: number; directed?: boolean }) {
+  const graph = getGraph(db, input.projectId);
+  if (graph.revision !== input.baseGraphRevision) throw new Error(`GRAPH_REVISION_CONFLICT:Expected ${input.baseGraphRevision}, current ${graph.revision}`);
+  if (input.sourceNodeId === input.targetNodeId) throw new Error("EDGE_SELF_LINK");
+  const source = graph.nodes.find((node) => node.id === input.sourceNodeId && !node.archived);
+  const target = graph.nodes.find((node) => node.id === input.targetNodeId && !node.archived);
+  if (!source) throw new Error(`NODE_NOT_FOUND:${input.sourceNodeId}`);
+  if (!target) throw new Error(`NODE_NOT_FOUND:${input.targetNodeId}`);
+  const existing = graph.edges.find((edge) => !edge.archived && edge.type === input.type && edge.sourceNodeId === input.sourceNodeId && edge.targetNodeId === input.targetNodeId);
+  if (existing) return { edge: existing, project: getProject(db, input.projectId), created: false as const };
+  const timestamp = now();
+  const edge = edgeSchema.parse({ id: randomUUID(), projectId: input.projectId, type: input.type, sourceNodeId: input.sourceNodeId, targetNodeId: input.targetNodeId, directed: input.directed ?? true, properties: {}, archived: false, createdAt: timestamp, updatedAt: timestamp });
+  replaceGraph(db, applyGraphOperations(graph, [{ type: "add-edge", edge }]));
+  return { edge, project: getProject(db, input.projectId), created: true as const };
 }
 
 export function attachAsset(db: DatabaseSync, input: { projectId: string; nodeId: string; assetId: string; role: "embedded" | "cover"; baseGraphRevision: number }) {

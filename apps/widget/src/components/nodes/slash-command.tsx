@@ -3,14 +3,14 @@ import Suggestion, { type SuggestionProps } from "@tiptap/suggestion";
 import { ReactRenderer } from "@tiptap/react";
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 
-// A Notion-style `/` command menu built on TipTap's Suggestion utility. Items and
-// their labels are supplied by the caller (so they stay localised), each item
-// deletes the typed `/query` range and applies its block transform.
-export type SlashItem = { title: string; hint?: string; run: (editor: Editor, range: Range) => void };
+// Shared machinery for the editor's `/` command menu and `@` reference menu.
+// Both are TipTap Suggestion popups: an item lists a title, and running it
+// deletes the typed `char + query` range and applies its effect.
+export type SuggestionItem = { title: string; hint?: string; run: (editor: Editor, range: Range) => void };
 
 type MenuHandle = { onKeyDown: (props: { event: KeyboardEvent }) => boolean };
 
-const SlashMenu = forwardRef<MenuHandle, { items: SlashItem[]; command: (item: SlashItem) => void }>((props, ref) => {
+const SuggestionMenu = forwardRef<MenuHandle, { items: SuggestionItem[]; command: (item: SuggestionItem) => void }>((props, ref) => {
   const [index, setIndex] = useState(0);
   useEffect(() => setIndex(0), [props.items]);
   useImperativeHandle(ref, () => ({
@@ -25,24 +25,24 @@ const SlashMenu = forwardRef<MenuHandle, { items: SlashItem[]; command: (item: S
   if (!props.items.length) return null;
   return <div className="slash-menu floating-panel">
     {props.items.map((item, i) => (
-      <button key={item.title} type="button" data-active={i === index || undefined} onMouseDown={(event) => { event.preventDefault(); props.command(item); }} onMouseEnter={() => setIndex(i)}>
+      <button key={`${item.title}-${i}`} type="button" data-active={i === index || undefined} onMouseDown={(event) => { event.preventDefault(); props.command(item); }} onMouseEnter={() => setIndex(i)}>
         <span>{item.title}</span>{item.hint ? <small>{item.hint}</small> : null}
       </button>
     ))}
   </div>;
 });
-SlashMenu.displayName = "SlashMenu";
+SuggestionMenu.displayName = "SuggestionMenu";
 
-export function createSlashCommand(items: SlashItem[]) {
+export function createSuggestionExtension(config: { name: string; char: string; items: (query: string) => SuggestionItem[] }) {
   return Extension.create({
-    name: "slashCommand",
+    name: config.name,
     addProseMirrorPlugins() {
       return [
-        Suggestion<SlashItem>({
+        Suggestion<SuggestionItem>({
           editor: this.editor,
-          char: "/",
+          char: config.char,
           startOfLine: false,
-          items: ({ query }) => items.filter((item) => item.title.toLowerCase().includes(query.toLowerCase())).slice(0, 10),
+          items: ({ query }) => config.items(query).slice(0, 10),
           command: ({ editor, range, props }) => props.run(editor, range),
           render: () => {
             let renderer: ReactRenderer<MenuHandle> | null = null;
@@ -53,10 +53,10 @@ export function createSlashCommand(items: SlashItem[]) {
               anchor.style.left = `${box.left}px`;
               anchor.style.top = `${box.bottom + 6}px`;
             };
-            const mount = (props: SuggestionProps<SlashItem>) => ({ items: props.items, command: (item: SlashItem) => props.command(item) });
+            const mount = (props: SuggestionProps<SuggestionItem>) => ({ items: props.items, command: (item: SuggestionItem) => props.command(item) });
             return {
               onStart: (props) => {
-                renderer = new ReactRenderer(SlashMenu, { props: mount(props), editor: props.editor });
+                renderer = new ReactRenderer(SuggestionMenu, { props: mount(props), editor: props.editor });
                 anchor = document.createElement("div");
                 anchor.className = "slash-menu-anchor";
                 anchor.appendChild(renderer.element as HTMLElement);
