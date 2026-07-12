@@ -143,6 +143,28 @@ describe("WorkspaceStore", () => {
     db.close();
   });
 
+  it("archives pristine starter placeholders when real content lands, keeping user-edited ones", () => {
+    const db = store(); const scene = getScenePack("problem-decomposition")!; const template = getVisualTemplate("logic-tree")!;
+    const created = db.createProjectFromVisualTemplate({ title: "Starter swap", goal: "", scenePack: scene, template });
+    let project = created.project;
+    const [editedId, ...pristineIds] = project.starterNodeIds;
+    db.updateNodeContent({ projectId: project.id, nodeId: editedId, baseGraphRevision: project.graphRevision, content: { kind: "document", mode: "note", markdown: "用户手写的内容", excerpt: "", embeddedAssetIds: [] } });
+    project = db.getProject(project.id)!;
+    const chatSessionKey = bindCanvas(db, project, scene, "starter-session");
+    const task = db.prepareAgentTask({ canvasSessionId: "starter-session", actionKey: "develop_selection", chatSessionKey });
+    dispatchAndStart(db, task);
+    const timestamp = new Date().toISOString();
+    db.submitChangeSet({ id: "starter-change", taskId: task.taskId, projectId: project.id, baseGraphRevision: project.graphRevision, baseLayoutRevisions: {}, graphOperations: [{ type: "add-node", node: { id: "real-node", projectId: project.id, type: scene.nodeTypes[0].key, title: "真实节点", body: "", contentKind: "document", content: { kind: "document", mode: "note", markdown: "", excerpt: "", embeddedAssetIds: [] }, properties: {}, archived: false, createdAt: timestamp, updatedAt: timestamp } }], layoutOperations: [], rationale: "First real content", riskLevel: "low", status: "pending", createdAt: timestamp, updatedAt: timestamp });
+    db.applyChangeSet("starter-change");
+    const graph = db.getGraph(project.id);
+    for (const id of pristineIds) expect(graph.nodes.find((node) => node.id === id)?.archived).toBe(true);
+    expect(graph.nodes.find((node) => node.id === editedId)?.archived).toBe(false);
+    expect(graph.nodes.find((node) => node.id === "real-node")?.archived).toBe(false);
+    expect(graph.edges.filter((edge) => !edge.archived).every((edge) => !pristineIds.includes(edge.sourceNodeId) && !pristineIds.includes(edge.targetNodeId))).toBe(true);
+    expect(db.getProject(project.id)?.starterNodeIds).toEqual([]);
+    db.close();
+  });
+
   it("creates multiple same-type template views without changing graph", () => {
     const db = store(); const scene = getScenePack("free-brainstorming")!; const project = db.createProject({ title: "Views", goal: "", scenePack: scene });
     const template = getVisualTemplate("blank-canvas")!;

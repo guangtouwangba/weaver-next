@@ -3,7 +3,7 @@ import { changeSetSchema, nodeContentSchema, type ChangeSet } from "@weaver/cont
 import { applyGraphOperations, applyLayoutOperations } from "@weaver/core";
 import { json, now, parse, terminalTaskStatuses } from "./store-internal.js";
 import { transaction } from "./migrations.js";
-import { getProject } from "./projects.js";
+import { getProject, patchProject } from "./projects.js";
 import { getAgentTask, updateAgentTask } from "./agent-tasks.js";
 import { assertContentAssets, defaultNodeFrame, getGraph, replaceGraph } from "./graph.js";
 import { getAsset } from "./assets.js";
@@ -100,10 +100,28 @@ export function applyChangeSet(db: DatabaseSync, changeSetId: string) {
       throw new Error("LAYOUT_REVISION_CONFLICT");
     }
   }
+  const starterProject = getProject(db, changeSet.projectId)!;
+  const starterIds = new Set(starterProject.starterNodeIds);
+  let finalGraph = nextGraph;
+  if (addedNodes.length && starterIds.size) {
+    // First real content: retire template placeholders the user never touched.
+    const touched = new Set(changeSet.graphOperations.flatMap((operation) => "nodeId" in operation ? [operation.nodeId as string] : []));
+    const timestamp = now();
+    const pristine = (node: (typeof nextGraph.nodes)[number]) =>
+      starterIds.has(node.id) && !touched.has(node.id) && !node.archived &&
+      node.body === "" && node.content.kind === "document" && node.content.markdown === "";
+    const retiredIds = new Set(nextGraph.nodes.filter(pristine).map((node) => node.id));
+    if (retiredIds.size) finalGraph = {
+      ...nextGraph,
+      nodes: nextGraph.nodes.map((node) => retiredIds.has(node.id) ? { ...node, archived: true, updatedAt: timestamp } : node),
+      edges: nextGraph.edges.map((edge) => retiredIds.has(edge.sourceNodeId) || retiredIds.has(edge.targetNodeId) ? { ...edge, archived: true, updatedAt: timestamp } : edge),
+    };
+  }
   const applied = { ...changeSet, status: "applied" as const, updatedAt: now() };
   const layoutRevisions: Record<string, number> = {};
   transaction(db, () => {
-    if (changeSet.graphOperations.length) replaceGraph(db, nextGraph, { taskId: task.taskId, canvasSessionId: task.canvasSessionId });
+    if (changeSet.graphOperations.length) replaceGraph(db, finalGraph, { taskId: task.taskId, canvasSessionId: task.canvasSessionId });
+    if (addedNodes.length && starterIds.size) patchProject(db, changeSet.projectId, { starterNodeIds: [] });
     for (const [viewId, operations] of byView) {
       const layout = structuredClone(getLayout(db, changeSet.projectId, viewId)!);
       for (const operation of operations) {
@@ -112,7 +130,7 @@ export function applyChangeSet(db: DatabaseSync, changeSetId: string) {
         layout.nodes[operation.nodeId] = { nodeId: operation.nodeId, ...operation.frame, rotation: 0, zIndex: 0, pinned: false, hidden: false, collapsed: false };
       }
       const nextLayout = applyLayoutOperations(layout, operations);
-      nextLayout.graphRevision = nextGraph.revision;
+      nextLayout.graphRevision = finalGraph.revision;
       saveLayout(db, nextLayout, true, { taskId: task.taskId, canvasSessionId: task.canvasSessionId, operations });
       layoutRevisions[viewId] = nextLayout.layoutRevision;
     }
@@ -121,9 +139,9 @@ export function applyChangeSet(db: DatabaseSync, changeSetId: string) {
     updateAgentTask(db, changeSet.taskId, {
       status: mixed ? "ready_to_continue" : "completed",
       activeStage: mixed ? "layout" : task.activeStage,
-      expectedGraphRevision: nextGraph.revision,
+      expectedGraphRevision: finalGraph.revision,
       results: { ...task.results, changeSetId },
     });
   });
-  return { ...applied, graphRevision: nextGraph.revision, layoutRevisions, task: getAgentTask(db, changeSet.taskId) };
+  return { ...applied, graphRevision: finalGraph.revision, layoutRevisions, task: getAgentTask(db, changeSet.taskId) };
 }
