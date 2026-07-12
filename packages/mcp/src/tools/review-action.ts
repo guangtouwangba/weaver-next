@@ -23,7 +23,11 @@ export function registerReviewActionTool(server: McpServer, { mutateWithStore }:
         if (action === "preview") return previewChangeSet(store, changeSetId, chatSessionKey);
         if (action === "reject") return rejectChangeSet(store, changeSetId, chatSessionKey);
         if (action === "apply") { const item = store.graphChanges.get(changeSetId); if (!item) throw new Error("CHANGESET_NOT_FOUND"); store.tasks.assertChat(item.taskId, chatSessionKey); return store.graphChanges.apply(changeSetId); }
-        throw new Error("INVALID_ARGS:changeset cannot revert");
+        // Undo an applied ChangeSet — direct-write mode's safety net. Authorized by
+        // canvas control (not the dispatching session) so the user can always undo.
+        const item = store.graphChanges.get(changeSetId); if (!item) throw new Error("CHANGESET_NOT_FOUND");
+        store.tasks.assertCanvas(item.taskId, chatSessionKey);
+        return store.graphChanges.revert(changeSetId);
       }
       if (action === "preview") return readLayoutRun(store, need(id, "id"), chatSessionKey);
       if (action === "apply") return applyLayoutCandidate(store, need(id, "id"), need(candidateId, "candidateId"), chatSessionKey);

@@ -8,7 +8,7 @@ import { getAgentTask, updateAgentTask } from "./agent-tasks.js";
 import { assertContentAssets, defaultNodeFrame, getGraph, replaceGraph } from "./graph.js";
 import { getAsset } from "./assets.js";
 import { getCanvasContext } from "./chat-canvas-binding.js";
-import { getLayout, saveLayout } from "./layout-templates.js";
+import { getLayout, revertLayout, saveLayout } from "./layout-templates.js";
 
 export function submitChangeSet(db: DatabaseSync, changeSet: ChangeSet) {
   const validated = changeSetSchema.parse(changeSet);
@@ -21,10 +21,16 @@ export function submitChangeSet(db: DatabaseSync, changeSet: ChangeSet) {
     updateAgentTask(db, task.taskId, { status: "stale", error: { code: "GRAPH_REVISION_CONFLICT", message: `Expected graph r${validated.baseGraphRevision}, current r${project.graphRevision}` } });
     throw new Error("GRAPH_REVISION_CONFLICT");
   }
+  // Direct-write by default: the user's instruction to the agent IS the approval, so
+  // a submitted ChangeSet applies immediately (the record is kept for audit + revert).
+  // Only a project explicitly set to automationLevel "cautious" keeps the manual
+  // Apply/Reject review gate.
+  const direct = project.automationLevel !== "cautious";
   transaction(db, () => {
     db.prepare("INSERT INTO changeset(id, project_id, task_id, data) VALUES (?, ?, ?, ?)").run(validated.id, validated.projectId, validated.taskId, json(validated));
-    updateAgentTask(db, validated.taskId, { status: "pending_review", results: { ...task.results, changeSetId: validated.id } });
+    if (!direct) updateAgentTask(db, validated.taskId, { status: "pending_review", results: { ...task.results, changeSetId: validated.id } });
   });
+  if (direct) return { ...applyChangeSet(db, validated.id), autoApplied: true as const };
   return validated;
 }
 
@@ -120,6 +126,12 @@ export function applyChangeSet(db: DatabaseSync, changeSetId: string) {
   const applied = { ...changeSet, status: "applied" as const, updatedAt: now() };
   const layoutRevisions: Record<string, number> = {};
   transaction(db, () => {
+    // Snapshot the pre-apply graph so this ChangeSet can be reverted losslessly
+    // (direct-write mode has no manual gate; undo is the safety net instead).
+    db.prepare("INSERT OR REPLACE INTO changeset_revert(changeset_id, project_id, data) VALUES (?, ?, ?)").run(
+      changeSetId, changeSet.projectId,
+      json({ priorGraph: graph, appliedGraphRevision: finalGraph.revision, viewIds: [...byView.keys()] }),
+    );
     if (changeSet.graphOperations.length) replaceGraph(db, finalGraph, { taskId: task.taskId, canvasSessionId: task.canvasSessionId });
     if (addedNodes.length && starterIds.size) patchProject(db, changeSet.projectId, { starterNodeIds: [] });
     for (const [viewId, operations] of byView) {
@@ -144,4 +156,35 @@ export function applyChangeSet(db: DatabaseSync, changeSetId: string) {
     });
   });
   return { ...applied, graphRevision: finalGraph.revision, layoutRevisions, task: getAgentTask(db, changeSet.taskId) };
+}
+
+/**
+ * Undo an applied ChangeSet by restoring the pre-apply graph snapshot (stored at
+ * apply time) as a NEW forward revision, and rolling affected view layouts back one
+ * archived revision. Only the latest write can be reverted — if the graph moved on
+ * after this ChangeSet, revert refuses (REVERT_CONFLICT) instead of clobbering
+ * newer work. This is the safety net that replaces the manual review gate in
+ * direct-write mode.
+ */
+export function revertChangeSet(db: DatabaseSync, changeSetId: string) {
+  const current = getChangeSet(db, changeSetId);
+  if (!current) throw new Error("CHANGESET_NOT_FOUND");
+  if (current.status !== "applied") throw new Error(`CHANGESET_NOT_APPLIED:${current.status}`);
+  const row = db.prepare("SELECT data FROM changeset_revert WHERE changeset_id = ?").get(changeSetId) as any;
+  if (!row) throw new Error("REVERT_UNAVAILABLE");
+  const snapshot = parse<{ priorGraph: ReturnType<typeof getGraph>; appliedGraphRevision: number; viewIds: string[] }>(row.data);
+  const project = getProject(db, current.projectId);
+  if (!project) throw new Error("PROJECT_NOT_FOUND");
+  if (project.graphRevision !== snapshot.appliedGraphRevision) throw new Error(`REVERT_CONFLICT:graph moved to r${project.graphRevision} after this ChangeSet (applied r${snapshot.appliedGraphRevision})`);
+  const task = getAgentTask(db, current.taskId);
+  const reverted = { ...current, status: "reverted" as const, updatedAt: now() };
+  transaction(db, () => {
+    if (current.graphOperations.length) {
+      replaceGraph(db, { ...snapshot.priorGraph, revision: project.graphRevision + 1 }, { taskId: current.taskId, canvasSessionId: task?.canvasSessionId });
+    }
+    for (const viewId of snapshot.viewIds) revertLayout(db, current.projectId, viewId);
+    db.prepare("UPDATE changeset SET data = ? WHERE id = ?").run(json(reverted), changeSetId);
+    db.prepare("DELETE FROM changeset_revert WHERE changeset_id = ?").run(changeSetId);
+  });
+  return { ...reverted, graphRevision: getProject(db, current.projectId)!.graphRevision };
 }

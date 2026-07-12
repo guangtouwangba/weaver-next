@@ -170,7 +170,7 @@ describe("WorkspaceStore", () => {
     dispatchAndStart(db, task);
     const timestamp = new Date().toISOString();
     db.graphChanges.submit({ id: "starter-change", taskId: task.taskId, projectId: project.id, baseGraphRevision: project.graphRevision, baseLayoutRevisions: {}, graphOperations: [{ type: "add-node", node: { id: "real-node", projectId: project.id, type: scene.nodeTypes[0].key, title: "真实节点", contentKind: "document", content: { kind: "document", mode: "note", markdown: "", excerpt: "", embeddedAssetIds: [] }, properties: {}, archived: false, createdAt: timestamp, updatedAt: timestamp } }], layoutOperations: [], rationale: "First real content", riskLevel: "low", status: "pending", createdAt: timestamp, updatedAt: timestamp });
-    db.graphChanges.apply("starter-change");
+    // Direct-write default: submit auto-applied the ChangeSet.
     const graph = db.graphChanges.read(project.id);
     for (const id of pristineIds) expect(graph.nodes.find((node) => node.id === id)?.archived).toBe(true);
     expect(graph.nodes.find((node) => node.id === editedId)?.archived).toBe(false);
@@ -249,11 +249,36 @@ describe("WorkspaceStore", () => {
     dispatchAndStart(db, task);
     const ts = new Date().toISOString();
     db.graphChanges.submit({ id: "cs-img", taskId: task.taskId, projectId: project.id, baseGraphRevision: 0, baseLayoutRevisions: {}, graphOperations: [{ type: "add-node", node: { id: "chart-cover", projectId: project.id, type: "entity", title: "赛道信息图", contentKind: "image", content: { kind: "image", assetId: asset.asset.id, alt: "赛道信息图", caption: "券商研报 · 2026Q2" }, properties: {}, archived: false, createdAt: ts, updatedAt: ts } }], layoutOperations: [], rationale: "Place generated infographic", riskLevel: "low", status: "pending", createdAt: ts, updatedAt: ts });
-    db.graphChanges.apply("cs-img");
-
+    // Direct-write default: submit already auto-applied the ChangeSet.
     const node = db.graphChanges.read(project.id).nodes.find((n) => n.id === "chart-cover")!;
     expect(node.contentKind).toBe("image");
     expect(node.content.kind === "image" && node.content.assetId).toBe(asset.asset.id);
+    db.close();
+  });
+
+  it("direct-writes a submitted ChangeSet and reverts it losslessly", () => {
+    const db = store();
+    const scene = getScenePack("free-brainstorming")!;
+    const project = db.catalog.createProject({ title: "Direct", goal: "", scenePack: scene });
+    const chatSessionKey = bindCanvas(db, project, scene, "direct-session");
+    const task = db.tasks.prepare({ canvasSessionId: "direct-session", actionKey: "develop_selection", chatSessionKey });
+    dispatchAndStart(db, task);
+    const ts = new Date().toISOString();
+    const submitted = db.graphChanges.submit({ id: "cs-direct", taskId: task.taskId, projectId: project.id, baseGraphRevision: 0, baseLayoutRevisions: {}, graphOperations: [{ type: "add-node", node: { id: "auto-node", projectId: project.id, type: "idea", title: "直写节点", contentKind: "document", content: { kind: "document", mode: "note", markdown: "", excerpt: "", embeddedAssetIds: [] }, properties: {}, archived: false, createdAt: ts, updatedAt: ts } }], layoutOperations: [], rationale: "direct write", riskLevel: "low", status: "pending", createdAt: ts, updatedAt: ts });
+
+    // No review gate: the submit itself applied, task completed, node live.
+    expect(submitted).toMatchObject({ status: "applied", autoApplied: true, graphRevision: 1 });
+    expect(db.tasks.get(task.taskId)?.status).toBe("completed");
+    expect(db.graphChanges.read(project.id).nodes.some((n) => n.id === "auto-node")).toBe(true);
+
+    // The safety net: revert restores the pre-apply graph as a FORWARD revision.
+    const reverted = db.graphChanges.revert("cs-direct");
+    expect(reverted.status).toBe("reverted");
+    expect(reverted.graphRevision).toBe(2);
+    expect(db.graphChanges.read(project.id).nodes.some((n) => n.id === "auto-node")).toBe(false);
+    expect(db.graphChanges.get("cs-direct")?.status).toBe("reverted");
+    // Double revert is refused.
+    expect(() => db.graphChanges.revert("cs-direct")).toThrow("CHANGESET_NOT_APPLIED");
     db.close();
   });
 
@@ -313,8 +338,8 @@ describe("WorkspaceStore", () => {
     const chatSessionKey = bindCanvas(db, project, scene, "unsafe-session", { selectedNodeIds: ["note"] });
     const task = db.tasks.prepare({ canvasSessionId: "unsafe-session", actionKey: "develop_selection", chatSessionKey });
     dispatchAndStart(db, task);
-    db.graphChanges.submit({ id: "unsafe", taskId: task.taskId, projectId: project.id, baseGraphRevision: 0, baseLayoutRevisions: {}, graphOperations: [{ type: "set-node-content", nodeId: "note", content: { kind: "image", assetId: "/tmp/not-an-asset", alt: "", caption: "" } }], layoutOperations: [], rationale: "Try bypass", riskLevel: "high", status: "pending", createdAt: timestamp, updatedAt: timestamp });
-    expect(() => db.graphChanges.apply("unsafe")).toThrow("ASSET_NOT_FOUND_OR_CROSS_PROJECT");
+    // Direct-write: the asset guard now fires at submit time (auto-apply).
+    expect(() => db.graphChanges.submit({ id: "unsafe", taskId: task.taskId, projectId: project.id, baseGraphRevision: 0, baseLayoutRevisions: {}, graphOperations: [{ type: "set-node-content", nodeId: "note", content: { kind: "image", assetId: "/tmp/not-an-asset", alt: "", caption: "" } }], layoutOperations: [], rationale: "Try bypass", riskLevel: "high", status: "pending", createdAt: timestamp, updatedAt: timestamp })).toThrow("ASSET_NOT_FOUND_OR_CROSS_PROJECT");
     expect(db.catalog.getProject(project.id)?.graphRevision).toBe(0);
     db.close();
   });
@@ -322,7 +347,7 @@ describe("WorkspaceStore", () => {
   it("persists task and graph events with monotonic cursors", () => {
     const db = store();
     const scene = getScenePack("free-brainstorming")!;
-    const project = db.catalog.createProject({ title: "Events", goal: "", scenePack: scene });
+    const project = db.catalog.createProject({ title: "Events", goal: "", scenePack: scene, automationLevel: "cautious" });
     const timestamp = new Date().toISOString();
     const chatSessionKey = bindCanvas(db, project, scene, "event-session");
     const task = db.tasks.prepare({ canvasSessionId: "event-session", actionKey: "develop_selection", chatSessionKey });
@@ -342,8 +367,7 @@ describe("WorkspaceStore", () => {
     const chatSessionKey = bindCanvas(db, project, scene, "mixed-session");
     const task = db.tasks.prepare({ canvasSessionId: "mixed-session", actionKey: "develop_then_layout", chatSessionKey });
     dispatchAndStart(db, task);
-    db.graphChanges.submit({ id: "mixed-change", taskId: task.taskId, projectId: project.id, baseGraphRevision: 0, baseLayoutRevisions: {}, graphOperations: [{ type: "add-node", node: { id: "agent-node", projectId: project.id, type: "idea", title: "Agent node", contentKind: "document", content: { kind: "document", mode: "note", markdown: "", excerpt: "", embeddedAssetIds: [] }, properties: {}, archived: false, createdAt: timestamp, updatedAt: timestamp } }], layoutOperations: [], rationale: "Add one idea", riskLevel: "low", status: "pending", createdAt: timestamp, updatedAt: timestamp });
-    const applied = db.graphChanges.apply("mixed-change");
+    const applied = db.graphChanges.submit({ id: "mixed-change", taskId: task.taskId, projectId: project.id, baseGraphRevision: 0, baseLayoutRevisions: {}, graphOperations: [{ type: "add-node", node: { id: "agent-node", projectId: project.id, type: "idea", title: "Agent node", contentKind: "document", content: { kind: "document", mode: "note", markdown: "", excerpt: "", embeddedAssetIds: [] }, properties: {}, archived: false, createdAt: timestamp, updatedAt: timestamp } }], layoutOperations: [], rationale: "Add one idea", riskLevel: "low", status: "pending", createdAt: timestamp, updatedAt: timestamp }) as ReturnType<typeof db.graphChanges.apply> & { autoApplied?: boolean };
     expect(applied.graphRevision).toBe(1);
     expect(db.layoutReviews.get(project.id, project.defaultViewId)?.nodes["agent-node"]).toBeTruthy();
     expect(db.tasks.get(task.taskId)).toMatchObject({ status: "ready_to_continue", activeStage: "layout", expectedGraphRevision: 1 });
@@ -450,7 +474,7 @@ describe("WorkspaceStore", () => {
     const chatSessionKey = bindCanvas(db, project, scene, "continuation-session");
     const task = db.tasks.prepare({ canvasSessionId: "continuation-session", actionKey: "develop_then_layout", dispatchKey: "content-dispatch", chatSessionKey }); dispatchAndStart(db, task);
     db.graphChanges.submit({ id: "continue-change", taskId: task.taskId, projectId: project.id, baseGraphRevision: 0, baseLayoutRevisions: {}, graphOperations: [], layoutOperations: [], rationale: "Review", riskLevel: "low", status: "pending", createdAt: timestamp, updatedAt: timestamp });
-    db.graphChanges.apply("continue-change");
+    // Direct-write default: submit auto-applied the ChangeSet.
     const ready = db.tasks.get(task.taskId)!;
     const claimed = db.tasks.continue({ taskId: task.taskId, dispatchKey: "layout-dispatch", expectedTaskRevision: ready.taskRevision });
     expect(claimed).toMatchObject({ status: "prepared", activeStage: "layout" });

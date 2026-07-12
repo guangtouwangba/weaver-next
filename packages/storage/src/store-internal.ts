@@ -18,7 +18,10 @@ export const runningTaskMaxLifetimeMs = 1_800_000;
 export const taskTransitions: Record<AgentTask["status"], Set<AgentTask["status"]>> = {
   prepared: new Set(["dispatched", "failed", "cancelled"]),
   dispatched: new Set(["running", "failed", "cancelled"]),
-  running: new Set(["pending_review", "completed", "stale", "failed", "cancelled"]),
+  // running → ready_to_continue: direct-write mode auto-applies the ChangeSet at
+  // submit (skipping pending_review), so a mixed develop_then_layout task moves
+  // straight from running into its layout stage.
+  running: new Set(["pending_review", "ready_to_continue", "completed", "stale", "failed", "cancelled"]),
   pending_review: new Set(["ready_to_continue", "completed", "stale", "cancelled"]),
   ready_to_continue: new Set(["prepared", "stale", "cancelled"]),
   completed: new Set(), stale: new Set(), failed: new Set(), cancelled: new Set(),

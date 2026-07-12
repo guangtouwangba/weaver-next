@@ -31,7 +31,7 @@ describe("self-agent binding (Claude-as-agent over a synthetic session key)", ()
   it("runs the full audited loop and only bumps graphRevision on content apply", () => {
     const db = store();
     const scene = getScenePack("free-brainstorming")!;
-    const project = db.catalog.createProject({ title: "Self agent", goal: "", scenePack: scene });
+    const project = db.catalog.createProject({ title: "Self agent", goal: "", scenePack: scene, automationLevel: "cautious" });
     const k = syntheticKey("proc-1");
     bindAgentEligible(db, project, scene, "self-canvas", k);
 

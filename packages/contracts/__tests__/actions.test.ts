@@ -16,6 +16,7 @@ describe("formal MCP action contracts", () => {
   it("enforces resource-specific review arguments", () => {
     expect(() => reviewActionSchema.parse({ workspaceDir: "/w", resource: "layout_run", action: "apply", id: "run" })).toThrow();
     expect(reviewActionSchema.parse({ workspaceDir: "/w", resource: "layout_run", action: "apply", id: "run", candidateId: "c" }).action).toBe("apply");
-    expect(() => reviewActionSchema.parse({ workspaceDir: "/w", resource: "changeset", action: "revert", id: "cs" })).toThrow();
+    // Direct-write mode: applied ChangeSets are revertible (the undo safety net).
+    expect(reviewActionSchema.parse({ workspaceDir: "/w", resource: "changeset", action: "revert", id: "cs" }).action).toBe("revert");
   });
 });

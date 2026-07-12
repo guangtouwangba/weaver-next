@@ -42,7 +42,7 @@ export const taskActionSchema = z.discriminatedUnion("action", [
 
 const layoutReviewActionSchema = z.object({ ...workspace, resource: z.literal("layout_run"), action: z.enum(["preview", "apply", "reject", "revert"]), id: z.string().min(1).optional(), candidateId: z.string().min(1).optional(), projectId: z.string().min(1).optional(), viewId: z.string().min(1).optional() });
 export const reviewActionSchema = z.discriminatedUnion("resource", [
-  z.object({ ...workspace, resource: z.literal("changeset"), action: z.enum(["preview", "apply", "reject"]), id: z.string().min(1) }),
+  z.object({ ...workspace, resource: z.literal("changeset"), action: z.enum(["preview", "apply", "reject", "revert"]), id: z.string().min(1) }),
   layoutReviewActionSchema,
 ]).superRefine((value, context) => {
   if (value.resource !== "layout_run") return;

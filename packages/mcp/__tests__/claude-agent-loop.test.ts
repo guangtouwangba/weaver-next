@@ -27,7 +27,7 @@ describe("Claude agent loop — cross-transport identity convergence", () => {
     const root = mkdtempSync(join(tmpdir(), "weaver-loop-")); roots.push(root); mkdirSync(root, { recursive: true });
     const scene = getScenePack("entity-relationship")!;
     const store = new WorkspaceStore(root);
-    const project = store.catalog.createProject({ title: "机器人研究空间", goal: "梳理人形机器人技术栈与产业关系", scenePack: scene });
+    const project = store.catalog.createProject({ title: "机器人研究空间", goal: "梳理人形机器人技术栈与产业关系", scenePack: scene, automationLevel: "cautious" });
     store.close();
 
     const server = await createWeaverServer({ previewWorkspaceDir: root }); servers.push(server);

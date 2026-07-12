@@ -7,7 +7,7 @@ import { chatSessionKeyFromRequest } from "../thread-context.js";
 
 export function registerChangesetsTools(server: McpServer, { mutateWithStore }: { mutateWithStore: MutateWithStore }) {
   server.registerTool("weaver_submit_changeset", {
-    title: "Submit ChangeSet", description: "Submit auditable semantic Graph operations for review; never writes the Graph directly. `changeSet` is a full ChangeSet object { id, taskId, projectId, baseGraphRevision, baseLayoutRevisions, graphOperations[], layoutOperations[], rationale, riskLevel, status } — validated server-side.",
+    title: "Submit ChangeSet", description: "Submit semantic Graph operations. By default they apply IMMEDIATELY (direct-write: the record is kept and revertible via weaver_review_action revert); only projects set to automationLevel 'cautious' hold them for manual review. `changeSet` is a full ChangeSet object { id, taskId, projectId, baseGraphRevision, baseLayoutRevisions, graphOperations[], layoutOperations[], rationale, riskLevel, status } — validated server-side.",
     // `changeSet` is advertised as a loose object, not the full changeSetSchema: the
     // ChangeSet's fully-expanded JSON schema (nested graph+layout operation unions)
     // is so large that Codex drops this tool from the model's tool surface entirely.
