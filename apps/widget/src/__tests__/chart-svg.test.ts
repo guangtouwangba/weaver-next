@@ -63,7 +63,7 @@ describe("chart-svg geometry", () => {
     expect(up.delta?.text).toContain("+12.5");
     expect(up.delta?.text).toContain("同比");
 
-    const down = layoutChart(chart({ chartType: "metric", metric: { value: 3, unit: "", delta: -4 } }), 240, 130);
+    const down = layoutChart(chart({ chartType: "metric", metric: { value: 3, unit: "", delta: -4, deltaLabel: "" } }), 240, 130);
     if (down.kind !== "metric") throw new Error("expected metric");
     expect(down.delta?.sign).toBe(-1);
   });
