@@ -31,7 +31,7 @@ Loop until the user interrupts (Esc) or says stop:
 3. On `pending: true` → the `task` already captured the exact selection + `userInstruction` and is
    `dispatched`. Handle it with the develop flow:
    - `weaver_start_agent_task` (verify `status=running`, `activeStage=content`).
-   - `weaver_get_project_manifest`, `weaver_get_canvas_context`, `weaver_resolve_context`; read full
+   - `weaver_get_project_manifest`, `weaver_read_session(resource:"canvas_context")`, `weaver_read_session(resource:"resolved_context")`; read full
      node bodies with `weaver_get_node_content` only when needed.
    - Do the requested reasoning/research, then `weaver_submit_changeset`. The ChangeSet streams to
      the canvas; the user Applies/Rejects it there. **Do not auto-apply** unless they asked.

@@ -1,8 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { canvasContextSnapshotSchema } from "@weaver/contracts";
-import { resolveSceneContext } from "@weaver/core";
-import { getScenePack } from "@weaver/scene-packs";
+import { resolveBoundCanvas } from "../shared/bound-canvas.js";
 import { workspaceSchema } from "../shared/schemas.js";
 import { defineTool, result, withStore, type MutateWithStore } from "../shared/tool-runtime.js";
 import { chatSessionKeyFromRequest } from "../thread-context.js";
@@ -56,35 +55,18 @@ export function registerCanvasBindingTools(server: McpServer, ctx: CanvasBinding
     title: "Get Bound Canvas", description: "Resolve the exact Project, View and Canvas currently bound to this Codex chat. Never guesses from focus or recency.",
     inputSchema: workspaceSchema.shape,
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    _meta: { ui: { visibility: ["app", "model"] } },
+    // Widget-only: the on-canvas widget calls this under its own name. Its own
+    // `visibility: ["app"]` overrides the allowlist bump so it stays
+    // widget-accessible but off the MODEL surface — the model reads the same
+    // binding via `weaver_read_session(resource:"bound_canvas")`.
+    _meta: { ui: { visibility: ["app"] } },
   }, defineTool(async ({ workspaceDir }, extra) => {
     const chatSessionKey = chatSessionKeyFromRequest(extra);
-    const output = withStore(workspaceDir, (store) => {
-      const { binding, context } = store.getBoundCanvas(chatSessionKey, false);
-      const project = store.getProject(context.projectId); if (!project) throw new Error("PROJECT_NOT_FOUND");
-      const layout = store.getLayout(context.projectId, context.viewId); if (!layout) throw new Error("LAYOUT_NOT_FOUND");
-      const seenAt = Date.parse(context.presence?.lastSeenAt ?? context.updatedAt);
-      return {
-        projectId: context.projectId, viewId: context.viewId, canvasSessionId: context.canvasSessionId,
-        bindingStatus: binding.status, online: Date.now() - seenAt <= 30_000, lastSeenAt: context.presence?.lastSeenAt ?? context.updatedAt,
-        graphRevision: project.graphRevision, layoutRevision: layout.layoutRevision, bindingRevision: binding.bindingRevision,
-      };
-    });
-    return result(output);
+    return result(withStore(workspaceDir, (store) => resolveBoundCanvas(store, chatSessionKey)));
   }));
-
-  server.registerTool("weaver_get_canvas_context", {
-    title: "Get Canvas Context", description: "Read the authoritative selection and view snapshot for one canvas session.", inputSchema: { ...workspaceSchema.shape, canvasSessionId: z.string() },
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-  }, defineTool(async ({ workspaceDir, canvasSessionId }) => { const context = withStore(workspaceDir, (store) => store.getCanvasContext(canvasSessionId)); if (!context) throw new Error("CANVAS_SESSION_NOT_FOUND"); return result(context); }));
 
   server.registerTool("weaver_get_canvas_view_state", {
     title: "Get Canvas View State", description: "Widget-only restoration of this Canvas Session's viewport and selection for one View.",
     inputSchema: { ...workspaceSchema.shape, canvasSessionId: z.string(), viewId: z.string() }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } },
   }, defineTool(async ({ workspaceDir, canvasSessionId, viewId }) => result(withStore(workspaceDir, (store) => store.getCanvasViewState(canvasSessionId, viewId) ?? { canvasSessionId, viewId, firstOpen: true }))));
-
-  server.registerTool("weaver_resolve_context", {
-    title: "Resolve Scene Context", description: "Resolve a bounded, auditable node context using the project's pinned scene policy and current canvas selection.",
-    inputSchema: { ...workspaceSchema.shape, canvasSessionId: z.string() }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-  }, defineTool(async ({ workspaceDir, canvasSessionId }) => { const output = withStore(workspaceDir, (store) => { const context = store.getCanvasContext(canvasSessionId); if (!context) throw new Error("CANVAS_SESSION_NOT_FOUND"); const project = store.getProject(context.projectId); if (!project) throw new Error("PROJECT_NOT_FOUND"); const scenePack = getScenePack(project.scenePackId, project.scenePackVersion); if (!scenePack) throw new Error("SCENE_PACK_NOT_FOUND"); const graph = store.getGraph(project.id); const nodes = resolveSceneContext({ nodes: graph.nodes, edges: graph.edges, scenePack, selectedNodeIds: context.selectedNodeIds, pinnedNodeIds: context.pinnedContextNodeIds }); return { projectId: project.id, graphRevision: graph.revision, policy: scenePack.contextPolicy, nodeIds: nodes.map((node) => node.id), nodes }; }); return result(output, `Resolved ${output.nodes.length} context nodes.`); }));
 }

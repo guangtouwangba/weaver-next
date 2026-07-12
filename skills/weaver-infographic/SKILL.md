@@ -13,10 +13,10 @@ The native Weaver widget is open for the active project. Weaver state is read an
 
 ## Workflow
 
-1. Confirm the bound canvas: `weaver_get_bound_canvas`. If none, tell the user to open the space (or run the open skill).
+1. Confirm the bound canvas: `weaver_read_session(resource:"bound_canvas")`. If none, tell the user to open the space (or run the open skill).
 
 2. Gather the source content.
-   - Read the selection: `weaver_get_canvas_context` and `weaver_resolve_context`.
+   - Read the selection: `weaver_read_session(resource:"canvas_context")` and `weaver_read_session(resource:"resolved_context")`.
    - Pull full bodies only for the nodes you will visualize: `weaver_get_node_content`.
    - If the user described a topic instead of selecting nodes, use that text as the brief.
 
