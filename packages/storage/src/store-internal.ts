@@ -10,6 +10,11 @@ export const canvasOfflineAfterMs = 30_000;
 export const preparedTaskExpiryMs = 120_000;
 export const dispatchedTaskExpiryMs = 180_000;
 export const runningTaskExpiryMs = 600_000;
+// Hard ceiling on a running task's total lifetime, independent of heartbeats. A
+// stuck agent that keeps calling weaver_report_task_progress bumps updatedAt and
+// would otherwise dodge the idle reaper forever; this caps it so the canvas is
+// never blocked by an immortal task.
+export const runningTaskMaxLifetimeMs = 1_800_000;
 export const taskTransitions: Record<AgentTask["status"], Set<AgentTask["status"]>> = {
   prepared: new Set(["dispatched", "failed", "cancelled"]),
   dispatched: new Set(["running", "failed", "cancelled"]),

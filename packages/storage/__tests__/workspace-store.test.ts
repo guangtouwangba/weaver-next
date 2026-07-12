@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import sharp from "sharp";
 import { getScenePack } from "@weaver/scene-packs";
 import { getVisualTemplate } from "@weaver/visual-templates";
@@ -285,6 +285,53 @@ describe("WorkspaceStore", () => {
     const node = db.getGraph(project.id).nodes.find((n) => n.id === "chart-cover")!;
     expect(node.contentKind).toBe("image");
     expect(node.content.kind === "image" && node.content.assetId).toBe(asset.asset.id);
+    db.close();
+  });
+
+  it("reaps a running task past its max lifetime even while it keeps heartbeating", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const base = new Date("2026-07-12T00:00:00.000Z").getTime();
+      vi.setSystemTime(base);
+      const db = store();
+      const scene = getScenePack("free-brainstorming")!;
+      const project = db.createProject({ title: "Stuck", goal: "", scenePack: scene });
+      const chatSessionKey = bindCanvas(db, project, scene, "stuck-session");
+      const task = db.prepareAgentTask({ canvasSessionId: "stuck-session", actionKey: "develop_selection", chatSessionKey });
+      dispatchAndStart(db, task);
+
+      // 31 minutes later the agent is still heartbeating (idle clock reset), but past
+      // the 30-minute hard cap — it must be reaped so the canvas is unblocked.
+      vi.setSystemTime(base + 31 * 60_000);
+      db.reportTaskProgress(task.taskId, "正在核验连接能力");
+      const reaped = db.reapExpiredCanvasTasks("stuck-session");
+
+      expect(reaped.map((t) => t.taskId)).toContain(task.taskId);
+      expect(db.getAgentTask(task.taskId)?.status).toBe("failed");
+      expect(db.getAgentTask(task.taskId)?.error?.code).toBe("AGENT_TASK_MAX_LIFETIME");
+      db.close();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("lets the bound canvas cancel a task a different chat session dispatched", () => {
+    const db = store();
+    const scene = getScenePack("free-brainstorming")!;
+    const project = db.createProject({ title: "Cancel", goal: "", scenePack: scene });
+    const agentKey = bindCanvas(db, project, scene, "canvas-x");
+    const task = db.prepareAgentTask({ canvasSessionId: "canvas-x", actionKey: "develop_selection", chatSessionKey: agentKey });
+    dispatchAndStart(db, task);
+
+    // The widget is a different chat session that rebinds the SAME canvas.
+    const widgetKey = createHash("sha256").update("widget-chat").digest("hex");
+    const binding = db.openChatCanvasBinding({ chatSessionKey: widgetKey, projectId: project.id, viewId: project.defaultViewId });
+    const ts = new Date().toISOString();
+    db.syncCanvasContext({ version: 2, canvasSessionId: "canvas-x", workspaceDir: db.workspaceDir, projectId: project.id, scenePackId: scene.id, scenePackVersion: scene.version, graphRevision: 0, viewId: project.defaultViewId, viewType: scene.defaultView, selectedNodeIds: [], selectedEdgeIds: [], selectedGroupIds: [], pinnedContextNodeIds: [], viewport: { x: 0, y: 0, zoom: 1 }, presence: { visible: true, focused: true, lastSeenAt: ts }, chatBinding: { leaseId: binding.leaseId, bindingRevision: binding.bindingRevision }, agentEligible: true, sequence: 2, updatedAt: ts }, widgetKey);
+
+    // The old strict check rejects the widget; the canvas-ownership check allows it.
+    expect(() => db.assertTaskChat(task.taskId, widgetKey, false)).toThrow("TASK_CHAT_MISMATCH");
+    expect(db.assertTaskCanvas(task.taskId, widgetKey).taskId).toBe(task.taskId);
     db.close();
   });
 

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { agentTaskSchema, type AgentTask } from "@weaver/contracts";
-import { dispatchedTaskExpiryMs, json, now, parse, preparedTaskExpiryMs, runningTaskExpiryMs, taskTransitions, terminalTaskStatuses } from "./store-internal.js";
+import { dispatchedTaskExpiryMs, json, now, parse, preparedTaskExpiryMs, runningTaskExpiryMs, runningTaskMaxLifetimeMs, taskTransitions, terminalTaskStatuses } from "./store-internal.js";
 import { transaction } from "./migrations.js";
 import { appendProjectEvent } from "./project-events.js";
 import { getBoundCanvas, getCanvasContext } from "./chat-canvas-binding.js";
@@ -20,6 +20,10 @@ export function reapExpiredCanvasTasks(db: DatabaseSync, canvasSessionId: string
       reaped.push(updateAgentTask(db, task.taskId, { status: "failed", error: { code: "AGENT_DISPATCH_TIMEOUT", message: "No agent started this task within three minutes" } }));
     } else if (task.status === "running" && idleMs > runningTaskExpiryMs) {
       reaped.push(updateAgentTask(db, task.taskId, { status: "failed", error: { code: "AGENT_TASK_TIMEOUT", message: "Agent reported no progress for ten minutes; task reaped so the canvas is unblocked" } }));
+    } else if (task.status === "running" && Date.now() - Date.parse(task.createdAt) > runningTaskMaxLifetimeMs) {
+      // Hard lifetime cap: a stuck agent that keeps heartbeating (resetting the
+      // idle clock) can't hold the canvas hostage indefinitely.
+      reaped.push(updateAgentTask(db, task.taskId, { status: "failed", error: { code: "AGENT_TASK_MAX_LIFETIME", message: "Task exceeded its maximum running time; reaped so the canvas is unblocked" } }));
     }
   }
   return reaped;
@@ -72,6 +76,22 @@ export function assertTaskChat(db: DatabaseSync, taskId: string, chatSessionKey:
   if (task.chatSessionKey !== chatSessionKey) throw new Error("TASK_CHAT_MISMATCH");
   const { binding, context } = getBoundCanvas(db, chatSessionKey, requireOnline);
   if (binding.bindingRevision !== task.bindingRevision || binding.canvasSessionId !== task.canvasSessionId || context.projectId !== task.projectId) throw new Error("TASK_BINDING_STALE");
+  return task;
+}
+
+/**
+ * Authorize an operation by CANVAS control rather than by being the exact chat
+ * session that dispatched the task. The user's bound canvas must always be able to
+ * abort the task running on it — even when a different agent session (a terminal
+ * Codex/Claude develop flow) started it. Used by cancel so the widget's × isn't
+ * rejected with TASK_CHAT_MISMATCH. Intentionally ignores chatSessionKey equality
+ * and bindingRevision drift; only same-canvas + same-project is required.
+ */
+export function assertTaskCanvas(db: DatabaseSync, taskId: string, chatSessionKey: string, requireOnline = false) {
+  const task = getAgentTask(db, taskId);
+  if (!task) throw new Error(`AGENT_TASK_NOT_FOUND:${taskId}`);
+  const { binding, context } = getBoundCanvas(db, chatSessionKey, requireOnline);
+  if (binding.canvasSessionId !== task.canvasSessionId || context.projectId !== task.projectId) throw new Error("TASK_NOT_ON_CANVAS");
   return task;
 }
 

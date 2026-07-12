@@ -130,6 +130,7 @@ export class WorkspaceStore {
   prepareAgentTask(input: { canvasSessionId: string; actionKey: string; userInstruction?: string; dispatchKey?: string; chatSessionKey?: string }) { return agentTasks.prepareAgentTask(this.db, input); }
   prepareAgentTaskFromBoundCanvas(input: { chatSessionKey: string; actionKey: string; userInstruction?: string; dispatchKey?: string }) { return agentTasks.prepareAgentTaskFromBoundCanvas(this.db, input); }
   assertTaskChat(taskId: string, chatSessionKey: string, requireOnline = true) { return agentTasks.assertTaskChat(this.db, taskId, chatSessionKey, requireOnline); }
+  assertTaskCanvas(taskId: string, chatSessionKey: string, requireOnline = false) { return agentTasks.assertTaskCanvas(this.db, taskId, chatSessionKey, requireOnline); }
   getAgentTask(taskId: string) { return agentTasks.getAgentTask(this.db, taskId); }
   listCanvasTasks(canvasSessionId: string, includeTerminal = false) { return agentTasks.listCanvasTasks(this.db, canvasSessionId, includeTerminal); }
   reapExpiredCanvasTasks(canvasSessionId: string) { return agentTasks.reapExpiredCanvasTasks(this.db, canvasSessionId); }

@@ -217,7 +217,7 @@ export function useCanvasEventStream(params: {
     return () => { stopped = true; window.clearInterval(id); };
   }, [standaloneDemo, accessState, streamState, bootstrap.workspaceDir, project?.id, reconcileRevisions, Boolean(activeTask)]);
 
-  async function cancelActiveTask() { if (!activeTask) return; try { await callTool("weaver_cancel_agent_task", { workspaceDir: bootstrap.workspaceDir, taskId: activeTask.taskId }); setStatus("Agent task cancelled · later writes will be rejected"); } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); } }
+  async function cancelActiveTask() { if (!activeTask) return; const taskId = activeTask.taskId; try { await callTool("weaver_cancel_agent_task", { workspaceDir: bootstrap.workspaceDir, taskId }); setActiveTask((current) => (current?.taskId === taskId ? null : current)); setStatus("Agent task cancelled · later writes will be rejected"); } catch (error) { setStatus(`取消失败,请重试:${error instanceof Error ? error.message : String(error)}`); } }
 
   async function applyChangeSet() {
     if (!changePreview) return;
