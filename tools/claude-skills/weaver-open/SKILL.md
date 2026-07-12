@@ -11,7 +11,7 @@ A one-shot launcher: resolve the project, open its canvas in a real browser wind
 
 1. **Resolve the workspace.** The `weaver-preview` MCP server is launched with the repo root as its Weaver workspace. Use the git top-level of the current directory as `workspaceDir` (`git rev-parse --show-toplevel`; fall back to cwd).
 
-2. **Pick the board.** Call `weaver_list_projects` with that `workspaceDir`.
+2. **Pick the board.** Call `weaver_read_catalog(resource:"project.list")` with that `workspaceDir`.
    - If the user named a project, use it.
    - No projects → offer to create one (`weaver-create-space`) and stop.
    - One project → use it.

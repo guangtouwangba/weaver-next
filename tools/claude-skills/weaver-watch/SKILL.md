@@ -12,7 +12,7 @@ handle each one. The user drives entirely from the canvas; the terminal is dedic
 
 Run the `weaver-open` flow first (unless a canvas is already bound and online):
 1. `workspaceDir` = git top-level of the current dir (fall back to cwd).
-2. `weaver_list_projects` → pick the project (named one; else the most recently updated, and say which).
+2. `weaver_read_catalog(resource:"project.list")` → pick the project (named one; else the most recently updated, and say which).
 3. `weaver_open_workspace_widget` — the MCP process pops the browser window automatically (tokenized `previewUrl`). Only if none appears, run `open "<previewUrl>"` yourself.
    - No `previewUrl` → the MCP isn't the Claude host; tell the user to (re)connect `weaver-preview`.
 4. Tell the user the board is live, to keep the window visible (its heartbeat keeps the canvas
@@ -28,8 +28,8 @@ Loop until the user interrupts (Esc) or says stop:
 3. On `pending: true` → the `task` already captured the exact selection + `userInstruction` and is
    `dispatched`. Handle it with the develop flow:
    - `weaver_start_agent_task` (verify `status=running`, `activeStage=content`).
-   - `weaver_get_project_manifest`, `weaver_get_canvas_context`, `weaver_resolve_context`; read full
-     node bodies with `weaver_get_node_content` only when needed.
+   - `weaver_read_graph(resource:"manifest")`, `weaver_read_session(resource:"canvas_context", canvasSessionId)`, `weaver_read_session(resource:"resolved_context", canvasSessionId)`; read full
+     node bodies with `weaver_read_graph(resource:"node")` only when needed.
    - Do the requested reasoning/research, then `weaver_submit_changeset`. The ChangeSet streams to
      the canvas; the user Applies/Rejects it there. **Do not auto-apply** unless they asked.
    - For `develop_then_layout`, continue only when the task returns with `activeStage=layout`.
