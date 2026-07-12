@@ -129640,10 +129640,10 @@ function registerWorkspaceTools(server2, ctx) {
 
 // packages/mcp/src/tools/diagnostics.ts
 function registerDiagnosticsTools(server2, ctx) {
-  const { eventHub: eventHub2, serverVersion } = ctx;
+  const { eventHub: eventHub2, serverVersion, toolSurface } = ctx;
   server2.registerTool("weaver_get_diagnostics", {
     title: "Get Weaver Diagnostics",
-    description: "Read this MCP server's identity, health and recent structured activity log. Use it to see what the server actually did and why a call failed \u2014 works the same in Codex and Claude Code.",
+    description: "Read this MCP server's identity, health, recent activity log, and the model-facing tool surface it advertises. If `toolSurface.criticalPresent.weaver_submit_changeset` is true but you cannot call that tool, this host (e.g. Codex) dropped it from your tool list \u2014 not the server.",
     inputSchema: { limit: external_exports.number().int().min(1).max(500).default(120).optional(), errorsOnly: external_exports.boolean().optional(), workspaceDir: external_exports.string().optional() },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
   }, defineTool(async ({ limit, errorsOnly }) => {
@@ -129658,7 +129658,7 @@ function registerDiagnosticsTools(server2, ctx) {
       previewAvailable: preview,
       fileLogging: fileLoggingEnabled()
     };
-    return result({ server: server3, errors: recentErrors(50), recent: errorsOnly ? [] : recentEntries(limit ?? 120) }, "Weaver server diagnostics.");
+    return result({ server: server3, toolSurface: toolSurface(), errors: recentErrors(50), recent: errorsOnly ? [] : recentEntries(limit ?? 120) }, "Weaver server diagnostics.");
   }));
 }
 
@@ -129707,6 +129707,30 @@ var PREVIEW_TOOL_ALLOWLIST = /* @__PURE__ */ new Set([
   "weaver_validate_visual_template",
   "weaver_get_diagnostics"
 ]);
+var CRITICAL_MODEL_TOOLS = [
+  "weaver_prepare_task_from_active_canvas",
+  "weaver_start_agent_task",
+  "weaver_submit_changeset",
+  "weaver_apply_changeset",
+  "weaver_complete_agent_task",
+  "weaver_report_task_progress",
+  "weaver_await_canvas_prompt"
+];
+function isModelFacing(meta4) {
+  const visibility = meta4?.ui?.visibility;
+  return !visibility || visibility.includes("model");
+}
+function computeToolSurface(registry2) {
+  const modelFacingNames = [...registry2.entries()].filter(([, tool]) => isModelFacing(tool.meta)).map(([name]) => name).sort();
+  const modelFacingSet = new Set(modelFacingNames);
+  return {
+    registered: registry2.size,
+    modelFacing: modelFacingNames.length,
+    widgetOnly: registry2.size - modelFacingNames.length,
+    modelFacingNames,
+    criticalPresent: Object.fromEntries(CRITICAL_MODEL_TOOLS.map((name) => [name, modelFacingSet.has(name)]))
+  };
+}
 async function createWeaverServer(options = {}) {
   initLog(options.previewWorkspaceDir ?? process.cwd(), options.logOptions);
   const manifest = JSON.parse(readFileSync4(resolve4(process.cwd(), ".codex-plugin", "plugin.json"), "utf8"));
@@ -129753,10 +129777,11 @@ async function createWeaverServer(options = {}) {
   registerLayoutTools(server2, { eventHub: eventHub2, mutateWithStore });
   registerChangesetsTools(server2, { mutateWithStore });
   registerArtifactsTools(server2);
-  registerDiagnosticsTools(server2, { eventHub: eventHub2, serverVersion });
+  registerDiagnosticsTools(server2, { eventHub: eventHub2, serverVersion, toolSurface: () => computeToolSurface(registry2) });
   registerResources(server2, { eventHub: eventHub2, widgetUri });
   server2.registerTool = originalRegisterTool;
-  log("info", "server.boot", { serverVersion, hostKind: hostKind() ?? "codex", runtimeMode: process.env.WEAVER_RUNTIME_MODE ?? "installed", buildId: eventHub2.buildId, origin: eventHub2.origin, cwd: process.cwd(), node: process.version, toolCount: registry2.size });
+  const surface = computeToolSurface(registry2);
+  log("info", "server.boot", { serverVersion, hostKind: hostKind() ?? "codex", runtimeMode: process.env.WEAVER_RUNTIME_MODE ?? "installed", buildId: eventHub2.buildId, origin: eventHub2.origin, cwd: process.cwd(), node: process.version, toolCount: registry2.size, modelFacingTools: surface.modelFacing, criticalModelTools: surface.criticalPresent });
   const dispatch2 = async (name, args) => {
     const entry = registry2.get(name);
     if (!entry) throw new Error(`TOOL_NOT_FOUND:${name}`);
