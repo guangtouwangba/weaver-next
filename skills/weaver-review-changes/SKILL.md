@@ -11,7 +11,7 @@ description: Review, explain, apply, reject, or revert pending Weaver graph and 
 4. Highlight archives, type changes, pinned-node movement, hard layout violations, and revision conflicts.
 5. Re-read the bound Canvas and AgentTask immediately before applying or rejecting. Apply only after the user's permission level and explicit request allow it.
 6. Apply or reject the whole proposal; partial ChangeSet application is not supported in this phase.
-7. Use `weaver_apply_changeset` / `weaver_reject_changeset` for content, `weaver_apply_layout` / `weaver_reject_layout` for layout, and `weaver_revert_layout` for layout undo.
+7. Apply content with `weaver_apply_changeset`. For every other review decision use `weaver_review_action`: `weaver_review_action(resource:"changeset", action:"reject", id:<changeSetId>)` to reject content; `weaver_review_action(resource:"layout_run", action:"apply", id:<layoutRunId>, candidateId:<id>)` and `weaver_review_action(resource:"layout_run", action:"reject", id:<layoutRunId>)` for layout apply/reject; `weaver_review_action(resource:"layout_run", action:"revert", projectId:<id>, viewId:<id>)` for layout undo. (Applying a ChangeSet is only available via `weaver_apply_changeset`, never `weaver_review_action`.)
 8. For `develop_then_layout`, continue the same Task ID after content becomes `ready_to_continue`. Rejecting layout does not roll back accepted content.
 
 Never bypass a pending review by recreating operations through lower-level tools.

@@ -19,6 +19,7 @@ import { registerProjectsTools } from "./tools/projects.js";
 import { registerReadCatalogTool, registerReadReviewTool } from "./tools/read-catalog.js";
 import { registerReadGraphTool } from "./tools/read-graph.js";
 import { registerReadSessionTool } from "./tools/read-session.js";
+import { registerReviewActionTool } from "./tools/review-action.js";
 import { registerTemplatesTools } from "./tools/templates.js";
 import { registerViewCatalogTools } from "./tools/view-catalog.js";
 import { registerWorkspaceTools } from "./tools/workspace.js";
@@ -159,6 +160,7 @@ export async function createWeaverServer(options: { previewWorkspaceDir?: string
   registerAgentTasksTools(server, { mutateWithStore });
   registerLayoutTools(server, { eventHub, mutateWithStore });
   registerChangesetsTools(server, { mutateWithStore });
+  registerReviewActionTool(server, { mutateWithStore });
   registerArtifactsTools(server);
   // Lazy: reads the registry at call time, so it reflects the full tool set even
   // though diagnostics is registered before every tool below it exists yet.

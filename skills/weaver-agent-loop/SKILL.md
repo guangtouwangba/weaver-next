@@ -19,7 +19,7 @@ description: Drive the Weaver canvas as the bound agent from a terminal session 
 5. Do the reasoning/research with your own permissions. Build GraphOperations from allowed semantic types only; reference only Weaver-returned asset IDs (never filesystem paths or invented IDs).
 6. During any long task, call `weaver_report_task_progress` with the `taskId` and a short human-readable note (e.g. "已写入 12/32 个节点…") each time you finish a meaningful stage — after building a batch of nodes, before a long research call, when you start laying out. The note shows live on the canvas busy pill **and** is the task's liveness heartbeat: a `running` task with no update for 10 minutes is reaped with `AGENT_TASK_TIMEOUT`, so post at least every few minutes on long work.
 7. Immediately before writing, re-check `weaver_read_session(resource:"guard", taskId)` — it returns the bound canvas and the task together; stop without writing if the binding changed, went offline, or the task is not `running/content`. Then `weaver_submit_changeset`. The browser shows the ChangeSet preview over SSE.
-8. The user applies or rejects from the browser (Apply/Reject), or you call `weaver_apply_changeset` / `weaver_reject_changeset` directly — both resolve to the same binding. For `develop_then_layout`, continue only when the task returns with `activeStage=layout`.
+8. The user applies or rejects from the browser (Apply/Reject), or you call `weaver_apply_changeset` / `weaver_review_action(resource:"changeset", action:"reject")` directly — both resolve to the same binding. For `develop_then_layout`, continue only when the task returns with `activeStage=layout`.
 
 ## Watch mode (canvas is the input)
 
@@ -32,7 +32,7 @@ When the user turns on "watch", they drive from the canvas composer instead of t
 Only one canvas task is active at a time (the composer disables while busy), so the loop is naturally serial. Stop the loop when the user interrupts (Esc) or says stop. If `await` reports the canvas went offline, tell the user to focus the preview window and keep re-arming.
 
 ## Layout-only requests
-Use `weaver-layout-space` semantics: prepare with `layout_view`, generate candidates, and apply through `weaver_apply_layout` / validated layout operations. Layout, viewport, pin, and theme operations must never change `graphRevision`.
+Use `weaver-layout-space` semantics: prepare with `layout_view`, generate candidates, and apply through `weaver_review_action(resource:"layout_run", action:"apply")` / validated layout operations. Layout, viewport, pin, and theme operations must never change `graphRevision`.
 
 ## Guardrails
 - Never write `.weaver/weaver.sqlite` or `.weaver/preview.json` directly.

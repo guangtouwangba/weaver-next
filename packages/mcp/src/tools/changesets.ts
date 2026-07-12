@@ -3,6 +3,7 @@ import { z } from "zod";
 import { changeSetSchema } from "@weaver/contracts";
 import { workspaceSchema } from "../shared/schemas.js";
 import { previewChangeSet } from "../shared/catalog-reads.js";
+import { rejectChangeSet } from "../shared/review-actions.js";
 import { defineTool, result, withStore, type MutateWithStore } from "../shared/tool-runtime.js";
 import { chatSessionKeyFromRequest } from "../thread-context.js";
 
@@ -29,5 +30,10 @@ export function registerChangesetsTools(server: McpServer, ctx: ChangesetsToolsC
     const chatSessionKey = chatSessionKeyFromRequest(extra);
     return result(withStore(workspaceDir, (store) => previewChangeSet(store, changeSetId, chatSessionKey)));
   }));
-  server.registerTool("weaver_reject_changeset", { title: "Reject Weaver ChangeSet", description: "Reject one pending proposal without changing graph or layout revisions.", inputSchema: { ...workspaceSchema.shape, changeSetId: z.string() }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } }, defineTool(async ({ workspaceDir, changeSetId }, extra) => { const chatSessionKey = chatSessionKeyFromRequest(extra); return result(mutateWithStore(workspaceDir, (store) => { const item = store.getChangeSet(changeSetId); if (!item) throw new Error("CHANGESET_NOT_FOUND"); store.assertTaskChat(item.taskId, chatSessionKey); return store.rejectChangeSet(changeSetId); })); }));
+  // Widget-only: the preview widget's Reject button calls this by name, so it stays
+  // REGISTERED under this exact name with `_meta.ui.visibility=["app"]` (off the model
+  // surface). The model rejects a ChangeSet via weaver_review_action(resource:"changeset",
+  // action:"reject"); both call the same shared helper (shared/review-actions.ts) so they
+  // never drift.
+  server.registerTool("weaver_reject_changeset", { title: "Reject Weaver ChangeSet", description: "Reject one pending proposal without changing graph or layout revisions.", inputSchema: { ...workspaceSchema.shape, changeSetId: z.string() }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } } }, defineTool(async ({ workspaceDir, changeSetId }, extra) => { const chatSessionKey = chatSessionKeyFromRequest(extra); return result(mutateWithStore(workspaceDir, (store) => rejectChangeSet(store, changeSetId, chatSessionKey))); }));
 }
