@@ -34,7 +34,11 @@ describe("widget SSE reducers", () => {
   });
 
   it("applies operable group deltas optimistically (create/assign/rename/delete)", () => {
-    const layout = { layoutRevision: 1, nodes: { a: { nodeId: "a", x: 0, y: 0, width: 100, height: 80, pinned: false }, b: { nodeId: "b", x: 200, y: 0, width: 100, height: 80, pinned: false } }, groups: {} as Record<string, { groupId: string; [k: string]: unknown }> };
+    const nodes: Record<string, { nodeId: string; x: number; y: number; width: number; height: number; pinned: boolean; groupId?: string }> = {
+      a: { nodeId: "a", x: 0, y: 0, width: 100, height: 80, pinned: false },
+      b: { nodeId: "b", x: 200, y: 0, width: 100, height: 80, pinned: false },
+    };
+    const layout = { layoutRevision: 1, nodes, groups: {} as Record<string, { groupId: string; [k: string]: unknown }> };
     const grouped = applyLayoutOperations(layout, 2, [
       { type: "create-group", groupId: "g1", frame: { x: -20, y: -20, width: 340, height: 120 }, label: "Group", kind: "interaction" },
       { type: "assign-node-to-group", nodeId: "a", groupId: "g1" },
