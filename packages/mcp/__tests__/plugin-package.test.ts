@@ -37,6 +37,8 @@ describe("installed plugin package", () => {
     expect(existsSync(join(root, "runtime", "server.mjs"))).toBe(true);
     expect(existsSync(join(root, "apps", "widget", "dist", "index.html"))).toBe(true);
     expect(existsSync(join(root, "node_modules", "sharp", "package.json"))).toBe(true);
+    expect(existsSync(join(root, "node_modules", "detect-libc", "package.json"))).toBe(true);
+    expect(existsSync(join(root, "node_modules", "semver", "package.json"))).toBe(true);
     expect(existsSync(join(root, "skills", "weaver-open-space", "SKILL.md"))).toBe(true);
 
     const manifest = JSON.parse(readFileSync(join(root, ".codex-plugin", "plugin.json"), "utf8"));

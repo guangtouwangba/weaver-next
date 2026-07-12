@@ -4,6 +4,8 @@ import { callTool, isLocalDevelopment } from "../mcp-client";
 import { applyViewCatalogDelta, selectSwitcherViews } from "../sync";
 import type { Bootstrap, ChatBindingBootstrap, Layout, Project, ProjectView } from "../types";
 
+type CatalogActionResult = { project: Project; view: ProjectView; delta: { fromRevision: number; toRevision: number; upsertedViews: ProjectView[]; removedViewIds: string[]; defaultViewId?: string }; binding?: ChatBindingBootstrap; fallbackView: ProjectView };
+
 // Domain E: view catalog / view library / view switcher.
 export function useViewCatalog(params: {
   standaloneDemo: boolean;
@@ -66,19 +68,19 @@ export function useViewCatalog(params: {
 
   async function renameProjectView(viewId: string) {
     if (!project || !renameValue.trim()) return;
-    try { const output = await callTool<any>("weaver_rename_project_view", { workspaceDir: bootstrap.workspaceDir, projectId: project.id, viewId, name: renameValue.trim(), baseCatalogRevision: project.viewCatalogRevision, ...catalogLeaseArgs() }); applyCatalogResult(output); setRenamingViewId(null); setViewMenuId(null); setStatus(`Renamed View to ${output.view.name}`); }
+    try { const output = await callTool<CatalogActionResult>("weaver_catalog_action", { action: "rename_view", workspaceDir: bootstrap.workspaceDir, projectId: project.id, viewId, name: renameValue.trim(), baseCatalogRevision: project.viewCatalogRevision, ...catalogLeaseArgs() }); applyCatalogResult(output); setRenamingViewId(null); setViewMenuId(null); setStatus(`Renamed View to ${output.view.name}`); }
     catch (error) { setStatus(error instanceof Error ? error.message : String(error)); }
   }
 
   async function pinProjectView(view: ProjectView) {
     if (!project) return;
-    try { const output = await callTool<any>("weaver_pin_project_view", { workspaceDir: bootstrap.workspaceDir, projectId: project.id, viewId: view.id, pinned: !view.pinned, baseCatalogRevision: project.viewCatalogRevision, ...catalogLeaseArgs() }); applyCatalogResult(output); setViewMenuId(null); }
+    try { const output = await callTool<CatalogActionResult>("weaver_catalog_action", { action: "pin_view", workspaceDir: bootstrap.workspaceDir, projectId: project.id, viewId: view.id, pinned: !view.pinned, baseCatalogRevision: project.viewCatalogRevision, ...catalogLeaseArgs() }); applyCatalogResult(output); setViewMenuId(null); }
     catch (error) { setStatus(error instanceof Error ? error.message : String(error)); }
   }
 
   async function setDefaultView(view: ProjectView) {
     if (!project) return;
-    try { const output = await callTool<any>("weaver_set_default_view", { workspaceDir: bootstrap.workspaceDir, projectId: project.id, viewId: view.id, baseCatalogRevision: project.viewCatalogRevision, ...catalogLeaseArgs() }); applyCatalogResult(output); setViewMenuId(null); setStatus(`${view.name} is now the default View`); }
+    try { const output = await callTool<CatalogActionResult>("weaver_catalog_action", { action: "set_default_view", workspaceDir: bootstrap.workspaceDir, projectId: project.id, viewId: view.id, baseCatalogRevision: project.viewCatalogRevision, ...catalogLeaseArgs() }); applyCatalogResult(output); setViewMenuId(null); setStatus(`${view.name} is now the default View`); }
     catch (error) { setStatus(error instanceof Error ? error.message : String(error)); }
   }
 
@@ -87,7 +89,7 @@ export function useViewCatalog(params: {
     const ordered = fixedCatalogViews.map((view) => view.id); const from = ordered.indexOf(draggedViewId); const to = ordered.indexOf(targetViewId);
     if (from < 0 || to < 0) return;
     ordered.splice(to, 0, ordered.splice(from, 1)[0]);
-    try { const output = await callTool<any>("weaver_reorder_pinned_views", { workspaceDir: bootstrap.workspaceDir, projectId: project.id, viewIds: ordered, baseCatalogRevision: project.viewCatalogRevision, ...catalogLeaseArgs() }); applyCatalogResult(output); }
+    try { const output = await callTool<CatalogActionResult>("weaver_catalog_action", { action: "reorder_views", workspaceDir: bootstrap.workspaceDir, projectId: project.id, viewIds: ordered, baseCatalogRevision: project.viewCatalogRevision, ...catalogLeaseArgs() }); applyCatalogResult(output); }
     catch (error) { setStatus(error instanceof Error ? error.message : String(error)); }
     finally { setDraggedViewId(null); }
   }
@@ -96,7 +98,7 @@ export function useViewCatalog(params: {
     if (!project) return;
     try {
       const fallback = projectViews.find((candidate) => candidate.status === "active" && candidate.id !== view.id);
-      const output = await callTool<any>("weaver_trash_project_view", { workspaceDir: bootstrap.workspaceDir, projectId: project.id, viewId: view.id, fallbackViewId: fallback?.id, baseCatalogRevision: project.viewCatalogRevision, ...catalogLeaseArgs() });
+      const output = await callTool<CatalogActionResult>("weaver_catalog_action", { action: "trash_view", workspaceDir: bootstrap.workspaceDir, projectId: project.id, viewId: view.id, fallbackViewId: fallback?.id, baseCatalogRevision: project.viewCatalogRevision, ...catalogLeaseArgs() });
       if (output.binding) { bindingRef.current = output.binding; setBootstrap((current) => ({ ...current, chatBinding: output.binding })); }
       applyCatalogResult(output); setViewMenuId(null); setViewToast({ message: `Moved "${view.name}" to Recycle Bin`, undoViewId: view.id });
       if (layout?.viewId === view.id) { resetLayoutRun(); setActiveViewId(output.fallbackView.id); }
@@ -105,20 +107,20 @@ export function useViewCatalog(params: {
 
   async function restoreProjectView(viewId: string) {
     const currentProject = projectRef.current; if (!currentProject) return;
-    try { const output = await callTool<any>("weaver_restore_project_view", { workspaceDir: bootstrap.workspaceDir, projectId: currentProject.id, viewId, baseCatalogRevision: currentProject.viewCatalogRevision, ...catalogLeaseArgs() }); applyCatalogResult(output); setViewToast({ message: `Restored "${output.view.name}"` }); }
+    try { const output = await callTool<CatalogActionResult>("weaver_catalog_action", { action: "restore_view", workspaceDir: bootstrap.workspaceDir, projectId: currentProject.id, viewId, baseCatalogRevision: currentProject.viewCatalogRevision, ...catalogLeaseArgs() }); applyCatalogResult(output); setViewToast({ message: `Restored "${output.view.name}"` }); }
     catch (error) { setStatus(error instanceof Error ? error.message : String(error)); }
   }
 
   async function purgeProjectView(view: ProjectView) {
     if (!project) return;
     if (purgeConfirmId !== view.id) { setPurgeConfirmId(view.id); return; }
-    try { const output = await callTool<any>("weaver_purge_project_view", { workspaceDir: bootstrap.workspaceDir, projectId: project.id, viewId: view.id, baseCatalogRevision: project.viewCatalogRevision, ...catalogLeaseArgs() }); applyCatalogResult(output); setPurgeConfirmId(null); setViewToast({ message: `Permanently deleted "${view.name}"` }); }
+    try { const output = await callTool<CatalogActionResult>("weaver_catalog_action", { action: "purge_view", workspaceDir: bootstrap.workspaceDir, projectId: project.id, viewId: view.id, baseCatalogRevision: project.viewCatalogRevision, ...catalogLeaseArgs() }); applyCatalogResult(output); setPurgeConfirmId(null); setViewToast({ message: `Permanently deleted "${view.name}"` }); }
     catch (error) { setStatus(error instanceof Error ? error.message : String(error)); }
   }
 
   async function duplicateProjectView(view: ProjectView) {
     if (!project) return;
-    try { const output = await callTool<any>("weaver_duplicate_project_view", { workspaceDir: bootstrap.workspaceDir, projectId: project.id, viewId: view.id, name: `${view.name} copy`, baseCatalogRevision: project.viewCatalogRevision, ...catalogLeaseArgs() }); applyCatalogResult(output); setViewMenuId(null); await switchView(output.view.id); }
+    try { const output = await callTool<CatalogActionResult>("weaver_catalog_action", { action: "duplicate_view", workspaceDir: bootstrap.workspaceDir, projectId: project.id, viewId: view.id, name: `${view.name} copy`, baseCatalogRevision: project.viewCatalogRevision, ...catalogLeaseArgs() }); applyCatalogResult(output); setViewMenuId(null); await switchView(output.view.id); }
     catch (error) { setStatus(error instanceof Error ? error.message : String(error)); }
   }
 

@@ -27,7 +27,6 @@ export function graphDelta(db: DatabaseSync, previous: GraphSnapshot, next: Grap
           : [];
     return {
       ...node,
-      body: "",
       content: node.content.kind === "document" ? { ...node.content, markdown: "" } : node.content,
       assets: assetIds.map((id) => getAsset(db, id)).filter(Boolean),
     };
@@ -76,7 +75,7 @@ export function createContentNode(db: DatabaseSync, input: { projectId: string; 
     if (!asset || asset.projectId !== input.projectId) throw new Error("ASSET_NOT_FOUND_OR_CROSS_PROJECT");
   }
   const timestamp = now();
-  const node = nodeSchema.parse({ id: randomUUID(), projectId: input.projectId, type: input.type, title: input.title, body: input.content.kind === "document" ? input.content.markdown : "", contentKind: input.content.kind, content: nodeContentSchema.parse(input.content), properties: {}, archived: false, createdAt: timestamp, updatedAt: timestamp });
+  const node = nodeSchema.parse({ id: randomUUID(), projectId: input.projectId, type: input.type, title: input.title, contentKind: input.content.kind, content: nodeContentSchema.parse(input.content), properties: {}, archived: false, createdAt: timestamp, updatedAt: timestamp });
   replaceGraph(db, applyGraphOperations(graph, [{ type: "add-node", node }]));
   const frame = defaultNodeFrame(db, node, input.x, input.y);
   const nextLayout = structuredClone(layout);

@@ -31,15 +31,15 @@ function seedRunningTask(root: string) {
   const canvasSessionId = "session-canvas";
   const store = new WorkspaceStore(root);
   try {
-    const project = store.createProject({ title: "Session", goal: "", scenePack: scene });
+    const project = store.catalog.createProject({ title: "Session", goal: "", scenePack: scene });
     const chatSessionKey = syntheticChatSessionKey();
-    const binding = store.openChatCanvasBinding({ chatSessionKey, projectId: project.id, viewId: project.defaultViewId });
+    const binding = store.sessions.openBinding({ chatSessionKey, projectId: project.id, viewId: project.defaultViewId });
     const timestamp = new Date().toISOString();
-    store.syncCanvasContext({ version: 2, canvasSessionId, workspaceDir: root, projectId: project.id, scenePackId: scene.id, scenePackVersion: scene.version, graphRevision: 0, viewId: project.defaultViewId, viewType: scene.defaultView, selectedNodeIds: [], selectedEdgeIds: [], selectedGroupIds: [], pinnedContextNodeIds: [], viewport: { x: 0, y: 0, zoom: 1 }, presence: { visible: true, focused: true, lastSeenAt: timestamp }, chatBinding: { leaseId: binding.leaseId, bindingRevision: binding.bindingRevision }, agentEligible: true, sequence: 1, updatedAt: timestamp }, chatSessionKey);
-    const prepared = store.prepareAgentTask({ canvasSessionId, actionKey: "develop_selection", dispatchKey: "session-1", chatSessionKey });
+    store.sessions.syncCanvas({ version: 2, canvasSessionId, workspaceDir: root, projectId: project.id, scenePackId: scene.id, scenePackVersion: scene.version, graphRevision: 0, viewId: project.defaultViewId, viewType: scene.defaultView, selectedNodeIds: [], selectedEdgeIds: [], selectedGroupIds: [], pinnedContextNodeIds: [], viewport: { x: 0, y: 0, zoom: 1 }, presence: { visible: true, focused: true, lastSeenAt: timestamp }, chatBinding: { leaseId: binding.leaseId, bindingRevision: binding.bindingRevision }, agentEligible: true, sequence: 1, updatedAt: timestamp }, chatSessionKey);
+    const prepared = store.tasks.prepare({ canvasSessionId, actionKey: "develop_selection", dispatchKey: "session-1", chatSessionKey });
     const taskId = prepared.taskId;
-    store.confirmAgentDispatch(taskId, "session-1");
-    store.updateAgentTask(taskId, { status: "running" });
+    store.tasks.confirmDispatch(taskId, "session-1");
+    store.tasks.update(taskId, { status: "running" });
     return { taskId, canvasSessionId, projectId: project.id, viewId: project.defaultViewId };
   } finally {
     store.close();
@@ -52,13 +52,13 @@ function seedTaskUnderChat(root: string, chatSessionKey: string, canvasSessionId
   const scene = getScenePack("free-brainstorming")!;
   const store = new WorkspaceStore(root);
   try {
-    const project = store.createProject({ title: "Other", goal: "", scenePack: scene });
-    const binding = store.openChatCanvasBinding({ chatSessionKey, projectId: project.id, viewId: project.defaultViewId });
+    const project = store.catalog.createProject({ title: "Other", goal: "", scenePack: scene });
+    const binding = store.sessions.openBinding({ chatSessionKey, projectId: project.id, viewId: project.defaultViewId });
     const timestamp = new Date().toISOString();
-    store.syncCanvasContext({ version: 2, canvasSessionId, workspaceDir: root, projectId: project.id, scenePackId: scene.id, scenePackVersion: scene.version, graphRevision: 0, viewId: project.defaultViewId, viewType: scene.defaultView, selectedNodeIds: [], selectedEdgeIds: [], selectedGroupIds: [], pinnedContextNodeIds: [], viewport: { x: 0, y: 0, zoom: 1 }, presence: { visible: true, focused: true, lastSeenAt: timestamp }, chatBinding: { leaseId: binding.leaseId, bindingRevision: binding.bindingRevision }, agentEligible: true, sequence: 1, updatedAt: timestamp }, chatSessionKey);
-    const prepared = store.prepareAgentTask({ canvasSessionId, actionKey: "develop_selection", dispatchKey: "other-1", chatSessionKey });
-    store.confirmAgentDispatch(prepared.taskId, "other-1");
-    store.updateAgentTask(prepared.taskId, { status: "running" });
+    store.sessions.syncCanvas({ version: 2, canvasSessionId, workspaceDir: root, projectId: project.id, scenePackId: scene.id, scenePackVersion: scene.version, graphRevision: 0, viewId: project.defaultViewId, viewType: scene.defaultView, selectedNodeIds: [], selectedEdgeIds: [], selectedGroupIds: [], pinnedContextNodeIds: [], viewport: { x: 0, y: 0, zoom: 1 }, presence: { visible: true, focused: true, lastSeenAt: timestamp }, chatBinding: { leaseId: binding.leaseId, bindingRevision: binding.bindingRevision }, agentEligible: true, sequence: 1, updatedAt: timestamp }, chatSessionKey);
+    const prepared = store.tasks.prepare({ canvasSessionId, actionKey: "develop_selection", dispatchKey: "other-1", chatSessionKey });
+    store.tasks.confirmDispatch(prepared.taskId, "other-1");
+    store.tasks.update(prepared.taskId, { status: "running" });
     return prepared.taskId;
   } finally {
     store.close();
@@ -90,7 +90,7 @@ describe("weaver_read_session", () => {
 
     const missing = await server.dispatch("weaver_read_session", { workspaceDir: root, resource: "task" }) as any;
     expect(missing.isError).toBe(true);
-    expect(missing.structuredContent.code).toBe("SESSION_RESOURCE_REQUIRES_taskId");
+    expect(missing.structuredContent.code).toBe("INVALID_ARGS");
   });
 
   it("rejects a task belonging to a different chat binding", async () => {
@@ -119,7 +119,7 @@ describe("weaver_read_session", () => {
 
     const missing = await server.dispatch("weaver_read_session", { workspaceDir: root, resource: "canvas_context" }) as any;
     expect(missing.isError).toBe(true);
-    expect(missing.structuredContent.code).toBe("SESSION_RESOURCE_REQUIRES_canvasSessionId");
+    expect(missing.structuredContent.code).toBe("INVALID_ARGS");
   });
 
   it("resolves the scene context for a canvas session", async () => {
@@ -137,7 +137,7 @@ describe("weaver_read_session", () => {
 
     const missing = await server.dispatch("weaver_read_session", { workspaceDir: root, resource: "resolved_context" }) as any;
     expect(missing.isError).toBe(true);
-    expect(missing.structuredContent.code).toBe("SESSION_RESOURCE_REQUIRES_canvasSessionId");
+    expect(missing.structuredContent.code).toBe("INVALID_ARGS");
   });
 
   it("returns bound canvas and the active task together for guard", async () => {

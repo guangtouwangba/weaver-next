@@ -21,7 +21,7 @@ Native Weaver widget open for the active project. Weaver MCP tools only; never b
 6. `weaver_import_asset(source:"bytes")` → `assetId`.
 7. Place via ChangeSet:
    - **Standalone cover node:** `add-node` image (as in weaver-infographic step 7).
-   - **Attach to a selected document node as its cover:** instead call `weaver_attach_asset` with `role:"cover"` (revision-checked) — no ChangeSet needed for attach.
+   - **Attach to a selected document node as its cover:** instead call `weaver_canvas_action(action:"attach_asset")` with `role:"cover"` (revision-checked) — no ChangeSet needed for attach.
 8. Confirm the node id / attached node, aspect, and pending-review state.
 
 ## Notes

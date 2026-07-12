@@ -18,12 +18,12 @@ function workspaceWithProject() {
   const root = mkdtempSync(join(tmpdir(), "weaver-open-")); roots.push(root); mkdirSync(root, { recursive: true });
   const store = new WorkspaceStore(root);
   const scene = getScenePack("free-brainstorming")!;
-  const project = store.createProject({ title: "Open", goal: "", scenePack: scene });
+  const project = store.catalog.createProject({ title: "Open", goal: "", scenePack: scene });
   store.close();
   return { root, projectId: project.id };
 }
 
-describe("weaver_open_workspace_widget under the Claude host", () => {
+describe("weaver_open_space under the Claude host", () => {
   it("does not persist preview capability metadata before a workspace is explicitly opened", async () => {
     process.env.WEAVER_HOST_KIND = "codex";
     const cacheDir = mkdtempSync(join(tmpdir(), "weaver-cache-")); roots.push(cacheDir);
@@ -39,7 +39,7 @@ describe("weaver_open_workspace_widget under the Claude host", () => {
     process.env.WEAVER_HOST_KIND = "claude";
     const { root, projectId } = workspaceWithProject();
     const srv = await createWeaverServer({ previewWorkspaceDir: root }); servers.push(srv);
-    const output = await srv.dispatch("weaver_open_workspace_widget", { workspaceDir: root, projectId }) as any;
+    const output = await srv.dispatch("weaver_open_space", { workspaceDir: root, projectId }) as any;
 
     expect(output.isError).toBeFalsy();
     expect(output.structuredContent.previewUrl).toBe(srv.eventHub.previewUrl);
@@ -54,7 +54,7 @@ describe("weaver_open_workspace_widget under the Claude host", () => {
   it("advertises the STABLE widget resource URI + widgetAccessible (the -32602/-32000 fix)", async () => {
     process.env.WEAVER_HOST_KIND = "codex";
     const srv = await createWeaverServer(); servers.push(srv);
-    const meta = srv.toolMeta("weaver_open_workspace_widget") as any;
+    const meta = srv.toolMeta("weaver_open_space") as any;
     // Codex reads this URI via resources/read to render the panel. It must be the
     // stable, un-versioned URI (always registered) — a build-versioned URI goes
     // stale after a rebuild and caused `-32602 Resource not found`.
@@ -74,7 +74,7 @@ describe("weaver_open_workspace_widget under the Claude host", () => {
     const { root, projectId } = workspaceWithProject();
     const srv = await createWeaverServer({ previewWorkspaceDir: cacheDir }); servers.push(srv);
 
-    await srv.dispatch("weaver_open_workspace_widget", { workspaceDir: root, projectId });
+    await srv.dispatch("weaver_open_space", { workspaceDir: root, projectId });
 
     const token = srv.eventHub.previewToken;
     const bootstrap = await (await fetch(`${srv.eventHub.origin}/api/bootstrap`, { headers: { "x-weaver-preview-token": token } })).json();

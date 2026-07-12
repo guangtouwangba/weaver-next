@@ -1,10 +1,10 @@
 import { createHash } from "node:crypto";
 import { previewHost, syntheticChatSessionKey } from "./session-identity.js";
 
-export function chatSessionKeyFromRequest(extra: any): string;
-export function chatSessionKeyFromRequest(extra: any, required: true): string;
-export function chatSessionKeyFromRequest(extra: any, required: false): string | undefined;
-export function chatSessionKeyFromRequest(extra: any, required = true): string | undefined {
+export function chatSessionKeyFromRequest(extra: unknown): string;
+export function chatSessionKeyFromRequest(extra: unknown, required: true): string;
+export function chatSessionKeyFromRequest(extra: unknown, required: false): string | undefined;
+export function chatSessionKeyFromRequest(extra: unknown, required = true): string | undefined {
   // Unified browser-preview host (Codex or Claude): both the agent (stdio) and
   // the browser widget (loopback) derive the SAME process-synthetic key so they
   // converge on one canvas binding. This deliberately ignores the Codex thread
@@ -12,7 +12,7 @@ export function chatSessionKeyFromRequest(extra: any, required = true): string |
   // which is what makes the localhost canvas a fully bound agent surface in both
   // hosts. (Binding/lease/task-chat checks are satisfied unchanged.)
   if (previewHost()) return syntheticChatSessionKey();
-  const meta = extra?._meta as Record<string, unknown> | undefined;
+  const meta = typeof extra === "object" && extra && "_meta" in extra ? (extra as { _meta?: unknown })._meta as Record<string, unknown> | undefined : undefined;
   const direct = typeof meta?.threadId === "string" ? meta.threadId : undefined;
   const turnMetadata = meta?.["x-codex-turn-metadata"] as Record<string, unknown> | undefined;
   const nested = typeof turnMetadata?.thread_id === "string" ? turnMetadata.thread_id : undefined;

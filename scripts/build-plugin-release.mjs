@@ -65,7 +65,7 @@ copy("apps/widget/dist/index.html");
 const html = readFileSync(join(widgetSource, "index.html"), "utf8");
 for (const match of html.matchAll(/(?:href|src)="\.\/([^"?#]+\.(?:css|js))"/g)) copy(`apps/widget/dist/${match[1]}`);
 
-for (const packageName of ["sharp", "@img"]) {
+for (const packageName of ["sharp", "@img", "detect-libc", "semver"]) {
   const source = resolve(root, "node_modules", packageName);
   if (!existsSync(source)) throw new Error(`Missing runtime dependency ${packageName}; run npm install.`);
   copy(`node_modules/${packageName}`);

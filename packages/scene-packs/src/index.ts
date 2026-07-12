@@ -1,11 +1,11 @@
 import { scenePackSchema, type PropertyDefinition, type ScenePack, type ViewType } from "@weaver/contracts";
 
 const recommendedTemplates: Record<string, string[]> = {
-  "free-brainstorming": ["blank-canvas", "topic-cluster", "radial-mind-map"], "problem-decomposition": ["logic-tree", "radial-mind-map", "comparison-table"],
+  "free-brainstorming": ["blank-canvas", "topic-cluster", "radial-mind-map"], "problem-decomposition": ["logic-tree", "radial-mind-map"],
   "decision-comparison": ["comparison-table", "swot-matrix", "priority-matrix", "kanban-board"], "argument-map": ["concept-network", "comparison-table", "research-catalog"],
   "situational-vocabulary": ["radial-mind-map", "topic-cluster"], "concept-learning": ["concept-network", "logic-tree", "research-catalog"], "learning-path": ["project-roadmap", "process-flow"],
   "entity-relationship": ["concept-network", "people-network", "research-catalog"], "people-organization-network": ["people-network", "event-timeline"],
-  "causal-map": ["causal-chain", "concept-network"], "event-timeline": ["event-timeline", "research-catalog"], "project-breakdown": ["project-roadmap", "kanban-board", "priority-matrix", "logic-tree"],
+  "causal-map": ["causal-chain"], "event-timeline": ["event-timeline"], "project-breakdown": ["project-roadmap", "kanban-board", "priority-matrix", "logic-tree"],
   "process-design": ["process-flow", "role-swimlane"],
 };
 
@@ -49,7 +49,7 @@ function pack(input: PackInput): ScenePack {
     allowedStrategies: [input.strategy, "grid", "hybrid"],
     defaultStrategy: input.strategy,
     defaultDirection: input.direction,
-    contextPolicy: { modes: ["selected_nodes", "pinned_nodes", "typed_neighborhood"], maxNodes: 40, maxHops: 2 },
+    contextPolicy: { modes: ["problem-decomposition", "argument-map"].includes(input.id) ? ["selected_nodes", "pinned_nodes", "ancestor_path"] : ["selected_nodes", "pinned_nodes", "typed_neighborhood"], maxNodes: 40, maxHops: 2 },
     artifactTypes: input.artifacts,
     scoringWeights: input.weights ?? { overlap: 10, crossings: 4, displacement: 2, compactness: 1 },
     recommendedTemplateIds: recommendedTemplates[input.id] ?? ["blank-canvas"],

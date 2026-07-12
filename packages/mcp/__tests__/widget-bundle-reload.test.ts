@@ -68,9 +68,9 @@ describe("widget bundle serving survives a rebuild without an MCP restart", () =
 
     const scene = getScenePack("free-brainstorming")!;
     const store = new WorkspaceStore(root);
-    const project = store.createProject({ title: "Reload", goal: "", scenePack: scene });
+    const project = store.catalog.createProject({ title: "Reload", goal: "", scenePack: scene });
     const ts = new Date().toISOString();
-    store.syncCanvasContext({ version: 2, canvasSessionId: "c1", workspaceDir: root, projectId: project.id, scenePackId: scene.id, scenePackVersion: scene.version, graphRevision: 0, viewId: project.defaultViewId, viewType: scene.defaultView, selectedNodeIds: [], selectedEdgeIds: [], selectedGroupIds: [], pinnedContextNodeIds: [], viewport: { x: 0, y: 0, zoom: 1 }, presence: { visible: true, focused: true, lastSeenAt: ts }, agentEligible: false, sequence: 1, updatedAt: ts });
+    store.sessions.syncCanvas({ version: 2, canvasSessionId: "c1", workspaceDir: root, projectId: project.id, scenePackId: scene.id, scenePackVersion: scene.version, graphRevision: 0, viewId: project.defaultViewId, viewType: scene.defaultView, selectedNodeIds: [], selectedEdgeIds: [], selectedGroupIds: [], pinnedContextNodeIds: [], viewport: { x: 0, y: 0, zoom: 1 }, presence: { visible: true, focused: true, lastSeenAt: ts }, agentEligible: false, sequence: 1, updatedAt: ts });
     store.close();
 
     const hub = new SseEventHub(); hubs.push(hub); await hub.start();

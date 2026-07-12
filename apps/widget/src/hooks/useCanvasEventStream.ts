@@ -8,41 +8,15 @@ import type { AgentTask, Bootstrap, Candidate, CanvasAccessState, ChangeSetPrevi
 // domain — owns the EventSource connection, live task/changeset/layout-candidate state, and
 // reconciles server-pushed graph/layout/view-catalog deltas via sync.ts.
 export function useCanvasEventStream(params: {
-  standaloneDemo: boolean;
-  bootstrap: Bootstrap;
-  project: Project | null;
-  layout: Layout | null;
-  setProject: Dispatch<SetStateAction<Project | null>>;
-  setLayout: Dispatch<SetStateAction<Layout | null>>;
-  setGraphNodes: Dispatch<SetStateAction<GraphNode[]>>;
-  setGraphEdges: Dispatch<SetStateAction<GraphEdge[]>>;
-  setManifest: Dispatch<SetStateAction<Manifest | null>>;
-  setStatus: Dispatch<SetStateAction<string>>;
-  setBusy: Dispatch<SetStateAction<boolean>>;
-  setBootstrap: Dispatch<SetStateAction<Bootstrap>>;
-  projectRef: MutableRefObject<Project | null>;
-  layoutRef: MutableRefObject<Layout | null>;
-  graphNodesRef: MutableRefObject<GraphNode[]>;
-  graphEdgesRef: MutableRefObject<GraphEdge[]>;
-  bindingRef: MutableRefObject<ChatBindingBootstrap | undefined>;
-  load: () => Promise<void>;
-  hydratePreviews: (projectId: string, items: GraphNode[]) => Promise<void>;
-  syncContext: () => Promise<boolean | undefined>;
-  saveStateRef: MutableRefObject<"saved" | "dirty" | "saving" | "conflict">;
-  activeDocumentRef: MutableRefObject<GraphNode | null>;
-  setSaveState: Dispatch<SetStateAction<"saved" | "dirty" | "saving" | "conflict">>;
-  draggingNodeId: MutableRefObject<string | null>;
-  projectViewsRef: MutableRefObject<ProjectView[]>;
-  setProjectViews: Dispatch<SetStateAction<ProjectView[]>>;
-  setViewToast: Dispatch<SetStateAction<{ message: string; undoViewId?: string } | null>>;
-  openNodeViewer: (nodeId: string) => void | Promise<void>;
-  setActiveViewId: Dispatch<SetStateAction<string>>;
-  sessionId: MutableRefObject<string>;
-  stream: MutableRefObject<EventSource | null>;
-  accessState: CanvasAccessState;
-  setAccessState: Dispatch<SetStateAction<CanvasAccessState>>;
+  authority: { standaloneDemo: boolean; bootstrap: Bootstrap; project: Project | null; layout: Layout | null; accessState: CanvasAccessState };
+  state: { setProject: Dispatch<SetStateAction<Project | null>>; setLayout: Dispatch<SetStateAction<Layout | null>>; setGraphNodes: Dispatch<SetStateAction<GraphNode[]>>; setGraphEdges: Dispatch<SetStateAction<GraphEdge[]>>; setManifest: Dispatch<SetStateAction<Manifest | null>>; setStatus: Dispatch<SetStateAction<string>>; setBusy: Dispatch<SetStateAction<boolean>>; setBootstrap: Dispatch<SetStateAction<Bootstrap>>; setSaveState: Dispatch<SetStateAction<"saved" | "dirty" | "saving" | "conflict">>; setProjectViews: Dispatch<SetStateAction<ProjectView[]>>; setViewToast: Dispatch<SetStateAction<{ message: string; undoViewId?: string } | null>>; setActiveViewId: Dispatch<SetStateAction<string>>; setAccessState: Dispatch<SetStateAction<CanvasAccessState>> };
+  refs: { projectRef: MutableRefObject<Project | null>; layoutRef: MutableRefObject<Layout | null>; graphNodesRef: MutableRefObject<GraphNode[]>; graphEdgesRef: MutableRefObject<GraphEdge[]>; bindingRef: MutableRefObject<ChatBindingBootstrap | undefined>; saveStateRef: MutableRefObject<"saved" | "dirty" | "saving" | "conflict">; activeDocumentRef: MutableRefObject<GraphNode | null>; draggingNodeId: MutableRefObject<string | null>; projectViewsRef: MutableRefObject<ProjectView[]>; sessionId: MutableRefObject<string>; stream: MutableRefObject<EventSource | null> };
+  effects: { load: () => Promise<void>; hydratePreviews: (projectId: string, items: GraphNode[]) => Promise<void>; syncContext: () => Promise<boolean | undefined>; openNodeViewer: (nodeId: string) => void | Promise<void> };
 }) {
-  const { standaloneDemo, bootstrap, project, layout, setProject, setLayout, setGraphNodes, setGraphEdges, setManifest, setStatus, setBusy, setBootstrap, projectRef, layoutRef, graphNodesRef, graphEdgesRef, bindingRef, load, hydratePreviews, syncContext, saveStateRef, activeDocumentRef, setSaveState, draggingNodeId, projectViewsRef, setProjectViews, setViewToast, openNodeViewer, setActiveViewId, sessionId, stream, accessState, setAccessState } = params;
+  const { standaloneDemo, bootstrap, project, layout, accessState } = params.authority;
+  const { setProject, setLayout, setGraphNodes, setGraphEdges, setManifest, setStatus, setBusy, setBootstrap, setSaveState, setProjectViews, setViewToast, setActiveViewId, setAccessState } = params.state;
+  const { projectRef, layoutRef, graphNodesRef, graphEdgesRef, bindingRef, saveStateRef, activeDocumentRef, draggingNodeId, projectViewsRef, sessionId, stream } = params.refs;
+  const { load, hydratePreviews, syncContext, openNodeViewer } = params.effects;
 
   // "polling" is the Codex live path: the native panel's sandboxed iframe cannot
   // hold an EventSource to the loopback /events (SSE fails there even though plain
@@ -62,7 +36,7 @@ export function useCanvasEventStream(params: {
   const reconcileRevisions = useCallback(async () => {
     if (isLocalDevelopment) return;
     if (!bootstrap.workspaceDir || !projectRef.current || !layoutRef.current) return;
-    const bound = await callTool<{ projectId: string; viewId: string; canvasSessionId: string; bindingStatus: string; graphRevision: number; layoutRevision: number }>("weaver_get_bound_canvas", { workspaceDir: bootstrap.workspaceDir });
+    const bound = await callTool<{ projectId: string; viewId: string; canvasSessionId: string; bindingStatus: string; graphRevision: number; layoutRevision: number }>("weaver_read_session", { resource: "bound_canvas", workspaceDir: bootstrap.workspaceDir });
     if (bound.bindingStatus !== "active" || bound.canvasSessionId !== sessionId.current) {
       stream.current?.close(); setAccessState("detached"); setStatus("Detached. This Chat is now attached to another Canvas"); return;
     }
@@ -77,12 +51,12 @@ export function useCanvasEventStream(params: {
     setStatus(`Agent task · ${task.status.replaceAll("_", " ")}`);
     const changeSetId = task.results?.changeSetId;
     if (task.status === "pending_review" && task.activeStage === "content" && changeSetId) {
-      try { setChangePreview(await callTool<ChangeSetPreview>("weaver_preview_changeset", { workspaceDir: bootstrap.workspaceDir, changeSetId })); }
+      try { setChangePreview(await callTool<ChangeSetPreview>("weaver_review_action", { resource: "changeset", action: "preview", id: changeSetId, workspaceDir: bootstrap.workspaceDir })); }
       catch (error) { setStatus(error instanceof Error ? error.message : String(error)); }
     }
     const nextLayoutRunId = task.results?.layoutRunId;
     if (task.status === "pending_review" && task.activeStage === "layout" && nextLayoutRunId && nextLayoutRunId !== layoutRunId) {
-      try { const run = await callTool<any>("weaver_get_layout_run", { workspaceDir: bootstrap.workspaceDir, layoutRunId: nextLayoutRunId }); setLayoutRunId(run.id); setCandidates(run.candidates); setCandidateIndex(0); }
+      try { const run = await callTool<{ id: string; candidates: Candidate[] }>("weaver_review_action", { resource: "layout_run", action: "preview", id: nextLayoutRunId, workspaceDir: bootstrap.workspaceDir }); setLayoutRunId(run.id); setCandidates(run.candidates); setCandidateIndex(0); }
       catch (error) { setStatus(error instanceof Error ? error.message : String(error)); }
     }
     if (task.status === "ready_to_continue" && task.intent === "develop_then_layout") setStatus("Content applied · tell Codex to continue with layout");
@@ -139,7 +113,7 @@ export function useCanvasEventStream(params: {
         if (currentView?.status === "trashed" || !currentView) { const fallback = next.views.find((view) => view.id === next.defaultViewId && view.status === "active") ?? next.views.find((view) => view.status === "active"); if (fallback) { setActiveViewId(fallback.id); setViewToast({ message: "The current View was moved to Recycle Bin" }); } }
       } catch { setStatus("View catalog event gap detected · refreshing once"); void load(); }
     }
-    else if (event.kind === "view.created") void (async () => { if (!projectRef.current) return; const next = await callTool<Manifest>("weaver_get_project_manifest", { workspaceDir: bootstrap.workspaceDir, projectId: projectRef.current.id }); setManifest(next); })();
+    else if (event.kind === "view.created") void (async () => { if (!projectRef.current) return; const next = await callTool<Manifest>("weaver_read_graph", { resource: "manifest", workspaceDir: bootstrap.workspaceDir, projectId: projectRef.current.id }); setManifest(next); })();
     else if (event.kind === "chat.binding.changed" && event.payload?.status === "detached" && (event.payload.reason === "CANVAS_TAKEN_OVER" || Number(event.payload.bindingRevision) > Number(bindingRef.current?.bindingRevision ?? 0))) {
       if (event.payload.reason === "VIEW_TRASHED" && bindingRef.current && event.payload.fallbackViewId) {
         const nextBinding = { ...bindingRef.current, bindingRevision: Number(event.payload.bindingRevision), viewId: String(event.payload.fallbackViewId) };
@@ -157,13 +131,13 @@ export function useCanvasEventStream(params: {
       try {
         await syncContext();
         await reconcileRevisions();
-        const recoverableTasks = await callTool<AgentTask[]>("weaver_list_canvas_tasks", { workspaceDir: bootstrap.workspaceDir, canvasSessionId: sessionId.current });
+        const recoverableTasks = await callTool<AgentTask[]>("weaver_read_session", { resource: "canvas_tasks", workspaceDir: bootstrap.workspaceDir, canvasSessionId: sessionId.current });
         for (const task of recoverableTasks.reverse()) await handleTaskUpdate(task);
         if (disposed) return;
         // Codex: no EventSource — the sandbox can't reach the loopback SSE. Enter
         // the polling live state (the effect below drives it) with an honest status.
         if (hostMode === "codex") { setStreamState("polling"); setStatus((current) => current.includes("Agent task") ? current : "实时同步已连接（轮询）"); return; }
-        const grant = await callTool<{ eventStreamUrl: string; currentSequence: number }>("weaver_open_canvas_event_stream", { workspaceDir: bootstrap.workspaceDir, projectId: project.id, canvasSessionId: sessionId.current });
+        const grant = await callTool<{ eventStreamUrl: string; currentSequence: number }>("weaver_subscribe_canvas", { workspaceDir: bootstrap.workspaceDir, projectId: project.id, canvasSessionId: sessionId.current });
         lastEventSequence.current = Math.max(lastEventSequence.current, grant.currentSequence);
         const source = new EventSource(grant.eventStreamUrl); stream.current?.close(); stream.current = source;
         source.onopen = () => { setStreamState("online"); setStatus((current) => current.includes("Agent task") ? current : "Live sync connected"); };
@@ -201,7 +175,7 @@ export function useCanvasEventStream(params: {
       if (stopped) return;
       try {
         await reconcileRevisions();
-        const tasks = await callTool<AgentTask[]>("weaver_list_canvas_tasks", { workspaceDir: bootstrap.workspaceDir, canvasSessionId: sessionId.current });
+        const tasks = await callTool<AgentTask[]>("weaver_read_session", { resource: "canvas_tasks", workspaceDir: bootstrap.workspaceDir, canvasSessionId: sessionId.current });
         for (const task of tasks) {
           if (polledTaskRevs.current.get(task.taskId) === task.taskRevision) continue;
           polledTaskRevs.current.set(task.taskId, task.taskRevision);
@@ -217,19 +191,19 @@ export function useCanvasEventStream(params: {
     return () => { stopped = true; window.clearInterval(id); };
   }, [standaloneDemo, accessState, streamState, bootstrap.workspaceDir, project?.id, reconcileRevisions, Boolean(activeTask)]);
 
-  async function cancelActiveTask() { if (!activeTask) return; const taskId = activeTask.taskId; try { await callTool("weaver_cancel_agent_task", { workspaceDir: bootstrap.workspaceDir, taskId }); setActiveTask((current) => (current?.taskId === taskId ? null : current)); setStatus("Agent task cancelled · later writes will be rejected"); } catch (error) { setStatus(`取消失败,请重试:${error instanceof Error ? error.message : String(error)}`); } }
+  async function cancelActiveTask() { if (!activeTask) return; const taskId = activeTask.taskId; try { await callTool("weaver_task_action", { action: "cancel", workspaceDir: bootstrap.workspaceDir, taskId }); setActiveTask((current) => (current?.taskId === taskId ? null : current)); setStatus("Agent task cancelled · later writes will be rejected"); } catch (error) { setStatus(`取消失败,请重试:${error instanceof Error ? error.message : String(error)}`); } }
 
   async function applyChangeSet() {
     if (!changePreview) return;
     const changeSet = changePreview.changeSet;
     setBusy(true);
     try {
-      await callTool("weaver_apply_changeset", { workspaceDir: bootstrap.workspaceDir, changeSetId: changeSet.id });
+      await callTool("weaver_review_action", { resource: "changeset", action: "apply", id: changeSet.id, workspaceDir: bootstrap.workspaceDir });
       setChangePreview(null);
       // A ChangeSet often expands a node's *body*, which is invisible on the
       // small card face — so tell the user what changed and open the node so the
       // new content is actually visible, otherwise Apply feels like a no-op.
-      const contentNodeIds = [...new Set(changeSet.graphOperations.flatMap((op: any) =>
+      const contentNodeIds = [...new Set(changeSet.graphOperations.flatMap((op) =>
         op.type === "set-node-content" || op.type === "update-node" ? [op.nodeId as string] : op.type === "add-node" ? [op.node.id as string] : []))];
       const titleOf = (id: string) => graphNodesRef.current.find((node) => node.id === id)?.title ?? "节点";
       if (contentNodeIds.length === 1) {
@@ -242,10 +216,10 @@ export function useCanvasEventStream(params: {
       }
     } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); } finally { setBusy(false); }
   }
-  async function rejectChangeSet() { if (!changePreview) return; setBusy(true); try { await callTool("weaver_reject_changeset", { workspaceDir: bootstrap.workspaceDir, changeSetId: changePreview.changeSet.id }); setChangePreview(null); } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); } finally { setBusy(false); } }
-  async function applyCandidate() { const candidate = candidates[candidateIndex]; if (!candidate || !layoutRunId) return; setBusy(true); try { await callTool("weaver_apply_layout", { workspaceDir: bootstrap.workspaceDir, layoutRunId, candidateId: candidate.id }); setCandidates([]); setLayoutRunId(null); } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); } finally { setBusy(false); } }
-  async function rejectLayout() { if (!layoutRunId) return; setBusy(true); try { await callTool("weaver_reject_layout", { workspaceDir: bootstrap.workspaceDir, layoutRunId }); setCandidates([]); setLayoutRunId(null); } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); } finally { setBusy(false); } }
-  async function revertLayout() { if (!project || !layout || standaloneDemo) return; setBusy(true); try { await callTool("weaver_revert_layout", { workspaceDir: bootstrap.workspaceDir, projectId: project.id, viewId: layout.viewId }); } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); } finally { setBusy(false); } }
+  async function rejectChangeSet() { if (!changePreview) return; setBusy(true); try { await callTool("weaver_review_action", { resource: "changeset", action: "reject", id: changePreview.changeSet.id, workspaceDir: bootstrap.workspaceDir }); setChangePreview(null); } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); } finally { setBusy(false); } }
+  async function applyCandidate() { const candidate = candidates[candidateIndex]; if (!candidate || !layoutRunId) return; setBusy(true); try { await callTool("weaver_review_action", { resource: "layout_run", action: "apply", id: layoutRunId, workspaceDir: bootstrap.workspaceDir, candidateId: candidate.id }); setCandidates([]); setLayoutRunId(null); } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); } finally { setBusy(false); } }
+  async function rejectLayout() { if (!layoutRunId) return; setBusy(true); try { await callTool("weaver_review_action", { resource: "layout_run", action: "reject", id: layoutRunId, workspaceDir: bootstrap.workspaceDir }); setCandidates([]); setLayoutRunId(null); } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); } finally { setBusy(false); } }
+  async function revertLayout() { if (!project || !layout || standaloneDemo) return; setBusy(true); try { await callTool("weaver_canvas_action", { action: "revert_layout", workspaceDir: bootstrap.workspaceDir, projectId: project.id, viewId: layout.viewId }); } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); } finally { setBusy(false); } }
 
   function resetLayoutRun() { setCandidates([]); setLayoutRunId(null); }
   function reconnect() { setStreamGeneration((value) => value + 1); }

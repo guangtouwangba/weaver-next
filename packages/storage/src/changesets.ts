@@ -109,7 +109,7 @@ export function applyChangeSet(db: DatabaseSync, changeSetId: string) {
     const timestamp = now();
     const pristine = (node: (typeof nextGraph.nodes)[number]) =>
       starterIds.has(node.id) && !touched.has(node.id) && !node.archived &&
-      node.body === "" && node.content.kind === "document" && node.content.markdown === "";
+      node.content.kind === "document" && node.content.markdown === "";
     const retiredIds = new Set(nextGraph.nodes.filter(pristine).map((node) => node.id));
     if (retiredIds.size) finalGraph = {
       ...nextGraph,

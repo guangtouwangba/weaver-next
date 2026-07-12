@@ -17,7 +17,7 @@ Native Weaver widget open. Weaver MCP tools only. Requires a host image model. C
 2. Compose a concise art-direction prompt (subject, mood, medium/style, palette, aspect). No embedded paragraphs of text unless the user asks.
 3. Generate with the host image model. Resolve the exact bytes for THIS request (never a stale file); base64-encode.
 4. `weaver_import_asset(source:"bytes")` → `assetId`.
-5. Place via ChangeSet: `add-node` image placed BESIDE the source node (a clear nearby area) — or, if the user wants it as the node's picture, `weaver_attach_asset` with `role:"cover"`.
+5. Place via ChangeSet: `add-node` image placed BESIDE the source node (a clear nearby area) — or, if the user wants it as the node's picture, `weaver_canvas_action(action:"attach_asset")` with `role:"cover"`.
 6. Confirm node id / attachment and pending-review state.
 
 ## Notes

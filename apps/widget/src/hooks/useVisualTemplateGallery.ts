@@ -42,7 +42,7 @@ export function useVisualTemplateGallery(params: {
   async function openTemplateGallery(mode: "project" | "view") {
     setCreateMenu(false); setTemplateMode(mode); setTemplateGallery(true); setSelectedTemplate(null); setTemplateValidation(null); setTemplatePreview(null); setTemplateSearch(""); setTemplateFamily("all");
     setBusy(true);
-    try { setTemplates(await callTool<VisualTemplate[]>("weaver_list_visual_templates", mode === "view" && project ? { scenePackId: project.scenePackId } : {})); }
+    try { setTemplates(await callTool<VisualTemplate[]>("weaver_read_catalog", { workspaceDir: bootstrap.workspaceDir, resource: "template.list", ...(mode === "view" && project ? { scenePackId: project.scenePackId } : {}) })); }
     catch (error) { setStatus(error instanceof Error ? error.message : String(error)); }
     finally { setBusy(false); }
   }
@@ -53,8 +53,8 @@ export function useVisualTemplateGallery(params: {
     setBusy(true);
     try {
       const [validation, preview] = await Promise.all([
-        callTool<TemplateValidation>("weaver_validate_visual_template", { workspaceDir: bootstrap.workspaceDir, projectId: project.id, templateId: template.id, version: template.version }),
-        callTool<Layout>("weaver_preview_visual_template", { workspaceDir: bootstrap.workspaceDir, projectId: project.id, templateId: template.id, version: template.version, baseGraphRevision: project.graphRevision, viewName: template.name }),
+        callTool<TemplateValidation>("weaver_read_catalog", { workspaceDir: bootstrap.workspaceDir, resource: "template.validate", projectId: project.id, templateId: template.id, version: template.version }),
+        callTool<Layout>("weaver_read_catalog", { workspaceDir: bootstrap.workspaceDir, resource: "template.preview", projectId: project.id, templateId: template.id, version: template.version, baseGraphRevision: project.graphRevision, viewName: template.name }),
       ]);
       setTemplateValidation(validation); setTemplatePreview(preview);
     } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); }
@@ -67,14 +67,14 @@ export function useVisualTemplateGallery(params: {
     try {
       if (templateMode === "project") {
         const currentBinding = bindingRef.current;
-        const created = await callTool<{ project: Project; binding?: ChatBindingBootstrap }>("weaver_create_project_from_visual_template", { workspaceDir: bootstrap.workspaceDir, title: templateTitle.trim() || selectedTemplate.name, goal: templateGoal, scenePackId: templateScenePackId, templateId: selectedTemplate.id, version: selectedTemplate.version, leaseId: !isLocalDevelopment ? currentBinding?.leaseId : undefined, bindingRevision: !isLocalDevelopment ? currentBinding?.bindingRevision : undefined });
+        const created = await callTool<{ project: Project; binding?: ChatBindingBootstrap }>("weaver_catalog_action", { action: "create_project_from_template", workspaceDir: bootstrap.workspaceDir, title: templateTitle.trim() || selectedTemplate.name, goal: templateGoal, scenePackId: templateScenePackId, templateId: selectedTemplate.id, version: selectedTemplate.version, leaseId: !isLocalDevelopment ? currentBinding?.leaseId : undefined, bindingRevision: !isLocalDevelopment ? currentBinding?.bindingRevision : undefined });
         const nextBinding = created.binding ? { ...created.binding, projectId: created.project.id, viewId: created.project.defaultViewId } : undefined;
         bindingRef.current = nextBinding;
         setActiveViewId(""); setBootstrap((current) => ({ ...current, projectId: created.project.id, chatBinding: nextBinding })); setStatus(`Created ${created.project.title} from ${selectedTemplate.name}`);
       } else if (project) {
         if (!templateValidation?.ready) throw new Error("VISUAL_TEMPLATE_DATA_NOT_READY");
         if (templateInstances.length && !duplicateViewConfirmed) { setDuplicateViewConfirmed(true); setStatus("Review existing Views before creating another copy"); return; }
-        const next = await callTool<Layout & { chatBinding?: ChatBindingBootstrap }>("weaver_create_view_from_visual_template", { workspaceDir: bootstrap.workspaceDir, projectId: project.id, templateId: selectedTemplate.id, version: selectedTemplate.version, baseGraphRevision: project.graphRevision, viewName: templateViewName.trim() || selectedTemplate.name });
+        const next = await callTool<Layout & { chatBinding?: ChatBindingBootstrap }>("weaver_catalog_action", { action: "create_view_from_template", workspaceDir: bootstrap.workspaceDir, projectId: project.id, templateId: selectedTemplate.id, version: selectedTemplate.version, baseGraphRevision: project.graphRevision, viewName: templateViewName.trim() || selectedTemplate.name });
         if (next.chatBinding) { bindingRef.current = next.chatBinding; setBootstrap((current) => ({ ...current, chatBinding: next.chatBinding })); }
         else await ensureBindingTarget(project.id, next.viewId);
         setActiveViewId(next.viewId); setStatus(`Created visual view · ${next.viewName}`);

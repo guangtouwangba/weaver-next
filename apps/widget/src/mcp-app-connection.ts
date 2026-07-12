@@ -1,8 +1,7 @@
 type ServerToolRequest = { name: string; arguments?: Record<string, unknown> };
 
 function isCanvasClaim(request: ServerToolRequest) {
-  const snapshot = request.arguments?.snapshot as { syncPurpose?: unknown } | undefined;
-  return request.name === "weaver_sync_canvas_context" && snapshot?.syncPurpose === "claim";
+  return request.name === "weaver_canvas_action" && request.arguments?.action === "claim";
 }
 
 type McpAppLike = {

@@ -12,6 +12,8 @@ const required = [
   "scripts/start-mcp.mjs",
   "scripts/start-mcp-claude.mjs",
   "node_modules/sharp/package.json",
+  "node_modules/detect-libc/package.json",
+  "node_modules/semver/package.json",
   "skills/weaver-open-space/SKILL.md",
 ];
 const forbidden = [".weaver", ".env", "secrets.json"];

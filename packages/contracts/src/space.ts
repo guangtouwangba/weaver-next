@@ -70,23 +70,17 @@ const nodeBaseSchema = z.object({
   projectId: z.string().min(1),
   type: z.string().min(1),
   title: z.string(),
-  body: z.string().default(""),
   contentKind: contentKindSchema.optional(),
-  content: nodeContentSchema.optional(),
+  content: nodeContentSchema,
   properties: z.record(z.string(), z.unknown()).default({}),
   archived: z.boolean().default(false),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
 
-function excerpt(markdown: string) {
-  return markdown.replace(/[#>*_`[\]()!-]/g, " ").replace(/\s+/g, " ").trim().slice(0, 280);
-}
-
 export const nodeSchema = nodeBaseSchema.transform((node) => {
-  const content = node.content ?? documentContentSchema.parse({ kind: "document", markdown: node.body, excerpt: excerpt(node.body) });
-  if (node.contentKind && node.contentKind !== content.kind) throw new Error("NODE_CONTENT_KIND_MISMATCH");
-  return { ...node, body: content.kind === "document" ? content.markdown : node.body, contentKind: content.kind, content };
+  if (node.contentKind && node.contentKind !== node.content.kind) throw new Error("NODE_CONTENT_KIND_MISMATCH");
+  return { ...node, contentKind: node.content.kind };
 });
 export type SpaceNode = z.infer<typeof nodeSchema>;
 
@@ -295,18 +289,15 @@ export const agentDispatchRecordSchema = z.object({
   error: z.object({ code: z.string(), message: z.string() }).optional(),
 });
 export type AgentDispatchRecord = z.infer<typeof agentDispatchRecordSchema>;
-const agentTaskErrorSchema = z.preprocess(
-  (value) => typeof value === "string" ? { code: "TASK_FAILED", message: value } : value,
-  z.object({ code: z.string(), message: z.string() }).optional(),
-);
+const agentTaskErrorSchema = z.object({ code: z.string(), message: z.string() }).optional();
 export const agentTaskSchema = z.object({
   taskId: z.string().min(1),
   canvasSessionId: z.string().min(1),
   workspaceDir: z.string().min(1),
   projectId: z.string().min(1),
-  viewId: z.string().default(""),
-  chatSessionKey: z.string().min(1).default("legacy-unbound"),
-  bindingRevision: z.number().int().nonnegative().default(0),
+  viewId: z.string().min(1),
+  chatSessionKey: z.string().min(1),
+  bindingRevision: z.number().int().nonnegative(),
   actionKey: z.string().min(1),
   selectedNodeIds: z.array(z.string()).default([]),
   anchorNodeId: z.string().optional(),
@@ -324,33 +315,35 @@ export const agentTaskSchema = z.object({
   results: z.object({ changeSetId: z.string().optional(), layoutRunId: z.string().optional() }).default({}),
   progressNote: z.string().max(280).optional(),
   dispatches: z.array(agentDispatchRecordSchema).default([]),
-  // Legacy fields remain readable while stored tasks migrate to `results`.
-  layoutRunId: z.string().optional(),
-  changeSetId: z.string().optional(),
   error: agentTaskErrorSchema,
   status: agentTaskStatusSchema,
   createdAt: z.string(),
   updatedAt: z.string(),
-}).transform((task) => ({
-  ...task,
-  results: {
-    changeSetId: task.results.changeSetId ?? task.changeSetId,
-    layoutRunId: task.results.layoutRunId ?? task.layoutRunId,
-  },
-}));
+});
 export type AgentTask = z.infer<typeof agentTaskSchema>;
 
 export const projectEventKindSchema = z.enum(["task.updated", "graph.changed", "layout.changed", "view.created", "view.catalog.changed", "chat.binding.changed", "stream.reset"]);
-export const projectEventSchema = z.object({
+const projectEventBaseSchema = z.object({
   sequence: z.number().int().positive(),
   projectId: z.string().min(1),
   canvasSessionId: z.string().optional(),
   taskId: z.string().optional(),
-  kind: projectEventKindSchema,
   graphRevision: z.number().int().nonnegative().optional(),
   viewId: z.string().optional(),
   layoutRevision: z.number().int().nonnegative().optional(),
-  payload: z.unknown(),
   createdAt: z.string(),
 });
+export const graphChangedPayloadSchema = z.object({ fromRevision: z.number().int().nonnegative(), toRevision: z.number().int().nonnegative(), addedNodes: z.array(nodeSchema), updatedNodes: z.array(nodeSchema), archivedNodeIds: z.array(z.string()), addedEdges: z.array(edgeSchema), updatedEdges: z.array(edgeSchema), archivedEdgeIds: z.array(z.string()) });
+const layoutChangedPayloadSchema = z.object({ viewId: z.string(), fromRevision: z.number().int().nonnegative(), toRevision: z.number().int().nonnegative(), operations: z.array(z.unknown()), document: z.unknown().optional() });
+const viewCreatedPayloadSchema = z.object({ viewId: z.string(), viewName: z.string(), viewType: z.string(), layoutRevision: z.number().int().nonnegative(), templateRef: z.object({ id: z.string(), version: z.string() }).optional() });
+const bindingChangedPayloadSchema = z.object({ bindingRevision: z.number().int().positive(), status: z.enum(["active", "detached"]), reason: z.string().optional(), fallbackViewId: z.string().optional() });
+export const projectEventSchema = z.discriminatedUnion("kind", [
+  projectEventBaseSchema.extend({ kind: z.literal("task.updated"), payload: agentTaskSchema }),
+  projectEventBaseSchema.extend({ kind: z.literal("graph.changed"), payload: graphChangedPayloadSchema }),
+  projectEventBaseSchema.extend({ kind: z.literal("layout.changed"), payload: layoutChangedPayloadSchema }),
+  projectEventBaseSchema.extend({ kind: z.literal("view.created"), payload: viewCreatedPayloadSchema }),
+  projectEventBaseSchema.extend({ kind: z.literal("view.catalog.changed"), payload: viewCatalogDeltaSchema }),
+  projectEventBaseSchema.extend({ kind: z.literal("chat.binding.changed"), payload: bindingChangedPayloadSchema }),
+  projectEventBaseSchema.extend({ kind: z.literal("stream.reset"), payload: z.object({}).passthrough() }),
+]);
 export type ProjectEvent = z.infer<typeof projectEventSchema>;

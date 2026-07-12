@@ -1,86 +1,57 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { catalogActionSchema } from "@weaver/contracts";
+import { getScenePack } from "@weaver/scene-packs";
+import { getVisualTemplate } from "@weaver/visual-templates";
 import { workspaceSchema } from "../shared/schemas.js";
-import { parseRefined } from "../shared/refined-args.js";
-import { createViewFromTemplate, duplicateView, openOrCreateView, type ManageViewType } from "../shared/manage-view.js";
-import { defineTool, type MutateWithStore } from "../shared/tool-runtime.js";
+import { defineTool, result, type MutateWithStore } from "../shared/tool-runtime.js";
 import { chatSessionKeyFromRequest } from "../thread-context.js";
 
 export type ManageViewToolCtx = { mutateWithStore: MutateWithStore };
 
-/** The raw input shape the MCP SDK wraps in `z.object(...)` (registerTool needs a
- * ZodRawShape, not a refined schema). The per-action required-param validation
- * lives on `manageViewSchema` below and is re-run in the handler. */
-const manageViewShape = {
-  ...workspaceSchema.shape,
-  projectId: z.string(),
-  action: z.enum(["open_or_create", "duplicate", "create_from_template"]),
-  // open_or_create:
-  viewType: z.string().optional(),
-  // duplicate:
-  viewId: z.string().optional(),
-  name: z.string().optional(),
-  baseCatalogRevision: z.number().int().optional(),
-  // create_from_template:
-  templateId: z.string().optional(),
-  version: z.string().optional(),
-  baseGraphRevision: z.number().int().optional(),
-  viewName: z.string().optional(),
-  // binding (duplicate):
-  leaseId: z.string().optional(),
-  bindingRevision: z.number().int().optional(),
-} as const;
-
-/**
- * Per-action required params. The MCP SDK strips object-level superRefines from
- * the registered shape, so re-validate the refined schema in the handler (see
- * refined-args). Each branch mirrors the required inputs of the tool it replaces:
- * open_or_create ← weaver_get_or_create_view, duplicate ← weaver_duplicate_project_view,
- * create_from_template ← weaver_create_view_from_visual_template.
- */
-const manageViewSchema = z.object(manageViewShape).superRefine((value, ctx) => {
-  const fail = (message: string) => ctx.addIssue({ code: z.ZodIssueCode.custom, message });
-  if (value.action === "open_or_create") {
-    if (!value.viewType) fail("MANAGE_VIEW_REQUIRES_viewType");
-  } else if (value.action === "duplicate") {
-    if (!value.viewId) fail("MANAGE_VIEW_REQUIRES_viewId");
-    if (value.baseCatalogRevision === undefined) fail("MANAGE_VIEW_REQUIRES_baseCatalogRevision");
-  } else {
-    // action === "create_from_template"
-    if (!value.templateId) fail("MANAGE_VIEW_REQUIRES_templateId");
-    if (value.baseGraphRevision === undefined) fail("MANAGE_VIEW_REQUIRES_baseGraphRevision");
-  }
-});
-
-/**
- * One model-facing WRITE tool that merges the three VIEW-LIFECYCLE writes:
- * `weaver_get_or_create_view` (model-only, now removed), plus the two the widget
- * also calls by name — `weaver_duplicate_project_view` and
- * `weaver_create_view_from_visual_template`, which stay REGISTERED (app-only) for
- * the widget and delegate to the same shared/manage-view.ts helpers, so the two
- * surfaces never drift.
- */
-export function registerManageViewTool(server: McpServer, ctx: ManageViewToolCtx) {
-  const { mutateWithStore } = ctx;
-  server.registerTool("weaver_manage_view", {
-    title: "Manage View",
-    description: "Open, duplicate or template a Project View. `action:\"open_or_create\"` + `viewType` opens the stored default projection for one of the seven view types (no graph change). `action:\"duplicate\"` + `viewId` + `baseCatalogRevision` makes an independent layout copy over the same graph. `action:\"create_from_template\"` + `templateId` (+`version`) + `baseGraphRevision` creates a new themed View from a compatible visual template without touching graphRevision or existing views.",
-    inputSchema: manageViewShape,
-    // idempotentHint:false — duplicate and create_from_template mint a NEW view on
-    // every call (not idempotent). Only open_or_create is idempotent; a single
-    // static hint cannot be true across the union, so use the conservative false
-    // (C4 lesson: an honest annotation for a non-idempotent write union).
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
-  }, defineTool(async (rawArgs, extra) => {
-    const args = parseRefined<z.infer<typeof manageViewSchema>>(manageViewSchema, rawArgs);
+export function registerManageViewTool(server: McpServer, { mutateWithStore }: ManageViewToolCtx) {
+  const shape = {
+    ...workspaceSchema.shape,
+    action: z.enum(["create_project", "create_project_from_template", "create_view_from_template", "duplicate_view", "rename_view", "pin_view", "reorder_views", "set_default_view", "trash_view", "restore_view", "purge_view"]),
+    projectId: z.string().optional(), viewId: z.string().optional(), title: z.string().optional(), goal: z.string().optional(), scenePackId: z.string().optional(),
+    templateId: z.string().optional(), version: z.string().optional(), name: z.string().optional(), viewName: z.string().optional(), pinned: z.boolean().optional(), viewIds: z.array(z.string()).optional(), fallbackViewId: z.string().optional(),
+    baseGraphRevision: z.number().int().nonnegative().optional(), baseCatalogRevision: z.number().int().nonnegative().optional(), leaseId: z.string().optional(), bindingRevision: z.number().int().positive().optional(),
+  } as const;
+  server.registerTool("weaver_catalog_action", {
+    title: "Catalog Action", description: "Create Projects and manage durable Views/Templates through one audited catalog action.", inputSchema: shape,
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
+  }, defineTool(async (args, extra) => {
+    catalogActionSchema.parse(args);
     const chatSessionKey = chatSessionKeyFromRequest(extra, false);
-    switch (args.action) {
-      case "open_or_create":
-        return openOrCreateView({ workspaceDir: args.workspaceDir, projectId: args.projectId, viewType: args.viewType as ManageViewType });
-      case "duplicate":
-        return duplicateView(mutateWithStore, { workspaceDir: args.workspaceDir, projectId: args.projectId, viewId: args.viewId!, name: args.name, baseCatalogRevision: args.baseCatalogRevision!, leaseId: args.leaseId, bindingRevision: args.bindingRevision, chatSessionKey });
-      case "create_from_template":
-        return createViewFromTemplate(mutateWithStore, { workspaceDir: args.workspaceDir, projectId: args.projectId, templateId: args.templateId!, version: args.version ?? "1.0.0", baseGraphRevision: args.baseGraphRevision!, viewName: args.viewName, chatSessionKey });
-    }
+    return result(mutateWithStore(args.workspaceDir, (store) => {
+      const required = <T>(value: T | undefined, name: string): T => { if (value === undefined || value === "") throw new Error(`INVALID_ARGS:${name} required`); return value; };
+      if (args.action === "create_project") {
+        const scene = getScenePack(required(args.scenePackId, "scenePackId")); if (!scene) throw new Error("CATALOG_INVALID:scene pack");
+        return store.catalog.createSeededProject({ title: required(args.title, "title"), goal: args.goal ?? "", scenePack: scene, chatSessionKey });
+      }
+      if (args.action === "create_project_from_template") {
+        const scene = getScenePack(required(args.scenePackId, "scenePackId")); const template = getVisualTemplate(required(args.templateId, "templateId"), args.version);
+        if (!scene || !template) throw new Error("VISUAL_TEMPLATE_NOT_FOUND");
+        return store.catalog.createProjectFromTemplate({ title: required(args.title, "title"), goal: args.goal ?? "", scenePack: scene, template, chatBinding: chatSessionKey ? { chatSessionKey } : undefined });
+      }
+      const projectId = required(args.projectId, "projectId");
+      if (args.action === "create_view_from_template") {
+        const template = getVisualTemplate(required(args.templateId, "templateId"), args.version); if (!template) throw new Error("VISUAL_TEMPLATE_NOT_FOUND");
+        return store.catalog.createViewFromTemplate({ projectId, template, baseGraphRevision: required(args.baseGraphRevision, "baseGraphRevision"), viewName: args.viewName, chatBinding: chatSessionKey && args.leaseId && args.bindingRevision ? { chatSessionKey, leaseId: args.leaseId, bindingRevision: args.bindingRevision } : undefined });
+      }
+      const base = required(args.baseCatalogRevision, "baseCatalogRevision");
+      if (args.action === "reorder_views") return store.catalog.reorderViews({ projectId, viewIds: required(args.viewIds, "viewIds"), baseCatalogRevision: base });
+      const viewId = required(args.viewId, "viewId");
+      switch (args.action) {
+        case "duplicate_view": return store.catalog.duplicateView({ projectId, viewId, name: args.name, baseCatalogRevision: base });
+        case "rename_view": return store.catalog.renameView({ projectId, viewId, name: required(args.name, "name"), baseCatalogRevision: base });
+        case "pin_view": return store.catalog.pinView({ projectId, viewId, pinned: args.pinned ?? true, baseCatalogRevision: base });
+        case "set_default_view": return store.catalog.setDefaultView({ projectId, viewId, baseCatalogRevision: base });
+        case "trash_view": return store.catalog.trashView({ projectId, viewId, fallbackViewId: args.fallbackViewId, baseCatalogRevision: base });
+        case "restore_view": return store.catalog.restoreView({ projectId, viewId, baseCatalogRevision: base });
+        case "purge_view": return store.catalog.purgeView({ projectId, viewId, baseCatalogRevision: base });
+        default: throw new Error("INVALID_ARGS:unsupported catalog action");
+      }
+    }));
   }));
 }

@@ -6,7 +6,7 @@ const timestamp = "2026-07-10T00:00:00.000Z";
 function fixture(count) {
   const nodes = Array.from({ length: count }, (_, index) => ({
     id: `n-${index}`, projectId: "benchmark", type: index ? "idea" : "root", title: `Node ${index}`,
-    body: "", contentKind: "document", content: { kind: "document", mode: "note", markdown: "", excerpt: "", embeddedAssetIds: [] }, properties: {}, archived: false, createdAt: timestamp, updatedAt: timestamp,
+    contentKind: "document", content: { kind: "document", mode: "note", markdown: "", excerpt: "", embeddedAssetIds: [] }, properties: {}, archived: false, createdAt: timestamp, updatedAt: timestamp,
   }));
   const edges = nodes.slice(1).map((node, index) => ({
     id: `e-${index}`, projectId: "benchmark", type: "branch", sourceNodeId: nodes[Math.floor(index / 2)].id,

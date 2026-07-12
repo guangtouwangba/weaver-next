@@ -1,5 +1,4 @@
 import { App as McpApp } from "@modelcontextprotocol/ext-apps";
-import { composeCanvasTurnMessage } from "./lib/canvas-turn";
 import { isDevHost, resolveHostMode, type WeaverPreview } from "./lib/host-mode";
 import { createMcpAppConnection } from "./mcp-app-connection";
 import type { ToolResult } from "./types";
@@ -49,26 +48,6 @@ async function fetchTool<T>(url: string, name: string, args: Record<string, unkn
   return value;
 }
 
-/** True when the Codex host advertises the `ui/message` capability (populated after connect). */
-export function hostSupportsMessage(): boolean {
-  try { return Boolean((mcp.getHostCapabilities?.() as { message?: unknown } | undefined)?.message); }
-  catch { return false; }
-}
-
-/**
- * Push a real user turn into the Codex conversation so it responds immediately —
- * the token-efficient "canvas input triggers the agent" path (no watch-loop polling).
- * The message text is self-contained (selection summary + read-the-canvas protocol,
- * via composeCanvasTurnMessage): `updateModelContext` content is invisible and the
- * host may not attach it to the turn, so it is only kept as a best-effort extra.
- * The agent still reads the authoritative selection via weaver_get_bound_canvas.
- */
-export async function sendCanvasTurn(instruction: string, contextText?: string): Promise<void> {
-  await connectedMcp.connect();
-  if (contextText) await mcp.updateModelContext({ content: [{ type: "text", text: contextText }] }).catch(() => {});
-  await mcp.sendMessage({ role: "user", content: [{ type: "text", text: composeCanvasTurnMessage(instruction, contextText) }] });
-}
-
 async function callCodexTool<T>(name: string, args: Record<string, unknown>): Promise<ToolResult<T>> {
   if (codexLoopback) {
     try {
@@ -104,6 +83,7 @@ export async function callTool<T>(name: string, args: Record<string, unknown>): 
   else if (hostMode === "dev") result = await fetchTool<T>("/api/mcp", name, args);
   else result = await callCodexTool<T>(name, args);
   if (result.isError) throw new Error(result.content?.find((item) => item.type === "text")?.text ?? `${name} failed`);
-  const value = result.structuredContent as any;
-  return (value && Object.keys(value).length === 1 && Array.isArray(value.items) ? value.items : value) as T;
+  const value: unknown = result.structuredContent;
+  if (value && typeof value === "object" && Object.keys(value).length === 1 && "items" in value && Array.isArray(value.items)) return value.items as T;
+  return value as T;
 }

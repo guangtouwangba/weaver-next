@@ -5,6 +5,8 @@ import { excerpt } from "../lib/graph-view";
 import type { Bootstrap, DocumentContent, EditorDraft, GraphNode, Layout, LinkContent, Manifest, NodeContent, Project } from "../types";
 
 type SaveState = "saved" | "dirty" | "saving" | "conflict";
+type CanvasMutationResult = { project: Project; layout: Layout; node: GraphNode };
+type ImportAssetResult = { assetId: string };
 
 // Domain F: document editor (create/open/save articles, images, links; markdown editor state).
 export function useDocumentEditor(params: {
@@ -60,7 +62,7 @@ export function useDocumentEditor(params: {
   async function createArticle() {
     if (!project || !layout) return; setCreateMenu(false); const content: DocumentContent = { kind: "document", mode: "article", markdown: "", excerpt: "", embeddedAssetIds: [] };
     if (standaloneDemo) { const node = createDemoNode("Untitled article", content); if (node) openDocument(node.id, node); return; }
-    const point = canvasCenter(); const output = await callTool<any>("weaver_create_content_node", { workspaceDir: bootstrap.workspaceDir, projectId: project.id, viewId: layout.viewId, semanticType: defaultSemanticType(), title: "Untitled article", content, x: point.x, y: point.y }); setProject(output.project); setLayout(output.layout); await load(); await openDocument(output.node.id, output.node);
+    const point = canvasCenter(); const output = await callTool<CanvasMutationResult>("weaver_canvas_action", { action: "create_node", workspaceDir: bootstrap.workspaceDir, projectId: project.id, viewId: layout.viewId, semanticType: defaultSemanticType(), title: "Untitled article", content, x: point.x, y: point.y }); setProject(output.project); setLayout(output.layout); await load(); await openDocument(output.node.id, output.node);
   }
 
   function chooseImage(action: "node" | "cover" | "embedded") { imageAction.current = action; fileInput.current?.click(); }
@@ -73,9 +75,9 @@ export function useDocumentEditor(params: {
     setBusy(true);
     try {
       if (standaloneDemo) { const preview = URL.createObjectURL(file); if (action === "node") createDemoNode(file.name, { kind: "image", assetId: crypto.randomUUID(), alt: file.name, caption: "" }, preview); else if (activeDocument?.content.kind === "document" && draft) { const assetId = crypto.randomUUID(); previewCache.current[assetId] = preview; setAssetPreviews({ ...previewCache.current }); setDraft({ ...draft, coverAssetId: action === "cover" ? assetId : draft.coverAssetId, embeddedAssetIds: action === "embedded" ? [...draft.embeddedAssetIds, assetId] : draft.embeddedAssetIds }); setSaveState("dirty"); } return; }
-      const imported = await callTool<any>("weaver_import_image_asset", { workspaceDir: bootstrap.workspaceDir, projectId: project.id, mimeType: file.type, base64: await fileBase64(file) });
-      if (action === "node") { const point = canvasCenter(); await callTool("weaver_create_content_node", { workspaceDir: bootstrap.workspaceDir, projectId: project.id, viewId: layout.viewId, semanticType: defaultSemanticType(), title: file.name.replace(/\.[^.]+$/, ""), content: { kind: "image", assetId: imported.asset.id, alt: file.name, caption: "" }, x: point.x, y: point.y }); await load(); }
-      else if (activeDocument) { const output = await callTool<any>("weaver_attach_asset", { workspaceDir: bootstrap.workspaceDir, projectId: project.id, nodeId: activeDocument.id, assetId: imported.asset.id, role: action, baseGraphRevision: project.graphRevision }); setProject(output.project); await openDocument(activeDocument.id); await load(); }
+      const imported = await callTool<ImportAssetResult>("weaver_import_asset", { source: "bytes", workspaceDir: bootstrap.workspaceDir, projectId: project.id, mimeType: file.type, base64: await fileBase64(file) });
+      if (action === "node") { const point = canvasCenter(); await callTool("weaver_canvas_action", { action: "create_node", workspaceDir: bootstrap.workspaceDir, projectId: project.id, viewId: layout.viewId, semanticType: defaultSemanticType(), title: file.name.replace(/\.[^.]+$/, ""), content: { kind: "image", assetId: imported.assetId, alt: file.name, caption: "" }, x: point.x, y: point.y }); await load(); }
+      else if (activeDocument) { const output = await callTool<CanvasMutationResult>("weaver_canvas_action", { action: "attach_asset", workspaceDir: bootstrap.workspaceDir, projectId: project.id, nodeId: activeDocument.id, assetId: imported.assetId, role: action, baseGraphRevision: project.graphRevision }); setProject(output.project); await openDocument(activeDocument.id); await load(); }
     } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); }
     finally { setBusy(false); if (fileInput.current) fileInput.current.value = ""; }
   }
@@ -92,14 +94,14 @@ export function useDocumentEditor(params: {
     try {
       const content: LinkContent = { kind: "link", url: url.href, title: url.hostname, description: "", domain: url.hostname, enrichmentStatus: "pending" };
       if (standaloneDemo) createDemoNode(url.hostname, { ...content, title: `Reference from ${url.hostname}`, description: "Development preview link card.", enrichmentStatus: "ready" });
-      else { const point = canvasCenter(); const created = await callTool<any>("weaver_create_content_node", { workspaceDir: bootstrap.workspaceDir, projectId: project.id, viewId: layout.viewId, semanticType: defaultSemanticType(), title: url.hostname, content, x: point.x, y: point.y }); try { await callTool("weaver_enrich_link", { workspaceDir: bootstrap.workspaceDir, projectId: project.id, nodeId: created.node.id, baseGraphRevision: created.project.graphRevision }); } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); } await load(); }
+      else { const point = canvasCenter(); const created = await callTool<CanvasMutationResult>("weaver_canvas_action", { action: "create_node", workspaceDir: bootstrap.workspaceDir, projectId: project.id, viewId: layout.viewId, semanticType: defaultSemanticType(), title: url.hostname, content, x: point.x, y: point.y }); try { await callTool("weaver_canvas_action", { action: "enrich_link", workspaceDir: bootstrap.workspaceDir, projectId: project.id, nodeId: created.node.id, baseGraphRevision: created.project.graphRevision }); } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); } await load(); }
       setLinkUrl(""); setLinkComposer(false); setCreateMenu(false);
     } finally { setBusy(false); }
   }
 
   async function openDocument(nodeId: string, knownNode?: GraphNode) {
     const summary = knownNode ?? graphNodes.find((node) => node.id === nodeId); if (!summary || summary.contentKind !== "document") return;
-    try { const full = standaloneDemo ? summary : (await callTool<{ node: GraphNode }>("weaver_get_node_content", { workspaceDir: bootstrap.workspaceDir, projectId: summary.projectId, nodeId })).node; const content = full.content as DocumentContent; setActiveDocument(full); setDraft({ title: full.title, semanticType: full.type, markdown: content.markdown ?? "", excerpt: content.excerpt, coverAssetId: content.coverAssetId, embeddedAssetIds: content.embeddedAssetIds }); setSaveState("saved"); setEditorMode("write"); }
+    try { const full = standaloneDemo ? summary : (await callTool<{ node: GraphNode }>("weaver_read_graph", { resource: "node", workspaceDir: bootstrap.workspaceDir, projectId: summary.projectId, nodeId })).node; const content = full.content as DocumentContent; setActiveDocument(full); setDraft({ title: full.title, semanticType: full.type, markdown: content.markdown ?? "", excerpt: content.excerpt, coverAssetId: content.coverAssetId, embeddedAssetIds: content.embeddedAssetIds }); setSaveState("saved"); setEditorMode("write"); }
     catch (error) { setStatus(error instanceof Error ? error.message : String(error)); }
   }
 
@@ -107,7 +109,7 @@ export function useDocumentEditor(params: {
     const summary = graphNodesRef.current.find((node) => node.id === nodeId); if (!summary) return;
     try {
       const node = summary.contentKind === "document" && !standaloneDemo
-        ? (await callTool<{ node: GraphNode }>("weaver_get_node_content", { workspaceDir: bootstrap.workspaceDir, projectId: summary.projectId, nodeId })).node
+        ? (await callTool<{ node: GraphNode }>("weaver_read_graph", { resource: "node", workspaceDir: bootstrap.workspaceDir, projectId: summary.projectId, nodeId })).node
         : summary;
       setActiveViewer(node);
     } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); }
@@ -118,7 +120,7 @@ export function useDocumentEditor(params: {
     const content: DocumentContent = { kind: "document", mode: activeDocument.content.mode, markdown: draft.markdown, excerpt: excerpt(draft.markdown), coverAssetId: draft.coverAssetId, embeddedAssetIds: draft.embeddedAssetIds };
     if (standaloneDemo) { const updated = { ...activeDocument, title: draft.title, type: draft.semanticType, content, updatedAt: new Date().toISOString() }; setActiveDocument(updated); setGraphNodes((current) => current.map((node) => node.id === updated.id ? updated : node)); setProject({ ...project, graphRevision: project.graphRevision + 1 }); saveStateRef.current = "saved"; setSaveState("saved"); return true; }
     setSaveState("saving");
-    try { const output = await callTool<any>("weaver_update_node_content", { workspaceDir: bootstrap.workspaceDir, projectId: project.id, nodeId: activeDocument.id, baseGraphRevision: project.graphRevision, title: draft.title, semanticType: draft.semanticType, content }); setProject(output.project); setActiveDocument(output.node); setGraphNodes((current) => current.map((node) => node.id === output.node.id ? { ...node, title: output.node.title, type: output.node.type, content: { ...output.node.content, markdown: undefined } } : node)); saveStateRef.current = "saved"; setSaveState("saved"); setStatus(`Article saved · graph r${output.project.graphRevision}`); return true; }
+    try { const output = await callTool<CanvasMutationResult>("weaver_canvas_action", { action: "update_node", workspaceDir: bootstrap.workspaceDir, projectId: project.id, nodeId: activeDocument.id, baseGraphRevision: project.graphRevision, title: draft.title, semanticType: draft.semanticType, content }); setProject(output.project); setActiveDocument(output.node); setGraphNodes((current) => current.map((node) => node.id === output.node.id ? { ...node, title: output.node.title, type: output.node.type, content: { ...output.node.content, markdown: "" } } : node)); saveStateRef.current = "saved"; setSaveState("saved"); setStatus(`Article saved · graph r${output.project.graphRevision}`); return true; }
     catch (error) { const message = error instanceof Error ? error.message : String(error); const nextState = message.includes("GRAPH_REVISION_CONFLICT") ? "conflict" : "dirty"; saveStateRef.current = nextState; setSaveState(nextState); setStatus(message); return false; }
   }
 

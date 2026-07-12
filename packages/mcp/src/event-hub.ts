@@ -135,7 +135,7 @@ export class SseEventHub {
    * Codex runs the MCP from its plugin cache dir, so the boot-time cwd is NOT
    * the user's repo — the preview would otherwise bind an empty cache workspace
    * (no projects, no binding → the widget hangs at "Connecting"). The agent
-   * passes the real `workspaceDir` to `weaver_open_workspace_widget`; we retarget
+   * passes the real `workspaceDir` to `weaver_open_space`; we retarget
    * the preview store + RPC pin + preview.json to it. Returns true if it changed.
    */
   retargetPreviewWorkspace(workspaceDir: string) {
@@ -299,9 +299,9 @@ export class SseEventHub {
     const store = new WorkspaceStore(input.workspaceDir);
     let currentSequence: number;
     try {
-      const context = store.getCanvasContext(input.canvasSessionId);
+      const context = store.sessions.canvasContext(input.canvasSessionId);
       if (!context || context.projectId !== input.projectId) throw new Error("CANVAS_SESSION_NOT_FOUND_OR_MISMATCH");
-      currentSequence = store.getLatestEventSequence(input.projectId);
+      currentSequence = store.sessions.latestSequence(input.projectId);
     } finally {
       store.close();
     }
@@ -480,7 +480,7 @@ export class SseEventHub {
     const workspace = this.currentWorkspace();
     const store = new WorkspaceStore(workspace);
     try {
-      const binding = store.getChatCanvasBinding(preview.chatSessionKey);
+      const binding = store.sessions.getBinding(preview.chatSessionKey);
       return this.json(response, 200, {
         host: "claude",
         workspaceDir: workspace,

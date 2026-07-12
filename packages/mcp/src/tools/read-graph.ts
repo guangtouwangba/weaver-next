@@ -29,16 +29,16 @@ export function registerReadGraphTool(server: McpServer) {
     },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   }, defineTool(async ({ workspaceDir, resource, projectId, viewId, nodeId, nodeIds, nodeTypes, text, limit }) => {
-    if (!projectId) throw new Error("GRAPH_RESOURCE_REQUIRES_projectId");
+    if (!projectId) throw new Error("INVALID_ARGS:projectId required");
     switch (resource) {
       case "manifest": {
-        // weaver_get_project_manifest
+        // weaver_read_graph(resource:"manifest")
         const output = withStore(workspaceDir, (store) => readProjectManifest(store, projectId));
         track(workspaceDir, projectId);
         return result(output);
       }
       case "full": {
-        // weaver_get_project_graph
+        // weaver_read_graph(resource:"full")
         const output = withStore(workspaceDir, (store) => readProjectGraph(store, projectId, viewId));
         track(workspaceDir, projectId);
         return result(output, "Loaded graph summaries and layout. Use weaver_read_graph(resource:\"node\") for full Markdown.");
@@ -49,8 +49,8 @@ export function registerReadGraphTool(server: McpServer) {
         return result(output);
       }
       case "node": {
-        // weaver_get_node_content
-        if (!nodeId) throw new Error("GRAPH_RESOURCE_REQUIRES_nodeId");
+        // weaver_read_graph(resource:"node")
+        if (!nodeId) throw new Error("INVALID_ARGS:nodeId required");
         const output = withStore(workspaceDir, (store) => readNodeContent(store, projectId, nodeId));
         return result(output);
       }

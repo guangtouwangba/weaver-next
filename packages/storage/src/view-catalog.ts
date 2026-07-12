@@ -175,3 +175,13 @@ export function getCanvasViewState(db: DatabaseSync, canvasSessionId: string, vi
   const row = db.prepare("SELECT data FROM canvas_view_state WHERE canvas_session_id = ? AND view_id = ?").get(canvasSessionId, viewId) as any;
   return row ? canvasViewStateSchema.parse(parse(row.data)) : null;
 }
+
+export function purgeExpiredProjectViews(db: DatabaseSync) {
+  const rows = db.prepare("SELECT data FROM project_view WHERE status = 'trashed'").all() as Array<{ data: string }>;
+  for (const row of rows) {
+    const view = projectViewSchema.parse(parse(row.data));
+    if (!view.purgeAfter || Date.parse(view.purgeAfter) > Date.now()) continue;
+    const project = getProject(db, view.projectId); if (!project) continue;
+    purgeProjectView(db, { projectId: view.projectId, viewId: view.id, baseCatalogRevision: project.viewCatalogRevision });
+  }
+}

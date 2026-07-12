@@ -81,7 +81,7 @@ Then in Claude Code run `/reload-skills` (or restart it).
 ### Open the board
 
 Run **`/weaver-open`**. It resolves the project, opens its canvas via
-`weaver_open_workspace_widget`, and runs `open <previewUrl>` to pop the browser window. The
+`weaver_open_space`, and runs `open <previewUrl>` to pop the browser window. The
 status pill reads **"Bound to this Claude session"**. Keep the window visible — its heartbeat
 keeps the canvas online (the agent can only write while it is online).
 

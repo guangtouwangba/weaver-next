@@ -69,7 +69,7 @@ npm run build:widget
 - 跨两个以上 workspace package 的改动。
 - 插件发布、安装或开发启动链路变化。
 
-Python API 由 `npm test` 中的 pytest 一并覆盖。
+仓库不再包含 Python API；`npm test` 仅运行正式 TypeScript/Widget/MCP/Storage 测试链。
 
 ## 4. UI 改动的真实页面验收
 

@@ -19,6 +19,7 @@ __pycache__/
 .mypy_cache/
 .ai-toolkit/
 .weaver/
+.weaver-backup-*/
 .agents/
 !.agents/
 !.agents/plugins/

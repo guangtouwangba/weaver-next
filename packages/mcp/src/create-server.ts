@@ -5,25 +5,18 @@ import { z, type ZodRawShape } from "zod";
 import { SseEventHub } from "./event-hub.js";
 import { registerResources } from "./resources.js";
 import { hostKind, previewHost, syntheticChatSessionKey } from "./session-identity.js";
-import { createMutateWithStore } from "./shared/tool-runtime.js";
+import { closeWorkspaceStores, createMutateWithStore } from "./shared/tool-runtime.js";
 import { registerAgentTasksTools } from "./tools/agent-tasks.js";
 import { registerArtifactsTools } from "./tools/artifacts.js";
-import { registerAssetsTools } from "./tools/assets.js";
-import { registerCanvasBindingTools } from "./tools/canvas-binding.js";
-import { registerCanvasPromptsTools } from "./tools/canvas-prompts.js";
+import { registerCanvasActionTool } from "./tools/canvas-action.js";
 import { registerChangesetsTools } from "./tools/changesets.js";
-import { registerContentTools } from "./tools/content.js";
-import { registerGraphTools } from "./tools/graph.js";
 import { registerImportAssetTool } from "./tools/import-asset.js";
 import { registerLayoutTools } from "./tools/layout.js";
 import { registerManageViewTool } from "./tools/manage-view.js";
-import { registerProjectsTools } from "./tools/projects.js";
-import { registerReadCatalogTool, registerReadReviewTool } from "./tools/read-catalog.js";
+import { registerReadCatalogTool } from "./tools/read-catalog.js";
 import { registerReadGraphTool } from "./tools/read-graph.js";
 import { registerReadSessionTool } from "./tools/read-session.js";
 import { registerReviewActionTool } from "./tools/review-action.js";
-import { registerTemplatesTools } from "./tools/templates.js";
-import { registerViewCatalogTools } from "./tools/view-catalog.js";
 import { registerWorkspaceTools } from "./tools/workspace.js";
 import { registerDiagnosticsTools } from "./tools/diagnostics.js";
 import { initLog, log, nextRequestId, summarizeArgs, type LogOptions } from "./logger.js";
@@ -32,20 +25,12 @@ import { widgetResourceUri, widgetRoot } from "./widget.js";
 /**
  * Tools the standalone-browser preview widget is allowed to call over `/mcp-rpc`.
  * Derived from the widget's actual `callTool(...)` usage — host-only tools such as
- * `weaver_open_workspace_widget` are intentionally excluded.
+ * `weaver_open_space` is intentionally excluded because it creates the host surface.
  */
 export const PREVIEW_TOOL_ALLOWLIST = new Set<string>([
-  "weaver_apply_changeset", "weaver_apply_layout", "weaver_apply_layout_operations", "weaver_archive_node", "weaver_attach_asset",
-  "weaver_cancel_agent_task", "weaver_create_content_node", "weaver_create_project_from_visual_template",
-  "weaver_create_view_from_visual_template", "weaver_duplicate_project_view", "weaver_enrich_link",
-  "weaver_get_asset_preview", "weaver_get_bound_canvas", "weaver_get_canvas_view_state", "weaver_get_layout_run",
-  "weaver_get_node_content", "weaver_get_project_graph", "weaver_get_project_manifest", "weaver_import_image_asset",
-  "weaver_list_canvas_tasks", "weaver_list_project_views", "weaver_list_projects", "weaver_list_visual_templates",
-  "weaver_open_canvas_event_stream", "weaver_pin_project_view", "weaver_preview_changeset", "weaver_preview_visual_template",
-  "weaver_purge_project_view", "weaver_reject_changeset", "weaver_reject_layout", "weaver_rename_project_view",
-  "weaver_reorder_pinned_views", "weaver_restore_project_view", "weaver_revert_layout", "weaver_set_default_view",
-  "weaver_submit_canvas_prompt", "weaver_switch_chat_canvas", "weaver_sync_canvas_context", "weaver_trash_project_view",
-  "weaver_update_node_content", "weaver_validate_visual_template", "weaver_get_diagnostics",
+  "weaver_open_space", "weaver_read_catalog", "weaver_read_graph", "weaver_read_session",
+  "weaver_catalog_action", "weaver_canvas_action", "weaver_task_action", "weaver_review_action",
+  "weaver_import_asset", "weaver_subscribe_canvas", "weaver_get_diagnostics",
 ]);
 
 type CapturedTool = { shape?: ZodRawShape; handler: (...args: any[]) => unknown; meta?: Record<string, unknown> };
@@ -54,8 +39,8 @@ type CapturedTool = { shape?: ZodRawShape; handler: (...args: any[]) => unknown;
  * ChangeSet. If any of these is absent from the model-facing surface a task can
  * only spin ("缺少提交 ChangeSet 的写入工具"), so we flag them explicitly. */
 export const CRITICAL_MODEL_TOOLS = [
-  "weaver_prepare_task_from_active_canvas", "weaver_start_agent_task", "weaver_submit_changeset",
-  "weaver_apply_changeset", "weaver_complete_agent_task", "weaver_report_task_progress", "weaver_await_canvas_prompt",
+  "weaver_prepare_task", "weaver_task_action", "weaver_submit_changeset",
+  "weaver_review_action", "weaver_read_session",
 ] as const;
 
 /** A tool is model-facing unless its `ui.visibility` explicitly omits "model"
@@ -69,12 +54,13 @@ function isModelFacing(meta: Record<string, unknown> | undefined): boolean {
  * The server cannot see Codex's own tool-list cap, but this is the "should be
  * available" set: if the agent can call weaver_get_diagnostics yet reports a
  * CRITICAL tool missing while this says it is model-facing, Codex dropped it. */
-export type ToolSurface = { registered: number; modelFacing: number; widgetOnly: number; modelFacingNames: string[]; criticalPresent: Record<string, boolean> };
+export type ToolSurface = { registered: number; registeredNames: string[]; modelFacing: number; widgetOnly: number; modelFacingNames: string[]; criticalPresent: Record<string, boolean> };
 function computeToolSurface(registry: Map<string, CapturedTool>): ToolSurface {
+  const registeredNames = [...registry.keys()].sort();
   const modelFacingNames = [...registry.entries()].filter(([, tool]) => isModelFacing(tool.meta)).map(([name]) => name).sort();
   const modelFacingSet = new Set(modelFacingNames);
   return {
-    registered: registry.size,
+    registered: registry.size, registeredNames,
     modelFacing: modelFacingNames.length,
     widgetOnly: registry.size - modelFacingNames.length,
     modelFacingNames,
@@ -147,20 +133,12 @@ export async function createWeaverServer(options: { previewWorkspaceDir?: string
   };
 
   registerWorkspaceTools(server, { eventHub, mutateWithStore, widgetUri, serverVersion });
-  registerProjectsTools(server, { mutateWithStore });
-  registerTemplatesTools(server, { mutateWithStore });
-  registerViewCatalogTools(server, { mutateWithStore });
   registerManageViewTool(server, { mutateWithStore });
-  registerGraphTools(server);
+  registerCanvasActionTool(server, { mutateWithStore });
   registerReadGraphTool(server);
   registerReadCatalogTool(server);
-  registerReadReviewTool(server);
-  registerAssetsTools(server);
   registerImportAssetTool(server);
-  registerContentTools(server);
-  registerCanvasBindingTools(server, { mutateWithStore });
   registerReadSessionTool(server);
-  registerCanvasPromptsTools(server, { mutateWithStore });
   registerAgentTasksTools(server, { mutateWithStore });
   registerLayoutTools(server, { eventHub, mutateWithStore });
   registerChangesetsTools(server, { mutateWithStore });
@@ -187,5 +165,5 @@ export async function createWeaverServer(options: { previewWorkspaceDir?: string
     eventHub.configurePreview({ workspaceDir: options.previewWorkspaceDir ?? widgetRoot(), chatSessionKey: syntheticChatSessionKey(), dispatch, allowlist: PREVIEW_TOOL_ALLOWLIST });
   }
 
-  return { server, eventHub, dispatch, toolMeta: (name: string) => registry.get(name)?.meta, serverVersion, close: () => eventHub.close() };
+  return { server, eventHub, dispatch, toolMeta: (name: string) => registry.get(name)?.meta, serverVersion, close: async () => { closeWorkspaceStores(); await eventHub.close(); } };
 }

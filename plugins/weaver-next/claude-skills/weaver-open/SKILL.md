@@ -17,7 +17,7 @@ A one-shot launcher: resolve the project, open its canvas in a real browser wind
    - One project → use it.
    - Several → open the **most recently updated** one by default and tell the user which, offering to switch (don't block with a question unless they ask).
 
-3. **Open the canvas.** Call `weaver_open_workspace_widget` with `workspaceDir` + the chosen `projectId`. The MCP process **opens the tokenized `previewUrl` in the browser automatically** and returns it plus `buildMismatch`.
+3. **Open the canvas.** Call `weaver_open_space` with `workspaceDir` + the chosen `projectId`. The MCP process **opens the tokenized `previewUrl` in the browser automatically** and returns it plus `buildMismatch`.
    - If it returns **no** `previewUrl`, the MCP isn't running as the Claude host — tell the user to (re)connect `weaver-preview` (`/mcp` → weaver-preview → Reconnect; launcher `scripts/start-mcp-claude.mjs`).
    - If `buildMismatch` is true, tell them to run `npm run build:plugin`.
 

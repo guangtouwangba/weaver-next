@@ -1,4 +1,5 @@
 import { WorkspaceStore } from "@weaver/storage";
+import { normalizeWeaverFailure } from "@weaver/contracts";
 import type { SseEventHub } from "../event-hub.js";
 
 export function result<T>(value: T, message = "OK") {
@@ -7,14 +8,23 @@ export function result<T>(value: T, message = "OK") {
 }
 
 export function failure(error: unknown) {
-  const message = error instanceof Error ? error.message : String(error);
-  return { isError: true, content: [{ type: "text" as const, text: message }], structuredContent: { code: message.split(":", 1)[0], message } };
+  const value = normalizeWeaverFailure(error);
+  return { isError: true, content: [{ type: "text" as const, text: value.message }], structuredContent: value };
+}
+
+const workspaceStores = new Map<string, WorkspaceStore>();
+
+export function getWorkspaceStore(workspaceDir: string) {
+  const key = workspaceDir;
+  const current = workspaceStores.get(key); if (current) return current;
+  const store = new WorkspaceStore(workspaceDir); workspaceStores.set(key, store); return store;
 }
 
 export function withStore<T>(workspaceDir: string, callback: (store: WorkspaceStore) => T): T {
-  const store = new WorkspaceStore(workspaceDir);
-  try { return callback(store); } finally { store.close(); }
+  return callback(getWorkspaceStore(workspaceDir));
 }
+
+export function closeWorkspaceStores() { for (const store of workspaceStores.values()) store.close(); workspaceStores.clear(); }
 
 export type MutateWithStore = <T>(workspaceDir: string, callback: (store: WorkspaceStore) => T) => T;
 

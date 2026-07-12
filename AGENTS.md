@@ -5,9 +5,11 @@
 - [product.md](product.md)：产品愿景、目标用户、核心问题与产品边界。
 - [WORKFLOW.md](WORKFLOW.md)：强制开发流程、TDD 规则和 UI 真实页面验收规则。
 - [docs/PRD-Weaver-Redesign-2026.md](docs/PRD-Weaver-Redesign-2026.md)：当前产品需求的详细事实源。
-- [docs/rebuild-plan.md](docs/rebuild-plan.md)：重建背景、里程碑和非目标。
+- [docs/architecture-current.md](docs/architecture-current.md)：当前运行时、状态权威与数据兼容架构。
 
-若文档互相冲突，优先级为：最新 PRD 明确决策 > 本文件的工程约束 > `WORKFLOW.md` 的执行流程 > rebuild plan 中的历史规划。发现冲突时不要静默猜测，应在实现说明中指出并修正文档。
+`docs/rebuild-plan.md` 与 `docs/architecture/` 已废弃，只可用于了解早期 tree-first 重建背景，不得作为当前需求、架构或里程碑依据。
+
+若现行文档互相冲突，优先级为：最新 PRD 明确决策 > 本文件的工程约束 > `WORKFLOW.md` 的执行流程。发现冲突时不要静默猜测，应在实现说明中指出并修正文档。
 
 ## 项目是什么
 
@@ -89,8 +91,6 @@ flowchart LR
 | `apps/widget/src/hooks/` | Bootstrap、Canvas 状态、绑定同步、SSE、文档编辑和 View 管理等前端领域逻辑。 |
 | `apps/widget/src/components/` | Canvas、节点、边、导航、编辑器和任务预览 UI。 |
 | `apps/widget/src/__tests__/` | Widget 纯逻辑与交互相关回归测试。 |
-| `apps/web/` | Next.js Web 外壳/未来 Web 入口，不是当前 Codex 主入口。 |
-| `apps/api/` | Python API 与相关测试；保留服务边界和辅助能力。 |
 | `packages/contracts/` | Zod schema、共享类型、错误和 API contract；跨层数据的唯一结构定义。 |
 | `packages/core/` | 无 IO 的 Graph、LayoutOperation、上下文策略等纯领域逻辑。 |
 | `packages/layout-engine/` | 确定性布局、候选生成、连线路由和质量评分。 |

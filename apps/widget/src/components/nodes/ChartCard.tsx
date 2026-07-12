@@ -4,17 +4,19 @@ import { TrendingDown, TrendingUp } from "lucide-react";
 import type { CardData, ChartContent } from "../../types";
 import { layoutChart } from "../../lib/chart-svg";
 import { NodeShell } from "./NodeShell";
+import { useI18n } from "../../lib/i18n";
 
 // Inline-SVG data card. All geometry comes from the pure layoutChart(); colors
 // follow the node's theme vars (axes/text) with the chart palette for series, so
 // it stays theme-aware without hardcoded light/dark hex. No external chart lib.
 function ChartSvg({ spec, width, height }: { spec: ChartContent; width: number; height: number }) {
+  const { t } = useI18n();
   const model = layoutChart(spec, width, height);
   const axis = "var(--node-border, rgba(127,127,127,.3))";
   const text = "var(--muted, #7a7a7a)";
   const accent = "var(--node-accent, var(--blue, #1fa2dc))";
 
-  if (model.kind === "empty") return <div className="chart-empty">暂无数据</div>;
+  if (model.kind === "empty") return <div className="chart-empty">{t("noData")}</div>;
 
   if (model.kind === "metric") {
     const sign = model.delta?.sign ?? 0;

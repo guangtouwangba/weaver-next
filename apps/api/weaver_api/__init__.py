@@ -1,2 +1,0 @@
-"""Weaver Next API package."""
-

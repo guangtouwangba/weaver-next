@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { ReactFlowProvider, useEdgesState, useNodesState, useReactFlow, type Edge, type Node, type Viewport } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -13,6 +13,7 @@ import { useViewCatalog } from "./hooks/useViewCatalog";
 import { useVisualTemplateGallery } from "./hooks/useVisualTemplateGallery";
 import { useCanvasViewport } from "./hooks/useCanvasViewport";
 import { useModelContextSync } from "./hooks/useModelContextSync";
+import { useDisplayMode } from "./hooks/useDisplayMode";
 
 import { TopBar } from "./components/TopBar";
 import { ViewLibraryDrawer } from "./components/ViewLibraryDrawer";
@@ -21,19 +22,20 @@ import { TemplateGalleryModal } from "./components/TemplateGalleryModal";
 import { ProjectPickerModal } from "./components/ProjectPickerModal";
 import { NodeViewerModal } from "./components/NodeViewerModal";
 import { DocumentEditorPanel } from "./components/DocumentEditorPanel";
-import { SelectionContextBar, activeTaskBusyLabel } from "./components/SelectionContextBar";
+import { InlineEntryCard } from "./components/InlineEntryCard";
 import { loadCanvasSessionId } from "./lib/canvas-session";
+import { I18nProvider, useI18n } from "./lib/i18n";
 
 import type { Candidate, ProjectView, VisualTemplate } from "./types";
-import { callTool, hostMode, hostSupportsMessage, sendCanvasTurn } from "./mcp-client";
-import { describeCanvasSelection } from "./lib/graph-view";
 
 declare global { interface Window { openai?: { toolOutput?: Record<string, unknown> }; __weaverRoot?: ReturnType<typeof createRoot>; __weaverEmbeddedBuildId?: string } }
 
 function WeaverWidget() {
+  const { t } = useI18n();
   const { fitView, getViewport, screenToFlowPosition, setViewport } = useReactFlow();
   const query = new URLSearchParams(location.search);
   const standaloneDemo = query.get("demo") === "1";
+  const { displayMode, requestDisplayMode } = useDisplayMode();
 
   // Cross-cutting state that two or more domain hooks both need to read *and* write —
   // lifted to the composition root (same style as the cross-cutting refs) so the domain
@@ -76,32 +78,14 @@ function WeaverWidget() {
   const { createMenu, setCreateMenu, linkComposer, setLinkComposer, linkUrl, setLinkUrl, activeDocument, setActiveDocument, activeViewer, setActiveViewer, draft, editorMode, setEditorMode, saveState, setSaveState, fileInput, editorTextArea, saveStateRef, activeDocumentRef, createArticle, chooseImage, importImageFile, createLink, openDocument, openNodeViewer, saveDocument, editDraft, formatMarkdown } = documentEditor;
 
   const eventStream = useCanvasEventStream({
-    standaloneDemo, bootstrap, project, layout, setProject, setLayout, setGraphNodes, setGraphEdges, setManifest, setStatus, setBusy, setBootstrap, projectRef, layoutRef, graphNodesRef, graphEdgesRef, bindingRef, load, hydratePreviews, syncContext, saveStateRef, activeDocumentRef, setSaveState, draggingNodeId, projectViewsRef, setProjectViews, setViewToast, openNodeViewer, setActiveViewId, sessionId, stream, accessState, setAccessState,
+    authority: { standaloneDemo, bootstrap, project, layout, accessState },
+    state: { setProject, setLayout, setGraphNodes, setGraphEdges, setManifest, setStatus, setBusy, setBootstrap, setSaveState, setProjectViews, setViewToast, setActiveViewId, setAccessState },
+    refs: { projectRef, layoutRef, graphNodesRef, graphEdgesRef, bindingRef, saveStateRef, activeDocumentRef, draggingNodeId, projectViewsRef, sessionId, stream },
+    effects: { load, hydratePreviews, syncContext, openNodeViewer },
   });
   const { streamState, activeTask, candidates, changePreview, staleTask, candidateIndex, setCandidateIndex, cancelActiveTask, applyChangeSet, rejectChangeSet, applyCandidate, rejectLayout, revertLayout, resetLayoutRun, reconnect } = eventStream;
 
   useModelContextSync({ standaloneDemo, selection, anchorNodeId, nodes: graphNodes });
-
-  const submitCanvasPrompt = useCallback(async (instruction: string) => {
-    try {
-      // Codex embedded widget: inject the instruction as a user turn via ui/message
-      // so Codex responds in its own turn (zero idle-token cost, no watch loop). If
-      // the host doesn't advertise `message`, fall back to the durable-task queue
-      // (which a terminal agent picks up via weaver_await_canvas_prompt / watch).
-      if (hostMode === "codex" && hostSupportsMessage()) {
-        const contextText = selection.length ? describeCanvasSelection(graphNodes, selection, anchorNodeId) : undefined;
-        await sendCanvasTurn(instruction, contextText);
-        // The canvas cannot know when the injected turn finishes: a question is
-        // answered in the Codex CHAT, and only canvas edits come back here (as a
-        // ChangeSet preview). Say exactly that instead of a "处理中" the canvas
-        // can never resolve.
-        setStatus("已发送 · 回复见 Codex 对话；画布改动会在此显示预览");
-      } else {
-        await callTool("weaver_submit_canvas_prompt", { workspaceDir: bootstrap.workspaceDir, instruction, actionKey: selection.length ? "develop_selection" : "follow_up_ask" });
-        setStatus("已发送 · 处理中…");
-      }
-    } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); }
-  }, [bootstrap.workspaceDir, selection, anchorNodeId, graphNodes, setStatus]);
 
   const viewCatalog = useViewCatalog({
     standaloneDemo, bootstrap, project, layout, projectRef, setProject, setStatus, ensureBindingTarget, bindingRef, setBootstrap, load, activeViewId, setActiveViewId, projectViews, setProjectViews, projectViewsRef, viewToast, setViewToast, resetLayoutRun, saveStateRef, saveDocument, syncContext, setSelection,
@@ -120,7 +104,9 @@ function WeaverWidget() {
     if (!anchorNodeId || !selection.includes(anchorNodeId)) setAnchorNodeId(selection[0]);
   }, [anchorNodeId, selection]);
 
-  return <main className="weaver-shell" data-editor-open={Boolean(activeDocument)}>
+  if (displayMode === "inline") return <InlineEntryCard project={project} layout={layout} nodes={graphNodes} selectionCount={selection.length} streamState={streamState} onOpen={() => requestDisplayMode("fullscreen")} />;
+
+  return <main className="weaver-shell" data-editor-open={Boolean(activeDocument)} data-display-mode={displayMode} data-schema-reset={Boolean(bootstrap.schemaReset)}>
     <TopBar
       project={project} status={status} switcherViews={switcherViews} layout={layout} draggedViewId={draggedViewId} setDraggedViewId={setDraggedViewId} reorderPinnedViews={reorderPinnedViews} switchView={switchView} busy={busy}
       viewMenuId={viewMenuId} setViewMenuId={setViewMenuId} setViewLibrary={setViewLibrary} projectViews={projectViews} openTemplateGallery={openTemplateGallery} streamState={streamState} reconnect={reconnect}
@@ -128,12 +114,14 @@ function WeaverWidget() {
       selection={selection} standaloneDemo={standaloneDemo} togglePinned={togglePinned} revertLayout={revertLayout}
       beginRename={beginRename} pinProjectView={pinProjectView} duplicateProjectView={duplicateProjectView} setDefaultView={setDefaultView} trashProjectView={trashProjectView}
       workspaceDir={bootstrap.workspaceDir} chooseProject={chooseProject} startFromTemplateGallery={startFromTemplateGallery}
+      onBackToChat={() => requestDisplayMode("inline")} projectRevision={project?.graphRevision} layoutRevision={layout?.layoutRevision} catalogRevision={project?.viewCatalogRevision} bindingRevision={bindingRef.current?.bindingRevision}
     />
+    {bootstrap.schemaReset ? <div className="schema-reset-notice" role="status">{t("schemaResetNotice")} <code>{t("backupLabel")}: {bootstrap.schemaReset.backupName}</code></div> : null}
     <section className="workspace-stage">
       {!standaloneDemo && (accessState === "build-mismatch" || (project && accessState !== "active")) ? <div className="canvas-access-blocker" role="alert">
-        <strong>{accessState === "claiming" ? "正在连接 Weaver 画布" : accessState === "claim-failed" ? "Weaver 画布连接失败" : accessState === "duplicate" ? "此画布已在另一标签中打开" : accessState === "build-mismatch" ? "Widget 构建版本不一致" : "此画布已失去当前 Chat 的绑定"}</strong>
-        <p>{accessState === "claiming" ? "正在声明画布会话；视口将在连接后单独恢复。" : accessState === "claim-failed" ? `错误码：${claimError ?? "CANVAS_CLAIM_FAILED"}。你可以立即重试。` : accessState === "duplicate" ? "请使用已激活的 Weaver 标签；关闭本标签不会影响画布数据。" : accessState === "build-mismatch" ? `当前资源 ${window.__weaverEmbeddedBuildId ?? "unknown"}，服务器 ${bootstrap.widgetBuildId ?? "unknown"}，workspace ${bootstrap.workspaceWidgetBuildId ?? "unknown"}。请使用 workspace 开发入口重新加载。` : "请从当前 Chat 重新打开 Weaver 画布。"}</p>
-        {accessState === "claim-failed" ? <button type="button" onClick={retryClaim}>重新连接</button> : null}
+        <strong>{accessState === "claiming" ? t("canvasConnecting") : accessState === "claim-failed" ? t("canvasConnectFailed") : accessState === "duplicate" ? t("canvasDuplicate") : accessState === "build-mismatch" ? t("buildMismatch") : t("canvasDetached")}</strong>
+        <p>{accessState === "claiming" ? t("claimingHelp") : accessState === "claim-failed" ? `${t("errorCode")}: ${claimError ?? "CANVAS_CLAIM_FAILED"}. ${t("retryHelp")}` : accessState === "duplicate" ? t("duplicateHelp") : accessState === "build-mismatch" ? `${window.__weaverEmbeddedBuildId ?? "unknown"} / ${bootstrap.widgetBuildId ?? "unknown"} / ${bootstrap.workspaceWidgetBuildId ?? "unknown"}. ${t("buildMismatchHelp")}` : t("detachedHelp")}</p>
+        {accessState === "claim-failed" ? <button type="button" onClick={retryClaim}>{t("reconnect")}</button> : null}
       </div> : null}
       <ViewLibraryDrawer
         viewLibrary={viewLibrary} setViewLibrary={setViewLibrary} viewQuery={viewQuery} setViewQuery={setViewQuery} fixedCatalogViews={fixedCatalogViews} recentCatalogViews={recentCatalogViews} activeCatalogViews={activeCatalogViews} trashedCatalogViews={trashedCatalogViews} openTemplateGallery={openTemplateGallery}
@@ -147,7 +135,6 @@ function WeaverWidget() {
         activeTask={activeTask} cancelActiveTask={cancelActiveTask} changePreview={changePreview} rejectChangeSet={rejectChangeSet} applyChangeSet={applyChangeSet}
         candidates={candidates} candidateIndex={candidateIndex} setCandidateIndex={setCandidateIndex} rejectLayout={rejectLayout} applyCandidate={applyCandidate}
         staleTask={staleTask} viewToast={viewToast} setViewToast={setViewToast} restoreProjectView={restoreProjectView}
-        followUpComposer={<SelectionContextBar selection={selection} anchorNodeId={anchorNodeId} nodes={graphNodes} setAnchorNodeId={setAnchorNodeId} removeNode={(nodeId) => setSelection((current) => current.filter((id) => id !== nodeId))} submitPrompt={submitCanvasPrompt} cancelActiveTask={cancelActiveTask} busy={Boolean(activeTask)} busyLabel={activeTaskBusyLabel(activeTask)} busySince={activeTask?.createdAt} />}
       />
       <ProjectPickerModal projectChoices={projectChoices} chooseProject={chooseProject} startFromTemplateGallery={startFromTemplateGallery} />
       <TemplateGalleryModal
@@ -169,4 +156,4 @@ function WeaverWidget() {
 
 const root = window.__weaverRoot ?? createRoot(document.getElementById("root")!);
 window.__weaverRoot = root;
-root.render(<React.StrictMode><ReactFlowProvider><WeaverWidget /></ReactFlowProvider></React.StrictMode>);
+root.render(<React.StrictMode><I18nProvider><ReactFlowProvider><WeaverWidget /></ReactFlowProvider></I18nProvider></React.StrictMode>);

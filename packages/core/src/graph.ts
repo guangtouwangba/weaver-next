@@ -31,7 +31,7 @@ export function applyGraphOperations(snapshot: GraphSnapshot, operations: GraphO
       case "set-node-content": {
         const current = nodes.get(operation.nodeId);
         if (!current) throw new Error(`NODE_NOT_FOUND:${operation.nodeId}`);
-        nodes.set(operation.nodeId, { ...current, body: operation.content.kind === "document" ? operation.content.markdown : current.body, contentKind: operation.content.kind, content: operation.content, updatedAt: new Date().toISOString() });
+        nodes.set(operation.nodeId, { ...current, contentKind: operation.content.kind, content: operation.content, updatedAt: new Date().toISOString() });
         changed = true;
         break;
       }

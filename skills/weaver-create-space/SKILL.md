@@ -31,8 +31,8 @@ description: Create a scene-driven Weaver space from a natural-language goal or 
    - 关系 / 网络 / relation / network → `relationship`
    - otherwise a free canvas → `canvas`.
    If no template fits or the user only wants a plain space, skip the template. State the chosen Scene Pack (and VisualTemplate, if any) in one sentence before creating.
-4. Call `weaver_create_project`. When a visual template is selected, pass `template:{templateId, version}` to create the project, starter content graph, and themed default view from it; otherwise omit `template` for a plain scene-seeded project.
-5. Creation atomically creates the first `ProjectView`, sets it as the Project default, and binds it to the current Codex Chat. Call `weaver_open_workspace_widget` with the workspace and returned project id to mount the Canvas and activate its independent Canvas Session.
+4. Call `weaver_catalog_action(action:"create_project")`. When a visual template is selected, pass `template:{templateId, version}` to create the project, starter content graph, and themed default view from it; otherwise omit `template` for a plain scene-seeded project.
+5. Creation atomically creates the first `ProjectView`, sets it as the Project default, and binds it to the current Codex Chat. Call `weaver_open_space` with the workspace and returned project id to mount the Canvas and activate its independent Canvas Session.
 
 Each scene semantic type declares `defaultContentKind` and `allowedContentKinds`. The first phase supports `document`, `image`, and `link`; do not represent these content kinds as scene semantic types.
 

@@ -31,11 +31,11 @@ const importAssetShape = {
 const importAssetSchema = z.object(importAssetShape).superRefine((value, ctx) => {
   const fail = (message: string) => ctx.addIssue({ code: z.ZodIssueCode.custom, message });
   if (value.source === "bytes") {
-    if (!value.mimeType) fail("IMPORT_ASSET_REQUIRES_mimeType");
-    if (!value.base64) fail("IMPORT_ASSET_REQUIRES_base64");
+    if (!value.mimeType) fail("INVALID_ARGS:mimeType required");
+    if (!value.base64) fail("INVALID_ARGS:base64 required");
   } else {
     // source === "svg"
-    if (!value.svg) fail("IMPORT_ASSET_REQUIRES_svg");
+    if (!value.svg) fail("INVALID_ARGS:svg required");
   }
 });
 

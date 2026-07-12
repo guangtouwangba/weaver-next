@@ -64,8 +64,8 @@ describe("MCP App connection", () => {
     const connection = createMcpAppConnection({ connect, close, callServerTool });
 
     await expect(connection.callServerTool({
-      name: "weaver_sync_canvas_context",
-      arguments: { snapshot: { syncPurpose: "claim" } },
+      name: "weaver_canvas_action",
+      arguments: { action: "claim", snapshot: { syncPurpose: "claim" } },
     }))
       .resolves.toEqual({ structuredContent: { ok: true } });
 
@@ -84,7 +84,7 @@ describe("MCP App connection", () => {
         await bootstrap;
         return { structuredContent: { name } };
       }
-      if (callServerTool.mock.calls.filter(([request]) => request.name === "weaver_sync_canvas_context").length === 1) {
+      if (callServerTool.mock.calls.filter(([request]) => request.name === "weaver_canvas_action").length === 1) {
         throw new Error("MCP error -32000: MCP proxy request failed");
       }
       return { structuredContent: { name } };
@@ -93,8 +93,8 @@ describe("MCP App connection", () => {
 
     const bootstrapCall = connection.callServerTool({ name: "bootstrap", arguments: {} });
     const claimCall = connection.callServerTool({
-      name: "weaver_sync_canvas_context",
-      arguments: { snapshot: { syncPurpose: "claim" } },
+      name: "weaver_canvas_action",
+      arguments: { action: "claim", snapshot: { syncPurpose: "claim" } },
     });
 
     await vi.waitFor(() => expect(callServerTool.mock.calls.length).toBeGreaterThanOrEqual(2));
@@ -102,7 +102,7 @@ describe("MCP App connection", () => {
 
     finishBootstrap();
     await expect(bootstrapCall).resolves.toEqual({ structuredContent: { name: "bootstrap" } });
-    await expect(claimCall).resolves.toEqual({ structuredContent: { name: "weaver_sync_canvas_context" } });
+    await expect(claimCall).resolves.toEqual({ structuredContent: { name: "weaver_canvas_action" } });
     expect(close).toHaveBeenCalledTimes(1);
     expect(connect).toHaveBeenCalledTimes(2);
   });
@@ -115,9 +115,9 @@ describe("MCP App connection", () => {
       .mockResolvedValueOnce({ structuredContent: { ok: true } });
     const connection = createMcpAppConnection({ connect, close, callServerTool });
 
-    await expect(connection.callServerTool({ name: "weaver_apply_changeset", arguments: {} }))
+    await expect(connection.callServerTool({ name: "weaver_review_action", arguments: {} }))
       .rejects.toThrow("MCP proxy request failed");
-    await expect(connection.callServerTool({ name: "weaver_apply_changeset", arguments: {} }))
+    await expect(connection.callServerTool({ name: "weaver_review_action", arguments: {} }))
       .resolves.toEqual({ structuredContent: { ok: true } });
 
     expect(connect).toHaveBeenCalledTimes(2);

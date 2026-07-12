@@ -1,5 +1,7 @@
 # Weaver Next — Implementation Plan & Backlog
 
+> **历史文档（已废弃）**：本计划描述已退出仓库运行链的 Python、FastAPI、Next.js 与 tree-first 架构。当前实现只以 [`architecture-current.md`](architecture-current.md)、最新 PRD 和 superseding ADR 为准。
+
 > **Scope:** FULL VISION (P0 MVP through P1/P2), broken into deliverable, verifiable **user stories** with **frontend / backend / test** cards.
 > **Grounded in:** the architecture set in [`architecture/`](architecture/) (00–08, README, ADR-log) and the [PRD](PRD-Weaver-Redesign-2026.md) (source of truth). Every card cites the doc section it derives from.
 > **Page designs:** the 🎨 Frontend cards build to [`design/page-designs.md`](design/page-designs.md) — per-screen layout/components/states extracted from the `weaver.html` prototype (with screenshots).

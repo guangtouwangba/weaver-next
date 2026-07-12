@@ -1,12 +1,13 @@
-# 00 · Foundation — Canonical Architecture Contract
+# 00 · Foundation — Legacy Architecture Contract (Deprecated)
 
-> **Status**: Authoritative. This is the single source of truth every other
-> architecture doc conforms to.
+> **Status**: Deprecated. This document belongs to the retired Python/tree-first
+> architecture set and must not guide new implementation work.
 > **Scope**: FULL VISION (P0/P1/P2). MVP boundary marked inline and in §9.
 > **Upstream sources of truth**: `docs/PRD-Weaver-Redesign-2026.md` (中文,
 > product spec), `docs/competitive-analysis-2026.md`, `docs/architecture.md`
-> (initial sketch — deepened here, boundaries preserved), `docs/rebuild-plan.md`
-> (M0–M6 milestones).
+> (initial sketch — deepened here, boundaries preserved). The deprecated
+> `docs/rebuild-plan.md` is historical context for the original M0–M6 milestones,
+> not a current source of truth.
 
 This document fixes the things that, if left to each sub-team, would diverge:
 

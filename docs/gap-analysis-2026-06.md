@@ -1,5 +1,7 @@
 # Weaver Next — Gap Analysis (current code vs implementation plan)
 
+> **历史分析（已废弃）**：这是 2026-06 的旧架构快照，不用于判断当前 Codex Widget 实现。当前事实源见 [`architecture-current.md`](architecture-current.md)。
+
 > Generated 2026-06-23. Compares `commit 3ae29a8 "feat: implement branching thinking MVP"` against [`implementation-plan.md`](implementation-plan.md).
 > Method: 8 agents, one per epic group, each read its plan slice + the actual code and judged every story.
 > Status legend: ✅ done · 🟡 partial (exists but in-memory mock / missing persistence·tests·spec) · ⬜ not started.

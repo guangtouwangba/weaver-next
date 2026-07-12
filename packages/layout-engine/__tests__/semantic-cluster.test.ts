@@ -19,7 +19,7 @@ const seeds: Seed[] = [
 ];
 
 const nodes: SpaceNode[] = seeds.map((seed) => ({
-  id: seed.id, projectId: "p", type: seed.type, title: seed.id, body: "", contentKind: "document",
+  id: seed.id, projectId: "p", type: seed.type, title: seed.id, contentKind: "document",
   content: { kind: "document", mode: "note", markdown: "", excerpt: "", embeddedAssetIds: [] },
   properties: { layer: seed.layer }, archived: false, createdAt: timestamp, updatedAt: timestamp,
 }));
@@ -182,13 +182,13 @@ describe("semantic cluster layout", () => {
 describe("chart nodes as hero cards", () => {
   it("sizes chart nodes big and metric cards smaller", async () => {
     const chartNode = (id: string, chartType: string): SpaceNode => ({
-      id, projectId: "p", type: "entity", title: id, body: "",
+      id, projectId: "p", type: "entity", title: id,
       contentKind: "chart",
       content: { kind: "chart", chartType, title: id, series: chartType === "metric" ? [] : [{ name: "s", points: [{ label: "a", value: 1 }, { label: "b", value: 2 }] }], metric: chartType === "metric" ? { value: 5, unit: "", delta: 1, deltaLabel: "" } : undefined, unit: "", xLabel: "", yLabel: "", sourceNote: "", asOf: "" },
       properties: { layer: "市场事实" }, archived: false, createdAt: timestamp, updatedAt: timestamp,
     } as unknown as SpaceNode);
     const doc = (id: string): SpaceNode => ({
-      id, projectId: "p", type: "entity", title: id, body: "", contentKind: "document",
+      id, projectId: "p", type: "entity", title: id, contentKind: "document",
       content: { kind: "document", mode: "note", markdown: "", excerpt: "", embeddedAssetIds: [] },
       properties: { layer: "市场事实" }, archived: false, createdAt: timestamp, updatedAt: timestamp,
     });

@@ -1,13 +1,16 @@
-# Weaver Next — Architecture Overview
+# Weaver Next — Legacy Architecture Archive
 
-> **Status**: Index / connective tissue. Authoritative slices live in the
-> numbered docs below; `00-foundation.md` is the canonical contract every doc
-> conforms to.
+> **Status**: Deprecated architecture set — historical reference only.
+> The numbered documents and ADR-0001 through ADR-0027 describe the retired
+> Python/tree-first rebuild and are not implementation authority. Current
+> architecture is defined by [`../architecture-current.md`](../architecture-current.md)
+> and [`../adr/0001-codex-widget-semantic-graph.md`](../adr/0001-codex-widget-semantic-graph.md).
 > **Scope**: FULL VISION (P0/P1/P2), with the MVP boundary (3 pages, M1–M5)
 > marked throughout.
 > **Upstream sources of truth**: [`../PRD-Weaver-Redesign-2026.md`](../PRD-Weaver-Redesign-2026.md)
-> (中文, product spec), [`../competitive-analysis-2026.md`](../competitive-analysis-2026.md),
-> [`../rebuild-plan.md`](../rebuild-plan.md) (M0–M6).
+> (中文, product spec), [`../competitive-analysis-2026.md`](../competitive-analysis-2026.md).
+> The deprecated [`../rebuild-plan.md`](../rebuild-plan.md) is retained only as
+> historical context for the original M0–M6 plan.
 
 Weaver Next is a **local-first, single-user, branching thinking tool (思维树)**:
 think → fork into branches → (optionally) crystallize into an outline → generate

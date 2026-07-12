@@ -1,5 +1,7 @@
 # Weaver Next — Full Implementation TODO
 
+> **历史清单（已废弃）**：这些任务对应已退役的 Python/Web/tree-first 产品方向，不再代表当前待办。当前架构与实施事实源见 [`architecture-current.md`](architecture-current.md)。
+
 > The complete task list to take the current clickable demo → the full vision in [`implementation-plan.md`](implementation-plan.md).
 > Generated 2026-06-23 from [`gap-analysis-2026-06.md`](gap-analysis-2026-06.md). Ordered by the critical path: **fixes → E0 → E1 → (E12 ∥ E2) → E3 → E4 → E5 → E6 → P1 → P2**.
 > Each `[ ]` is one deliverable. 🔧 backend · 🎨 frontend · 🧪 test · 🐞 bug-fix. Story ids (E0.1…) map back to the plan.

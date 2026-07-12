@@ -1,7 +1,18 @@
-# Weaver Next Rebuild Plan
+# Weaver Next Rebuild Plan (Deprecated)
 
-> Direction is set by [PRD-Weaver-Redesign-2026.md](PRD-Weaver-Redesign-2026.md)
-> (中文, source of truth). This plan is the execution view of that PRD.
+> **Status: Deprecated — historical reference only.**
+>
+> This document records the original tree-first rebuild plan and is no longer an
+> active execution plan or source of truth. In particular, its tree-first model,
+> free-form canvas exclusion, domain boundaries, and M0-M6 milestones have been
+> superseded by the scene-driven semantic graph, independent View/Layout model,
+> and Codex Widget + MCP architecture.
+>
+> Use [PRD-Weaver-Redesign-2026.md](PRD-Weaver-Redesign-2026.md) for current
+> product decisions, [../product.md](../product.md) for stable product vision,
+> [../AGENTS.md](../AGENTS.md) for engineering constraints, and
+> [../WORKFLOW.md](../WORKFLOW.md) for the required development and verification
+> process. Do not create new implementation work from the milestones below.
 
 ## Why Restart
 

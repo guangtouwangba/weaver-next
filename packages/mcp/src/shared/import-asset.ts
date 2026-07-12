@@ -19,7 +19,7 @@ import { result } from "./tool-runtime.js";
 export async function importImageBytes(args: { workspaceDir: string; projectId: string; mimeType: "image/jpeg" | "image/png" | "image/webp" | "image/gif"; base64: string }) {
   const store = new WorkspaceStore(args.workspaceDir);
   try {
-    const output = await store.importImageAsset({ projectId: args.projectId, mimeType: args.mimeType, data: Buffer.from(args.base64, "base64") });
+    const output = await store.assets.importImage({ projectId: args.projectId, mimeType: args.mimeType, data: Buffer.from(args.base64, "base64") });
     return result({ assetId: output.asset.id, width: output.asset.width, height: output.asset.height, deduplicated: output.deduplicated }, output.deduplicated ? "Reused existing image asset." : "Imported image asset.");
   } finally { store.close(); }
 }
@@ -31,7 +31,7 @@ export async function importSvgImage(args: { workspaceDir: string; projectId: st
   const png = await sharp(Buffer.from(args.svg), { density: Math.round(96 * args.scale) }).png().toBuffer();
   const store = new WorkspaceStore(args.workspaceDir);
   try {
-    const output = await store.importImageAsset({ projectId: args.projectId, mimeType: "image/png", data: png });
+    const output = await store.assets.importImage({ projectId: args.projectId, mimeType: "image/png", data: png });
     return result({ assetId: output.asset.id, width: output.asset.width, height: output.asset.height }, "Rendered SVG to image asset.");
   } finally { store.close(); }
 }

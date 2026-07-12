@@ -2,6 +2,7 @@ import { Check, ChevronDown, FolderKanban, Plus } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { callTool } from "../mcp-client";
 import type { Project } from "../types";
+import { useI18n } from "../lib/i18n";
 
 /**
  * The top-left project title, upgraded from a static label into a switcher. The
@@ -20,6 +21,7 @@ export function ProjectSwitcher(props: {
   startFromTemplateGallery: () => void | Promise<void>;
 }) {
   const { project, status, workspaceDir, standaloneDemo, busy, chooseProject, startFromTemplateGallery } = props;
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [projects, setProjects] = useState<Project[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +35,7 @@ export function ProjectSwitcher(props: {
   const refresh = useCallback(async () => {
     if (!workspaceDir) return;
     setError(null);
-    try { setProjects(await callTool<Project[]>("weaver_list_projects", { workspaceDir })); }
+    try { setProjects(await callTool<Project[]>("weaver_read_catalog", { workspaceDir, resource: "project.list" })); }
     catch (err) { setError(err instanceof Error ? err.message : String(err)); }
   }, [workspaceDir]);
 
@@ -69,7 +71,7 @@ export function ProjectSwitcher(props: {
     </button>
     {open ? <div className="project-switcher-menu" role="menu">
       <div className="project-switcher-list">
-        {projects === null && !error ? <div className="project-switcher-empty">Loading projects…</div> : null}
+        {projects === null && !error ? <div className="project-switcher-empty">{t("loadingProjects")}</div> : null}
         {error ? <div className="project-switcher-empty">{error}</div> : null}
         {projects?.map((item) => <button key={item.id} className="project-switcher-row" role="menuitemradio" aria-checked={item.id === project?.id} onClick={() => pick(item.id)}>
           <FolderKanban size={15} />
@@ -77,7 +79,7 @@ export function ProjectSwitcher(props: {
           {item.id === project?.id ? <Check size={15} className="project-switcher-current" /> : null}
         </button>)}
       </div>
-      <button className="project-switcher-new" onClick={newProject}><Plus size={14} /> 新建项目…</button>
+      <button className="project-switcher-new" onClick={newProject}><Plus size={14} /> {t("newProject")}</button>
     </div> : null}
   </div>;
 }

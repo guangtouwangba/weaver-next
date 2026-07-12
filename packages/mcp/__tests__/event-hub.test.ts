@@ -19,11 +19,11 @@ function fixture() {
   roots.push(root); mkdirSync(root, { recursive: true });
   const store = new WorkspaceStore(root);
   const scene = getScenePack("free-brainstorming")!;
-  const project = store.createProject({ title: "SSE", goal: "", scenePack: scene });
+  const project = store.catalog.createProject({ title: "SSE", goal: "", scenePack: scene });
   const timestamp = new Date().toISOString();
   const chatSessionKey = createHash("sha256").update("sse-chat").digest("hex");
-  const binding = store.openChatCanvasBinding({ chatSessionKey, projectId: project.id, viewId: project.defaultViewId });
-  store.syncCanvasContext({ version: 2, canvasSessionId: "canvas-sse", workspaceDir: root, projectId: project.id, scenePackId: scene.id, scenePackVersion: scene.version, graphRevision: 0, viewId: project.defaultViewId, viewType: scene.defaultView, selectedNodeIds: [], selectedEdgeIds: [], selectedGroupIds: [], pinnedContextNodeIds: [], viewport: { x: 0, y: 0, zoom: 1 }, presence: { visible: true, focused: true, lastSeenAt: timestamp }, chatBinding: { leaseId: binding.leaseId, bindingRevision: binding.bindingRevision }, agentEligible: true, sequence: 1, updatedAt: timestamp }, chatSessionKey);
+  const binding = store.sessions.openBinding({ chatSessionKey, projectId: project.id, viewId: project.defaultViewId });
+  store.sessions.syncCanvas({ version: 2, canvasSessionId: "canvas-sse", workspaceDir: root, projectId: project.id, scenePackId: scene.id, scenePackVersion: scene.version, graphRevision: 0, viewId: project.defaultViewId, viewType: scene.defaultView, selectedNodeIds: [], selectedEdgeIds: [], selectedGroupIds: [], pinnedContextNodeIds: [], viewport: { x: 0, y: 0, zoom: 1 }, presence: { visible: true, focused: true, lastSeenAt: timestamp }, chatBinding: { leaseId: binding.leaseId, bindingRevision: binding.bindingRevision }, agentEligible: true, sequence: 1, updatedAt: timestamp }, chatSessionKey);
   return { root, store, project, chatSessionKey };
 }
 
@@ -60,7 +60,7 @@ describe("SseEventHub", () => {
     const controller = new AbortController();
     const response = await fetch(grant.eventStreamUrl, { signal: controller.signal });
     expect(response.status).toBe(200);
-    const task = store.prepareAgentTask({ canvasSessionId: "canvas-sse", actionKey: "develop_selection", chatSessionKey });
+    const task = store.tasks.prepare({ canvasSessionId: "canvas-sse", actionKey: "develop_selection", chatSessionKey });
     hub.notifyWorkspace(root);
     const reader = response.body!.getReader();
     const decoder = new TextDecoder();
@@ -85,10 +85,10 @@ describe("SseEventHub", () => {
     const { root, store, project, chatSessionKey } = fixture();
     const hub = new SseEventHub(); hubs.push(hub); await hub.start();
     const grant = hub.openStream({ workspaceDir: root, projectId: project.id, canvasSessionId: "canvas-sse" });
-    const first = store.prepareAgentTask({ canvasSessionId: "canvas-sse", actionKey: "develop_selection", chatSessionKey });
-    store.updateAgentTask(first.taskId, { status: "cancelled" });
-    const firstSequence = store.getLatestEventSequence(project.id);
-    const second = store.prepareAgentTask({ canvasSessionId: "canvas-sse", actionKey: "layout_view", chatSessionKey });
+    const first = store.tasks.prepare({ canvasSessionId: "canvas-sse", actionKey: "develop_selection", chatSessionKey });
+    store.tasks.update(first.taskId, { status: "cancelled" });
+    const firstSequence = store.sessions.latestSequence(project.id);
+    const second = store.tasks.prepare({ canvasSessionId: "canvas-sse", actionKey: "layout_view", chatSessionKey });
     const controller = new AbortController();
     const response = await fetch(grant.eventStreamUrl, { headers: { "Last-Event-ID": String(firstSequence) }, signal: controller.signal });
     const reader = response.body!.getReader(); const decoder = new TextDecoder(); let text = "";
@@ -100,12 +100,12 @@ describe("SseEventHub", () => {
   it("does not deliver another canvas session's task events", async () => {
     const { root, store, project, chatSessionKey } = fixture();
     const scene = getScenePack("free-brainstorming")!; const timestamp = new Date().toISOString();
-    const otherChat = createHash("sha256").update("other-sse-chat").digest("hex"); const otherBinding = store.openChatCanvasBinding({ chatSessionKey: otherChat, projectId: project.id, viewId: project.defaultViewId });
-    store.syncCanvasContext({ version: 2, canvasSessionId: "other-canvas", workspaceDir: root, projectId: project.id, scenePackId: scene.id, scenePackVersion: scene.version, graphRevision: 0, viewId: project.defaultViewId, viewType: scene.defaultView, selectedNodeIds: [], selectedEdgeIds: [], selectedGroupIds: [], pinnedContextNodeIds: [], viewport: { x: 0, y: 0, zoom: 1 }, chatBinding: { leaseId: otherBinding.leaseId, bindingRevision: otherBinding.bindingRevision }, agentEligible: true, sequence: 1, updatedAt: timestamp }, otherChat);
+    const otherChat = createHash("sha256").update("other-sse-chat").digest("hex"); const otherBinding = store.sessions.openBinding({ chatSessionKey: otherChat, projectId: project.id, viewId: project.defaultViewId });
+    store.sessions.syncCanvas({ version: 2, canvasSessionId: "other-canvas", workspaceDir: root, projectId: project.id, scenePackId: scene.id, scenePackVersion: scene.version, graphRevision: 0, viewId: project.defaultViewId, viewType: scene.defaultView, selectedNodeIds: [], selectedEdgeIds: [], selectedGroupIds: [], pinnedContextNodeIds: [], viewport: { x: 0, y: 0, zoom: 1 }, chatBinding: { leaseId: otherBinding.leaseId, bindingRevision: otherBinding.bindingRevision }, agentEligible: true, sequence: 1, updatedAt: timestamp }, otherChat);
     const hub = new SseEventHub(); hubs.push(hub); await hub.start();
     const grant = hub.openStream({ workspaceDir: root, projectId: project.id, canvasSessionId: "canvas-sse" });
-    const other = store.prepareAgentTask({ canvasSessionId: "other-canvas", actionKey: "develop_selection", chatSessionKey: otherChat });
-    const own = store.prepareAgentTask({ canvasSessionId: "canvas-sse", actionKey: "layout_view", chatSessionKey });
+    const other = store.tasks.prepare({ canvasSessionId: "other-canvas", actionKey: "develop_selection", chatSessionKey: otherChat });
+    const own = store.tasks.prepare({ canvasSessionId: "canvas-sse", actionKey: "layout_view", chatSessionKey });
     const controller = new AbortController(); const response = await fetch(grant.eventStreamUrl, { signal: controller.signal });
     const reader = response.body!.getReader(); const decoder = new TextDecoder(); let text = "";
     await Promise.race([(async () => { while (!text.includes(own.taskId)) { const chunk = await reader.read(); if (chunk.done) break; text += decoder.decode(chunk.value, { stream: true }); } })(), new Promise((_, reject) => setTimeout(() => reject(new Error("SSE filter timeout")), 2_000))]);
@@ -119,7 +119,7 @@ describe("SseEventHub", () => {
     const grant = hub.openStream({ workspaceDir: root, projectId: project.id, canvasSessionId: "canvas-sse" });
     const controller = new AbortController();
     const response = await fetch(grant.eventStreamUrl, { signal: controller.signal });
-    store.appendProjectEvent({ projectId: project.id, canvasSessionId: "another-canvas", kind: "graph.changed", graphRevision: 1, payload: { fromRevision: 0, toRevision: 1, addedNodes: [], updatedNodes: [], archivedNodeIds: [], addedEdges: [], updatedEdges: [], archivedEdgeIds: [] } });
+    store.sessions.appendEvent({ projectId: project.id, canvasSessionId: "another-canvas", kind: "graph.changed", graphRevision: 1, payload: { fromRevision: 0, toRevision: 1, addedNodes: [], updatedNodes: [], archivedNodeIds: [], addedEdges: [], updatedEdges: [], archivedEdgeIds: [] } });
     hub.notifyWorkspace(root);
     const reader = response.body!.getReader(); const decoder = new TextDecoder(); let text = "";
     await Promise.race([(async () => { while (!text.includes("graph.changed")) { const chunk = await reader.read(); if (chunk.done) break; text += decoder.decode(chunk.value, { stream: true }); } })(), new Promise((_, reject) => setTimeout(() => reject(new Error("SSE graph broadcast timeout")), 2_000))]);

@@ -21,7 +21,7 @@ async function setup() {
   const root = mkdtempSync(join(tmpdir(), "weaver-import-asset-")); roots.push(root); mkdirSync(root, { recursive: true });
   const scene = getScenePack("entity-relationship")!;
   const store = new WorkspaceStore(root);
-  const project = store.createProject({ title: "Import", goal: "", scenePack: scene });
+  const project = store.catalog.createProject({ title: "Import", goal: "", scenePack: scene });
   store.close();
   const server = await createWeaverServer({ previewWorkspaceDir: root }); servers.push(server);
   return { root, server, project };
@@ -66,14 +66,14 @@ describe("weaver_import_asset", () => {
     const { root, server, project } = await setup();
     const res = await server.dispatch("weaver_import_asset", { workspaceDir: root, projectId: project.id, source: "bytes", mimeType: "image/png" }) as any;
     expect(res.isError).toBe(true);
-    expect(res.structuredContent.code).toBe("IMPORT_ASSET_REQUIRES_base64");
+    expect(res.structuredContent.code).toBe("INVALID_ARGS");
   });
 
   it("source:'svg' without svg fails with a typed per-source error", async () => {
     const { root, server, project } = await setup();
     const res = await server.dispatch("weaver_import_asset", { workspaceDir: root, projectId: project.id, source: "svg", scale: 2 }) as any;
     expect(res.isError).toBe(true);
-    expect(res.structuredContent.code).toBe("IMPORT_ASSET_REQUIRES_svg");
+    expect(res.structuredContent.code).toBe("INVALID_ARGS");
   });
 
   it("is model-facing, and the two old imagegen tools are removed from the model surface", async () => {

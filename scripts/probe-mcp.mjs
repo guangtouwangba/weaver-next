@@ -3,74 +3,38 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import sharp from "sharp";
 
 const workspaceDir = join(tmpdir(), `weaver-mcp-probe-${process.pid}`);
 mkdirSync(workspaceDir, { recursive: true });
-const transport = new StdioClientTransport({
-  command: process.env.WEAVER_PROBE_COMMAND ?? "node",
-  args: process.env.WEAVER_PROBE_ARGS ? JSON.parse(process.env.WEAVER_PROBE_ARGS) : ["./scripts/start-mcp.mjs"],
-  cwd: process.env.WEAVER_PROBE_CWD ?? process.cwd(),
-  stderr: "pipe",
-});
-const client = new Client({ name: "weaver-probe", version: "0.1.0" });
+const transport = new StdioClientTransport({ command: process.env.WEAVER_PROBE_COMMAND ?? "node", args: process.env.WEAVER_PROBE_ARGS ? JSON.parse(process.env.WEAVER_PROBE_ARGS) : ["./scripts/start-mcp.mjs"], cwd: process.env.WEAVER_PROBE_CWD ?? process.cwd(), stderr: "pipe" });
+const client = new Client({ name: "weaver-probe", version: "0.2.0" });
 const threadId = `weaver-probe-thread-${process.pid}`;
-const threadMeta = { threadId, "x-codex-turn-metadata": { thread_id: threadId } };
-
-function data(result) {
-  if (result.isError) throw new Error(result.content?.find((item) => item.type === "text")?.text ?? "MCP tool failed");
-  const value = result.structuredContent;
-  return value && Object.keys(value).length === 1 && Array.isArray(value.items) ? value.items : value;
-}
+const _meta = { threadId, "x-codex-turn-metadata": { thread_id: threadId } };
+function data(result) { if (result.isError) throw new Error(result.structuredContent?.message ?? "MCP tool failed"); const value = result.structuredContent; return value && Object.keys(value).length === 1 && Array.isArray(value.items) ? value.items : value; }
+const call = (name, args) => client.callTool({ name, arguments: args, _meta }).then(data);
 
 try {
   await client.connect(transport);
   const tools = await client.listTools();
-  const required = ["weaver_open_workspace_widget", "weaver_create_project", "weaver_get_or_create_view", "weaver_get_node_content", "weaver_get_asset_metadata", "weaver_import_image_asset", "weaver_create_content_node", "weaver_update_node_content", "weaver_enrich_link", "weaver_sync_canvas_context", "weaver_prepare_agent_task", "weaver_generate_layout_candidates", "weaver_apply_layout", "weaver_revert_layout"];
-  for (const name of required) if (!tools.tools.some((tool) => tool.name === name)) throw new Error(`Missing MCP tool ${name}`);
-  const resources = await client.listResources();
-  const resourceTemplates = await client.listResourceTemplates();
-  const widgetResource = resources.resources.find((resource) => /^ui:\/\/widget\/weaver\/workspace-[a-f0-9]{12}\.html$/.test(resource.uri));
-  if (!widgetResource) throw new Error("Missing versioned Weaver widget resource");
-  for (const uriTemplate of ["weaver://projects/{projectId}/nodes/{nodeId}/content", "weaver://projects/{projectId}/assets/{assetId}", "weaver://projects/{projectId}/assets/{assetId}/thumbnail"]) if (!resourceTemplates.resourceTemplates.some((resource) => resource.uriTemplate === uriTemplate)) throw new Error(`Missing MCP resource template ${uriTemplate}`);
-  const widget = await client.readResource({ uri: widgetResource.uri });
-  const widgetHtml = widget.contents.find((content) => "text" in content)?.text ?? "";
-  if (!widgetHtml.includes("Weaver Space") || !widgetHtml.includes("<script type=\"module\">")) throw new Error("Widget resource was not bundled inline");
+  const expected = ["weaver_open_space", "weaver_read_catalog", "weaver_read_graph", "weaver_read_session", "weaver_catalog_action", "weaver_canvas_action", "weaver_prepare_task", "weaver_task_action", "weaver_submit_changeset", "weaver_recommend_layout", "weaver_review_action", "weaver_import_asset", "weaver_publish_artifact", "weaver_subscribe_canvas", "weaver_get_diagnostics"].sort();
+  const actual = tools.tools.map((tool) => tool.name).sort();
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new Error(`Unexpected tool surface: ${actual.join(",")}`);
 
-  const project = data(await client.callTool({ name: "weaver_create_project", arguments: { workspaceDir, title: "Probe", goal: "Map a causal question", scenePackId: "causal-map" } }));
-  const createdDocument = data(await client.callTool({ name: "weaver_create_content_node", arguments: { workspaceDir, projectId: project.id, viewId: project.defaultViewId, semanticType: "cause", title: "Detailed cause", content: { kind: "document", mode: "article", markdown: "# Full private markdown", excerpt: "Full private markdown", embeddedAssetIds: [] }, x: 320, y: 0 } }));
-  const graphAfterDocument = data(await client.callTool({ name: "weaver_get_project_graph", arguments: { workspaceDir, projectId: project.id, viewId: project.defaultViewId } }));
-  const documentSummary = graphAfterDocument.nodes.find((node) => node.id === createdDocument.node.id);
-  if (documentSummary.content.markdown !== undefined) throw new Error("Graph response leaked full Markdown");
-  const fullDocument = data(await client.callTool({ name: "weaver_get_node_content", arguments: { workspaceDir, projectId: project.id, nodeId: createdDocument.node.id } }));
-  if (fullDocument.node.content.markdown !== "# Full private markdown") throw new Error("Full node content unavailable");
-  const updatedDocument = data(await client.callTool({ name: "weaver_update_node_content", arguments: { workspaceDir, projectId: project.id, nodeId: createdDocument.node.id, baseGraphRevision: graphAfterDocument.project.graphRevision, title: "Updated cause" } }));
-  const png = await sharp({ create: { width: 120, height: 80, channels: 4, background: "#315cf6" } }).png().toBuffer();
-  const imported = data(await client.callTool({ name: "weaver_import_image_asset", arguments: { workspaceDir, projectId: project.id, mimeType: "image/png", base64: png.toString("base64") } }));
-  const duplicate = data(await client.callTool({ name: "weaver_import_image_asset", arguments: { workspaceDir, projectId: project.id, mimeType: "image/png", base64: png.toString("base64") } }));
-  if (duplicate.asset.id !== imported.asset.id || !duplicate.deduplicated) throw new Error("Asset deduplication failed");
-  const createdImage = data(await client.callTool({ name: "weaver_create_content_node", arguments: { workspaceDir, projectId: project.id, viewId: project.defaultViewId, semanticType: "effect", title: "Visual evidence", content: { kind: "image", assetId: imported.asset.id, alt: "Blue rectangle", caption: "Probe" }, x: 640, y: 0 } }));
-  const assetMetadata = data(await client.callTool({ name: "weaver_get_asset_metadata", arguments: { workspaceDir, projectId: project.id, assetId: imported.asset.id } }));
-  if (assetMetadata.width !== 120 || createdImage.node.contentKind !== "image" || updatedDocument.node.title !== "Updated cause") throw new Error("Content node workflow failed");
-  const graph = data(await client.callTool({ name: "weaver_get_project_graph", arguments: { workspaceDir, projectId: project.id, viewId: project.defaultViewId } }));
-  const graphView = data(await client.callTool({ name: "weaver_get_or_create_view", arguments: { workspaceDir, projectId: project.id, viewType: "graph" } }));
-  if (graphView.viewId === project.defaultViewId || graphView.layoutRevision !== 0) throw new Error("Independent view was not created");
-  const sessionId = "probe-session";
-  const opened = data(await client.callTool({ name: "weaver_open_workspace_widget", arguments: { workspaceDir, projectId: project.id }, _meta: threadMeta }));
+  const created = await call("weaver_catalog_action", { workspaceDir, action: "create_project", title: "机器人研究", goal: "梳理人形机器人技术栈", scenePackId: "entity-relationship" });
+  const project = created.project;
+  for (const [index, title] of ["人形机器人", "伺服系统", "减速器", "具身智能模型"].entries()) await call("weaver_canvas_action", { workspaceDir, action: "create_node", projectId: project.id, viewId: project.defaultViewId, semanticType: "entity", title, content: { kind: "document", mode: "note", markdown: `# ${title}`, excerpt: title, embeddedAssetIds: [] }, x: index * 220, y: index % 2 * 140 });
+  const graph = await call("weaver_read_graph", { workspaceDir, resource: "full", projectId: project.id, viewId: project.defaultViewId });
+  if (graph.nodes.length !== 5) throw new Error("Robot research graph was not created");
+
+  const opened = await call("weaver_open_space", { workspaceDir, projectId: project.id, displayMode: "inline" });
   const timestamp = new Date().toISOString();
-  data(await client.callTool({ name: "weaver_sync_canvas_context", arguments: { workspaceDir, snapshot: { version: 2, canvasSessionId: sessionId, workspaceDir, projectId: project.id, scenePackId: project.scenePackId, scenePackVersion: project.scenePackVersion, graphRevision: graph.project.graphRevision, viewId: project.defaultViewId, viewType: graph.layout.viewType, selectedNodeIds: graph.nodes.map((node) => node.id), selectedEdgeIds: [], selectedGroupIds: [], pinnedContextNodeIds: [], viewport: { x: 0, y: 0, zoom: 1 }, presence: { visible: true, focused: true, lastSeenAt: timestamp }, chatBinding: opened.chatBinding, agentEligible: true, sequence: 1, updatedAt: timestamp } }, _meta: threadMeta }));
-  const task = data(await client.callTool({ name: "weaver_prepare_task_from_active_canvas", arguments: { workspaceDir, actionKey: "layout_view", userInstruction: "Arrange causes left to right" }, _meta: threadMeta }));
-  data(await client.callTool({ name: "weaver_start_agent_task", arguments: { workspaceDir, taskId: task.taskId }, _meta: threadMeta }));
-  const generated = data(await client.callTool({ name: "weaver_generate_layout_candidates", arguments: { workspaceDir, taskId: task.taskId, plan: { projectId: project.id, viewId: project.defaultViewId, baseGraphRevision: graph.project.graphRevision, baseLayoutRevision: graph.layout.layoutRevision, scope: { type: "whole-view" }, strategy: "layered", direction: "left-right", constraints: [{ type: "avoid-overlap", nodeIds: [], edgeIds: [], edgeTypes: [], strength: 1 }], preserve: { pinnedNodes: true, manualGroups: true, relativeOrder: true, mentalMapWeight: 0.7 }, candidateCount: 3, rationale: "Causal direction" } }, _meta: threadMeta }));
-  const run = data(await client.callTool({ name: "weaver_get_layout_run", arguments: { workspaceDir, layoutRunId: generated.layoutRunId }, _meta: threadMeta }));
-  const valid = run.candidates.find((candidate) => candidate.metrics.hardViolations.length === 0);
-  if (!valid) throw new Error("No valid layout candidate");
-  const applied = data(await client.callTool({ name: "weaver_apply_layout", arguments: { workspaceDir, layoutRunId: run.id, candidateId: valid.id }, _meta: threadMeta }));
-  if (applied.layoutRevision !== graph.layout.layoutRevision + 1) throw new Error("layoutRevision did not increment");
-  const current = data(await client.callTool({ name: "weaver_get_project_graph", arguments: { workspaceDir, projectId: project.id, viewId: project.defaultViewId } }));
-  if (current.project.graphRevision !== graph.project.graphRevision) throw new Error("layout changed graphRevision");
-  console.log(JSON.stringify({ ok: true, tools: tools.tools.length, resources: resources.resources.length, candidates: run.candidates.length, contentKinds: [...new Set(current.nodes.map((node) => node.contentKind))], graphRevision: current.project.graphRevision, layoutRevision: current.layout.layoutRevision }));
-} finally {
-  await client.close().catch(() => {});
-  rmSync(workspaceDir, { recursive: true, force: true });
-}
+  await call("weaver_canvas_action", { workspaceDir, action: "claim", snapshot: { version: 2, syncPurpose: "claim", canvasSessionId: "probe-session", workspaceDir, projectId: project.id, scenePackId: project.scenePackId, scenePackVersion: project.scenePackVersion, graphRevision: graph.project.graphRevision, viewId: project.defaultViewId, viewType: graph.layout.viewType, selectedNodeIds: graph.nodes.map((node) => node.id), selectedEdgeIds: [], selectedGroupIds: [], pinnedContextNodeIds: [], viewport: { x: 0, y: 0, zoom: 1 }, presence: { visible: true, focused: true, lastSeenAt: timestamp }, chatBinding: opened.chatBinding, agentEligible: true, sequence: 1, updatedAt: timestamp } });
+  const task = await call("weaver_prepare_task", { workspaceDir, actionKey: "layout_view", userInstruction: "按技术栈从左到右排列" });
+  await call("weaver_task_action", { workspaceDir, taskId: task.taskId, action: "start" });
+  const generated = await call("weaver_recommend_layout", { workspaceDir, taskId: task.taskId, plan: { projectId: project.id, viewId: project.defaultViewId, baseGraphRevision: graph.project.graphRevision, baseLayoutRevision: graph.layout.layoutRevision, scope: { type: "whole-view" }, strategy: "layered", direction: "left-right", constraints: [{ type: "avoid-overlap", nodeIds: [], edgeIds: [], edgeTypes: [], strength: 1 }], preserve: { pinnedNodes: true, manualGroups: true, relativeOrder: true, mentalMapWeight: 0.7 }, candidateCount: 3, rationale: "机器人技术栈" } });
+  const preview = await call("weaver_review_action", { workspaceDir, resource: "layout_run", action: "preview", id: generated.layoutRunId });
+  const candidate = preview.candidates.find((item) => item.metrics.hardViolations.length === 0);
+  if (!candidate) throw new Error("No valid layout candidate");
+  const applied = await call("weaver_review_action", { workspaceDir, resource: "layout_run", action: "apply", id: generated.layoutRunId, candidateId: candidate.id });
+  console.log(JSON.stringify({ ok: true, tools: actual.length, project: project.title, nodes: graph.nodes.length, graphRevision: graph.project.graphRevision, layoutRevision: applied.layoutRevision }));
+} finally { await client.close().catch(() => {}); rmSync(workspaceDir, { recursive: true, force: true }); }

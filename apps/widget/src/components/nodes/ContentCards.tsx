@@ -2,28 +2,32 @@ import type { Node, NodeProps } from "@xyflow/react";
 import { ExternalLink, FileImage, FileText, Lock } from "lucide-react";
 import type { CardData } from "../../types";
 import { NodeShell } from "./NodeShell";
+import { useI18n } from "../../lib/i18n";
 
 export function DocumentCard({ data, id, selected }: NodeProps<Node<CardData>>) {
+  const { t } = useI18n();
   return <NodeShell data={data} className="document-card" id={id} selected={selected}>
     {data.imageSrc ? <img className="document-cover" src={data.imageSrc} alt="" /> : null}
     <div className="card-kicker"><FileText size={11} /> {data.semanticType}</div>
-    <strong>{data.title || "Untitled article"}</strong>
-    <p>{data.excerpt || "Open to begin writing."}</p>
-    <div className="card-foot">{data.pinned ? <><Lock size={11} /> fixed</> : "document"}</div>
+    <strong>{data.title || t("untitledArticle")}</strong>
+    <p>{data.excerpt || t("openToWrite")}</p>
+    <div className="card-foot">{data.pinned ? <><Lock size={11} /> {t("fixedLabel")}</> : t("document")}</div>
   </NodeShell>;
 }
 
 export function ImageCard({ data, id, selected }: NodeProps<Node<CardData>>) {
+  const { t } = useI18n();
   return <NodeShell data={data} className="image-card" id={id} selected={selected}>
     <div className="image-stage">{data.imageSrc ? <img src={data.imageSrc} alt={data.caption || data.title} /> : <FileImage size={30} />}</div>
-    <div className="image-caption"><span>{data.semanticType}</span><strong>{data.caption || data.title || "Untitled image"}</strong></div>
+    <div className="image-caption"><span>{data.semanticType}</span><strong>{data.caption || data.title || t("untitledImage")}</strong></div>
   </NodeShell>;
 }
 
 export function LinkCard({ data, id, selected }: NodeProps<Node<CardData>>) {
+  const { t } = useI18n();
   return <NodeShell data={data} className="link-card" id={id} selected={selected}>
     {data.imageSrc ? <img className="link-cover" src={data.imageSrc} alt="" /> : <div className="link-mark"><ExternalLink size={22} /></div>}
-    <div className="link-copy"><span>{data.domain || data.status || "LINK"}</span><strong>{data.title || "Untitled link"}</strong><p>{data.description || "Preview details will appear here."}</p></div>
+    <div className="link-copy"><span>{data.domain || data.status || "LINK"}</span><strong>{data.title || t("untitledLink")}</strong><p>{data.description || t("previewPending")}</p></div>
   </NodeShell>;
 }
 

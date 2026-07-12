@@ -50,7 +50,8 @@ export function applyGraphDelta<Node extends { id: string }, Edge extends { id: 
   return { nodes: [...nodeMap.values()], edges: [...edgeMap.values()] };
 }
 
-export function applyLayoutOperations<T extends { layoutRevision: number; nodes: Record<string, any> }>(document: T, toRevision: number, operations: LayoutOperation[]): T {
+type MutableLayoutNode = { pinned?: boolean; hidden?: boolean; collapsed?: boolean; zIndex?: number; [key: string]: unknown };
+export function applyLayoutOperations<T extends { layoutRevision: number; nodes: Record<string, MutableLayoutNode> }>(document: T, toRevision: number, operations: LayoutOperation[]): T {
   const next = structuredClone(document);
   for (const operation of operations) {
     const nodeId = "nodeId" in operation ? (operation.nodeId as string) : undefined;
@@ -58,9 +59,9 @@ export function applyLayoutOperations<T extends { layoutRevision: number; nodes:
     if (operation.type === "set-node-frame" && nodeId) next.nodes[nodeId] = { ...(node ?? { nodeId, pinned: false }), ...(operation.frame as Record<string, unknown>) };
     else if (operation.type === "pin-node" && node) node.pinned = true;
     else if (operation.type === "unpin-node" && node) node.pinned = false;
-    else if (operation.type === "set-node-visibility" && node) node.hidden = operation.hidden;
-    else if (operation.type === "set-node-collapsed" && node) node.collapsed = operation.collapsed;
-    else if (operation.type === "set-node-z-index" && node) node.zIndex = operation.zIndex;
+    else if (operation.type === "set-node-visibility" && node) node.hidden = Boolean(operation.hidden);
+    else if (operation.type === "set-node-collapsed" && node) node.collapsed = Boolean(operation.collapsed);
+    else if (operation.type === "set-node-z-index" && node) node.zIndex = Number(operation.zIndex);
     else if (operation.type === "set-view-name") Object.assign(next, { viewName: operation.viewName });
     else if (operation.type === "set-view-projection") Object.assign(next, { projection: operation.projection });
     else if (operation.type === "set-view-theme") Object.assign(next, { theme: operation.theme });

@@ -1,12 +1,13 @@
-# Architecture Decision Record (ADR) Log — Weaver Next
+# Legacy Architecture Decision Record Log — Weaver Next
 
-> Captures the major, hard-to-reverse decisions behind the Weaver Next rebuild,
-> with their context and consequences. Each ADR is anchored to the authoritative
-> doc that specifies it in full. Status values: **Accepted** (binding) /
-> **Proposed** / **Superseded**.
+> **Status: Superseded as a set.** ADR-0001 through ADR-0027 document the retired
+> Python/tree-first rebuild. Their row-level status is preserved for history but
+> none is binding on the current implementation. See
+> [`../adr/0001-codex-widget-semantic-graph.md`](../adr/0001-codex-widget-semantic-graph.md).
 >
-> Upstream truths: [`../PRD-Weaver-Redesign-2026.md`](../PRD-Weaver-Redesign-2026.md),
-> [`../rebuild-plan.md`](../rebuild-plan.md), [`00-foundation.md`](00-foundation.md).
+> Upstream truths: [`../PRD-Weaver-Redesign-2026.md`](../PRD-Weaver-Redesign-2026.md)
+> and [`00-foundation.md`](00-foundation.md). The deprecated
+> [`../rebuild-plan.md`](../rebuild-plan.md) is historical context only.
 
 | ADR | Title | Status | Owner doc |
 |-----|-------|--------|-----------|

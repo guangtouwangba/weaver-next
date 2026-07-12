@@ -120185,12 +120185,12 @@ var Protocol = class {
     this._taskMessageQueue = _options?.taskMessageQueue;
     if (this._taskStore) {
       this.setRequestHandler(GetTaskRequestSchema, async (request, extra) => {
-        const task = await this._taskStore.getTask(request.params.taskId, extra.sessionId);
-        if (!task) {
+        const task2 = await this._taskStore.getTask(request.params.taskId, extra.sessionId);
+        if (!task2) {
           throw new McpError(ErrorCode.InvalidParams, "Failed to retrieve task: Task not found");
         }
         return {
-          ...task
+          ...task2
         };
       });
       this.setRequestHandler(GetTaskPayloadRequestSchema, async (request, extra) => {
@@ -120221,15 +120221,15 @@ var Protocol = class {
               await this._transport?.send(queuedMessage.message, { relatedRequestId: extra.requestId });
             }
           }
-          const task = await this._taskStore.getTask(taskId, extra.sessionId);
-          if (!task) {
+          const task2 = await this._taskStore.getTask(taskId, extra.sessionId);
+          if (!task2) {
             throw new McpError(ErrorCode.InvalidParams, `Task not found: ${taskId}`);
           }
-          if (!isTerminal(task.status)) {
+          if (!isTerminal(task2.status)) {
             await this._waitForTaskUpdate(taskId, extra.signal);
             return await handleTaskResult();
           }
-          if (isTerminal(task.status)) {
+          if (isTerminal(task2.status)) {
             const result2 = await this._taskStore.getTaskResult(taskId, extra.sessionId);
             this._clearTaskQueue(taskId);
             return {
@@ -120260,12 +120260,12 @@ var Protocol = class {
       });
       this.setRequestHandler(CancelTaskRequestSchema, async (request, extra) => {
         try {
-          const task = await this._taskStore.getTask(request.params.taskId, extra.sessionId);
-          if (!task) {
+          const task2 = await this._taskStore.getTask(request.params.taskId, extra.sessionId);
+          if (!task2) {
             throw new McpError(ErrorCode.InvalidParams, `Task not found: ${request.params.taskId}`);
           }
-          if (isTerminal(task.status)) {
-            throw new McpError(ErrorCode.InvalidParams, `Cannot cancel task in terminal status: ${task.status}`);
+          if (isTerminal(task2.status)) {
+            throw new McpError(ErrorCode.InvalidParams, `Cannot cancel task in terminal status: ${task2.status}`);
           }
           await this._taskStore.updateTaskStatus(request.params.taskId, "cancelled", "Client cancelled task execution.", extra.sessionId);
           this._clearTaskQueue(request.params.taskId);
@@ -120553,10 +120553,10 @@ var Protocol = class {
     if (isJSONRPCResultResponse(response) && response.result && typeof response.result === "object") {
       const result2 = response.result;
       if (result2.task && typeof result2.task === "object") {
-        const task = result2.task;
-        if (typeof task.taskId === "string") {
+        const task2 = result2.task;
+        if (typeof task2.taskId === "string") {
           isTaskResponse = true;
-          this._taskProgressTokens.set(task.taskId, messageId);
+          this._taskProgressTokens.set(task2.taskId, messageId);
         }
       }
     }
@@ -120607,8 +120607,8 @@ var Protocol = class {
    * @experimental Use `client.experimental.tasks.requestStream()` to access this method.
    */
   async *requestStream(request, resultSchema, options) {
-    const { task } = options ?? {};
-    if (!task) {
+    const { task: task2 } = options ?? {};
+    if (!task2) {
       try {
         const result2 = await this.request(request, resultSchema, options);
         yield { type: "result", result: result2 };
@@ -120630,18 +120630,18 @@ var Protocol = class {
         throw new McpError(ErrorCode.InternalError, "Task creation did not return a task");
       }
       while (true) {
-        const task2 = await this.getTask({ taskId }, options);
-        yield { type: "taskStatus", task: task2 };
-        if (isTerminal(task2.status)) {
-          if (task2.status === "completed") {
+        const task3 = await this.getTask({ taskId }, options);
+        yield { type: "taskStatus", task: task3 };
+        if (isTerminal(task3.status)) {
+          if (task3.status === "completed") {
             const result2 = await this.getTaskResult({ taskId }, resultSchema, options);
             yield { type: "result", result: result2 };
-          } else if (task2.status === "failed") {
+          } else if (task3.status === "failed") {
             yield {
               type: "error",
               error: new McpError(ErrorCode.InternalError, `Task ${taskId} failed`)
             };
-          } else if (task2.status === "cancelled") {
+          } else if (task3.status === "cancelled") {
             yield {
               type: "error",
               error: new McpError(ErrorCode.InternalError, `Task ${taskId} was cancelled`)
@@ -120649,12 +120649,12 @@ var Protocol = class {
           }
           return;
         }
-        if (task2.status === "input_required") {
+        if (task3.status === "input_required") {
           const result2 = await this.getTaskResult({ taskId }, resultSchema, options);
           yield { type: "result", result: result2 };
           return;
         }
-        const pollInterval = task2.pollInterval ?? this._options?.defaultTaskPollInterval ?? 1e3;
+        const pollInterval = task3.pollInterval ?? this._options?.defaultTaskPollInterval ?? 1e3;
         await new Promise((resolve5) => setTimeout(resolve5, pollInterval));
         options?.signal?.throwIfAborted();
       }
@@ -120671,7 +120671,7 @@ var Protocol = class {
    * Do not use this method to emit notifications! Use notification() instead.
    */
   request(request, resultSchema, options) {
-    const { relatedRequestId, resumptionToken, onresumptiontoken, task, relatedTask } = options ?? {};
+    const { relatedRequestId, resumptionToken, onresumptiontoken, task: task2, relatedTask } = options ?? {};
     return new Promise((resolve5, reject) => {
       const earlyReject = (error51) => {
         reject(error51);
@@ -120683,7 +120683,7 @@ var Protocol = class {
       if (this._options?.enforceStrictCapabilities === true) {
         try {
           this.assertCapabilityForMethod(request.method);
-          if (task) {
+          if (task2) {
             this.assertTaskCapability(request.method);
           }
         } catch (e) {
@@ -120708,10 +120708,10 @@ var Protocol = class {
           }
         };
       }
-      if (task) {
+      if (task2) {
         jsonrpcRequest.params = {
           ...jsonrpcRequest.params,
-          task
+          task: task2
         };
       }
       if (relatedTask) {
@@ -121005,9 +121005,9 @@ var Protocol = class {
   async _waitForTaskUpdate(taskId, signal) {
     let interval2 = this._options?.defaultTaskPollInterval ?? 1e3;
     try {
-      const task = await this._taskStore?.getTask(taskId);
-      if (task?.pollInterval) {
-        interval2 = task.pollInterval;
+      const task2 = await this._taskStore?.getTask(taskId);
+      if (task2?.pollInterval) {
+        interval2 = task2.pollInterval;
       }
     } catch {
     }
@@ -121039,22 +121039,22 @@ var Protocol = class {
         }, sessionId);
       },
       getTask: async (taskId) => {
-        const task = await taskStore.getTask(taskId, sessionId);
-        if (!task) {
+        const task2 = await taskStore.getTask(taskId, sessionId);
+        if (!task2) {
           throw new McpError(ErrorCode.InvalidParams, "Failed to retrieve task: Task not found");
         }
-        return task;
+        return task2;
       },
       storeTaskResult: async (taskId, status, result2) => {
         await taskStore.storeTaskResult(taskId, status, result2, sessionId);
-        const task = await taskStore.getTask(taskId, sessionId);
-        if (task) {
+        const task2 = await taskStore.getTask(taskId, sessionId);
+        if (task2) {
           const notification = TaskStatusNotificationSchema.parse({
             method: "notifications/tasks/status",
-            params: task
+            params: task2
           });
           await this.notification(notification);
-          if (isTerminal(task.status)) {
+          if (isTerminal(task2.status)) {
             this._cleanupTaskProgressHandler(taskId);
           }
         }
@@ -121063,12 +121063,12 @@ var Protocol = class {
         return taskStore.getTaskResult(taskId, sessionId);
       },
       updateTaskStatus: async (taskId, status, statusMessage) => {
-        const task = await taskStore.getTask(taskId, sessionId);
-        if (!task) {
+        const task2 = await taskStore.getTask(taskId, sessionId);
+        if (!task2) {
           throw new McpError(ErrorCode.InvalidParams, `Task "${taskId}" not found - it may have been cleaned up`);
         }
-        if (isTerminal(task.status)) {
-          throw new McpError(ErrorCode.InvalidParams, `Cannot update task "${taskId}" from terminal status "${task.status}" to "${status}". Terminal states (completed, failed, cancelled) cannot transition to other states.`);
+        if (isTerminal(task2.status)) {
+          throw new McpError(ErrorCode.InvalidParams, `Cannot update task "${taskId}" from terminal status "${task2.status}" to "${status}". Terminal states (completed, failed, cancelled) cannot transition to other states.`);
         }
         await taskStore.updateTaskStatus(taskId, status, statusMessage, sessionId);
         const updatedTask = await taskStore.getTask(taskId, sessionId);
@@ -122339,15 +122339,15 @@ var McpServer = class {
       await Promise.resolve(handler.createTask(taskExtra))
     );
     const taskId = createTaskResult.task.taskId;
-    let task = createTaskResult.task;
-    const pollInterval = task.pollInterval ?? 5e3;
-    while (task.status !== "completed" && task.status !== "failed" && task.status !== "cancelled") {
+    let task2 = createTaskResult.task;
+    const pollInterval = task2.pollInterval ?? 5e3;
+    while (task2.status !== "completed" && task2.status !== "failed" && task2.status !== "cancelled") {
       await new Promise((resolve5) => setTimeout(resolve5, pollInterval));
       const updatedTask = await extra.taskStore.getTask(taskId);
       if (!updatedTask) {
         throw new McpError(ErrorCode.InternalError, `Task ${taskId} not found during polling`);
       }
-      task = updatedTask;
+      task2 = updatedTask;
     }
     return await extra.taskStore.getTaskResult(taskId);
   }
@@ -122942,6 +122942,87 @@ import { homedir } from "node:os";
 import { join as join5 } from "node:path";
 import { DatabaseSync as DatabaseSync2 } from "node:sqlite";
 
+// packages/contracts/src/failure.ts
+var weaverErrorCodes = [
+  "ACTIVE_CANVAS_TASK_EXISTS",
+  "AGENT_DISPATCH_NOT_FOUND",
+  "AGENT_TASK_NOT_FOUND",
+  "ASSET_NOT_FOUND",
+  "ASSET_NOT_FOUND_OR_CROSS_PROJECT",
+  "BOUND_CANVAS_NOT_READY",
+  "BOUND_CANVAS_OFFLINE",
+  "BROWSER_PREVIEW_AGENT_UNAVAILABLE",
+  "CANVAS_ALREADY_ACTIVE",
+  "CANVAS_SESSION_NOT_FOUND",
+  "CATALOG_INVALID",
+  "CHANGESET_NOT_FOUND",
+  "CHAT_CANVAS_LEASE_STALE",
+  "CODEX_THREAD_CONTEXT_REQUIRED",
+  "GRAPH_REVISION_CONFLICT",
+  "IMAGE_DIMENSIONS_MISSING",
+  "IMAGE_TOO_LARGE",
+  "IMAGE_TYPE_MISMATCH",
+  "INVALID_ARGS",
+  "LAST_ACTIVE_VIEW",
+  "LAYOUT_CANDIDATE_NOT_FOUND",
+  "LAYOUT_HARD_VIOLATION",
+  "LAYOUT_HISTORY_EMPTY",
+  "LAYOUT_NOT_FOUND",
+  "LAYOUT_REVISION_CONFLICT",
+  "LAYOUT_RUN_NOT_FOUND",
+  "LAYOUT_RUN_NOT_PENDING",
+  "NO_CANVAS_BOUND_TO_CHAT",
+  "NODE_NOT_FOUND",
+  "PROJECT_NOT_FOUND",
+  "STALE_CANVAS_SEQUENCE",
+  "TASK_BINDING_STALE",
+  "TASK_CHAT_MISMATCH",
+  "TASK_NOT_ON_CANVAS",
+  "TASK_NOT_RUNNING",
+  "TASK_REVISION_CONFLICT",
+  "TASK_TERMINAL",
+  "TASK_TRANSITION_INVALID",
+  "UNSAFE_ASSET_PATH",
+  "VIEW_CATALOG_EVENT_GAP",
+  "VIEW_CATALOG_REVISION_CONFLICT",
+  "VIEW_FALLBACK_REQUIRED",
+  "VIEW_NAME_REQUIRED",
+  "VIEW_NOT_FOUND",
+  "VIEW_NOT_TRASHED",
+  "VISUAL_TEMPLATE_BINDING_INVALID",
+  "VISUAL_TEMPLATE_BLUEPRINT_INVALID",
+  "VISUAL_TEMPLATE_DATA_NOT_READY",
+  "VISUAL_TEMPLATE_NOT_FOUND",
+  "VISUAL_TEMPLATE_SCENE_INCOMPATIBLE",
+  "WORKSPACE_SCHEMA_RESET",
+  "WORKSPACE_UNKNOWN",
+  "INTERNAL"
+];
+var weaverErrorCodeSchema = external_exports.enum(weaverErrorCodes);
+var weaverFailureSchema = external_exports.object({ code: weaverErrorCodeSchema, message: external_exports.string().min(1), details: external_exports.unknown().optional(), retryable: external_exports.boolean() });
+var retryableCodes = /* @__PURE__ */ new Set(["BOUND_CANVAS_OFFLINE", "CHAT_CANVAS_LEASE_STALE", "GRAPH_REVISION_CONFLICT", "LAYOUT_REVISION_CONFLICT", "TASK_REVISION_CONFLICT", "VIEW_CATALOG_EVENT_GAP", "VIEW_CATALOG_REVISION_CONFLICT"]);
+var WeaverError = class extends Error {
+  code;
+  details;
+  retryable;
+  constructor(code, message = code, details, retryable = retryableCodes.has(code)) {
+    super(message);
+    this.name = "WeaverError";
+    this.code = code;
+    this.details = details;
+    this.retryable = retryable;
+  }
+  toFailure() {
+    return { code: this.code, message: this.message, details: this.details, retryable: this.retryable };
+  }
+};
+function normalizeWeaverFailure(error51) {
+  if (error51 instanceof WeaverError) return error51.toFailure();
+  const message = error51 instanceof Error ? error51.message : String(error51);
+  const parsed = weaverErrorCodeSchema.safeParse(message.split(":", 1)[0]);
+  return { code: parsed.success ? parsed.data : "INTERNAL", message, retryable: parsed.success ? retryableCodes.has(parsed.data) : false };
+}
+
 // packages/contracts/src/space.ts
 var automationLevelSchema = external_exports.enum(["cautious", "collaborative", "automatic"]);
 var contentKindSchema = external_exports.enum(["document", "image", "link", "chart"]);
@@ -122992,21 +123073,16 @@ var nodeBaseSchema = external_exports.object({
   projectId: external_exports.string().min(1),
   type: external_exports.string().min(1),
   title: external_exports.string(),
-  body: external_exports.string().default(""),
   contentKind: contentKindSchema.optional(),
-  content: nodeContentSchema.optional(),
+  content: nodeContentSchema,
   properties: external_exports.record(external_exports.string(), external_exports.unknown()).default({}),
   archived: external_exports.boolean().default(false),
   createdAt: external_exports.string(),
   updatedAt: external_exports.string()
 });
-function excerpt(markdown) {
-  return markdown.replace(/[#>*_`[\]()!-]/g, " ").replace(/\s+/g, " ").trim().slice(0, 280);
-}
 var nodeSchema = nodeBaseSchema.transform((node) => {
-  const content = node.content ?? documentContentSchema.parse({ kind: "document", markdown: node.body, excerpt: excerpt(node.body) });
-  if (node.contentKind && node.contentKind !== content.kind) throw new Error("NODE_CONTENT_KIND_MISMATCH");
-  return { ...node, body: content.kind === "document" ? content.markdown : node.body, contentKind: content.kind, content };
+  if (node.contentKind && node.contentKind !== node.content.kind) throw new Error("NODE_CONTENT_KIND_MISMATCH");
+  return { ...node, contentKind: node.content.kind };
 });
 var assetSchema = external_exports.object({
   id: external_exports.string().min(1),
@@ -123204,18 +123280,15 @@ var agentDispatchRecordSchema = external_exports.object({
   acceptedAt: external_exports.string().optional(),
   error: external_exports.object({ code: external_exports.string(), message: external_exports.string() }).optional()
 });
-var agentTaskErrorSchema = external_exports.preprocess(
-  (value) => typeof value === "string" ? { code: "TASK_FAILED", message: value } : value,
-  external_exports.object({ code: external_exports.string(), message: external_exports.string() }).optional()
-);
+var agentTaskErrorSchema = external_exports.object({ code: external_exports.string(), message: external_exports.string() }).optional();
 var agentTaskSchema = external_exports.object({
   taskId: external_exports.string().min(1),
   canvasSessionId: external_exports.string().min(1),
   workspaceDir: external_exports.string().min(1),
   projectId: external_exports.string().min(1),
-  viewId: external_exports.string().default(""),
-  chatSessionKey: external_exports.string().min(1).default("legacy-unbound"),
-  bindingRevision: external_exports.number().int().nonnegative().default(0),
+  viewId: external_exports.string().min(1),
+  chatSessionKey: external_exports.string().min(1),
+  bindingRevision: external_exports.number().int().nonnegative(),
   actionKey: external_exports.string().min(1),
   selectedNodeIds: external_exports.array(external_exports.string()).default([]),
   anchorNodeId: external_exports.string().optional(),
@@ -123233,33 +123306,35 @@ var agentTaskSchema = external_exports.object({
   results: external_exports.object({ changeSetId: external_exports.string().optional(), layoutRunId: external_exports.string().optional() }).default({}),
   progressNote: external_exports.string().max(280).optional(),
   dispatches: external_exports.array(agentDispatchRecordSchema).default([]),
-  // Legacy fields remain readable while stored tasks migrate to `results`.
-  layoutRunId: external_exports.string().optional(),
-  changeSetId: external_exports.string().optional(),
   error: agentTaskErrorSchema,
   status: agentTaskStatusSchema,
   createdAt: external_exports.string(),
   updatedAt: external_exports.string()
-}).transform((task) => ({
-  ...task,
-  results: {
-    changeSetId: task.results.changeSetId ?? task.changeSetId,
-    layoutRunId: task.results.layoutRunId ?? task.layoutRunId
-  }
-}));
+});
 var projectEventKindSchema = external_exports.enum(["task.updated", "graph.changed", "layout.changed", "view.created", "view.catalog.changed", "chat.binding.changed", "stream.reset"]);
-var projectEventSchema = external_exports.object({
+var projectEventBaseSchema = external_exports.object({
   sequence: external_exports.number().int().positive(),
   projectId: external_exports.string().min(1),
   canvasSessionId: external_exports.string().optional(),
   taskId: external_exports.string().optional(),
-  kind: projectEventKindSchema,
   graphRevision: external_exports.number().int().nonnegative().optional(),
   viewId: external_exports.string().optional(),
   layoutRevision: external_exports.number().int().nonnegative().optional(),
-  payload: external_exports.unknown(),
   createdAt: external_exports.string()
 });
+var graphChangedPayloadSchema = external_exports.object({ fromRevision: external_exports.number().int().nonnegative(), toRevision: external_exports.number().int().nonnegative(), addedNodes: external_exports.array(nodeSchema), updatedNodes: external_exports.array(nodeSchema), archivedNodeIds: external_exports.array(external_exports.string()), addedEdges: external_exports.array(edgeSchema), updatedEdges: external_exports.array(edgeSchema), archivedEdgeIds: external_exports.array(external_exports.string()) });
+var layoutChangedPayloadSchema = external_exports.object({ viewId: external_exports.string(), fromRevision: external_exports.number().int().nonnegative(), toRevision: external_exports.number().int().nonnegative(), operations: external_exports.array(external_exports.unknown()), document: external_exports.unknown().optional() });
+var viewCreatedPayloadSchema = external_exports.object({ viewId: external_exports.string(), viewName: external_exports.string(), viewType: external_exports.string(), layoutRevision: external_exports.number().int().nonnegative(), templateRef: external_exports.object({ id: external_exports.string(), version: external_exports.string() }).optional() });
+var bindingChangedPayloadSchema = external_exports.object({ bindingRevision: external_exports.number().int().positive(), status: external_exports.enum(["active", "detached"]), reason: external_exports.string().optional(), fallbackViewId: external_exports.string().optional() });
+var projectEventSchema = external_exports.discriminatedUnion("kind", [
+  projectEventBaseSchema.extend({ kind: external_exports.literal("task.updated"), payload: agentTaskSchema }),
+  projectEventBaseSchema.extend({ kind: external_exports.literal("graph.changed"), payload: graphChangedPayloadSchema }),
+  projectEventBaseSchema.extend({ kind: external_exports.literal("layout.changed"), payload: layoutChangedPayloadSchema }),
+  projectEventBaseSchema.extend({ kind: external_exports.literal("view.created"), payload: viewCreatedPayloadSchema }),
+  projectEventBaseSchema.extend({ kind: external_exports.literal("view.catalog.changed"), payload: viewCatalogDeltaSchema }),
+  projectEventBaseSchema.extend({ kind: external_exports.literal("chat.binding.changed"), payload: bindingChangedPayloadSchema }),
+  projectEventBaseSchema.extend({ kind: external_exports.literal("stream.reset"), payload: external_exports.object({}).passthrough() })
+]);
 
 // packages/contracts/src/visual.ts
 var visualFamilySchema = external_exports.enum(["canvas", "hierarchy", "relationship", "flow", "temporal", "board", "matrix", "table"]);
@@ -123487,10 +123562,130 @@ var changeSetSchema = external_exports.object({
   updatedAt: external_exports.string()
 });
 
+// packages/contracts/src/widget.ts
+var widgetBindingSchema = external_exports.object({ leaseId: external_exports.string(), bindingRevision: external_exports.number().int().nonnegative(), projectId: external_exports.string().optional(), viewId: external_exports.string().optional() });
+var widgetBootstrapSchema = external_exports.object({ version: external_exports.number().optional(), widget: external_exports.string().optional(), workspaceDir: external_exports.string(), projectId: external_exports.string().optional(), preferredDisplayMode: external_exports.string().optional(), chatBinding: widgetBindingSchema.optional(), serverVersion: external_exports.string().optional(), widgetBuildId: external_exports.string().optional(), workspaceWidgetBuildId: external_exports.string().optional(), runtimeMode: external_exports.enum(["development", "installed"]).optional(), buildMismatch: external_exports.boolean().optional(), schemaReset: external_exports.object({ backupName: external_exports.string().min(1) }).optional() });
+var widgetProjectSchema = external_exports.object({ id: external_exports.string(), title: external_exports.string(), defaultViewId: external_exports.string(), graphRevision: external_exports.number().int().nonnegative(), viewCatalogRevision: external_exports.number().int().nonnegative(), scenePackId: external_exports.string(), scenePackVersion: external_exports.string(), goal: external_exports.string().optional(), automationLevel: external_exports.string().optional(), createdAt: external_exports.string().optional(), updatedAt: external_exports.string().optional() });
+var widgetAssetSchema = external_exports.object({ id: external_exports.string(), width: external_exports.number(), height: external_exports.number(), mimeType: external_exports.string(), thumbnailUri: external_exports.string() });
+var summaryDocumentSchema = external_exports.object({ kind: external_exports.literal("document"), mode: external_exports.enum(["note", "article"]), markdown: external_exports.string().optional(), excerpt: external_exports.string(), embeddedAssetIds: external_exports.array(external_exports.string()), coverAssetId: external_exports.string().optional() });
+var summaryContentSchema = external_exports.discriminatedUnion("kind", [summaryDocumentSchema, imageContentSchema, linkContentSchema, chartContentSchema]);
+var widgetGraphNodeSchema = external_exports.object({ id: external_exports.string(), projectId: external_exports.string(), type: external_exports.string(), title: external_exports.string(), contentKind: contentKindSchema, content: summaryContentSchema, assets: external_exports.array(widgetAssetSchema).optional(), properties: external_exports.record(external_exports.string(), external_exports.unknown()), archived: external_exports.boolean(), createdAt: external_exports.string(), updatedAt: external_exports.string() });
+var widgetGraphEdgeSchema = edgeSchema.pick({ id: true, sourceNodeId: true, targetNodeId: true, type: true });
+var widgetLayoutNodeSchema = external_exports.object({ nodeId: external_exports.string(), x: external_exports.number(), y: external_exports.number(), width: external_exports.number(), height: external_exports.number(), pinned: external_exports.boolean() }).passthrough();
+var widgetLayoutEdgeSchema = external_exports.object({ edgeId: external_exports.string(), routing: external_exports.enum(["straight", "bezier", "orthogonal", "bundled"]), sourcePort: external_exports.string().optional(), targetPort: external_exports.string().optional(), waypoints: external_exports.array(external_exports.object({ x: external_exports.number(), y: external_exports.number() })), hidden: external_exports.boolean().optional() }).passthrough();
+var widgetLayoutGroupSchema = external_exports.object({ groupId: external_exports.string(), x: external_exports.number(), y: external_exports.number(), width: external_exports.number(), height: external_exports.number() }).passthrough();
+var widgetLayoutSchema = external_exports.object({ viewId: external_exports.string(), viewName: external_exports.string(), viewType: viewTypeSchema, graphRevision: external_exports.number().int().nonnegative(), layoutRevision: external_exports.number().int().nonnegative(), templateRef: external_exports.object({ id: external_exports.string(), version: external_exports.string() }).optional(), projection: external_exports.object({ kind: external_exports.string() }).passthrough().optional(), theme: viewThemeSchema.optional(), nodes: external_exports.record(external_exports.string(), widgetLayoutNodeSchema), edges: external_exports.record(external_exports.string(), widgetLayoutEdgeSchema).optional(), groups: external_exports.record(external_exports.string(), widgetLayoutGroupSchema).optional() }).passthrough();
+var widgetCandidateSchema = external_exports.object({ id: external_exports.string(), label: external_exports.string(), metrics: external_exports.object({ score: external_exports.number(), overlapCount: external_exports.number(), edgeCrossings: external_exports.number(), hardViolations: external_exports.array(external_exports.string()) }).passthrough(), document: widgetLayoutSchema });
+var widgetProjectViewSchema = projectViewSchema.extend({ nodeCount: external_exports.number().int().nonnegative().optional() });
+var widgetManifestSchema = external_exports.object({ scenePack: external_exports.object({ id: external_exports.string().optional(), recommendedViews: external_exports.array(viewTypeSchema), recommendedTemplateIds: external_exports.array(external_exports.string()).optional(), nodeTypes: external_exports.array(external_exports.object({ key: external_exports.string(), label: external_exports.string(), defaultContentKind: contentKindSchema, allowedContentKinds: external_exports.array(contentKindSchema) })) }), views: external_exports.array(external_exports.object({ viewId: external_exports.string(), viewName: external_exports.string(), viewType: viewTypeSchema, layoutRevision: external_exports.number(), templateRef: external_exports.object({ id: external_exports.string(), version: external_exports.string() }).optional() })).optional() });
+var widgetChangeSetPreviewSchema = external_exports.object({ changeSet: external_exports.object({ id: external_exports.string(), rationale: external_exports.string(), riskLevel: external_exports.string(), graphOperations: external_exports.array(graphOperationSchema), layoutOperations: external_exports.array(layoutOperationSchema) }), stale: external_exports.boolean(), currentGraphRevision: external_exports.number(), summary: external_exports.object({ addedNodes: external_exports.number(), updatedNodes: external_exports.number(), archivedNodes: external_exports.number(), addedEdges: external_exports.number(), updatedEdges: external_exports.number(), archivedEdges: external_exports.number(), layoutOperations: external_exports.number() }) });
+var eventBase = external_exports.object({ sequence: external_exports.number(), graphRevision: external_exports.number().optional(), layoutRevision: external_exports.number().optional(), viewId: external_exports.string().optional() });
+var widgetProjectEventSchema = external_exports.discriminatedUnion("kind", [
+  eventBase.extend({ kind: external_exports.literal("task.updated"), payload: agentTaskSchema }),
+  eventBase.extend({ kind: external_exports.literal("graph.changed"), payload: external_exports.object({ fromRevision: external_exports.number(), toRevision: external_exports.number(), addedNodes: external_exports.array(widgetGraphNodeSchema), updatedNodes: external_exports.array(widgetGraphNodeSchema), archivedNodeIds: external_exports.array(external_exports.string()), addedEdges: external_exports.array(widgetGraphEdgeSchema), updatedEdges: external_exports.array(widgetGraphEdgeSchema), archivedEdgeIds: external_exports.array(external_exports.string()) }) }),
+  eventBase.extend({ kind: external_exports.literal("layout.changed"), payload: external_exports.object({ viewId: external_exports.string(), fromRevision: external_exports.number(), toRevision: external_exports.number(), operations: external_exports.array(layoutOperationSchema), document: widgetLayoutSchema.optional() }) }),
+  eventBase.extend({ kind: external_exports.literal("view.created"), payload: external_exports.object({ viewId: external_exports.string() }).passthrough() }),
+  eventBase.extend({ kind: external_exports.literal("view.catalog.changed"), payload: viewCatalogDeltaSchema }),
+  eventBase.extend({ kind: external_exports.literal("chat.binding.changed"), payload: external_exports.object({ bindingRevision: external_exports.number(), status: external_exports.enum(["active", "detached"]), reason: external_exports.string().optional(), fallbackViewId: external_exports.string().optional() }) }),
+  eventBase.extend({ kind: external_exports.literal("stream.reset"), payload: external_exports.object({}).passthrough() })
+]);
+
+// packages/contracts/src/actions.ts
+var workspace = { workspaceDir: external_exports.string().min(1) };
+var catalogBase = { ...workspace, projectId: external_exports.string().min(1), baseCatalogRevision: external_exports.number().int().nonnegative() };
+var catalogActionSchema = external_exports.discriminatedUnion("action", [
+  external_exports.object({ ...workspace, action: external_exports.literal("create_project"), title: external_exports.string().min(1), goal: external_exports.string().optional(), scenePackId: external_exports.string().min(1) }),
+  external_exports.object({ ...workspace, action: external_exports.literal("create_project_from_template"), title: external_exports.string().min(1), goal: external_exports.string().optional(), scenePackId: external_exports.string().min(1), templateId: external_exports.string().min(1), version: external_exports.string().optional() }),
+  external_exports.object({ ...workspace, action: external_exports.literal("create_view_from_template"), projectId: external_exports.string().min(1), templateId: external_exports.string().min(1), version: external_exports.string().optional(), viewName: external_exports.string().optional(), baseGraphRevision: external_exports.number().int().nonnegative(), leaseId: external_exports.string().optional(), bindingRevision: external_exports.number().int().positive().optional() }),
+  external_exports.object({ ...catalogBase, action: external_exports.literal("duplicate_view"), viewId: external_exports.string().min(1), name: external_exports.string().optional() }),
+  external_exports.object({ ...catalogBase, action: external_exports.literal("rename_view"), viewId: external_exports.string().min(1), name: external_exports.string().min(1) }),
+  external_exports.object({ ...catalogBase, action: external_exports.literal("pin_view"), viewId: external_exports.string().min(1), pinned: external_exports.boolean().optional() }),
+  external_exports.object({ ...catalogBase, action: external_exports.literal("reorder_views"), viewIds: external_exports.array(external_exports.string().min(1)) }),
+  external_exports.object({ ...catalogBase, action: external_exports.literal("set_default_view"), viewId: external_exports.string().min(1) }),
+  external_exports.object({ ...catalogBase, action: external_exports.literal("trash_view"), viewId: external_exports.string().min(1), fallbackViewId: external_exports.string().optional() }),
+  external_exports.object({ ...catalogBase, action: external_exports.literal("restore_view"), viewId: external_exports.string().min(1) }),
+  external_exports.object({ ...catalogBase, action: external_exports.literal("purge_view"), viewId: external_exports.string().min(1) })
+]);
+var graphEdit = { ...workspace, projectId: external_exports.string().min(1), baseGraphRevision: external_exports.number().int().nonnegative() };
+var canvasActionSchema = external_exports.discriminatedUnion("action", [
+  external_exports.object({ ...workspace, action: external_exports.literal("claim"), snapshot: canvasContextSnapshotSchema }),
+  external_exports.object({ ...workspace, action: external_exports.literal("sync"), snapshot: canvasContextSnapshotSchema }),
+  external_exports.object({ ...workspace, action: external_exports.literal("switch"), leaseId: external_exports.string().min(1), bindingRevision: external_exports.number().int().positive(), projectId: external_exports.string().min(1), viewId: external_exports.string().min(1) }),
+  external_exports.object({ ...workspace, action: external_exports.literal("create_node"), projectId: external_exports.string().min(1), viewId: external_exports.string().min(1), semanticType: external_exports.string().min(1), title: external_exports.string().min(1), content: nodeContentSchema, x: external_exports.number().optional(), y: external_exports.number().optional() }),
+  external_exports.object({ ...graphEdit, action: external_exports.literal("update_node"), nodeId: external_exports.string().min(1), title: external_exports.string().optional(), semanticType: external_exports.string().optional(), content: nodeContentSchema.optional() }),
+  external_exports.object({ ...graphEdit, action: external_exports.literal("archive_node"), nodeId: external_exports.string().min(1) }),
+  external_exports.object({ ...graphEdit, action: external_exports.literal("attach_asset"), nodeId: external_exports.string().min(1), assetId: external_exports.string().min(1), role: external_exports.enum(["embedded", "cover"]) }),
+  external_exports.object({ ...graphEdit, action: external_exports.literal("enrich_link"), nodeId: external_exports.string().min(1) }),
+  external_exports.object({ ...workspace, action: external_exports.literal("layout_operations"), projectId: external_exports.string().min(1), viewId: external_exports.string().min(1), baseLayoutRevision: external_exports.number().int().nonnegative(), operations: external_exports.array(layoutOperationSchema) }),
+  external_exports.object({ ...workspace, action: external_exports.literal("revert_layout"), projectId: external_exports.string().min(1), viewId: external_exports.string().min(1) })
+]);
+var task = { ...workspace, taskId: external_exports.string().min(1) };
+var taskActionSchema = external_exports.discriminatedUnion("action", [
+  external_exports.object({ ...task, action: external_exports.literal("start") }),
+  external_exports.object({ ...task, action: external_exports.literal("progress"), note: external_exports.string().min(1).max(280) }),
+  external_exports.object({ ...task, action: external_exports.literal("continue"), dispatchKey: external_exports.string().min(1), expectedTaskRevision: external_exports.number().int().nonnegative() }),
+  external_exports.object({ ...task, action: external_exports.literal("complete") }),
+  external_exports.object({ ...task, action: external_exports.literal("fail"), message: external_exports.string().optional() }),
+  external_exports.object({ ...task, action: external_exports.literal("cancel") })
+]);
+var layoutReviewActionSchema = external_exports.object({ ...workspace, resource: external_exports.literal("layout_run"), action: external_exports.enum(["preview", "apply", "reject", "revert"]), id: external_exports.string().min(1).optional(), candidateId: external_exports.string().min(1).optional(), projectId: external_exports.string().min(1).optional(), viewId: external_exports.string().min(1).optional() });
+var reviewActionSchema = external_exports.discriminatedUnion("resource", [
+  external_exports.object({ ...workspace, resource: external_exports.literal("changeset"), action: external_exports.enum(["preview", "apply", "reject"]), id: external_exports.string().min(1) }),
+  layoutReviewActionSchema
+]).superRefine((value, context) => {
+  if (value.resource !== "layout_run") return;
+  if (value.action === "revert") {
+    if (!value.projectId) context.addIssue({ code: "custom", message: "projectId required", path: ["projectId"] });
+    if (!value.viewId) context.addIssue({ code: "custom", message: "viewId required", path: ["viewId"] });
+  } else if (!value.id) context.addIssue({ code: "custom", message: "id required", path: ["id"] });
+  if (value.action === "apply" && !value.candidateId) context.addIssue({ code: "custom", message: "candidateId required", path: ["candidateId"] });
+});
+
 // packages/storage/src/workspace-store.ts
-import { mkdirSync as mkdirSync2, realpathSync } from "node:fs";
-import { join as join3, resolve as resolve2 } from "node:path";
+import { existsSync, mkdirSync as mkdirSync2, realpathSync, renameSync } from "node:fs";
+import { basename, join as join3, resolve as resolve2 } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+
+// packages/storage/src/migrations.ts
+var CURRENT_SCHEMA_VERSION = 7;
+function initializeSchema(db) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS project (id TEXT PRIMARY KEY, data TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS node (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, data TEXT NOT NULL);
+    CREATE INDEX IF NOT EXISTS ix_node_project ON node(project_id);
+    CREATE TABLE IF NOT EXISTS edge (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, data TEXT NOT NULL);
+    CREATE INDEX IF NOT EXISTS ix_edge_project ON edge(project_id);
+    CREATE TABLE IF NOT EXISTS layout (project_id TEXT NOT NULL, view_id TEXT NOT NULL, revision INTEGER NOT NULL, data TEXT NOT NULL, PRIMARY KEY(project_id, view_id));
+    CREATE TABLE IF NOT EXISTS layout_history (project_id TEXT NOT NULL, view_id TEXT NOT NULL, revision INTEGER NOT NULL, data TEXT NOT NULL, PRIMARY KEY(project_id, view_id, revision));
+    CREATE TABLE IF NOT EXISTS layout_run (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, view_id TEXT NOT NULL, data TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS project_view (id TEXT NOT NULL, project_id TEXT NOT NULL, status TEXT NOT NULL, pinned_order INTEGER, data TEXT NOT NULL, PRIMARY KEY(project_id, id));
+    CREATE INDEX IF NOT EXISTS ix_project_view_project_status ON project_view(project_id, status);
+    CREATE TABLE IF NOT EXISTS canvas_view_state (canvas_session_id TEXT NOT NULL, view_id TEXT NOT NULL, data TEXT NOT NULL, PRIMARY KEY(canvas_session_id, view_id));
+    CREATE TABLE IF NOT EXISTS canvas_session (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, sequence INTEGER NOT NULL, data TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS chat_canvas_binding (chat_session_key TEXT PRIMARY KEY, revision INTEGER NOT NULL, data TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS agent_task (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, data TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS changeset (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, task_id TEXT NOT NULL, data TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS artifact (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, type TEXT NOT NULL, data TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS asset (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, sha256 TEXT NOT NULL, data TEXT NOT NULL, UNIQUE(project_id, sha256));
+    CREATE INDEX IF NOT EXISTS ix_asset_project ON asset(project_id);
+    CREATE TABLE IF NOT EXISTS project_event (sequence INTEGER PRIMARY KEY AUTOINCREMENT, project_id TEXT NOT NULL, canvas_session_id TEXT, task_id TEXT, kind TEXT NOT NULL, graph_revision INTEGER, view_id TEXT, layout_revision INTEGER, payload TEXT NOT NULL, created_at TEXT NOT NULL);
+    CREATE INDEX IF NOT EXISTS ix_project_event_project_sequence ON project_event(project_id, sequence);
+    CREATE INDEX IF NOT EXISTS ix_project_event_session_sequence ON project_event(canvas_session_id, sequence);
+    PRAGMA user_version = ${CURRENT_SCHEMA_VERSION};
+  `);
+}
+function transaction(db, callback) {
+  if (db.isTransaction) return callback();
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const value = callback();
+    db.exec("COMMIT");
+    return value;
+  } catch (error51) {
+    db.exec("ROLLBACK");
+    throw error51;
+  }
+}
 
 // packages/storage/src/store-internal.ts
 function now() {
@@ -123541,13 +123736,50 @@ function defaultLayout(project, viewId, viewType, strategy, viewName = viewType)
   });
 }
 
-// packages/storage/src/projects.ts
+// packages/storage/src/project-events.ts
+function appendProjectEvent(db, input) {
+  const createdAt = input.createdAt ?? now();
+  const result2 = db.prepare(`
+    INSERT INTO project_event(project_id, canvas_session_id, task_id, kind, graph_revision, view_id, layout_revision, payload, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(input.projectId, input.canvasSessionId ?? null, input.taskId ?? null, input.kind, input.graphRevision ?? null, input.viewId ?? null, input.layoutRevision ?? null, json2(input.payload), createdAt);
+  return projectEventSchema.parse({ ...input, sequence: Number(result2.lastInsertRowid), createdAt });
+}
+function listProjectEvents(db, projectId, afterSequence = 0, limit = 500) {
+  return db.prepare(`
+    SELECT sequence, project_id, canvas_session_id, task_id, kind, graph_revision, view_id, layout_revision, payload, created_at
+    FROM project_event WHERE project_id = ? AND sequence > ? ORDER BY sequence ASC LIMIT ?
+  `).all(projectId, afterSequence, limit).map((row) => projectEventSchema.parse({
+    sequence: Number(row.sequence),
+    projectId: row.project_id,
+    canvasSessionId: row.canvas_session_id ?? void 0,
+    taskId: row.task_id ?? void 0,
+    kind: row.kind,
+    graphRevision: row.graph_revision ?? void 0,
+    viewId: row.view_id ?? void 0,
+    layoutRevision: row.layout_revision ?? void 0,
+    payload: parse3(row.payload),
+    createdAt: row.created_at
+  }));
+}
+function getLatestEventSequence(db, projectId) {
+  const row = db.prepare("SELECT MAX(sequence) AS sequence FROM project_event WHERE project_id = ?").get(projectId);
+  return Number(row?.sequence ?? 0);
+}
+
+// packages/storage/src/chat-canvas-binding.ts
+import { randomBytes } from "node:crypto";
+
+// packages/storage/src/view-catalog.ts
 import { randomUUID as randomUUID6 } from "node:crypto";
+
+// packages/storage/src/projects.ts
+import { randomUUID as randomUUID5 } from "node:crypto";
 import { writeFileSync as writeFileSync2 } from "node:fs";
 import { join as join2 } from "node:path";
 
 // packages/storage/src/graph.ts
-import { randomUUID as randomUUID5 } from "node:crypto";
+import { randomUUID as randomUUID4 } from "node:crypto";
 
 // packages/core/src/graph.ts
 function applyGraphOperations(snapshot, operations) {
@@ -123573,7 +123805,7 @@ function applyGraphOperations(snapshot, operations) {
       case "set-node-content": {
         const current = nodes.get(operation.nodeId);
         if (!current) throw new Error(`NODE_NOT_FOUND:${operation.nodeId}`);
-        nodes.set(operation.nodeId, { ...current, body: operation.content.kind === "document" ? operation.content.markdown : current.body, contentKind: operation.content.kind, content: operation.content, updatedAt: (/* @__PURE__ */ new Date()).toISOString() });
+        nodes.set(operation.nodeId, { ...current, contentKind: operation.content.kind, content: operation.content, updatedAt: (/* @__PURE__ */ new Date()).toISOString() });
         changed = true;
         break;
       }
@@ -123751,51 +123983,62 @@ function diffLayoutDocuments(before, after) {
 
 // packages/core/src/context.ts
 function resolveSceneContext(args) {
-  const byId = new Map(args.nodes.filter((node) => !node.archived).map((node) => [node.id, node]));
-  const included = /* @__PURE__ */ new Set([...args.selectedNodeIds, ...args.pinnedNodeIds]);
-  let frontier = [...args.selectedNodeIds];
-  for (let hop = 0; hop < args.scenePack.contextPolicy.maxHops; hop += 1) {
-    const next = [];
-    for (const edge of args.edges) {
-      if (edge.archived) continue;
-      if (frontier.includes(edge.sourceNodeId) && !included.has(edge.targetNodeId)) next.push(edge.targetNodeId);
-      if (frontier.includes(edge.targetNodeId) && !included.has(edge.sourceNodeId)) next.push(edge.sourceNodeId);
+  const allowedNodeTypes = new Set(args.scenePack.nodeTypes.map((item) => item.key));
+  const allowedEdgeTypes = new Set(args.scenePack.edgeTypes.map((item) => item.key));
+  const activeNodes = args.nodes.filter((node) => !node.archived && allowedNodeTypes.has(node.type));
+  const byId = new Map(activeNodes.map((node) => [node.id, node]));
+  const excludedArchivedNodeIds = args.nodes.filter((node) => node.archived).map((node) => node.id).sort();
+  const edges = args.edges.filter((edge) => !edge.archived && allowedEdgeTypes.has(edge.type) && byId.has(edge.sourceNodeId) && byId.has(edge.targetNodeId));
+  const ordered = [];
+  const included = /* @__PURE__ */ new Set();
+  const add2 = (id) => {
+    if (byId.has(id) && !included.has(id)) {
+      included.add(id);
+      ordered.push(id);
     }
-    next.forEach((id) => included.add(id));
-    frontier = next;
+  };
+  const selected = [...new Set(args.selectedNodeIds)].filter((id) => byId.has(id));
+  if (args.scenePack.contextPolicy.modes.includes("selected_nodes")) selected.forEach(add2);
+  if (args.scenePack.contextPolicy.modes.includes("pinned_nodes")) [...new Set(args.pinnedNodeIds)].sort().forEach(add2);
+  if (args.scenePack.contextPolicy.modes.includes("ancestor_path")) {
+    let frontier = [...selected].sort();
+    const visited = new Set(frontier);
+    while (frontier.length) {
+      const next = [];
+      for (const nodeId of frontier) {
+        for (const edge of edges) {
+          const ancestor = edge.targetNodeId === nodeId ? edge.sourceNodeId : !edge.directed && edge.sourceNodeId === nodeId ? edge.targetNodeId : void 0;
+          if (ancestor && !visited.has(ancestor)) {
+            visited.add(ancestor);
+            next.push(ancestor);
+          }
+        }
+      }
+      frontier = [...new Set(next)].sort();
+      frontier.forEach(add2);
+    }
   }
-  return [...included].map((id) => byId.get(id)).filter((node) => Boolean(node)).slice(0, args.scenePack.contextPolicy.maxNodes);
-}
-
-// packages/storage/src/project-events.ts
-function appendProjectEvent(db, input) {
-  const createdAt = input.createdAt ?? now();
-  const result2 = db.prepare(`
-    INSERT INTO project_event(project_id, canvas_session_id, task_id, kind, graph_revision, view_id, layout_revision, payload, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(input.projectId, input.canvasSessionId ?? null, input.taskId ?? null, input.kind, input.graphRevision ?? null, input.viewId ?? null, input.layoutRevision ?? null, json2(input.payload), createdAt);
-  return projectEventSchema.parse({ ...input, sequence: Number(result2.lastInsertRowid), createdAt });
-}
-function listProjectEvents(db, projectId, afterSequence = 0, limit = 500) {
-  return db.prepare(`
-    SELECT sequence, project_id, canvas_session_id, task_id, kind, graph_revision, view_id, layout_revision, payload, created_at
-    FROM project_event WHERE project_id = ? AND sequence > ? ORDER BY sequence ASC LIMIT ?
-  `).all(projectId, afterSequence, limit).map((row) => projectEventSchema.parse({
-    sequence: Number(row.sequence),
-    projectId: row.project_id,
-    canvasSessionId: row.canvas_session_id ?? void 0,
-    taskId: row.task_id ?? void 0,
-    kind: row.kind,
-    graphRevision: row.graph_revision ?? void 0,
-    viewId: row.view_id ?? void 0,
-    layoutRevision: row.layout_revision ?? void 0,
-    payload: parse3(row.payload),
-    createdAt: row.created_at
-  }));
-}
-function getLatestEventSequence(db, projectId) {
-  const row = db.prepare("SELECT MAX(sequence) AS sequence FROM project_event WHERE project_id = ?").get(projectId);
-  return Number(row?.sequence ?? 0);
+  if (args.scenePack.contextPolicy.modes.includes("typed_neighborhood")) {
+    let frontier = [...selected].sort();
+    const visited = new Set(frontier);
+    for (let hop = 0; hop < args.scenePack.contextPolicy.maxHops; hop += 1) {
+      const next = [];
+      for (const edge of edges) {
+        const sourceActive = frontier.includes(edge.sourceNodeId);
+        const targetActive = frontier.includes(edge.targetNodeId);
+        if (sourceActive && !visited.has(edge.targetNodeId)) next.push(edge.targetNodeId);
+        if (targetActive && !visited.has(edge.sourceNodeId)) next.push(edge.sourceNodeId);
+      }
+      frontier = [...new Set(next)].sort();
+      frontier.forEach((id) => {
+        visited.add(id);
+        add2(id);
+      });
+    }
+  }
+  const maxNodes = args.scenePack.contextPolicy.maxNodes;
+  const nodeIds = ordered.slice(0, maxNodes);
+  return { nodes: nodeIds.map((id) => byId.get(id)), nodeIds, truncated: ordered.length > maxNodes, excludedArchivedNodeIds, modesApplied: args.scenePack.contextPolicy.modes, diagnostics: { requestedNodeCount: ordered.length, includedNodeCount: nodeIds.length, omittedNodeIds: ordered.slice(maxNodes), maxNodes, maxHops: args.scenePack.contextPolicy.maxHops } };
 }
 
 // packages/storage/src/assets.ts
@@ -123866,7 +124109,7 @@ function saveTaskAsset(dataDir, taskId, fileName, data) {
 }
 
 // packages/storage/src/layout-templates.ts
-import { randomUUID as randomUUID4 } from "node:crypto";
+import { randomUUID as randomUUID3 } from "node:crypto";
 
 // packages/layout-engine/src/semantic/constraints.ts
 function normalizeConstraints(plan, current) {
@@ -125261,315 +125504,20 @@ function seedSemanticLayout(params) {
   return { clusterOf, groupCount: Object.keys(document2.groups).length };
 }
 
-// packages/storage/src/view-catalog.ts
-import { randomUUID as randomUUID3 } from "node:crypto";
-
 // packages/storage/src/agent-tasks.ts
 import { randomUUID as randomUUID2 } from "node:crypto";
-
-// packages/storage/src/chat-canvas-binding.ts
-import { randomBytes } from "node:crypto";
-
-// packages/storage/src/changesets.ts
-function submitChangeSet(db, changeSet) {
-  const validated = changeSetSchema.parse(changeSet);
-  const project = getProject(db, validated.projectId);
-  if (!project) throw new Error("PROJECT_NOT_FOUND");
-  const task = getAgentTask(db, validated.taskId);
-  if (!task || task.projectId !== validated.projectId) throw new Error("AGENT_TASK_NOT_FOUND_OR_MISMATCH");
-  if (task.status !== "running") throw new Error(terminalTaskStatuses.has(task.status) ? `TASK_TERMINAL:${task.status}` : `TASK_NOT_RUNNING:${task.status}`);
-  if (project.graphRevision !== validated.baseGraphRevision) {
-    updateAgentTask(db, task.taskId, { status: "stale", error: { code: "GRAPH_REVISION_CONFLICT", message: `Expected graph r${validated.baseGraphRevision}, current r${project.graphRevision}` } });
-    throw new Error("GRAPH_REVISION_CONFLICT");
-  }
-  transaction(db, () => {
-    db.prepare("INSERT INTO changeset(id, project_id, task_id, data) VALUES (?, ?, ?, ?)").run(validated.id, validated.projectId, validated.taskId, json2(validated));
-    updateAgentTask(db, validated.taskId, { status: "pending_review", results: { ...task.results, changeSetId: validated.id } });
-  });
-  return validated;
-}
-function listChangeSets(db, projectId, status) {
-  return db.prepare("SELECT data FROM changeset WHERE project_id = ? ORDER BY rowid DESC").all(projectId).map((row) => changeSetSchema.parse(parse3(row.data))).filter((item) => !status || item.status === status);
-}
-function getChangeSet(db, changeSetId) {
-  const row = db.prepare("SELECT data FROM changeset WHERE id = ?").get(changeSetId);
-  return row ? changeSetSchema.parse(parse3(row.data)) : null;
-}
-function rejectChangeSet(db, changeSetId) {
-  const current = getChangeSet(db, changeSetId);
-  if (!current) throw new Error("CHANGESET_NOT_FOUND");
-  if (current.status !== "pending") throw new Error(`CHANGESET_NOT_PENDING:${current.status}`);
-  const rejected = { ...current, status: "rejected", updatedAt: now() };
-  transaction(db, () => {
-    db.prepare("UPDATE changeset SET data = ? WHERE id = ?").run(json2(rejected), changeSetId);
-    updateAgentTask(db, current.taskId, { status: "completed" });
-  });
-  return rejected;
-}
-function applyChangeSet(db, changeSetId) {
-  const row = db.prepare("SELECT data FROM changeset WHERE id = ?").get(changeSetId);
-  if (!row) throw new Error("CHANGESET_NOT_FOUND");
-  const changeSet = changeSetSchema.parse(parse3(row.data));
-  if (changeSet.status !== "pending") throw new Error(`CHANGESET_NOT_PENDING:${changeSet.status}`);
-  const task = getAgentTask(db, changeSet.taskId);
-  if (!task) throw new Error("AGENT_TASK_NOT_FOUND");
-  const graph = getGraph(db, changeSet.projectId);
-  if (graph.revision !== changeSet.baseGraphRevision) {
-    updateAgentTask(db, changeSet.taskId, { status: "stale", error: { code: "GRAPH_REVISION_CONFLICT", message: `Expected graph r${changeSet.baseGraphRevision}, current r${graph.revision}` } });
-    throw new Error("GRAPH_REVISION_CONFLICT");
-  }
-  for (const operation of changeSet.graphOperations) {
-    if (operation.type === "add-node") assertContentAssets(db, changeSet.projectId, operation.node.content);
-    if (operation.type === "set-node-content") assertContentAssets(db, changeSet.projectId, operation.content);
-    if (operation.type === "attach-asset" || operation.type === "set-node-cover") {
-      const assetId = operation.assetId;
-      if (!assetId) continue;
-      const asset = getAsset(db, assetId);
-      if (!asset || asset.projectId !== changeSet.projectId) throw new Error(`ASSET_NOT_FOUND_OR_CROSS_PROJECT:${assetId}`);
-    }
-    if (operation.type === "update-node" && operation.patch.content) assertContentAssets(db, changeSet.projectId, nodeContentSchema.parse(operation.patch.content));
-  }
-  const nextGraph = changeSet.graphOperations.length ? applyGraphOperations(graph, changeSet.graphOperations) : graph;
-  const byView = /* @__PURE__ */ new Map();
-  for (const operation of changeSet.layoutOperations) byView.set(operation.viewId, [...byView.get(operation.viewId) ?? [], operation]);
-  const addedNodes = nextGraph.nodes.filter((node) => !graph.nodes.some((current) => current.id === node.id));
-  const context = getCanvasContext(db, task.canvasSessionId);
-  if (addedNodes.length && context) {
-    const activeLayout = getLayout(db, changeSet.projectId, context.viewId);
-    if (!activeLayout) throw new Error(`LAYOUT_NOT_FOUND:${context.viewId}`);
-    const existing = Object.values(activeLayout.nodes);
-    const startX = existing.length ? Math.max(...existing.map((frame2) => frame2.x + frame2.width)) + 72 : 0;
-    const startY = existing.length ? Math.min(...existing.map((frame2) => frame2.y)) : 0;
-    const placement = addedNodes.map((node, index2) => ({
-      type: "set-node-frame",
-      viewId: context.viewId,
-      nodeId: node.id,
-      frame: defaultNodeFrame(db, node, startX + index2 % 3 * 300, startY + Math.floor(index2 / 3) * 190)
-    }));
-    byView.set(context.viewId, [...byView.get(context.viewId) ?? [], ...placement]);
-  }
-  for (const [viewId] of byView) {
-    const layout = getLayout(db, changeSet.projectId, viewId);
-    if (!layout) throw new Error(`LAYOUT_NOT_FOUND:${viewId}`);
-    const expected = changeSet.baseLayoutRevisions[viewId] ?? (context?.viewId === viewId ? task.baseLayoutRevision : void 0);
-    if (expected === void 0 || layout.layoutRevision !== expected) {
-      updateAgentTask(db, changeSet.taskId, { status: "stale", error: { code: "LAYOUT_REVISION_CONFLICT", message: `Layout ${viewId} changed during review` } });
-      throw new Error("LAYOUT_REVISION_CONFLICT");
-    }
-  }
-  const starterProject = getProject(db, changeSet.projectId);
-  const starterIds = new Set(starterProject.starterNodeIds);
-  let finalGraph = nextGraph;
-  if (addedNodes.length && starterIds.size) {
-    const touched = new Set(changeSet.graphOperations.flatMap((operation) => "nodeId" in operation ? [operation.nodeId] : []));
-    const timestamp = now();
-    const pristine = (node) => starterIds.has(node.id) && !touched.has(node.id) && !node.archived && node.body === "" && node.content.kind === "document" && node.content.markdown === "";
-    const retiredIds = new Set(nextGraph.nodes.filter(pristine).map((node) => node.id));
-    if (retiredIds.size) finalGraph = {
-      ...nextGraph,
-      nodes: nextGraph.nodes.map((node) => retiredIds.has(node.id) ? { ...node, archived: true, updatedAt: timestamp } : node),
-      edges: nextGraph.edges.map((edge) => retiredIds.has(edge.sourceNodeId) || retiredIds.has(edge.targetNodeId) ? { ...edge, archived: true, updatedAt: timestamp } : edge)
-    };
-  }
-  const applied = { ...changeSet, status: "applied", updatedAt: now() };
-  const layoutRevisions = {};
-  transaction(db, () => {
-    if (changeSet.graphOperations.length) replaceGraph(db, finalGraph, { taskId: task.taskId, canvasSessionId: task.canvasSessionId });
-    if (addedNodes.length && starterIds.size) patchProject(db, changeSet.projectId, { starterNodeIds: [] });
-    for (const [viewId, operations] of byView) {
-      const layout = structuredClone(getLayout(db, changeSet.projectId, viewId));
-      for (const operation of operations) {
-        if (operation.type !== "set-node-frame" || layout.nodes[operation.nodeId]) continue;
-        if (!addedNodes.some((node) => node.id === operation.nodeId)) throw new Error(`LAYOUT_NODE_NOT_FOUND:${operation.nodeId}`);
-        layout.nodes[operation.nodeId] = { nodeId: operation.nodeId, ...operation.frame, rotation: 0, zIndex: 0, pinned: false, hidden: false, collapsed: false };
-      }
-      const nextLayout = applyLayoutOperations(layout, operations);
-      nextLayout.graphRevision = finalGraph.revision;
-      saveLayout(db, nextLayout, true, { taskId: task.taskId, canvasSessionId: task.canvasSessionId, operations });
-      layoutRevisions[viewId] = nextLayout.layoutRevision;
-    }
-    db.prepare("UPDATE changeset SET data = ? WHERE id = ?").run(json2(applied), changeSetId);
-    const mixed = task.intent === "develop_then_layout";
-    updateAgentTask(db, changeSet.taskId, {
-      status: mixed ? "ready_to_continue" : "completed",
-      activeStage: mixed ? "layout" : task.activeStage,
-      expectedGraphRevision: finalGraph.revision,
-      results: { ...task.results, changeSetId }
-    });
-  });
-  return { ...applied, graphRevision: finalGraph.revision, layoutRevisions, task: getAgentTask(db, changeSet.taskId) };
-}
-
-// packages/storage/src/chat-canvas-binding.ts
-function newLeaseId() {
-  return randomBytes(32).toString("hex");
-}
-function getChatCanvasBinding(db, chatSessionKey) {
-  const row = db.prepare("SELECT data FROM chat_canvas_binding WHERE chat_session_key = ?").get(chatSessionKey);
-  return row ? chatCanvasBindingSchema.parse(parse3(row.data)) : null;
-}
-function saveChatCanvasBinding(db, binding) {
-  const validated = chatCanvasBindingSchema.parse(binding);
-  db.prepare(`
-    INSERT INTO chat_canvas_binding(chat_session_key, revision, data) VALUES (?, ?, ?)
-    ON CONFLICT(chat_session_key) DO UPDATE SET revision=excluded.revision, data=excluded.data
-  `).run(validated.chatSessionKey, validated.bindingRevision, json2(validated));
-  return validated;
-}
-function rejectBindingWork(db, binding) {
-  if (!binding.canvasSessionId) return;
-  const tasks = listCanvasTasks(db, binding.canvasSessionId, true).filter((task) => !terminalTaskStatuses.has(task.status));
-  rejectTasks(db, tasks, "CHAT_CANVAS_REBOUND", "This Codex chat was rebound to another canvas");
-}
-function rejectTasks(db, tasks, code, message) {
-  for (const task of tasks) {
-    const changeSetId = task.results.changeSetId;
-    if (changeSetId) {
-      const changeSet = getChangeSet(db, changeSetId);
-      if (changeSet?.status === "pending") {
-        db.prepare("UPDATE changeset SET data = ? WHERE id = ?").run(json2({ ...changeSet, status: "rejected", updatedAt: now() }), changeSetId);
-      }
-    }
-    const layoutRunId = task.results.layoutRunId;
-    if (layoutRunId) {
-      const row = db.prepare("SELECT data FROM layout_run WHERE id = ?").get(layoutRunId);
-      if (row) {
-        const run = parse3(row.data);
-        if (run.status === "preview") db.prepare("UPDATE layout_run SET data = ? WHERE id = ?").run(json2({ ...run, status: "rejected", updatedAt: now() }), layoutRunId);
-      }
-    }
-    updateAgentTask(db, task.taskId, { status: "cancelled", error: { code, message } });
-  }
-}
-function openChatCanvasBinding(db, input) {
-  return transaction(db, () => {
-    if (input.projectId && input.viewId) {
-      const target = getProjectView(db, input.projectId, input.viewId);
-      if (!target || target.status !== "active") throw new Error("VIEW_NOT_FOUND");
-    }
-    const current = getChatCanvasBinding(db, input.chatSessionKey);
-    if (current && !input.projectId && !input.viewId) return current;
-    const sameTarget = current?.projectId === input.projectId && current?.viewId === input.viewId;
-    if (current && sameTarget) return current;
-    if (current) rejectBindingWork(db, current);
-    const binding = saveChatCanvasBinding(db, {
-      chatSessionKey: input.chatSessionKey,
-      bindingRevision: (current?.bindingRevision ?? 0) + 1,
-      leaseId: newLeaseId(),
-      projectId: input.projectId,
-      viewId: input.viewId,
-      status: "opening",
-      lastSeenAt: now()
-    });
-    if (current?.projectId) appendProjectEvent(db, {
-      projectId: current.projectId,
-      canvasSessionId: current.canvasSessionId,
-      kind: "chat.binding.changed",
-      payload: { bindingRevision: binding.bindingRevision, status: "detached" }
-    });
-    return binding;
-  });
-}
-function switchChatCanvasBinding(db, input) {
-  return transaction(db, () => {
-    const current = getChatCanvasBinding(db, input.chatSessionKey);
-    if (!current) throw new Error("NO_CANVAS_BOUND_TO_CHAT");
-    if (current.leaseId !== input.leaseId || current.bindingRevision !== input.bindingRevision) throw new Error("CHAT_CANVAS_LEASE_STALE");
-    const targetView = getProjectView(db, input.projectId, input.viewId);
-    if (!targetView || targetView.status !== "active") throw new Error("VIEW_NOT_FOUND");
-    if (current.projectId === input.projectId && current.viewId === input.viewId) return current;
-    rejectBindingWork(db, current);
-    const next = saveChatCanvasBinding(db, { ...current, projectId: input.projectId, viewId: input.viewId, canvasSessionId: void 0, bindingRevision: current.bindingRevision + 1, status: "opening", lastSeenAt: now() });
-    if (current.projectId) appendProjectEvent(db, {
-      projectId: current.projectId,
-      canvasSessionId: current.canvasSessionId,
-      kind: "chat.binding.changed",
-      payload: { bindingRevision: next.bindingRevision, status: "detached" }
-    });
-    return next;
-  });
-}
-function validateBindingLease(db, input) {
-  const binding = getChatCanvasBinding(db, input.chatSessionKey);
-  if (!binding) throw new Error("NO_CANVAS_BOUND_TO_CHAT");
-  if (binding.leaseId !== input.leaseId || binding.bindingRevision !== input.bindingRevision) throw new Error("CHAT_CANVAS_LEASE_STALE");
-  return binding;
-}
-function getBoundCanvas(db, chatSessionKey, requireOnline = false) {
-  const binding = getChatCanvasBinding(db, chatSessionKey);
-  if (!binding?.projectId || !binding.viewId) throw new Error("NO_CANVAS_BOUND_TO_CHAT");
-  if (binding.status !== "active" || !binding.canvasSessionId) throw new Error("BOUND_CANVAS_NOT_READY");
-  const view = getProjectView(db, binding.projectId, binding.viewId);
-  if (!view || view.status !== "active") throw new Error("BOUND_CANVAS_NOT_READY");
-  const context = getCanvasContext(db, binding.canvasSessionId);
-  if (!context || !context.agentEligible) throw new Error("BOUND_CANVAS_NOT_READY");
-  const seenAt = Date.parse(context.presence?.lastSeenAt ?? context.updatedAt);
-  if (requireOnline && (!Number.isFinite(seenAt) || Date.now() - seenAt > canvasOfflineAfterMs)) throw new Error("BOUND_CANVAS_OFFLINE");
-  return { binding, context };
-}
-function syncCanvasContext(db, snapshot, chatSessionKey) {
-  let validated = canvasContextSnapshotSchema.parse(snapshot);
-  transaction(db, () => {
-    const existing = db.prepare("SELECT sequence FROM canvas_session WHERE id = ?").get(validated.canvasSessionId);
-    if (existing && Number(existing.sequence) >= validated.sequence) {
-      if (validated.syncPurpose !== "claim") throw new Error("STALE_CANVAS_SEQUENCE");
-      validated = canvasContextSnapshotSchema.parse({ ...validated, sequence: Number(existing.sequence) + 1 });
-    }
-    if (validated.agentEligible) {
-      if (!chatSessionKey || !validated.chatBinding) throw new Error("CODEX_THREAD_CONTEXT_REQUIRED");
-      const binding = validateBindingLease(db, { chatSessionKey, ...validated.chatBinding });
-      if (binding.projectId && binding.projectId !== validated.projectId || binding.viewId && binding.viewId !== validated.viewId) throw new Error("CHAT_CANVAS_LEASE_STALE");
-      if (binding.status === "active" && binding.canvasSessionId && binding.canvasSessionId !== validated.canvasSessionId) {
-        const activeContext = getCanvasContext(db, binding.canvasSessionId);
-        const activeSeenAt = Date.parse(activeContext?.presence?.lastSeenAt ?? activeContext?.updatedAt ?? binding.lastSeenAt);
-        const activeOnline = Number.isFinite(activeSeenAt) && Date.now() - activeSeenAt <= canvasOfflineAfterMs;
-        if (activeOnline && validated.syncPurpose !== "claim") throw new Error("CANVAS_ALREADY_ACTIVE");
-        rejectBindingWork(db, binding);
-        appendProjectEvent(db, {
-          projectId: binding.projectId ?? validated.projectId,
-          canvasSessionId: binding.canvasSessionId,
-          kind: "chat.binding.changed",
-          payload: { bindingRevision: binding.bindingRevision, status: "detached", reason: "CANVAS_TAKEN_OVER" }
-        });
-      }
-      saveChatCanvasBinding(db, {
-        ...binding,
-        projectId: validated.projectId,
-        viewId: validated.viewId,
-        canvasSessionId: validated.canvasSessionId,
-        status: "active",
-        lastSeenAt: validated.presence?.lastSeenAt ?? validated.updatedAt
-      });
-    } else if (validated.chatBinding) {
-      throw new Error("BROWSER_PREVIEW_AGENT_UNAVAILABLE");
-    }
-    db.prepare("INSERT INTO canvas_session(id, project_id, sequence, data) VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET project_id=excluded.project_id, sequence=excluded.sequence, data=excluded.data").run(validated.canvasSessionId, validated.projectId, validated.sequence, json2(validated));
-    if (validated.syncPurpose === "state") {
-      saveCanvasViewState(db, { canvasSessionId: validated.canvasSessionId, viewId: validated.viewId, viewport: validated.viewport, selectedNodeIds: validated.selectedNodeIds, focusedNodeId: validated.focusedNodeId, lastOpenedAt: validated.presence?.lastSeenAt ?? validated.updatedAt });
-    }
-    const projectView = getProjectView(db, validated.projectId, validated.viewId);
-    if (projectView?.status === "active") putProjectView(db, { ...projectView, lastOpenedAt: validated.presence?.lastSeenAt ?? validated.updatedAt });
-  });
-  return validated;
-}
-function getCanvasContext(db, sessionId) {
-  const row = db.prepare("SELECT data FROM canvas_session WHERE id = ?").get(sessionId);
-  return row ? canvasContextSnapshotSchema.parse(parse3(row.data)) : null;
-}
-
-// packages/storage/src/agent-tasks.ts
 function reapExpiredCanvasTasks(db, canvasSessionId) {
   const reaped = [];
-  for (const task of listCanvasTasks(db, canvasSessionId)) {
-    const idleMs = Date.now() - Date.parse(task.updatedAt);
-    if (task.status === "prepared" && idleMs > preparedTaskExpiryMs) {
-      reaped.push(updateAgentTask(db, task.taskId, { status: "failed", error: { code: "PREPARED_TASK_EXPIRED", message: "Prepared task was not dispatched within two minutes" } }));
-    } else if (task.status === "dispatched" && idleMs > dispatchedTaskExpiryMs) {
-      reaped.push(updateAgentTask(db, task.taskId, { status: "failed", error: { code: "AGENT_DISPATCH_TIMEOUT", message: "No agent started this task within three minutes" } }));
-    } else if (task.status === "running" && idleMs > runningTaskExpiryMs) {
-      reaped.push(updateAgentTask(db, task.taskId, { status: "failed", error: { code: "AGENT_TASK_TIMEOUT", message: "Agent reported no progress for ten minutes; task reaped so the canvas is unblocked" } }));
-    } else if (task.status === "running" && Date.now() - Date.parse(task.createdAt) > runningTaskMaxLifetimeMs) {
-      reaped.push(updateAgentTask(db, task.taskId, { status: "failed", error: { code: "AGENT_TASK_MAX_LIFETIME", message: "Task exceeded its maximum running time; reaped so the canvas is unblocked" } }));
+  for (const task2 of listCanvasTasks(db, canvasSessionId)) {
+    const idleMs = Date.now() - Date.parse(task2.updatedAt);
+    if (task2.status === "prepared" && idleMs > preparedTaskExpiryMs) {
+      reaped.push(updateAgentTask(db, task2.taskId, { status: "failed", error: { code: "PREPARED_TASK_EXPIRED", message: "Prepared task was not dispatched within two minutes" } }));
+    } else if (task2.status === "dispatched" && idleMs > dispatchedTaskExpiryMs) {
+      reaped.push(updateAgentTask(db, task2.taskId, { status: "failed", error: { code: "AGENT_DISPATCH_TIMEOUT", message: "No agent started this task within three minutes" } }));
+    } else if (task2.status === "running" && idleMs > runningTaskExpiryMs) {
+      reaped.push(updateAgentTask(db, task2.taskId, { status: "failed", error: { code: "AGENT_TASK_TIMEOUT", message: "Agent reported no progress for ten minutes; task reaped so the canvas is unblocked" } }));
+    } else if (task2.status === "running" && Date.now() - Date.parse(task2.createdAt) > runningTaskMaxLifetimeMs) {
+      reaped.push(updateAgentTask(db, task2.taskId, { status: "failed", error: { code: "AGENT_TASK_MAX_LIFETIME", message: "Task exceeded its maximum running time; reaped so the canvas is unblocked" } }));
     }
   }
   return reaped;
@@ -125583,13 +125531,13 @@ function prepareAgentTask(db, input) {
   const timestamp = now();
   const dispatchKey = input.dispatchKey ?? randomUUID2();
   const existingTasks = listCanvasTasks(db, context.canvasSessionId, true);
-  const duplicate = existingTasks.find((task2) => task2.dispatches.some((dispatch2) => dispatch2.dispatchKey === dispatchKey));
+  const duplicate = existingTasks.find((task3) => task3.dispatches.some((dispatch2) => dispatch2.dispatchKey === dispatchKey));
   if (duplicate) return duplicate;
   reapExpiredCanvasTasks(db, context.canvasSessionId);
   const [blocking] = listCanvasTasks(db, context.canvasSessionId);
   if (blocking) throw new Error(`ACTIVE_CANVAS_TASK_EXISTS:${blocking.taskId}`);
   const intent = ["develop_selection", "follow_up_ask", "layout_view", "develop_then_layout"].includes(input.actionKey) ? input.actionKey : "develop_selection";
-  const task = agentTaskSchema.parse({
+  const task2 = agentTaskSchema.parse({
     taskId: randomUUID2(),
     canvasSessionId: context.canvasSessionId,
     workspaceDir: context.workspaceDir,
@@ -125618,29 +125566,29 @@ function prepareAgentTask(db, input) {
     updatedAt: timestamp
   });
   transaction(db, () => {
-    db.prepare("INSERT INTO agent_task(id, project_id, data) VALUES (?, ?, ?)").run(task.taskId, task.projectId, json2(task));
-    appendProjectEvent(db, { projectId: task.projectId, canvasSessionId: task.canvasSessionId, taskId: task.taskId, kind: "task.updated", payload: task });
+    db.prepare("INSERT INTO agent_task(id, project_id, data) VALUES (?, ?, ?)").run(task2.taskId, task2.projectId, json2(task2));
+    appendProjectEvent(db, { projectId: task2.projectId, canvasSessionId: task2.canvasSessionId, taskId: task2.taskId, kind: "task.updated", payload: task2 });
   });
-  return task;
+  return task2;
 }
 function prepareAgentTaskFromBoundCanvas(db, input) {
   const { context } = getBoundCanvas(db, input.chatSessionKey, true);
   return prepareAgentTask(db, { canvasSessionId: context.canvasSessionId, actionKey: input.actionKey, userInstruction: input.userInstruction, dispatchKey: input.dispatchKey, chatSessionKey: input.chatSessionKey });
 }
 function assertTaskChat(db, taskId, chatSessionKey, requireOnline = true) {
-  const task = getAgentTask(db, taskId);
-  if (!task) throw new Error(`AGENT_TASK_NOT_FOUND:${taskId}`);
-  if (task.chatSessionKey !== chatSessionKey) throw new Error("TASK_CHAT_MISMATCH");
+  const task2 = getAgentTask(db, taskId);
+  if (!task2) throw new Error(`AGENT_TASK_NOT_FOUND:${taskId}`);
+  if (task2.chatSessionKey !== chatSessionKey) throw new Error("TASK_CHAT_MISMATCH");
   const { binding, context } = getBoundCanvas(db, chatSessionKey, requireOnline);
-  if (binding.bindingRevision !== task.bindingRevision || binding.canvasSessionId !== task.canvasSessionId || context.projectId !== task.projectId) throw new Error("TASK_BINDING_STALE");
-  return task;
+  if (binding.bindingRevision !== task2.bindingRevision || binding.canvasSessionId !== task2.canvasSessionId || context.projectId !== task2.projectId) throw new Error("TASK_BINDING_STALE");
+  return task2;
 }
 function assertTaskCanvas(db, taskId, chatSessionKey, requireOnline = false) {
-  const task = getAgentTask(db, taskId);
-  if (!task) throw new Error(`AGENT_TASK_NOT_FOUND:${taskId}`);
+  const task2 = getAgentTask(db, taskId);
+  if (!task2) throw new Error(`AGENT_TASK_NOT_FOUND:${taskId}`);
   const { binding, context } = getBoundCanvas(db, chatSessionKey, requireOnline);
-  if (binding.canvasSessionId !== task.canvasSessionId || context.projectId !== task.projectId) throw new Error("TASK_NOT_ON_CANVAS");
-  return task;
+  if (binding.canvasSessionId !== task2.canvasSessionId || context.projectId !== task2.projectId) throw new Error("TASK_NOT_ON_CANVAS");
+  return task2;
 }
 function getAgentTask(db, taskId) {
   const row = db.prepare("SELECT data FROM agent_task WHERE id = ?").get(taskId);
@@ -125648,11 +125596,11 @@ function getAgentTask(db, taskId) {
 }
 function listCanvasTasks(db, canvasSessionId, includeTerminal = false) {
   const terminal = terminalTaskStatuses;
-  return db.prepare("SELECT data FROM agent_task WHERE json_extract(data, '$.canvasSessionId') = ? ORDER BY rowid DESC").all(canvasSessionId).map((row) => agentTaskSchema.parse(parse3(row.data))).filter((task) => includeTerminal || !terminal.has(task.status));
+  return db.prepare("SELECT data FROM agent_task WHERE json_extract(data, '$.canvasSessionId') = ? ORDER BY rowid DESC").all(canvasSessionId).map((row) => agentTaskSchema.parse(parse3(row.data))).filter((task2) => includeTerminal || !terminal.has(task2.status));
 }
 function listProjectTasks(db, projectId, includeTerminal = false) {
   const terminal = terminalTaskStatuses;
-  return db.prepare("SELECT data FROM agent_task WHERE project_id = ? ORDER BY rowid DESC").all(projectId).map((row) => agentTaskSchema.parse(parse3(row.data))).filter((task) => includeTerminal || !terminal.has(task.status));
+  return db.prepare("SELECT data FROM agent_task WHERE project_id = ? ORDER BY rowid DESC").all(projectId).map((row) => agentTaskSchema.parse(parse3(row.data))).filter((task2) => includeTerminal || !terminal.has(task2.status));
 }
 function updateAgentTask(db, taskId, patch, options = {}) {
   const current = getAgentTask(db, taskId);
@@ -125668,229 +125616,39 @@ function updateAgentTask(db, taskId, patch, options = {}) {
   return next;
 }
 function confirmAgentDispatch(db, taskId, dispatchKey) {
-  const task = getAgentTask(db, taskId);
-  if (!task) throw new Error(`AGENT_TASK_NOT_FOUND:${taskId}`);
-  if (task.status === "dispatched" && task.dispatches.some((dispatch2) => dispatch2.dispatchKey === dispatchKey && dispatch2.state === "accepted")) return task;
-  if (task.status !== "prepared") throw new Error(terminalTaskStatuses.has(task.status) ? `TASK_TERMINAL:${task.status}` : `TASK_TRANSITION_INVALID:${task.status}->dispatched`);
-  const dispatches = task.dispatches.map((dispatch2) => dispatch2.dispatchKey === dispatchKey && dispatch2.state === "prepared" ? { ...dispatch2, state: "accepted", acceptedAt: now() } : dispatch2);
+  const task2 = getAgentTask(db, taskId);
+  if (!task2) throw new Error(`AGENT_TASK_NOT_FOUND:${taskId}`);
+  if (task2.status === "dispatched" && task2.dispatches.some((dispatch2) => dispatch2.dispatchKey === dispatchKey && dispatch2.state === "accepted")) return task2;
+  if (task2.status !== "prepared") throw new Error(terminalTaskStatuses.has(task2.status) ? `TASK_TERMINAL:${task2.status}` : `TASK_TRANSITION_INVALID:${task2.status}->dispatched`);
+  const dispatches = task2.dispatches.map((dispatch2) => dispatch2.dispatchKey === dispatchKey && dispatch2.state === "prepared" ? { ...dispatch2, state: "accepted", acceptedAt: now() } : dispatch2);
   if (!dispatches.some((dispatch2) => dispatch2.dispatchKey === dispatchKey && dispatch2.state === "accepted")) throw new Error("AGENT_DISPATCH_NOT_FOUND");
   return updateAgentTask(db, taskId, { status: "dispatched", dispatches, error: void 0 });
 }
 function failAgentDispatch(db, taskId, dispatchKey, input) {
-  const task = getAgentTask(db, taskId);
-  if (!task) throw new Error(`AGENT_TASK_NOT_FOUND:${taskId}`);
-  if (terminalTaskStatuses.has(task.status)) return task;
-  if (task.status !== "prepared") throw new Error(`TASK_TRANSITION_INVALID:${task.status}->failed`);
-  if (!task.dispatches.some((dispatch2) => dispatch2.dispatchKey === dispatchKey && dispatch2.state === "prepared")) throw new Error("AGENT_DISPATCH_NOT_FOUND");
+  const task2 = getAgentTask(db, taskId);
+  if (!task2) throw new Error(`AGENT_TASK_NOT_FOUND:${taskId}`);
+  if (terminalTaskStatuses.has(task2.status)) return task2;
+  if (task2.status !== "prepared") throw new Error(`TASK_TRANSITION_INVALID:${task2.status}->failed`);
+  if (!task2.dispatches.some((dispatch2) => dispatch2.dispatchKey === dispatchKey && dispatch2.state === "prepared")) throw new Error("AGENT_DISPATCH_NOT_FOUND");
   const state = input.code === "DISPATCH_UNCONFIRMED" ? "unconfirmed" : "rejected";
-  const dispatches = task.dispatches.map((dispatch2) => dispatch2.dispatchKey === dispatchKey && dispatch2.state === "prepared" ? { ...dispatch2, state, error: input } : dispatch2);
+  const dispatches = task2.dispatches.map((dispatch2) => dispatch2.dispatchKey === dispatchKey && dispatch2.state === "prepared" ? { ...dispatch2, state, error: input } : dispatch2);
   return updateAgentTask(db, taskId, { status: "failed", dispatches, error: input });
 }
 function beginAgentContinuation(db, input) {
-  const task = getAgentTask(db, input.taskId);
-  if (!task) throw new Error(`AGENT_TASK_NOT_FOUND:${input.taskId}`);
-  const duplicate = task.dispatches.find((dispatch2) => dispatch2.dispatchKey === input.dispatchKey);
-  if (duplicate) return task;
-  if (task.taskRevision !== input.expectedTaskRevision) throw new Error("TASK_REVISION_CONFLICT");
-  if (task.status !== "ready_to_continue" || task.activeStage !== "layout") throw new Error(`TASK_TRANSITION_INVALID:${task.status}->prepared`);
+  const task2 = getAgentTask(db, input.taskId);
+  if (!task2) throw new Error(`AGENT_TASK_NOT_FOUND:${input.taskId}`);
+  const duplicate = task2.dispatches.find((dispatch2) => dispatch2.dispatchKey === input.dispatchKey);
+  if (duplicate) return task2;
+  if (task2.taskRevision !== input.expectedTaskRevision) throw new Error("TASK_REVISION_CONFLICT");
+  if (task2.status !== "ready_to_continue" || task2.activeStage !== "layout") throw new Error(`TASK_TRANSITION_INVALID:${task2.status}->prepared`);
   const record2 = { dispatchKey: input.dispatchKey, stage: "layout", state: "prepared", attemptedAt: now() };
-  return updateAgentTask(db, task.taskId, { status: "prepared", dispatches: [...task.dispatches, record2] });
+  return updateAgentTask(db, task2.taskId, { status: "prepared", dispatches: [...task2.dispatches, record2] });
 }
 function reportTaskProgress(db, taskId, note) {
-  const task = getAgentTask(db, taskId);
-  if (!task) throw new Error(`AGENT_TASK_NOT_FOUND:${taskId}`);
-  if (task.status !== "running") throw new Error(terminalTaskStatuses.has(task.status) ? `TASK_TERMINAL:${task.status}` : `TASK_NOT_RUNNING:${task.status}`);
+  const task2 = getAgentTask(db, taskId);
+  if (!task2) throw new Error(`AGENT_TASK_NOT_FOUND:${taskId}`);
+  if (task2.status !== "running") throw new Error(terminalTaskStatuses.has(task2.status) ? `TASK_TERMINAL:${task2.status}` : `TASK_NOT_RUNNING:${task2.status}`);
   return updateAgentTask(db, taskId, { progressNote: note }, { force: true });
-}
-
-// packages/storage/src/view-catalog.ts
-function listProjectViews(db, projectId, status) {
-  const rows = status ? db.prepare("SELECT data FROM project_view WHERE project_id = ? AND status = ?").all(projectId, status) : db.prepare("SELECT data FROM project_view WHERE project_id = ?").all(projectId);
-  return rows.map((row) => projectViewSchema.parse(parse3(row.data))).sort((left, right) => {
-    if (left.pinned !== right.pinned) return left.pinned ? -1 : 1;
-    if (left.pinned && right.pinned) return (left.pinnedOrder ?? Number.MAX_SAFE_INTEGER) - (right.pinnedOrder ?? Number.MAX_SAFE_INTEGER);
-    return Date.parse(right.lastOpenedAt) - Date.parse(left.lastOpenedAt) || left.name.localeCompare(right.name);
-  });
-}
-function getProjectView(db, projectId, viewId) {
-  const row = db.prepare("SELECT data FROM project_view WHERE project_id = ? AND id = ?").get(projectId, viewId);
-  return row ? projectViewSchema.parse(parse3(row.data)) : null;
-}
-function putProjectView(db, view) {
-  const validated = projectViewSchema.parse(view);
-  db.prepare(`
-    INSERT INTO project_view(id, project_id, status, pinned_order, data) VALUES (?, ?, ?, ?, ?)
-    ON CONFLICT(project_id, id) DO UPDATE SET status=excluded.status, pinned_order=excluded.pinned_order, data=excluded.data
-  `).run(validated.id, validated.projectId, validated.status, validated.pinnedOrder ?? null, json2(validated));
-  return validated;
-}
-function bumpViewCatalog(db, projectId, input) {
-  const project = getProject(db, projectId);
-  if (!project) throw new Error("PROJECT_NOT_FOUND");
-  const nextProject = projectSchema.parse({ ...project, defaultViewId: input.defaultViewId ?? project.defaultViewId, viewCatalogRevision: project.viewCatalogRevision + 1, updatedAt: now() });
-  const delta = { projectId, fromRevision: project.viewCatalogRevision, toRevision: nextProject.viewCatalogRevision, upsertedViews: input.upsertedViews ?? [], removedViewIds: input.removedViewIds ?? [], defaultViewId: nextProject.defaultViewId };
-  db.prepare("UPDATE project SET data = ? WHERE id = ?").run(json2(nextProject), projectId);
-  appendProjectEvent(db, { projectId, kind: "view.catalog.changed", payload: delta });
-  return { project: nextProject, delta };
-}
-function catalogViewFromLayout(db, layout, createdBy = "user") {
-  const existing = getProjectView(db, layout.projectId, layout.viewId);
-  const project = getProject(db, layout.projectId);
-  if (!project) throw new Error("PROJECT_NOT_FOUND");
-  const timestamp = now();
-  const view = putProjectView(db, {
-    id: layout.viewId,
-    projectId: layout.projectId,
-    name: friendlyViewName(layout),
-    viewType: layout.viewType,
-    templateRef: layout.templateRef,
-    status: existing?.status ?? "active",
-    pinned: existing?.pinned ?? layout.viewId === project.defaultViewId,
-    pinnedOrder: existing?.pinnedOrder ?? (layout.viewId === project.defaultViewId ? 0 : void 0),
-    createdBy: existing?.createdBy ?? createdBy,
-    createdAt: existing?.createdAt ?? timestamp,
-    updatedAt: timestamp,
-    lastOpenedAt: existing?.lastOpenedAt ?? timestamp,
-    trashedAt: existing?.trashedAt,
-    purgeAfter: existing?.purgeAfter
-  });
-  const bumped = bumpViewCatalog(db, layout.projectId, { upsertedViews: [view] });
-  return { view, ...bumped };
-}
-function assertCatalogRevision(project, baseCatalogRevision) {
-  if (project.viewCatalogRevision !== baseCatalogRevision) throw new Error("VIEW_CATALOG_REVISION_CONFLICT");
-}
-function renameProjectView(db, input) {
-  return transaction(db, () => {
-    const project = getProject(db, input.projectId);
-    if (!project) throw new Error("PROJECT_NOT_FOUND");
-    assertCatalogRevision(project, input.baseCatalogRevision);
-    const current = getProjectView(db, input.projectId, input.viewId);
-    if (!current || current.status !== "active") throw new Error("VIEW_NOT_FOUND");
-    const name = input.name.trim();
-    if (!name) throw new Error("VIEW_NAME_REQUIRED");
-    const view = putProjectView(db, { ...current, name, updatedAt: now() });
-    const layout = getLayout(db, input.projectId, input.viewId);
-    if (layout) db.prepare("UPDATE layout SET data = ? WHERE project_id = ? AND view_id = ?").run(json2({ ...layout, viewName: name }), input.projectId, input.viewId);
-    return { view, ...bumpViewCatalog(db, input.projectId, { upsertedViews: [view] }) };
-  });
-}
-function pinProjectView(db, input) {
-  return transaction(db, () => {
-    const project = getProject(db, input.projectId);
-    if (!project) throw new Error("PROJECT_NOT_FOUND");
-    assertCatalogRevision(project, input.baseCatalogRevision);
-    const current = getProjectView(db, input.projectId, input.viewId);
-    if (!current || current.status !== "active") throw new Error("VIEW_NOT_FOUND");
-    if (current.pinned === input.pinned) return { view: current, project, delta: { projectId: project.id, fromRevision: project.viewCatalogRevision, toRevision: project.viewCatalogRevision, upsertedViews: [], removedViewIds: [], defaultViewId: project.defaultViewId } };
-    const nextOrder = input.pinned ? Math.max(-1, ...listProjectViews(db, input.projectId, "active").filter((view2) => view2.pinned).map((view2) => view2.pinnedOrder ?? -1)) + 1 : void 0;
-    const view = putProjectView(db, { ...current, pinned: input.pinned, pinnedOrder: nextOrder, updatedAt: now() });
-    return { view, ...bumpViewCatalog(db, input.projectId, { upsertedViews: [view] }) };
-  });
-}
-function reorderPinnedViews(db, input) {
-  return transaction(db, () => {
-    const project = getProject(db, input.projectId);
-    if (!project) throw new Error("PROJECT_NOT_FOUND");
-    assertCatalogRevision(project, input.baseCatalogRevision);
-    const pinned = listProjectViews(db, input.projectId, "active").filter((view) => view.pinned);
-    if (new Set(input.viewIds).size !== input.viewIds.length || input.viewIds.length !== pinned.length || pinned.some((view) => !input.viewIds.includes(view.id))) throw new Error("PINNED_VIEW_ORDER_INVALID");
-    const views = input.viewIds.map((viewId, index2) => putProjectView(db, { ...pinned.find((view) => view.id === viewId), pinnedOrder: index2, updatedAt: now() }));
-    return { views, ...bumpViewCatalog(db, input.projectId, { upsertedViews: views }) };
-  });
-}
-function setDefaultProjectView(db, input) {
-  return transaction(db, () => {
-    const project = getProject(db, input.projectId);
-    if (!project) throw new Error("PROJECT_NOT_FOUND");
-    assertCatalogRevision(project, input.baseCatalogRevision);
-    const view = getProjectView(db, input.projectId, input.viewId);
-    if (!view || view.status !== "active") throw new Error("VIEW_NOT_FOUND");
-    if (project.defaultViewId === input.viewId) return { view, project, delta: { projectId: project.id, fromRevision: project.viewCatalogRevision, toRevision: project.viewCatalogRevision, upsertedViews: [], removedViewIds: [], defaultViewId: project.defaultViewId } };
-    return { view, ...bumpViewCatalog(db, input.projectId, { defaultViewId: input.viewId }) };
-  });
-}
-function searchProjectViews(db, projectId, query, status = "active") {
-  const normalized = query.trim().toLocaleLowerCase();
-  return listProjectViews(db, projectId, status).filter((view) => !normalized || `${view.name} ${view.viewType} ${view.templateRef?.id ?? ""}`.toLocaleLowerCase().includes(normalized));
-}
-function trashProjectView(db, input) {
-  return transaction(db, () => {
-    const project = getProject(db, input.projectId);
-    if (!project) throw new Error("PROJECT_NOT_FOUND");
-    assertCatalogRevision(project, input.baseCatalogRevision);
-    const current = getProjectView(db, input.projectId, input.viewId);
-    if (!current || current.status !== "active") throw new Error("VIEW_NOT_FOUND");
-    const active = listProjectViews(db, input.projectId, "active");
-    if (active.length <= 1) throw new Error("LAST_ACTIVE_VIEW");
-    const fallback = (input.fallbackViewId ? active.find((view2) => view2.id === input.fallbackViewId) : void 0) ?? active.find((view2) => view2.id !== input.viewId);
-    if (!fallback || fallback.id === input.viewId) throw new Error("VIEW_FALLBACK_REQUIRED");
-    const timestamp = now();
-    const purgeAfter = new Date(Date.now() + 30 * 24 * 60 * 6e4).toISOString();
-    const view = putProjectView(db, { ...current, status: "trashed", pinned: false, pinnedOrder: void 0, trashedAt: timestamp, purgeAfter, updatedAt: timestamp });
-    const tasks = listProjectTasks(db, input.projectId, true).filter((task) => task.viewId === input.viewId && !terminalTaskStatuses.has(task.status));
-    rejectTasks(db, tasks, "VIEW_TRASHED", "The task View was moved to the recycle bin");
-    const bindingRows = db.prepare("SELECT data FROM chat_canvas_binding").all();
-    for (const row of bindingRows) {
-      const binding = chatCanvasBindingSchema.parse(parse3(row.data));
-      if (binding.projectId !== input.projectId || binding.viewId !== input.viewId) continue;
-      const next = saveChatCanvasBinding(db, { ...binding, viewId: fallback.id, canvasSessionId: void 0, bindingRevision: binding.bindingRevision + 1, status: "opening", lastSeenAt: timestamp });
-      appendProjectEvent(db, { projectId: input.projectId, canvasSessionId: binding.canvasSessionId, kind: "chat.binding.changed", payload: { bindingRevision: next.bindingRevision, status: "detached", fallbackViewId: fallback.id, reason: "VIEW_TRASHED" } });
-    }
-    return { view, fallbackView: fallback, ...bumpViewCatalog(db, input.projectId, { upsertedViews: [view], defaultViewId: project.defaultViewId === input.viewId ? fallback.id : project.defaultViewId }) };
-  });
-}
-function restoreProjectView(db, input) {
-  return transaction(db, () => {
-    const project = getProject(db, input.projectId);
-    if (!project) throw new Error("PROJECT_NOT_FOUND");
-    assertCatalogRevision(project, input.baseCatalogRevision);
-    const current = getProjectView(db, input.projectId, input.viewId);
-    if (!current || current.status !== "trashed") throw new Error("VIEW_NOT_TRASHED");
-    const view = putProjectView(db, { ...current, status: "active", trashedAt: void 0, purgeAfter: void 0, updatedAt: now() });
-    return { view, ...bumpViewCatalog(db, input.projectId, { upsertedViews: [view] }) };
-  });
-}
-function purgeProjectView(db, input) {
-  return transaction(db, () => {
-    const project = getProject(db, input.projectId);
-    if (!project) throw new Error("PROJECT_NOT_FOUND");
-    assertCatalogRevision(project, input.baseCatalogRevision);
-    const current = getProjectView(db, input.projectId, input.viewId);
-    if (!current || current.status !== "trashed") throw new Error("VIEW_NOT_TRASHED");
-    db.prepare("DELETE FROM project_view WHERE project_id = ? AND id = ?").run(input.projectId, input.viewId);
-    db.prepare("DELETE FROM layout WHERE project_id = ? AND view_id = ?").run(input.projectId, input.viewId);
-    db.prepare("DELETE FROM layout_history WHERE project_id = ? AND view_id = ?").run(input.projectId, input.viewId);
-    db.prepare("DELETE FROM layout_run WHERE project_id = ? AND view_id = ?").run(input.projectId, input.viewId);
-    db.prepare("DELETE FROM canvas_view_state WHERE view_id = ?").run(input.viewId);
-    return { view: current, ...bumpViewCatalog(db, input.projectId, { removedViewIds: [input.viewId] }) };
-  });
-}
-function duplicateProjectView(db, input) {
-  return transaction(db, () => {
-    const project = getProject(db, input.projectId);
-    if (!project) throw new Error("PROJECT_NOT_FOUND");
-    assertCatalogRevision(project, input.baseCatalogRevision);
-    const sourceView = getProjectView(db, input.projectId, input.viewId);
-    if (!sourceView || sourceView.status !== "active") throw new Error("VIEW_NOT_FOUND");
-    const source = getLayout(db, input.projectId, input.viewId);
-    if (!source) throw new Error("LAYOUT_NOT_FOUND");
-    const viewId = `${source.viewType}-${randomUUID3().slice(0, 8)}`;
-    const name = input.name?.trim() || `${sourceView.name} copy`;
-    const layout = layoutDocumentSchema.parse({ ...source, viewId, viewName: name, layoutRevision: 1, createdBy: "user", updatedAt: now() });
-    saveLayout(db, layout, false);
-    const catalog = catalogViewFromLayout(db, layout, "user");
-    return { layout, ...catalog };
-  });
-}
-function saveCanvasViewState(db, input) {
-  const state = canvasViewStateSchema.parse(input);
-  db.prepare("INSERT INTO canvas_view_state(canvas_session_id, view_id, data) VALUES (?, ?, ?) ON CONFLICT(canvas_session_id, view_id) DO UPDATE SET data=excluded.data").run(state.canvasSessionId, state.viewId, json2(state));
-  return state;
-}
-function getCanvasViewState(db, canvasSessionId, viewId) {
-  const row = db.prepare("SELECT data FROM canvas_view_state WHERE canvas_session_id = ? AND view_id = ?").get(canvasSessionId, viewId);
-  return row ? canvasViewStateSchema.parse(parse3(row.data)) : null;
 }
 
 // packages/storage/src/layout-templates.ts
@@ -126046,7 +125804,7 @@ function createViewFromVisualTemplate(db, input) {
   const graph = getGraph(db, project.id);
   if (graph.revision !== input.baseGraphRevision) throw new Error("GRAPH_REVISION_CONFLICT");
   const viewName = uniqueViewName(db, project.id, input.viewName ?? input.template.name);
-  const viewId = `${input.template.renderer}-${randomUUID4().slice(0, 8)}`;
+  const viewId = `${input.template.renderer}-${randomUUID3().slice(0, 8)}`;
   const document2 = templateLayout(db, { project, graph, template: input.template, viewId, viewName, layoutRevision: 1 });
   transaction(db, () => {
     saveLayout(db, document2, false);
@@ -126063,9 +125821,9 @@ function createProjectFromVisualTemplate(db, dataDir, input) {
   transaction(db, () => {
     project = createProject(db, dataDir, { title: input.title, goal: input.goal, scenePack: input.scenePack, automationLevel: input.automationLevel, createdFromTemplate: { id: input.template.id, version: input.template.version }, writeSnapshots: false });
     const timestamp = now();
-    const ids = new Map(input.template.starterBlueprint.nodes.map((node) => [node.key, randomUUID4()]));
-    const nodes = input.template.starterBlueprint.nodes.map((item) => nodeSchema.parse({ id: ids.get(item.key), projectId: project.id, type: binding.nodeRoles[item.role] ?? input.scenePack.nodeTypes[0].key, title: item.title, body: "", contentKind: item.contentKind, content: { kind: "document", mode: "note", markdown: "", excerpt: "", embeddedAssetIds: [] }, properties: item.properties, archived: false, createdAt: timestamp, updatedAt: timestamp }));
-    const edges = input.template.starterBlueprint.edges.map((item) => edgeSchema.parse({ id: randomUUID4(), projectId: project.id, type: binding.edgeRoles[item.role] ?? input.scenePack.edgeTypes[0]?.key ?? "relation", sourceNodeId: ids.get(item.sourceKey), targetNodeId: ids.get(item.targetKey), directed: true, properties: {}, archived: false, createdAt: timestamp, updatedAt: timestamp }));
+    const ids = new Map(input.template.starterBlueprint.nodes.map((node) => [node.key, randomUUID3()]));
+    const nodes = input.template.starterBlueprint.nodes.map((item) => nodeSchema.parse({ id: ids.get(item.key), projectId: project.id, type: binding.nodeRoles[item.role] ?? input.scenePack.nodeTypes[0].key, title: item.title, contentKind: item.contentKind, content: { kind: "document", mode: "note", markdown: "", excerpt: "", embeddedAssetIds: [] }, properties: item.properties, archived: false, createdAt: timestamp, updatedAt: timestamp }));
+    const edges = input.template.starterBlueprint.edges.map((item) => edgeSchema.parse({ id: randomUUID3(), projectId: project.id, type: binding.edgeRoles[item.role] ?? input.scenePack.edgeTypes[0]?.key ?? "relation", sourceNodeId: ids.get(item.sourceKey), targetNodeId: ids.get(item.targetKey), directed: true, properties: {}, archived: false, createdAt: timestamp, updatedAt: timestamp }));
     replaceGraph(db, { projectId: project.id, revision: 1, nodes, edges });
     patchProject(db, project.id, { starterNodeIds: nodes.map((node) => node.id) });
     project = getProject(db, project.id);
@@ -126102,7 +125860,7 @@ function saveLayout(db, document2, archive = true, eventContext = {}) {
   return validated;
 }
 function saveLayoutRun(db, input) {
-  const id = input.id ?? randomUUID4();
+  const id = input.id ?? randomUUID3();
   const { id: _requestedId, ...runInput } = input;
   const data = { id, ...runInput, status: "preview", createdAt: now() };
   db.prepare("INSERT INTO layout_run(id, project_id, view_id, data) VALUES (?, ?, ?, ?)").run(id, input.projectId, input.viewId, json2(data));
@@ -126125,14 +125883,14 @@ function applyLayoutCandidate(db, runId, candidateId) {
     throw new Error("LAYOUT_REVISION_CONFLICT");
   }
   const next = { ...candidate.document, layoutRevision: current.layoutRevision + 1, graphRevision: getProject(db, run.projectId)?.graphRevision ?? candidate.document.graphRevision, updatedAt: now() };
-  const task = run.taskId ? getAgentTask(db, run.taskId) : null;
+  const task2 = run.taskId ? getAgentTask(db, run.taskId) : null;
   transaction(db, () => {
-    saveLayout(db, next, true, { taskId: run.taskId, canvasSessionId: task?.canvasSessionId, operations: candidate.operations });
+    saveLayout(db, next, true, { taskId: run.taskId, canvasSessionId: task2?.canvasSessionId, operations: candidate.operations });
     run.status = "applied";
     run.appliedCandidateId = candidateId;
     run.updatedAt = now();
     db.prepare("UPDATE layout_run SET data = ? WHERE id = ?").run(json2(run), runId);
-    if (run.taskId && task) updateAgentTask(db, run.taskId, { status: "completed", results: { ...task.results, layoutRunId: runId } });
+    if (run.taskId && task2) updateAgentTask(db, run.taskId, { status: "completed", results: { ...task2.results, layoutRunId: runId } });
   });
   return next;
 }
@@ -126140,12 +125898,12 @@ function rejectLayoutRun(db, runId) {
   const run = getLayoutRun(db, runId);
   if (!run) throw new Error(`LAYOUT_RUN_NOT_FOUND:${runId}`);
   if (run.status !== "preview") throw new Error(`LAYOUT_RUN_NOT_PENDING:${run.status}`);
-  const task = run.taskId ? getAgentTask(db, run.taskId) : null;
+  const task2 = run.taskId ? getAgentTask(db, run.taskId) : null;
   transaction(db, () => {
     run.status = "rejected";
     run.updatedAt = now();
     db.prepare("UPDATE layout_run SET data = ? WHERE id = ?").run(json2(run), runId);
-    if (task) updateAgentTask(db, task.taskId, { status: "completed", results: { ...task.results, layoutRunId: runId } });
+    if (task2) updateAgentTask(db, task2.taskId, { status: "completed", results: { ...task2.results, layoutRunId: runId } });
   });
   return run;
 }
@@ -126175,7 +125933,6 @@ function graphDelta(db, previous, next) {
     const assetIds = node.content.kind === "image" ? [node.content.assetId] : node.content.kind === "document" ? [node.content.coverAssetId, ...node.content.embeddedAssetIds].filter(Boolean) : node.content.kind === "link" ? [node.content.imageAssetId].filter(Boolean) : [];
     return {
       ...node,
-      body: "",
       content: node.content.kind === "document" ? { ...node.content, markdown: "" } : node.content,
       assets: assetIds.map((id) => getAsset(db, id)).filter(Boolean)
     };
@@ -126226,7 +125983,7 @@ function createContentNode(db, input) {
     if (!asset || asset.projectId !== input.projectId) throw new Error("ASSET_NOT_FOUND_OR_CROSS_PROJECT");
   }
   const timestamp = now();
-  const node = nodeSchema.parse({ id: randomUUID5(), projectId: input.projectId, type: input.type, title: input.title, body: input.content.kind === "document" ? input.content.markdown : "", contentKind: input.content.kind, content: nodeContentSchema.parse(input.content), properties: {}, archived: false, createdAt: timestamp, updatedAt: timestamp });
+  const node = nodeSchema.parse({ id: randomUUID4(), projectId: input.projectId, type: input.type, title: input.title, contentKind: input.content.kind, content: nodeContentSchema.parse(input.content), properties: {}, archived: false, createdAt: timestamp, updatedAt: timestamp });
   replaceGraph(db, applyGraphOperations(graph, [{ type: "add-node", node }]));
   const frame2 = defaultNodeFrame(db, node, input.x, input.y);
   const nextLayout = structuredClone(layout);
@@ -126324,7 +126081,7 @@ function patchProject(db, projectId, patch) {
 function createProject(db, dataDir, input) {
   const timestamp = now();
   const project = projectSchema.parse({
-    id: randomUUID6(),
+    id: randomUUID5(),
     title: input.title,
     goal: input.goal,
     scenePackId: input.scenePack.id,
@@ -126351,7 +126108,8 @@ function createSeededProject(db, dataDir, input) {
   transaction(db, () => {
     project = createProject(db, dataDir, { title: input.title, goal: input.goal, scenePack: input.scenePack, automationLevel: input.automationLevel, writeSnapshots: false });
     const timestamp = now();
-    const root = nodeSchema.parse({ id: randomUUID6(), projectId: project.id, type: input.scenePack.nodeTypes[0].key, title: project.goal || project.title, body: "", properties: {}, archived: false, createdAt: timestamp, updatedAt: timestamp });
+    const markdown = project.goal || project.title;
+    const root = nodeSchema.parse({ id: randomUUID5(), projectId: project.id, type: input.scenePack.nodeTypes[0].key, title: markdown, content: { kind: "document", mode: "note", markdown, excerpt: markdown, embeddedAssetIds: [] }, properties: {}, archived: false, createdAt: timestamp, updatedAt: timestamp });
     replaceGraph(db, { projectId: project.id, revision: 1, nodes: [root], edges: [] });
     project = getProject(db, project.id);
     const layout = getLayout(db, project.id, project.defaultViewId);
@@ -126371,131 +126129,194 @@ function writeProjectSnapshots(dataDir, project, scenePack) {
 `, "utf8");
 }
 
-// packages/storage/src/migrations.ts
-function migrate(db) {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS project (id TEXT PRIMARY KEY, data TEXT NOT NULL);
-    CREATE TABLE IF NOT EXISTS node (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, data TEXT NOT NULL);
-    CREATE INDEX IF NOT EXISTS ix_node_project ON node(project_id);
-    CREATE TABLE IF NOT EXISTS edge (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, data TEXT NOT NULL);
-    CREATE INDEX IF NOT EXISTS ix_edge_project ON edge(project_id);
-    CREATE TABLE IF NOT EXISTS layout (project_id TEXT NOT NULL, view_id TEXT NOT NULL, revision INTEGER NOT NULL, data TEXT NOT NULL, PRIMARY KEY(project_id, view_id));
-    CREATE TABLE IF NOT EXISTS layout_history (project_id TEXT NOT NULL, view_id TEXT NOT NULL, revision INTEGER NOT NULL, data TEXT NOT NULL, PRIMARY KEY(project_id, view_id, revision));
-    CREATE TABLE IF NOT EXISTS layout_run (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, view_id TEXT NOT NULL, data TEXT NOT NULL);
-    CREATE TABLE IF NOT EXISTS project_view (id TEXT NOT NULL, project_id TEXT NOT NULL, status TEXT NOT NULL, pinned_order INTEGER, data TEXT NOT NULL, PRIMARY KEY(project_id, id));
-    CREATE INDEX IF NOT EXISTS ix_project_view_project_status ON project_view(project_id, status);
-    CREATE TABLE IF NOT EXISTS canvas_view_state (canvas_session_id TEXT NOT NULL, view_id TEXT NOT NULL, data TEXT NOT NULL, PRIMARY KEY(canvas_session_id, view_id));
-    CREATE TABLE IF NOT EXISTS canvas_session (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, sequence INTEGER NOT NULL, data TEXT NOT NULL);
-    CREATE TABLE IF NOT EXISTS chat_canvas_binding (chat_session_key TEXT PRIMARY KEY, revision INTEGER NOT NULL, data TEXT NOT NULL);
-    CREATE TABLE IF NOT EXISTS agent_task (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, data TEXT NOT NULL);
-    CREATE TABLE IF NOT EXISTS changeset (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, task_id TEXT NOT NULL, data TEXT NOT NULL);
-    CREATE TABLE IF NOT EXISTS artifact (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, type TEXT NOT NULL, data TEXT NOT NULL);
-    CREATE TABLE IF NOT EXISTS asset (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, sha256 TEXT NOT NULL, data TEXT NOT NULL, UNIQUE(project_id, sha256));
-    CREATE INDEX IF NOT EXISTS ix_asset_project ON asset(project_id);
-    CREATE TABLE IF NOT EXISTS project_event (
-      sequence INTEGER PRIMARY KEY AUTOINCREMENT,
-      project_id TEXT NOT NULL,
-      canvas_session_id TEXT,
-      task_id TEXT,
-      kind TEXT NOT NULL,
-      graph_revision INTEGER,
-      view_id TEXT,
-      layout_revision INTEGER,
-      payload TEXT NOT NULL,
-      created_at TEXT NOT NULL
-    );
-    CREATE INDEX IF NOT EXISTS ix_project_event_project_sequence ON project_event(project_id, sequence);
-    CREATE INDEX IF NOT EXISTS ix_project_event_session_sequence ON project_event(canvas_session_id, sequence);
-    PRAGMA user_version = 6;
-  `);
-}
-function transaction(db, callback) {
-  if (db.isTransaction) return callback();
-  db.exec("BEGIN IMMEDIATE");
-  try {
-    const value = callback();
-    db.exec("COMMIT");
-    return value;
-  } catch (error51) {
-    db.exec("ROLLBACK");
-    throw error51;
-  }
-}
-function migrateLegacyNodes(db) {
-  const rows = db.prepare("SELECT id, data FROM node").all();
-  const update = db.prepare("UPDATE node SET data = ? WHERE id = ?");
-  for (const row of rows) {
-    const raw = parse3(row.data);
-    if (raw.content && raw.contentKind) continue;
-    update.run(json2(nodeSchema.parse(raw)), row.id);
-  }
-}
-function migrateProjectViewPrimaryKey(db) {
-  const columns = db.prepare("PRAGMA table_info(project_view)").all();
-  const primaryKey = columns.filter((column) => column.pk > 0).sort((left, right) => left.pk - right.pk).map((column) => column.name);
-  if (primaryKey.join(",") === "project_id,id") return;
-  transaction(db, () => {
-    db.exec(`
-      ALTER TABLE project_view RENAME TO project_view_legacy_pk;
-      CREATE TABLE project_view (id TEXT NOT NULL, project_id TEXT NOT NULL, status TEXT NOT NULL, pinned_order INTEGER, data TEXT NOT NULL, PRIMARY KEY(project_id, id));
-      INSERT OR REPLACE INTO project_view(id, project_id, status, pinned_order, data) SELECT id, project_id, status, pinned_order, data FROM project_view_legacy_pk;
-      DROP TABLE project_view_legacy_pk;
-      CREATE INDEX IF NOT EXISTS ix_project_view_project_status ON project_view(project_id, status);
-    `);
+// packages/storage/src/view-catalog.ts
+function listProjectViews(db, projectId, status) {
+  const rows = status ? db.prepare("SELECT data FROM project_view WHERE project_id = ? AND status = ?").all(projectId, status) : db.prepare("SELECT data FROM project_view WHERE project_id = ?").all(projectId);
+  return rows.map((row) => projectViewSchema.parse(parse3(row.data))).sort((left, right) => {
+    if (left.pinned !== right.pinned) return left.pinned ? -1 : 1;
+    if (left.pinned && right.pinned) return (left.pinnedOrder ?? Number.MAX_SAFE_INTEGER) - (right.pinnedOrder ?? Number.MAX_SAFE_INTEGER);
+    return Date.parse(right.lastOpenedAt) - Date.parse(left.lastOpenedAt) || left.name.localeCompare(right.name);
   });
 }
-function migrateLegacyCanvasContexts(db) {
-  const rows = db.prepare("SELECT id, data FROM canvas_session").all();
-  const update = db.prepare("UPDATE canvas_session SET data = ? WHERE id = ?");
-  for (const row of rows) {
-    const raw = parse3(row.data);
-    if (raw.version === 2) continue;
-    update.run(json2(canvasContextSnapshotSchema.parse({ ...raw, version: 2, chatBinding: void 0, agentEligible: false })), row.id);
-  }
+function getProjectView(db, projectId, viewId) {
+  const row = db.prepare("SELECT data FROM project_view WHERE project_id = ? AND id = ?").get(projectId, viewId);
+  return row ? projectViewSchema.parse(parse3(row.data)) : null;
 }
-function migrateLegacyAgentTasks(db) {
-  const rows = db.prepare("SELECT id, data FROM agent_task").all();
-  const update = db.prepare("UPDATE agent_task SET data = ? WHERE id = ?");
-  for (const row of rows) {
-    const raw = parse3(row.data);
-    if (raw.chatSessionKey) continue;
-    const status = terminalTaskStatuses.has(raw.status) ? raw.status : "cancelled";
-    const migrated = agentTaskSchema.parse({
-      ...raw,
-      chatSessionKey: "legacy-unbound",
-      bindingRevision: 0,
-      status,
-      taskRevision: Number(raw.taskRevision ?? 0) + (status === raw.status ? 0 : 1),
-      error: status === raw.status ? raw.error : { code: "LEGACY_TASK_UNBOUND", message: "Legacy task is not bound to a Codex chat" },
-      updatedAt: status === raw.status ? raw.updatedAt : now()
-    });
-    update.run(json2(migrated), row.id);
-  }
+function putProjectView(db, view) {
+  const validated = projectViewSchema.parse(view);
+  db.prepare(`
+    INSERT INTO project_view(id, project_id, status, pinned_order, data) VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT(project_id, id) DO UPDATE SET status=excluded.status, pinned_order=excluded.pinned_order, data=excluded.data
+  `).run(validated.id, validated.projectId, validated.status, validated.pinnedOrder ?? null, json2(validated));
+  return validated;
 }
-function migrateLegacyProjectViews(db) {
-  const layoutRows = db.prepare("SELECT project_id, view_id, data FROM layout").all();
-  const insert = db.prepare("INSERT OR IGNORE INTO project_view(id, project_id, status, pinned_order, data) VALUES (?, ?, ?, ?, ?)");
-  const touchedProjects = /* @__PURE__ */ new Set();
-  for (const row of layoutRows) {
-    const layout = layoutDocumentSchema.parse({ ...parse3(row.data), viewName: parse3(row.data).viewName ?? parse3(row.data).viewType });
-    const project = getProject(db, row.project_id);
-    if (!project) continue;
-    const timestamp = layout.updatedAt ?? now();
-    const view = projectViewSchema.parse({ id: row.view_id, projectId: row.project_id, name: friendlyViewName(layout), viewType: layout.viewType, templateRef: layout.templateRef, status: "active", pinned: row.view_id === project.defaultViewId, pinnedOrder: row.view_id === project.defaultViewId ? 0 : void 0, createdBy: layout.templateRef ? "template" : "user", createdAt: timestamp, updatedAt: timestamp, lastOpenedAt: timestamp });
-    insert.run(view.id, view.projectId, view.status, view.pinnedOrder ?? null, json2(view));
-    touchedProjects.add(view.projectId);
-  }
-  for (const projectId of touchedProjects) {
-    const project = getProject(db, projectId);
-    if (!project || project.viewCatalogRevision > 0) continue;
-    db.prepare("UPDATE project SET data = ? WHERE id = ?").run(json2({ ...project, viewCatalogRevision: 1 }), projectId);
-  }
-  const existingViews = db.prepare("SELECT project_id, id, data FROM project_view").all();
-  for (const row of existingViews) {
-    const view = projectViewSchema.parse(parse3(row.data));
-    if (view.name !== view.viewType) continue;
-    putProjectView(db, { ...view, name: `${view.viewType[0].toUpperCase()}${view.viewType.slice(1)}` });
-  }
+function bumpViewCatalog(db, projectId, input) {
+  const project = getProject(db, projectId);
+  if (!project) throw new Error("PROJECT_NOT_FOUND");
+  const nextProject = projectSchema.parse({ ...project, defaultViewId: input.defaultViewId ?? project.defaultViewId, viewCatalogRevision: project.viewCatalogRevision + 1, updatedAt: now() });
+  const delta = { projectId, fromRevision: project.viewCatalogRevision, toRevision: nextProject.viewCatalogRevision, upsertedViews: input.upsertedViews ?? [], removedViewIds: input.removedViewIds ?? [], defaultViewId: nextProject.defaultViewId };
+  db.prepare("UPDATE project SET data = ? WHERE id = ?").run(json2(nextProject), projectId);
+  appendProjectEvent(db, { projectId, kind: "view.catalog.changed", payload: delta });
+  return { project: nextProject, delta };
+}
+function catalogViewFromLayout(db, layout, createdBy = "user") {
+  const existing = getProjectView(db, layout.projectId, layout.viewId);
+  const project = getProject(db, layout.projectId);
+  if (!project) throw new Error("PROJECT_NOT_FOUND");
+  const timestamp = now();
+  const view = putProjectView(db, {
+    id: layout.viewId,
+    projectId: layout.projectId,
+    name: friendlyViewName(layout),
+    viewType: layout.viewType,
+    templateRef: layout.templateRef,
+    status: existing?.status ?? "active",
+    pinned: existing?.pinned ?? layout.viewId === project.defaultViewId,
+    pinnedOrder: existing?.pinnedOrder ?? (layout.viewId === project.defaultViewId ? 0 : void 0),
+    createdBy: existing?.createdBy ?? createdBy,
+    createdAt: existing?.createdAt ?? timestamp,
+    updatedAt: timestamp,
+    lastOpenedAt: existing?.lastOpenedAt ?? timestamp,
+    trashedAt: existing?.trashedAt,
+    purgeAfter: existing?.purgeAfter
+  });
+  const bumped = bumpViewCatalog(db, layout.projectId, { upsertedViews: [view] });
+  return { view, ...bumped };
+}
+function assertCatalogRevision(project, baseCatalogRevision) {
+  if (project.viewCatalogRevision !== baseCatalogRevision) throw new Error("VIEW_CATALOG_REVISION_CONFLICT");
+}
+function renameProjectView(db, input) {
+  return transaction(db, () => {
+    const project = getProject(db, input.projectId);
+    if (!project) throw new Error("PROJECT_NOT_FOUND");
+    assertCatalogRevision(project, input.baseCatalogRevision);
+    const current = getProjectView(db, input.projectId, input.viewId);
+    if (!current || current.status !== "active") throw new Error("VIEW_NOT_FOUND");
+    const name = input.name.trim();
+    if (!name) throw new Error("VIEW_NAME_REQUIRED");
+    const view = putProjectView(db, { ...current, name, updatedAt: now() });
+    const layout = getLayout(db, input.projectId, input.viewId);
+    if (layout) db.prepare("UPDATE layout SET data = ? WHERE project_id = ? AND view_id = ?").run(json2({ ...layout, viewName: name }), input.projectId, input.viewId);
+    return { view, ...bumpViewCatalog(db, input.projectId, { upsertedViews: [view] }) };
+  });
+}
+function pinProjectView(db, input) {
+  return transaction(db, () => {
+    const project = getProject(db, input.projectId);
+    if (!project) throw new Error("PROJECT_NOT_FOUND");
+    assertCatalogRevision(project, input.baseCatalogRevision);
+    const current = getProjectView(db, input.projectId, input.viewId);
+    if (!current || current.status !== "active") throw new Error("VIEW_NOT_FOUND");
+    if (current.pinned === input.pinned) return { view: current, project, delta: { projectId: project.id, fromRevision: project.viewCatalogRevision, toRevision: project.viewCatalogRevision, upsertedViews: [], removedViewIds: [], defaultViewId: project.defaultViewId } };
+    const nextOrder = input.pinned ? Math.max(-1, ...listProjectViews(db, input.projectId, "active").filter((view2) => view2.pinned).map((view2) => view2.pinnedOrder ?? -1)) + 1 : void 0;
+    const view = putProjectView(db, { ...current, pinned: input.pinned, pinnedOrder: nextOrder, updatedAt: now() });
+    return { view, ...bumpViewCatalog(db, input.projectId, { upsertedViews: [view] }) };
+  });
+}
+function reorderPinnedViews(db, input) {
+  return transaction(db, () => {
+    const project = getProject(db, input.projectId);
+    if (!project) throw new Error("PROJECT_NOT_FOUND");
+    assertCatalogRevision(project, input.baseCatalogRevision);
+    const pinned = listProjectViews(db, input.projectId, "active").filter((view) => view.pinned);
+    if (new Set(input.viewIds).size !== input.viewIds.length || input.viewIds.length !== pinned.length || pinned.some((view) => !input.viewIds.includes(view.id))) throw new Error("PINNED_VIEW_ORDER_INVALID");
+    const views = input.viewIds.map((viewId, index2) => putProjectView(db, { ...pinned.find((view) => view.id === viewId), pinnedOrder: index2, updatedAt: now() }));
+    return { views, ...bumpViewCatalog(db, input.projectId, { upsertedViews: views }) };
+  });
+}
+function setDefaultProjectView(db, input) {
+  return transaction(db, () => {
+    const project = getProject(db, input.projectId);
+    if (!project) throw new Error("PROJECT_NOT_FOUND");
+    assertCatalogRevision(project, input.baseCatalogRevision);
+    const view = getProjectView(db, input.projectId, input.viewId);
+    if (!view || view.status !== "active") throw new Error("VIEW_NOT_FOUND");
+    if (project.defaultViewId === input.viewId) return { view, project, delta: { projectId: project.id, fromRevision: project.viewCatalogRevision, toRevision: project.viewCatalogRevision, upsertedViews: [], removedViewIds: [], defaultViewId: project.defaultViewId } };
+    return { view, ...bumpViewCatalog(db, input.projectId, { defaultViewId: input.viewId }) };
+  });
+}
+function searchProjectViews(db, projectId, query, status = "active") {
+  const normalized = query.trim().toLocaleLowerCase();
+  return listProjectViews(db, projectId, status).filter((view) => !normalized || `${view.name} ${view.viewType} ${view.templateRef?.id ?? ""}`.toLocaleLowerCase().includes(normalized));
+}
+function trashProjectView(db, input) {
+  return transaction(db, () => {
+    const project = getProject(db, input.projectId);
+    if (!project) throw new Error("PROJECT_NOT_FOUND");
+    assertCatalogRevision(project, input.baseCatalogRevision);
+    const current = getProjectView(db, input.projectId, input.viewId);
+    if (!current || current.status !== "active") throw new Error("VIEW_NOT_FOUND");
+    const active = listProjectViews(db, input.projectId, "active");
+    if (active.length <= 1) throw new Error("LAST_ACTIVE_VIEW");
+    const fallback = (input.fallbackViewId ? active.find((view2) => view2.id === input.fallbackViewId) : void 0) ?? active.find((view2) => view2.id !== input.viewId);
+    if (!fallback || fallback.id === input.viewId) throw new Error("VIEW_FALLBACK_REQUIRED");
+    const timestamp = now();
+    const purgeAfter = new Date(Date.now() + 30 * 24 * 60 * 6e4).toISOString();
+    const view = putProjectView(db, { ...current, status: "trashed", pinned: false, pinnedOrder: void 0, trashedAt: timestamp, purgeAfter, updatedAt: timestamp });
+    const tasks = listProjectTasks(db, input.projectId, true).filter((task2) => task2.viewId === input.viewId && !terminalTaskStatuses.has(task2.status));
+    rejectTasks(db, tasks, "VIEW_TRASHED", "The task View was moved to the recycle bin");
+    const bindingRows = db.prepare("SELECT data FROM chat_canvas_binding").all();
+    for (const row of bindingRows) {
+      const binding = chatCanvasBindingSchema.parse(parse3(row.data));
+      if (binding.projectId !== input.projectId || binding.viewId !== input.viewId) continue;
+      const next = saveChatCanvasBinding(db, { ...binding, viewId: fallback.id, canvasSessionId: void 0, bindingRevision: binding.bindingRevision + 1, status: "opening", lastSeenAt: timestamp });
+      appendProjectEvent(db, { projectId: input.projectId, canvasSessionId: binding.canvasSessionId, kind: "chat.binding.changed", payload: { bindingRevision: next.bindingRevision, status: "detached", fallbackViewId: fallback.id, reason: "VIEW_TRASHED" } });
+    }
+    return { view, fallbackView: fallback, ...bumpViewCatalog(db, input.projectId, { upsertedViews: [view], defaultViewId: project.defaultViewId === input.viewId ? fallback.id : project.defaultViewId }) };
+  });
+}
+function restoreProjectView(db, input) {
+  return transaction(db, () => {
+    const project = getProject(db, input.projectId);
+    if (!project) throw new Error("PROJECT_NOT_FOUND");
+    assertCatalogRevision(project, input.baseCatalogRevision);
+    const current = getProjectView(db, input.projectId, input.viewId);
+    if (!current || current.status !== "trashed") throw new Error("VIEW_NOT_TRASHED");
+    const view = putProjectView(db, { ...current, status: "active", trashedAt: void 0, purgeAfter: void 0, updatedAt: now() });
+    return { view, ...bumpViewCatalog(db, input.projectId, { upsertedViews: [view] }) };
+  });
+}
+function purgeProjectView(db, input) {
+  return transaction(db, () => {
+    const project = getProject(db, input.projectId);
+    if (!project) throw new Error("PROJECT_NOT_FOUND");
+    assertCatalogRevision(project, input.baseCatalogRevision);
+    const current = getProjectView(db, input.projectId, input.viewId);
+    if (!current || current.status !== "trashed") throw new Error("VIEW_NOT_TRASHED");
+    db.prepare("DELETE FROM project_view WHERE project_id = ? AND id = ?").run(input.projectId, input.viewId);
+    db.prepare("DELETE FROM layout WHERE project_id = ? AND view_id = ?").run(input.projectId, input.viewId);
+    db.prepare("DELETE FROM layout_history WHERE project_id = ? AND view_id = ?").run(input.projectId, input.viewId);
+    db.prepare("DELETE FROM layout_run WHERE project_id = ? AND view_id = ?").run(input.projectId, input.viewId);
+    db.prepare("DELETE FROM canvas_view_state WHERE view_id = ?").run(input.viewId);
+    return { view: current, ...bumpViewCatalog(db, input.projectId, { removedViewIds: [input.viewId] }) };
+  });
+}
+function duplicateProjectView(db, input) {
+  return transaction(db, () => {
+    const project = getProject(db, input.projectId);
+    if (!project) throw new Error("PROJECT_NOT_FOUND");
+    assertCatalogRevision(project, input.baseCatalogRevision);
+    const sourceView = getProjectView(db, input.projectId, input.viewId);
+    if (!sourceView || sourceView.status !== "active") throw new Error("VIEW_NOT_FOUND");
+    const source = getLayout(db, input.projectId, input.viewId);
+    if (!source) throw new Error("LAYOUT_NOT_FOUND");
+    const viewId = `${source.viewType}-${randomUUID6().slice(0, 8)}`;
+    const name = input.name?.trim() || `${sourceView.name} copy`;
+    const layout = layoutDocumentSchema.parse({ ...source, viewId, viewName: name, layoutRevision: 1, createdBy: "user", updatedAt: now() });
+    saveLayout(db, layout, false);
+    const catalog = catalogViewFromLayout(db, layout, "user");
+    return { layout, ...catalog };
+  });
+}
+function saveCanvasViewState(db, input) {
+  const state = canvasViewStateSchema.parse(input);
+  db.prepare("INSERT INTO canvas_view_state(canvas_session_id, view_id, data) VALUES (?, ?, ?) ON CONFLICT(canvas_session_id, view_id) DO UPDATE SET data=excluded.data").run(state.canvasSessionId, state.viewId, json2(state));
+  return state;
+}
+function getCanvasViewState(db, canvasSessionId, viewId) {
+  const row = db.prepare("SELECT data FROM canvas_view_state WHERE canvas_session_id = ? AND view_id = ?").get(canvasSessionId, viewId);
+  return row ? canvasViewStateSchema.parse(parse3(row.data)) : null;
 }
 function purgeExpiredProjectViews(db) {
   const rows = db.prepare("SELECT data FROM project_view WHERE status = 'trashed'").all();
@@ -126506,6 +126327,293 @@ function purgeExpiredProjectViews(db) {
     if (!project) continue;
     purgeProjectView(db, { projectId: view.projectId, viewId: view.id, baseCatalogRevision: project.viewCatalogRevision });
   }
+}
+
+// packages/storage/src/changesets.ts
+function submitChangeSet(db, changeSet) {
+  const validated = changeSetSchema.parse(changeSet);
+  const project = getProject(db, validated.projectId);
+  if (!project) throw new Error("PROJECT_NOT_FOUND");
+  const task2 = getAgentTask(db, validated.taskId);
+  if (!task2 || task2.projectId !== validated.projectId) throw new Error("AGENT_TASK_NOT_FOUND_OR_MISMATCH");
+  if (task2.status !== "running") throw new Error(terminalTaskStatuses.has(task2.status) ? `TASK_TERMINAL:${task2.status}` : `TASK_NOT_RUNNING:${task2.status}`);
+  if (project.graphRevision !== validated.baseGraphRevision) {
+    updateAgentTask(db, task2.taskId, { status: "stale", error: { code: "GRAPH_REVISION_CONFLICT", message: `Expected graph r${validated.baseGraphRevision}, current r${project.graphRevision}` } });
+    throw new Error("GRAPH_REVISION_CONFLICT");
+  }
+  transaction(db, () => {
+    db.prepare("INSERT INTO changeset(id, project_id, task_id, data) VALUES (?, ?, ?, ?)").run(validated.id, validated.projectId, validated.taskId, json2(validated));
+    updateAgentTask(db, validated.taskId, { status: "pending_review", results: { ...task2.results, changeSetId: validated.id } });
+  });
+  return validated;
+}
+function listChangeSets(db, projectId, status) {
+  return db.prepare("SELECT data FROM changeset WHERE project_id = ? ORDER BY rowid DESC").all(projectId).map((row) => changeSetSchema.parse(parse3(row.data))).filter((item) => !status || item.status === status);
+}
+function getChangeSet(db, changeSetId) {
+  const row = db.prepare("SELECT data FROM changeset WHERE id = ?").get(changeSetId);
+  return row ? changeSetSchema.parse(parse3(row.data)) : null;
+}
+function rejectChangeSet(db, changeSetId) {
+  const current = getChangeSet(db, changeSetId);
+  if (!current) throw new Error("CHANGESET_NOT_FOUND");
+  if (current.status !== "pending") throw new Error(`CHANGESET_NOT_PENDING:${current.status}`);
+  const rejected = { ...current, status: "rejected", updatedAt: now() };
+  transaction(db, () => {
+    db.prepare("UPDATE changeset SET data = ? WHERE id = ?").run(json2(rejected), changeSetId);
+    updateAgentTask(db, current.taskId, { status: "completed" });
+  });
+  return rejected;
+}
+function applyChangeSet(db, changeSetId) {
+  const row = db.prepare("SELECT data FROM changeset WHERE id = ?").get(changeSetId);
+  if (!row) throw new Error("CHANGESET_NOT_FOUND");
+  const changeSet = changeSetSchema.parse(parse3(row.data));
+  if (changeSet.status !== "pending") throw new Error(`CHANGESET_NOT_PENDING:${changeSet.status}`);
+  const task2 = getAgentTask(db, changeSet.taskId);
+  if (!task2) throw new Error("AGENT_TASK_NOT_FOUND");
+  const graph = getGraph(db, changeSet.projectId);
+  if (graph.revision !== changeSet.baseGraphRevision) {
+    updateAgentTask(db, changeSet.taskId, { status: "stale", error: { code: "GRAPH_REVISION_CONFLICT", message: `Expected graph r${changeSet.baseGraphRevision}, current r${graph.revision}` } });
+    throw new Error("GRAPH_REVISION_CONFLICT");
+  }
+  for (const operation of changeSet.graphOperations) {
+    if (operation.type === "add-node") assertContentAssets(db, changeSet.projectId, operation.node.content);
+    if (operation.type === "set-node-content") assertContentAssets(db, changeSet.projectId, operation.content);
+    if (operation.type === "attach-asset" || operation.type === "set-node-cover") {
+      const assetId = operation.assetId;
+      if (!assetId) continue;
+      const asset = getAsset(db, assetId);
+      if (!asset || asset.projectId !== changeSet.projectId) throw new Error(`ASSET_NOT_FOUND_OR_CROSS_PROJECT:${assetId}`);
+    }
+    if (operation.type === "update-node" && operation.patch.content) assertContentAssets(db, changeSet.projectId, nodeContentSchema.parse(operation.patch.content));
+  }
+  const nextGraph = changeSet.graphOperations.length ? applyGraphOperations(graph, changeSet.graphOperations) : graph;
+  const byView = /* @__PURE__ */ new Map();
+  for (const operation of changeSet.layoutOperations) byView.set(operation.viewId, [...byView.get(operation.viewId) ?? [], operation]);
+  const addedNodes = nextGraph.nodes.filter((node) => !graph.nodes.some((current) => current.id === node.id));
+  const context = getCanvasContext(db, task2.canvasSessionId);
+  if (addedNodes.length && context) {
+    const activeLayout = getLayout(db, changeSet.projectId, context.viewId);
+    if (!activeLayout) throw new Error(`LAYOUT_NOT_FOUND:${context.viewId}`);
+    const existing = Object.values(activeLayout.nodes);
+    const startX = existing.length ? Math.max(...existing.map((frame2) => frame2.x + frame2.width)) + 72 : 0;
+    const startY = existing.length ? Math.min(...existing.map((frame2) => frame2.y)) : 0;
+    const placement = addedNodes.map((node, index2) => ({
+      type: "set-node-frame",
+      viewId: context.viewId,
+      nodeId: node.id,
+      frame: defaultNodeFrame(db, node, startX + index2 % 3 * 300, startY + Math.floor(index2 / 3) * 190)
+    }));
+    byView.set(context.viewId, [...byView.get(context.viewId) ?? [], ...placement]);
+  }
+  for (const [viewId] of byView) {
+    const layout = getLayout(db, changeSet.projectId, viewId);
+    if (!layout) throw new Error(`LAYOUT_NOT_FOUND:${viewId}`);
+    const expected = changeSet.baseLayoutRevisions[viewId] ?? (context?.viewId === viewId ? task2.baseLayoutRevision : void 0);
+    if (expected === void 0 || layout.layoutRevision !== expected) {
+      updateAgentTask(db, changeSet.taskId, { status: "stale", error: { code: "LAYOUT_REVISION_CONFLICT", message: `Layout ${viewId} changed during review` } });
+      throw new Error("LAYOUT_REVISION_CONFLICT");
+    }
+  }
+  const starterProject = getProject(db, changeSet.projectId);
+  const starterIds = new Set(starterProject.starterNodeIds);
+  let finalGraph = nextGraph;
+  if (addedNodes.length && starterIds.size) {
+    const touched = new Set(changeSet.graphOperations.flatMap((operation) => "nodeId" in operation ? [operation.nodeId] : []));
+    const timestamp = now();
+    const pristine = (node) => starterIds.has(node.id) && !touched.has(node.id) && !node.archived && node.content.kind === "document" && node.content.markdown === "";
+    const retiredIds = new Set(nextGraph.nodes.filter(pristine).map((node) => node.id));
+    if (retiredIds.size) finalGraph = {
+      ...nextGraph,
+      nodes: nextGraph.nodes.map((node) => retiredIds.has(node.id) ? { ...node, archived: true, updatedAt: timestamp } : node),
+      edges: nextGraph.edges.map((edge) => retiredIds.has(edge.sourceNodeId) || retiredIds.has(edge.targetNodeId) ? { ...edge, archived: true, updatedAt: timestamp } : edge)
+    };
+  }
+  const applied = { ...changeSet, status: "applied", updatedAt: now() };
+  const layoutRevisions = {};
+  transaction(db, () => {
+    if (changeSet.graphOperations.length) replaceGraph(db, finalGraph, { taskId: task2.taskId, canvasSessionId: task2.canvasSessionId });
+    if (addedNodes.length && starterIds.size) patchProject(db, changeSet.projectId, { starterNodeIds: [] });
+    for (const [viewId, operations] of byView) {
+      const layout = structuredClone(getLayout(db, changeSet.projectId, viewId));
+      for (const operation of operations) {
+        if (operation.type !== "set-node-frame" || layout.nodes[operation.nodeId]) continue;
+        if (!addedNodes.some((node) => node.id === operation.nodeId)) throw new Error(`LAYOUT_NODE_NOT_FOUND:${operation.nodeId}`);
+        layout.nodes[operation.nodeId] = { nodeId: operation.nodeId, ...operation.frame, rotation: 0, zIndex: 0, pinned: false, hidden: false, collapsed: false };
+      }
+      const nextLayout = applyLayoutOperations(layout, operations);
+      nextLayout.graphRevision = finalGraph.revision;
+      saveLayout(db, nextLayout, true, { taskId: task2.taskId, canvasSessionId: task2.canvasSessionId, operations });
+      layoutRevisions[viewId] = nextLayout.layoutRevision;
+    }
+    db.prepare("UPDATE changeset SET data = ? WHERE id = ?").run(json2(applied), changeSetId);
+    const mixed = task2.intent === "develop_then_layout";
+    updateAgentTask(db, changeSet.taskId, {
+      status: mixed ? "ready_to_continue" : "completed",
+      activeStage: mixed ? "layout" : task2.activeStage,
+      expectedGraphRevision: finalGraph.revision,
+      results: { ...task2.results, changeSetId }
+    });
+  });
+  return { ...applied, graphRevision: finalGraph.revision, layoutRevisions, task: getAgentTask(db, changeSet.taskId) };
+}
+
+// packages/storage/src/chat-canvas-binding.ts
+function newLeaseId() {
+  return randomBytes(32).toString("hex");
+}
+function getChatCanvasBinding(db, chatSessionKey) {
+  const row = db.prepare("SELECT data FROM chat_canvas_binding WHERE chat_session_key = ?").get(chatSessionKey);
+  return row ? chatCanvasBindingSchema.parse(parse3(row.data)) : null;
+}
+function saveChatCanvasBinding(db, binding) {
+  const validated = chatCanvasBindingSchema.parse(binding);
+  db.prepare(`
+    INSERT INTO chat_canvas_binding(chat_session_key, revision, data) VALUES (?, ?, ?)
+    ON CONFLICT(chat_session_key) DO UPDATE SET revision=excluded.revision, data=excluded.data
+  `).run(validated.chatSessionKey, validated.bindingRevision, json2(validated));
+  return validated;
+}
+function rejectBindingWork(db, binding) {
+  if (!binding.canvasSessionId) return;
+  const tasks = listCanvasTasks(db, binding.canvasSessionId, true).filter((task2) => !terminalTaskStatuses.has(task2.status));
+  rejectTasks(db, tasks, "CHAT_CANVAS_REBOUND", "This Codex chat was rebound to another canvas");
+}
+function rejectTasks(db, tasks, code, message) {
+  for (const task2 of tasks) {
+    const changeSetId = task2.results.changeSetId;
+    if (changeSetId) {
+      const changeSet = getChangeSet(db, changeSetId);
+      if (changeSet?.status === "pending") {
+        db.prepare("UPDATE changeset SET data = ? WHERE id = ?").run(json2({ ...changeSet, status: "rejected", updatedAt: now() }), changeSetId);
+      }
+    }
+    const layoutRunId = task2.results.layoutRunId;
+    if (layoutRunId) {
+      const row = db.prepare("SELECT data FROM layout_run WHERE id = ?").get(layoutRunId);
+      if (row) {
+        const run = parse3(row.data);
+        if (run.status === "preview") db.prepare("UPDATE layout_run SET data = ? WHERE id = ?").run(json2({ ...run, status: "rejected", updatedAt: now() }), layoutRunId);
+      }
+    }
+    updateAgentTask(db, task2.taskId, { status: "cancelled", error: { code, message } });
+  }
+}
+function openChatCanvasBinding(db, input) {
+  return transaction(db, () => {
+    if (input.projectId && input.viewId) {
+      const target = getProjectView(db, input.projectId, input.viewId);
+      if (!target || target.status !== "active") throw new Error("VIEW_NOT_FOUND");
+    }
+    const current = getChatCanvasBinding(db, input.chatSessionKey);
+    if (current && !input.projectId && !input.viewId) return current;
+    const sameTarget = current?.projectId === input.projectId && current?.viewId === input.viewId;
+    if (current && sameTarget) return current;
+    if (current) rejectBindingWork(db, current);
+    const binding = saveChatCanvasBinding(db, {
+      chatSessionKey: input.chatSessionKey,
+      bindingRevision: (current?.bindingRevision ?? 0) + 1,
+      leaseId: newLeaseId(),
+      projectId: input.projectId,
+      viewId: input.viewId,
+      status: "opening",
+      lastSeenAt: now()
+    });
+    if (current?.projectId) appendProjectEvent(db, {
+      projectId: current.projectId,
+      canvasSessionId: current.canvasSessionId,
+      kind: "chat.binding.changed",
+      payload: { bindingRevision: binding.bindingRevision, status: "detached" }
+    });
+    return binding;
+  });
+}
+function switchChatCanvasBinding(db, input) {
+  return transaction(db, () => {
+    const current = getChatCanvasBinding(db, input.chatSessionKey);
+    if (!current) throw new Error("NO_CANVAS_BOUND_TO_CHAT");
+    if (current.leaseId !== input.leaseId || current.bindingRevision !== input.bindingRevision) throw new Error("CHAT_CANVAS_LEASE_STALE");
+    const targetView = getProjectView(db, input.projectId, input.viewId);
+    if (!targetView || targetView.status !== "active") throw new Error("VIEW_NOT_FOUND");
+    if (current.projectId === input.projectId && current.viewId === input.viewId) return current;
+    rejectBindingWork(db, current);
+    const next = saveChatCanvasBinding(db, { ...current, projectId: input.projectId, viewId: input.viewId, canvasSessionId: void 0, bindingRevision: current.bindingRevision + 1, status: "opening", lastSeenAt: now() });
+    if (current.projectId) appendProjectEvent(db, {
+      projectId: current.projectId,
+      canvasSessionId: current.canvasSessionId,
+      kind: "chat.binding.changed",
+      payload: { bindingRevision: next.bindingRevision, status: "detached" }
+    });
+    return next;
+  });
+}
+function validateBindingLease(db, input) {
+  const binding = getChatCanvasBinding(db, input.chatSessionKey);
+  if (!binding) throw new Error("NO_CANVAS_BOUND_TO_CHAT");
+  if (binding.leaseId !== input.leaseId || binding.bindingRevision !== input.bindingRevision) throw new Error("CHAT_CANVAS_LEASE_STALE");
+  return binding;
+}
+function getBoundCanvas(db, chatSessionKey, requireOnline = false) {
+  const binding = getChatCanvasBinding(db, chatSessionKey);
+  if (!binding?.projectId || !binding.viewId) throw new Error("NO_CANVAS_BOUND_TO_CHAT");
+  if (binding.status !== "active" || !binding.canvasSessionId) throw new Error("BOUND_CANVAS_NOT_READY");
+  const view = getProjectView(db, binding.projectId, binding.viewId);
+  if (!view || view.status !== "active") throw new Error("BOUND_CANVAS_NOT_READY");
+  const context = getCanvasContext(db, binding.canvasSessionId);
+  if (!context || !context.agentEligible) throw new Error("BOUND_CANVAS_NOT_READY");
+  const seenAt = Date.parse(context.presence?.lastSeenAt ?? context.updatedAt);
+  if (requireOnline && (!Number.isFinite(seenAt) || Date.now() - seenAt > canvasOfflineAfterMs)) throw new Error("BOUND_CANVAS_OFFLINE");
+  return { binding, context };
+}
+function syncCanvasContext(db, snapshot, chatSessionKey) {
+  let validated = canvasContextSnapshotSchema.parse(snapshot);
+  transaction(db, () => {
+    const existing = db.prepare("SELECT sequence FROM canvas_session WHERE id = ?").get(validated.canvasSessionId);
+    if (existing && Number(existing.sequence) >= validated.sequence) {
+      if (validated.syncPurpose !== "claim") throw new Error("STALE_CANVAS_SEQUENCE");
+      validated = canvasContextSnapshotSchema.parse({ ...validated, sequence: Number(existing.sequence) + 1 });
+    }
+    if (validated.agentEligible) {
+      if (!chatSessionKey || !validated.chatBinding) throw new Error("CODEX_THREAD_CONTEXT_REQUIRED");
+      const binding = validateBindingLease(db, { chatSessionKey, ...validated.chatBinding });
+      if (binding.projectId && binding.projectId !== validated.projectId || binding.viewId && binding.viewId !== validated.viewId) throw new Error("CHAT_CANVAS_LEASE_STALE");
+      if (binding.status === "active" && binding.canvasSessionId && binding.canvasSessionId !== validated.canvasSessionId) {
+        const activeContext = getCanvasContext(db, binding.canvasSessionId);
+        const activeSeenAt = Date.parse(activeContext?.presence?.lastSeenAt ?? activeContext?.updatedAt ?? binding.lastSeenAt);
+        const activeOnline = Number.isFinite(activeSeenAt) && Date.now() - activeSeenAt <= canvasOfflineAfterMs;
+        if (activeOnline && validated.syncPurpose !== "claim") throw new Error("CANVAS_ALREADY_ACTIVE");
+        rejectBindingWork(db, binding);
+        appendProjectEvent(db, {
+          projectId: binding.projectId ?? validated.projectId,
+          canvasSessionId: binding.canvasSessionId,
+          kind: "chat.binding.changed",
+          payload: { bindingRevision: binding.bindingRevision, status: "detached", reason: "CANVAS_TAKEN_OVER" }
+        });
+      }
+      saveChatCanvasBinding(db, {
+        ...binding,
+        projectId: validated.projectId,
+        viewId: validated.viewId,
+        canvasSessionId: validated.canvasSessionId,
+        status: "active",
+        lastSeenAt: validated.presence?.lastSeenAt ?? validated.updatedAt
+      });
+    } else if (validated.chatBinding) {
+      throw new Error("BROWSER_PREVIEW_AGENT_UNAVAILABLE");
+    }
+    db.prepare("INSERT INTO canvas_session(id, project_id, sequence, data) VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET project_id=excluded.project_id, sequence=excluded.sequence, data=excluded.data").run(validated.canvasSessionId, validated.projectId, validated.sequence, json2(validated));
+    if (validated.syncPurpose === "state") {
+      saveCanvasViewState(db, { canvasSessionId: validated.canvasSessionId, viewId: validated.viewId, viewport: validated.viewport, selectedNodeIds: validated.selectedNodeIds, focusedNodeId: validated.focusedNodeId, lastOpenedAt: validated.presence?.lastSeenAt ?? validated.updatedAt });
+    }
+    const projectView = getProjectView(db, validated.projectId, validated.viewId);
+    if (projectView?.status === "active") putProjectView(db, { ...projectView, lastOpenedAt: validated.presence?.lastSeenAt ?? validated.updatedAt });
+  });
+  return validated;
+}
+function getCanvasContext(db, sessionId) {
+  const row = db.prepare("SELECT data FROM canvas_session WHERE id = ?").get(sessionId);
+  return row ? canvasContextSnapshotSchema.parse(parse3(row.data)) : null;
 }
 
 // packages/storage/src/artifacts.ts
@@ -126528,254 +126636,118 @@ function safeWorkspaceDir(input) {
   const absolute = resolve2(input);
   return realpathSync(absolute);
 }
+function backupName(workspaceDir, timestamp) {
+  const stem = `.weaver-backup-${timestamp.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z")}`;
+  let candidate = join3(workspaceDir, stem);
+  let suffix = 2;
+  while (existsSync(candidate)) candidate = join3(workspaceDir, `${stem}-${suffix++}`);
+  return candidate;
+}
+function prepareWorkspaceData(workspaceDir, timestamp = /* @__PURE__ */ new Date()) {
+  const dataDir = join3(workspaceDir, ".weaver");
+  const dbPath = join3(dataDir, "weaver.sqlite");
+  let schemaResetBackupName;
+  if (existsSync(dbPath)) {
+    const existing = new DatabaseSync(dbPath);
+    const row = existing.prepare("PRAGMA user_version").get();
+    existing.close();
+    if (row.user_version !== CURRENT_SCHEMA_VERSION) {
+      const backup = backupName(workspaceDir, timestamp);
+      renameSync(dataDir, backup);
+      schemaResetBackupName = basename(backup);
+    }
+  }
+  mkdirSync2(join3(dataDir, "assets", "tasks"), { recursive: true });
+  mkdirSync2(join3(dataDir, "assets", "original"), { recursive: true });
+  mkdirSync2(join3(dataDir, "assets", "thumbnails"), { recursive: true });
+  mkdirSync2(join3(dataDir, "exports"), { recursive: true });
+  return { dataDir, dbPath, schemaResetBackupName };
+}
 var WorkspaceStore = class {
   workspaceDir;
   dataDir;
   dbPath;
   db;
+  schemaResetBackupName;
   constructor(workspaceDir) {
     this.workspaceDir = safeWorkspaceDir(workspaceDir);
-    this.dataDir = join3(this.workspaceDir, ".weaver");
-    mkdirSync2(join3(this.dataDir, "assets", "tasks"), { recursive: true });
-    mkdirSync2(join3(this.dataDir, "assets", "original"), { recursive: true });
-    mkdirSync2(join3(this.dataDir, "assets", "thumbnails"), { recursive: true });
-    mkdirSync2(join3(this.dataDir, "exports"), { recursive: true });
-    this.dbPath = join3(this.dataDir, "weaver.sqlite");
+    const prepared = prepareWorkspaceData(this.workspaceDir);
+    this.dataDir = prepared.dataDir;
+    this.dbPath = prepared.dbPath;
+    this.schemaResetBackupName = prepared.schemaResetBackupName;
     this.db = new DatabaseSync(this.dbPath);
     this.db.exec("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;");
-    migrate(this.db);
-    migrateProjectViewPrimaryKey(this.db);
-    migrateLegacyNodes(this.db);
-    migrateLegacyCanvasContexts(this.db);
-    migrateLegacyAgentTasks(this.db);
-    migrateLegacyProjectViews(this.db);
+    initializeSchema(this.db);
     purgeExpiredProjectViews(this.db);
   }
   close() {
     this.db.close();
   }
-  // --- project events / audit log ---
-  appendProjectEvent(input) {
-    return appendProjectEvent(this.db, input);
-  }
-  listProjectEvents(projectId, afterSequence = 0, limit = 500) {
-    return listProjectEvents(this.db, projectId, afterSequence, limit);
-  }
-  getLatestEventSequence(projectId) {
-    return getLatestEventSequence(this.db, projectId);
-  }
-  // --- chat-canvas binding / lease ---
-  getChatCanvasBinding(chatSessionKey) {
-    return getChatCanvasBinding(this.db, chatSessionKey);
-  }
-  openChatCanvasBinding(input) {
-    return openChatCanvasBinding(this.db, input);
-  }
-  switchChatCanvasBinding(input) {
-    return switchChatCanvasBinding(this.db, input);
-  }
-  getBoundCanvas(chatSessionKey, requireOnline = false) {
-    return getBoundCanvas(this.db, chatSessionKey, requireOnline);
-  }
-  syncCanvasContext(snapshot, chatSessionKey) {
-    return syncCanvasContext(this.db, snapshot, chatSessionKey);
-  }
-  getCanvasContext(sessionId) {
-    return getCanvasContext(this.db, sessionId);
-  }
-  // --- projects (CRUD) ---
-  listProjects() {
-    return listProjects(this.db);
-  }
-  getProject(projectId) {
-    return getProject(this.db, projectId);
-  }
-  createProject(input) {
-    return createProject(this.db, this.dataDir, input);
-  }
-  createSeededProject(input) {
-    return createSeededProject(this.db, this.dataDir, input);
-  }
-  // --- project views / catalog ---
-  listProjectViews(projectId, status) {
-    return listProjectViews(this.db, projectId, status);
-  }
-  getProjectView(projectId, viewId) {
-    return getProjectView(this.db, projectId, viewId);
-  }
-  renameProjectView(input) {
-    return renameProjectView(this.db, input);
-  }
-  pinProjectView(input) {
-    return pinProjectView(this.db, input);
-  }
-  reorderPinnedViews(input) {
-    return reorderPinnedViews(this.db, input);
-  }
-  setDefaultProjectView(input) {
-    return setDefaultProjectView(this.db, input);
-  }
-  searchProjectViews(projectId, query, status = "active") {
-    return searchProjectViews(this.db, projectId, query, status);
-  }
-  trashProjectView(input) {
-    return trashProjectView(this.db, input);
-  }
-  restoreProjectView(input) {
-    return restoreProjectView(this.db, input);
-  }
-  purgeProjectView(input) {
-    return purgeProjectView(this.db, input);
-  }
-  duplicateProjectView(input) {
-    return duplicateProjectView(this.db, input);
-  }
-  saveCanvasViewState(input) {
-    return saveCanvasViewState(this.db, input);
-  }
-  getCanvasViewState(canvasSessionId, viewId) {
-    return getCanvasViewState(this.db, canvasSessionId, viewId);
-  }
-  // --- graph nodes/edges ---
-  getGraph(projectId) {
-    return getGraph(this.db, projectId);
-  }
-  replaceGraph(snapshot, eventContext = {}) {
-    return replaceGraph(this.db, snapshot, eventContext);
-  }
-  createContentNode(input) {
-    return createContentNode(this.db, input);
-  }
-  updateNodeContent(input) {
-    return updateNodeContent(this.db, input);
-  }
-  archiveNode(input) {
-    return archiveNode(this.db, input);
-  }
-  attachAsset(input) {
-    return attachAsset(this.db, input);
-  }
-  // --- layout documents / view templates ---
-  getLayout(projectId, viewId) {
-    return getLayout(this.db, projectId, viewId);
-  }
-  listLayouts(projectId) {
-    return listLayouts(this.db, projectId);
-  }
-  ensureView(input) {
-    return ensureView(this.db, input);
-  }
-  previewVisualTemplate(input) {
-    return previewVisualTemplate(this.db, input);
-  }
-  createViewFromVisualTemplate(input) {
-    return createViewFromVisualTemplate(this.db, input);
-  }
-  createProjectFromVisualTemplate(input) {
-    return createProjectFromVisualTemplate(this.db, this.dataDir, input);
-  }
-  saveLayout(document2, archive = true, eventContext = {}) {
-    return saveLayout(this.db, document2, archive, eventContext);
-  }
-  saveLayoutRun(input) {
-    return saveLayoutRun(this.db, input);
-  }
-  getLayoutRun(id) {
-    return getLayoutRun(this.db, id);
-  }
-  applyLayoutCandidate(runId, candidateId) {
-    return applyLayoutCandidate(this.db, runId, candidateId);
-  }
-  rejectLayoutRun(runId) {
-    return rejectLayoutRun(this.db, runId);
-  }
-  revertLayout(projectId, viewId) {
-    return revertLayout(this.db, projectId, viewId);
-  }
-  // --- assets ---
-  getAsset(assetId) {
-    return getAsset(this.db, assetId);
-  }
-  getAssetByHash(projectId, sha256) {
-    return getAssetByHash(this.db, projectId, sha256);
-  }
-  readAsset(assetId, thumbnail = false) {
-    return readAsset(this.db, this.dataDir, assetId, thumbnail);
-  }
-  importImageAsset(input) {
-    return importImageAsset(this.db, this.dataDir, input);
-  }
-  saveTaskAsset(taskId, fileName, data) {
-    return saveTaskAsset(this.dataDir, taskId, fileName, data);
-  }
-  // --- agent tasks / dispatches ---
-  prepareAgentTask(input) {
-    return prepareAgentTask(this.db, input);
-  }
-  prepareAgentTaskFromBoundCanvas(input) {
-    return prepareAgentTaskFromBoundCanvas(this.db, input);
-  }
-  assertTaskChat(taskId, chatSessionKey, requireOnline = true) {
-    return assertTaskChat(this.db, taskId, chatSessionKey, requireOnline);
-  }
-  assertTaskCanvas(taskId, chatSessionKey, requireOnline = false) {
-    return assertTaskCanvas(this.db, taskId, chatSessionKey, requireOnline);
-  }
-  getAgentTask(taskId) {
-    return getAgentTask(this.db, taskId);
-  }
-  listCanvasTasks(canvasSessionId, includeTerminal = false) {
-    return listCanvasTasks(this.db, canvasSessionId, includeTerminal);
-  }
-  reapExpiredCanvasTasks(canvasSessionId) {
-    return reapExpiredCanvasTasks(this.db, canvasSessionId);
-  }
-  listProjectTasks(projectId, includeTerminal = false) {
-    return listProjectTasks(this.db, projectId, includeTerminal);
-  }
-  updateAgentTask(taskId, patch) {
-    return updateAgentTask(this.db, taskId, patch);
-  }
-  confirmAgentDispatch(taskId, dispatchKey) {
-    return confirmAgentDispatch(this.db, taskId, dispatchKey);
-  }
-  failAgentDispatch(taskId, dispatchKey, input) {
-    return failAgentDispatch(this.db, taskId, dispatchKey, input);
-  }
-  beginAgentContinuation(input) {
-    return beginAgentContinuation(this.db, input);
-  }
-  reportTaskProgress(taskId, note) {
-    return reportTaskProgress(this.db, taskId, note);
-  }
-  // --- changesets ---
-  submitChangeSet(changeSet) {
-    return submitChangeSet(this.db, changeSet);
-  }
-  listChangeSets(projectId, status) {
-    return listChangeSets(this.db, projectId, status);
-  }
-  getChangeSet(changeSetId) {
-    return getChangeSet(this.db, changeSetId);
-  }
-  rejectChangeSet(changeSetId) {
-    return rejectChangeSet(this.db, changeSetId);
-  }
-  applyChangeSet(changeSetId) {
-    return applyChangeSet(this.db, changeSetId);
-  }
-  // --- artifacts ---
-  publishArtifact(input) {
-    return publishArtifact(this.db, input);
-  }
-  getArtifact(artifactId) {
-    return getArtifact(this.db, artifactId);
-  }
+  sessions = {
+    appendEvent: (input) => appendProjectEvent(this.db, input),
+    listEvents: (projectId, afterSequence = 0, limit = 500) => listProjectEvents(this.db, projectId, afterSequence, limit),
+    latestSequence: (projectId) => getLatestEventSequence(this.db, projectId),
+    getBinding: (chatSessionKey) => getChatCanvasBinding(this.db, chatSessionKey),
+    openBinding: (input) => openChatCanvasBinding(this.db, input),
+    switchBinding: (input) => switchChatCanvasBinding(this.db, input),
+    boundCanvas: (chatSessionKey, requireOnline = false) => getBoundCanvas(this.db, chatSessionKey, requireOnline),
+    syncCanvas: (snapshot, chatSessionKey) => syncCanvasContext(this.db, snapshot, chatSessionKey),
+    canvasContext: (sessionId) => getCanvasContext(this.db, sessionId)
+  };
+  catalog = {
+    listProjects: () => listProjects(this.db),
+    getProject: (projectId) => getProject(this.db, projectId),
+    createProject: (input) => createProject(this.db, this.dataDir, input),
+    createSeededProject: (input) => createSeededProject(this.db, this.dataDir, input),
+    listViews: (projectId, status) => listProjectViews(this.db, projectId, status),
+    getView: (projectId, viewId) => getProjectView(this.db, projectId, viewId),
+    searchViews: (projectId, query, status = "active") => searchProjectViews(this.db, projectId, query, status),
+    renameView: (input) => renameProjectView(this.db, input),
+    pinView: (input) => pinProjectView(this.db, input),
+    reorderViews: (input) => reorderPinnedViews(this.db, input),
+    setDefaultView: (input) => setDefaultProjectView(this.db, input),
+    trashView: (input) => trashProjectView(this.db, input),
+    restoreView: (input) => restoreProjectView(this.db, input),
+    purgeView: (input) => purgeProjectView(this.db, input),
+    duplicateView: (input) => duplicateProjectView(this.db, input),
+    saveCanvasState: (input) => saveCanvasViewState(this.db, input),
+    canvasState: (canvasSessionId, viewId) => getCanvasViewState(this.db, canvasSessionId, viewId),
+    previewTemplate: (input) => previewVisualTemplate(this.db, input),
+    createViewFromTemplate: (input) => createViewFromVisualTemplate(this.db, input),
+    createProjectFromTemplate: (input) => createProjectFromVisualTemplate(this.db, this.dataDir, input)
+  };
+  graphChanges = {
+    read: (projectId) => getGraph(this.db, projectId),
+    replace: (snapshot, eventContext = {}) => replaceGraph(this.db, snapshot, eventContext),
+    createNode: (input) => createContentNode(this.db, input),
+    updateNode: (input) => updateNodeContent(this.db, input),
+    archiveNode: (input) => archiveNode(this.db, input),
+    attachAsset: (input) => attachAsset(this.db, input),
+    submit: (changeSet) => submitChangeSet(this.db, changeSet),
+    list: (projectId, status) => listChangeSets(this.db, projectId, status),
+    get: (changeSetId) => getChangeSet(this.db, changeSetId),
+    reject: (changeSetId) => rejectChangeSet(this.db, changeSetId),
+    apply: (changeSetId) => applyChangeSet(this.db, changeSetId)
+  };
+  layoutReviews = {
+    get: (projectId, viewId) => getLayout(this.db, projectId, viewId),
+    list: (projectId) => listLayouts(this.db, projectId),
+    ensureView: (input) => ensureView(this.db, input),
+    save: (document2, archive = true, eventContext = {}) => saveLayout(this.db, document2, archive, eventContext),
+    saveRun: (input) => saveLayoutRun(this.db, input),
+    getRun: (id) => getLayoutRun(this.db, id),
+    applyCandidate: (runId, candidateId) => applyLayoutCandidate(this.db, runId, candidateId),
+    rejectRun: (runId) => rejectLayoutRun(this.db, runId),
+    revert: (projectId, viewId) => revertLayout(this.db, projectId, viewId)
+  };
+  assets = { get: (assetId) => getAsset(this.db, assetId), byHash: (projectId, sha256) => getAssetByHash(this.db, projectId, sha256), read: (assetId, thumbnail = false) => readAsset(this.db, this.dataDir, assetId, thumbnail), importImage: (input) => importImageAsset(this.db, this.dataDir, input), saveTaskFile: (taskId, fileName, data) => saveTaskAsset(this.dataDir, taskId, fileName, data) };
+  tasks = { prepare: (input) => prepareAgentTask(this.db, input), prepareBound: (input) => prepareAgentTaskFromBoundCanvas(this.db, input), assertChat: (taskId, chatSessionKey, requireOnline = true) => assertTaskChat(this.db, taskId, chatSessionKey, requireOnline), assertCanvas: (taskId, chatSessionKey, requireOnline = false) => assertTaskCanvas(this.db, taskId, chatSessionKey, requireOnline), get: (taskId) => getAgentTask(this.db, taskId), listCanvas: (canvasSessionId, includeTerminal = false) => listCanvasTasks(this.db, canvasSessionId, includeTerminal), reapCanvas: (canvasSessionId) => reapExpiredCanvasTasks(this.db, canvasSessionId), listProject: (projectId, includeTerminal = false) => listProjectTasks(this.db, projectId, includeTerminal), update: (taskId, patch) => updateAgentTask(this.db, taskId, patch), confirmDispatch: (taskId, dispatchKey) => confirmAgentDispatch(this.db, taskId, dispatchKey), failDispatch: (taskId, dispatchKey, input) => failAgentDispatch(this.db, taskId, dispatchKey, input), continue: (input) => beginAgentContinuation(this.db, input), progress: (taskId, note) => reportTaskProgress(this.db, taskId, note) };
+  artifacts = { publish: (input) => publishArtifact(this.db, input), get: (artifactId) => getArtifact(this.db, artifactId) };
 };
 
 // packages/mcp/src/widget.ts
 import { createHash as createHash2 } from "node:crypto";
-import { existsSync, readFileSync as readFileSync2, statSync } from "node:fs";
+import { existsSync as existsSync2, readFileSync as readFileSync2, statSync } from "node:fs";
 import { extname, resolve as resolve3 } from "node:path";
 function widgetRoot() {
   return process.env.WEAVER_DEV_ROOT ? resolve3(process.env.WEAVER_DEV_ROOT) : process.cwd();
@@ -126813,7 +126785,7 @@ function widgetDistMtimeMs(root = widgetRoot()) {
 }
 function workspaceWidgetBuildId(workspaceDir) {
   const index2 = resolve3(workspaceDir, "apps", "widget", "dist", "index.html");
-  if (!existsSync(index2)) return void 0;
+  if (!existsSync2(index2)) return void 0;
   try {
     return widgetBuildId(workspaceDir);
   } catch {
@@ -126833,7 +126805,7 @@ function bundledWidgetHtml(assetBaseUrl, bundle) {
 }
 
 // packages/mcp/src/logger.ts
-import { appendFileSync, chmodSync, existsSync as existsSync2, mkdirSync as mkdirSync3, readdirSync, rmSync, rmdirSync, statSync as statSync2, writeFileSync as writeFileSync3 } from "node:fs";
+import { appendFileSync, chmodSync, existsSync as existsSync3, mkdirSync as mkdirSync3, readdirSync, rmSync, rmdirSync, statSync as statSync2, writeFileSync as writeFileSync3 } from "node:fs";
 import { join as join4 } from "node:path";
 
 // packages/mcp/src/session-identity.ts
@@ -126941,7 +126913,7 @@ function boundedEnvInt(name, fallback, minimum, maximum) {
 }
 function removeLegacyLogs(dir) {
   const legacyDir = join4(dir, ".weaver", "logs");
-  if (!existsSync2(legacyDir)) return;
+  if (!existsSync3(legacyDir)) return;
   try {
     for (const name of readdirSync(legacyDir)) {
       if (/^mcp-.*\.jsonl$/.test(name)) rmSync(join4(legacyDir, name), { force: true });
@@ -127185,7 +127157,7 @@ var SseEventHub = class {
    * Codex runs the MCP from its plugin cache dir, so the boot-time cwd is NOT
    * the user's repo — the preview would otherwise bind an empty cache workspace
    * (no projects, no binding → the widget hangs at "Connecting"). The agent
-   * passes the real `workspaceDir` to `weaver_open_workspace_widget`; we retarget
+   * passes the real `workspaceDir` to `weaver_open_space`; we retarget
    * the preview store + RPC pin + preview.json to it. Returns true if it changed.
    */
   retargetPreviewWorkspace(workspaceDir) {
@@ -127369,9 +127341,9 @@ var SseEventHub = class {
     const store = new WorkspaceStore(input.workspaceDir);
     let currentSequence;
     try {
-      const context = store.getCanvasContext(input.canvasSessionId);
+      const context = store.sessions.canvasContext(input.canvasSessionId);
       if (!context || context.projectId !== input.projectId) throw new Error("CANVAS_SESSION_NOT_FOUND_OR_MISMATCH");
-      currentSequence = store.getLatestEventSequence(input.projectId);
+      currentSequence = store.sessions.latestSequence(input.projectId);
     } finally {
       store.close();
     }
@@ -127530,12 +127502,12 @@ var SseEventHub = class {
       return this.json(response, 403, { isError: true, structuredContent: { code: "TOOL_NOT_ALLOWED", message: `Tool ${name || "<unknown>"} is not exposed to the preview` } });
     }
     const args = payload.arguments && typeof payload.arguments === "object" ? payload.arguments : {};
-    const workspace = this.currentWorkspace();
-    if (typeof args.workspaceDir === "string" && args.workspaceDir !== workspace) {
+    const workspace2 = this.currentWorkspace();
+    if (typeof args.workspaceDir === "string" && args.workspaceDir !== workspace2) {
       log("warn", "rpc.workspaceScopeViolation", { tool: name, requested: args.workspaceDir });
       return this.json(response, 403, { isError: true, structuredContent: { code: "WORKSPACE_SCOPE_VIOLATION", message: "Preview may only drive its own workspace" } });
     }
-    args.workspaceDir = workspace;
+    args.workspaceDir = workspace2;
     try {
       const output = await preview.dispatch(name, args);
       return this.json(response, 200, output);
@@ -127548,13 +127520,13 @@ var SseEventHub = class {
     const preview = this.preview;
     if (!preview) return this.reject(response, 404, "Not found");
     if (!this.previewAuthorized(request, url2)) return this.reject(response, 401, "Invalid preview token");
-    const workspace = this.currentWorkspace();
-    const store = new WorkspaceStore(workspace);
+    const workspace2 = this.currentWorkspace();
+    const store = new WorkspaceStore(workspace2);
     try {
-      const binding = store.getChatCanvasBinding(preview.chatSessionKey);
+      const binding = store.sessions.getBinding(preview.chatSessionKey);
       return this.json(response, 200, {
         host: "claude",
-        workspaceDir: workspace,
+        workspaceDir: workspace2,
         buildId: this.resolveBundle().buildId,
         runtimeMode: runtimeMode(),
         chatBinding: binding ? { leaseId: binding.leaseId, bindingRevision: binding.bindingRevision, projectId: binding.projectId, viewId: binding.viewId } : void 0
@@ -127729,7 +127701,7 @@ function N3(Z, $, J, X, V) {
 // packages/scene-packs/src/index.ts
 var recommendedTemplates = {
   "free-brainstorming": ["blank-canvas", "topic-cluster", "radial-mind-map"],
-  "problem-decomposition": ["logic-tree", "radial-mind-map", "comparison-table"],
+  "problem-decomposition": ["logic-tree", "radial-mind-map"],
   "decision-comparison": ["comparison-table", "swot-matrix", "priority-matrix", "kanban-board"],
   "argument-map": ["concept-network", "comparison-table", "research-catalog"],
   "situational-vocabulary": ["radial-mind-map", "topic-cluster"],
@@ -127737,8 +127709,8 @@ var recommendedTemplates = {
   "learning-path": ["project-roadmap", "process-flow"],
   "entity-relationship": ["concept-network", "people-network", "research-catalog"],
   "people-organization-network": ["people-network", "event-timeline"],
-  "causal-map": ["causal-chain", "concept-network"],
-  "event-timeline": ["event-timeline", "research-catalog"],
+  "causal-map": ["causal-chain"],
+  "event-timeline": ["event-timeline"],
   "project-breakdown": ["project-roadmap", "kanban-board", "priority-matrix", "logic-tree"],
   "process-design": ["process-flow", "role-swimlane"]
 };
@@ -127765,7 +127737,7 @@ function pack(input) {
     allowedStrategies: [input.strategy, "grid", "hybrid"],
     defaultStrategy: input.strategy,
     defaultDirection: input.direction,
-    contextPolicy: { modes: ["selected_nodes", "pinned_nodes", "typed_neighborhood"], maxNodes: 40, maxHops: 2 },
+    contextPolicy: { modes: ["problem-decomposition", "argument-map"].includes(input.id) ? ["selected_nodes", "pinned_nodes", "ancestor_path"] : ["selected_nodes", "pinned_nodes", "typed_neighborhood"], maxNodes: 40, maxHops: 2 },
     artifactTypes: input.artifacts,
     scoringWeights: input.weights ?? { overlap: 10, crossings: 4, displacement: 2, compactness: 1 },
     recommendedTemplateIds: recommendedTemplates[input.id] ?? ["blank-canvas"]
@@ -127805,9 +127777,36 @@ function theme(family) {
   const [accent, background, fill] = palette[family];
   return { ...structuredClone(defaultViewTheme), canvas: { mode: "light", backgroundColor: background, pattern: family === "table" ? "grid" : "dots", patternGap: 20, patternSize: 1, patternColor: `${accent}66`, patternOpacity: 0.42 }, nodeStyles: { default: { fill, borderColor: `${accent}88`, textColor: "#20231f", accentColor: accent, borderRadius: family === "flow" ? 5 : 10, titleScale: family === "hierarchy" ? 1.12 : 1 } }, edgeStyles: { default: { color: accent, width: 1.6, dashed: family === "relationship", routing: family === "flow" ? "orthogonal" : "bezier", marker: "arrow" } } };
 }
+var roleBindings = {
+  "free-brainstorming": { nodes: { center: "idea", note: "note", detail: "note", topic: "idea", root: "idea", branch: "question" }, edges: { relation: "association", parent: "inspires" } },
+  "problem-decomposition": { nodes: { center: "problem", note: "subproblem", detail: "evidence", topic: "subproblem", root: "problem", branch: "subproblem", evidence: "evidence" }, edges: { relation: "supports", parent: "decomposes" } },
+  "decision-comparison": { nodes: { center: "decision", note: "option", detail: "criterion", topic: "option", item: "option", group: "criterion", risk: "risk", criterion: "criterion" }, edges: { relation: "evaluates" } },
+  "argument-map": { nodes: { center: "claim", note: "evidence", detail: "inference", topic: "claim", concept: "claim", support: "evidence", example: "inference", item: "claim", criterion: "evidence", risk: "counterclaim", source: "evidence" }, edges: { relation: "supports", support: "supports" } },
+  "situational-vocabulary": { nodes: { center: "scene", note: "word", detail: "example", topic: "word", root: "scene", branch: "word" }, edges: { relation: "appears-in", parent: "appears-in" } },
+  "concept-learning": { nodes: { center: "concept", note: "definition", detail: "example", topic: "concept", root: "concept", branch: "definition", evidence: "example", concept: "concept", support: "definition", example: "example", item: "concept", source: "definition" }, edges: { relation: "defines", support: "defines", parent: "defines" } },
+  "learning-path": { nodes: { center: "goal", note: "resource", detail: "exercise", topic: "module", start: "goal", step: "module", decision: "exercise", output: "resource", goal: "goal", phase: "module", item: "resource" }, edges: { relation: "contains", next: "precedes", branch: "contains", precedes: "precedes" } },
+  "entity-relationship": { nodes: { center: "entity", note: "attribute", detail: "source", topic: "entity", concept: "entity", support: "source", example: "attribute", person: "entity", organization: "entity", event: "source", item: "entity", source: "source" }, edges: { relation: "relates-to", support: "relates-to", membership: "relates-to", influence: "relates-to" } },
+  "people-organization-network": { nodes: { center: "person", note: "role", detail: "event", topic: "organization", person: "person", organization: "organization", event: "event", period: "event", actor: "person", item: "person", source: "organization" }, edges: { relation: "collaborates", membership: "member-of", influence: "influences", precedes: "influences" } },
+  "causal-map": { nodes: { center: "cause", note: "mechanism", detail: "effect", topic: "mechanism", cause: "cause", mechanism: "mechanism", effect: "effect", feedback: "feedback" }, edges: { relation: "causes", cause: "causes", feedback: "amplifies" } },
+  "event-timeline": { nodes: { center: "event", note: "impact", detail: "actor", topic: "event", event: "event", period: "period", actor: "actor", goal: "event", phase: "period", item: "actor" }, edges: { relation: "impacts", precedes: "precedes" } },
+  "project-breakdown": { nodes: { center: "project", note: "task", detail: "risk", topic: "milestone", root: "project", branch: "milestone", evidence: "risk", start: "project", step: "task", decision: "risk", output: "milestone", goal: "project", phase: "milestone", item: "task", group: "milestone", risk: "risk", owner: "task" }, edges: { relation: "contains", parent: "contains", next: "depends-on", branch: "contains", precedes: "depends-on" } },
+  "process-design": { nodes: { center: "start", note: "step", detail: "output", topic: "step", start: "start", step: "step", decision: "decision", output: "output", item: "step", owner: "decision" }, edges: { relation: "next", next: "next", branch: "branch" } }
+};
 function bind(scenePackId, roles, edgeRoles, fields = {}) {
   const scene = getScenePack(scenePackId);
-  return { nodeRoles: Object.fromEntries(roles.map((role, index2) => [role, scene.nodeTypes[Math.min(index2, scene.nodeTypes.length - 1)].key])), edgeRoles: Object.fromEntries(edgeRoles.map((role, index2) => [role, scene.edgeTypes[Math.min(index2, scene.edgeTypes.length - 1)]?.key ?? "association"])), fields };
+  const declared = roleBindings[scenePackId];
+  if (!scene || !declared) throw new Error(`VISUAL_TEMPLATE_BINDING_INVALID:${scenePackId}`);
+  const nodeRoles = Object.fromEntries(roles.map((role) => {
+    const type = declared.nodes[role];
+    if (!type) throw new Error(`VISUAL_TEMPLATE_BINDING_INVALID:${scenePackId}:NODE_ROLE:${role}`);
+    return [role, type];
+  }));
+  const boundEdges = Object.fromEntries(edgeRoles.map((role) => {
+    const type = declared.edges[role];
+    if (!type) throw new Error(`VISUAL_TEMPLATE_BINDING_INVALID:${scenePackId}:EDGE_ROLE:${role}`);
+    return [role, type];
+  }));
+  return { nodeRoles, edgeRoles: boundEdges, fields };
 }
 function createTemplate(definition) {
   const nodes = definition.roles.slice(0, 6).map((role, index2) => ({ key: `node-${index2 + 1}`, role, title: index2 === 0 ? definition.name : `${role} ${index2}`, contentKind: "document", properties: Object.fromEntries(Object.values(definition.fields ?? {}).map((field) => [field.propertyKey, field.propertyKey.includes("At") ? `2026-0${Math.min(index2 + 1, 9)}-01` : field.propertyKey.match(/impact|effort|urgency|importance/) ? (index2 + 1) * 20 : index2 === 0 ? "\u5F85\u5904\u7406" : "\u8FDB\u884C\u4E2D"])) }));
@@ -127877,6 +127876,17 @@ function validateVisualTemplateForProject(template, scene, nodes) {
   return { compatible: true, ready: missingRequiredFields.length === 0, matchedNodeCount: matched.length, unmatchedNodeCount: active.length - matched.length, missingRequiredFields, warnings: matched.length ? [] : ["No current nodes match this template; it remains available for a new project."] };
 }
 builtinVisualTemplates.forEach(validateVisualTemplateDefinition);
+function validateCatalog(scenePacks = builtinScenePacks, templates = builtinVisualTemplates) {
+  const templateIds = new Set(templates.map((template) => template.id));
+  for (const scene of scenePacks) for (const templateId of scene.recommendedTemplateIds) {
+    const template = templates.find((candidate) => candidate.id === templateId);
+    if (!template || !template.compatibleScenePackIds.includes(scene.id)) throw new Error(`CATALOG_INVALID:${scene.id}:${templateId}`);
+  }
+  if (templateIds.size !== templates.length) throw new Error("CATALOG_INVALID:DUPLICATE_TEMPLATE_ID");
+  templates.forEach(validateVisualTemplateDefinition);
+  return { scenePacks, templates };
+}
+validateCatalog();
 
 // packages/mcp/src/shared/workspace-registry.ts
 var workspaceByProject = /* @__PURE__ */ new Map();
@@ -127891,16 +127901,24 @@ function result(value, message = "OK") {
   return { content: [{ type: "text", text: message }], structuredContent };
 }
 function failure(error51) {
-  const message = error51 instanceof Error ? error51.message : String(error51);
-  return { isError: true, content: [{ type: "text", text: message }], structuredContent: { code: message.split(":", 1)[0], message } };
+  const value = normalizeWeaverFailure(error51);
+  return { isError: true, content: [{ type: "text", text: value.message }], structuredContent: value };
+}
+var workspaceStores = /* @__PURE__ */ new Map();
+function getWorkspaceStore(workspaceDir) {
+  const key = workspaceDir;
+  const current = workspaceStores.get(key);
+  if (current) return current;
+  const store = new WorkspaceStore(workspaceDir);
+  workspaceStores.set(key, store);
+  return store;
 }
 function withStore(workspaceDir, callback) {
-  const store = new WorkspaceStore(workspaceDir);
-  try {
-    return callback(store);
-  } finally {
-    store.close();
-  }
+  return callback(getWorkspaceStore(workspaceDir));
+}
+function closeWorkspaceStores() {
+  for (const store of workspaceStores.values()) store.close();
+  workspaceStores.clear();
 }
 function createMutateWithStore(eventHub2) {
   return function mutateWithStore(workspaceDir, callback) {
@@ -127951,22 +127969,22 @@ function registerResources(server2, ctx) {
     const taskId = String(variables.taskId);
     const workspaceDir = workspaceByTask.get(taskId);
     if (!workspaceDir) throw new Error("WORKSPACE_UNKNOWN_CALL_WEAVER_GET_AGENT_TASK_FIRST");
-    const task = withStore(workspaceDir, (store) => store.getAgentTask(taskId));
-    if (!task) throw new Error("AGENT_TASK_NOT_FOUND");
-    return { contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(task) }] };
+    const task2 = withStore(workspaceDir, (store) => store.tasks.get(taskId));
+    if (!task2) throw new Error("AGENT_TASK_NOT_FOUND");
+    return { contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(task2) }] };
   });
   server2.registerResource("weaver-project-views", new ResourceTemplate("weaver://projects/{projectId}/views", { list: void 0 }), { title: "Weaver Project Views", description: "Durable saved View catalog records for a project, including recycle-bin state.", mimeType: "application/json" }, async (uri, variables) => {
     const projectId = String(variables.projectId);
     const workspaceDir = workspaceByProject.get(projectId);
     if (!workspaceDir) throw new Error("WORKSPACE_UNKNOWN_CALL_A_WEAVER_TOOL_FIRST");
-    const views = withStore(workspaceDir, (store) => store.listProjectViews(projectId));
+    const views = withStore(workspaceDir, (store) => store.catalog.listViews(projectId));
     return { contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(views) }] };
   });
   server2.registerResource("weaver-view-projection", new ResourceTemplate("weaver://projects/{projectId}/views/{viewId}/projection", { list: void 0 }), { title: "Weaver View Projection", description: "Projection and theme metadata for one visual view.", mimeType: "application/json" }, async (uri, variables) => {
     const projectId = String(variables.projectId);
     const workspaceDir = workspaceByProject.get(projectId);
     if (!workspaceDir) throw new Error("WORKSPACE_UNKNOWN_CALL_A_WEAVER_TOOL_FIRST");
-    const layout = withStore(workspaceDir, (store) => store.getLayout(projectId, String(variables.viewId)));
+    const layout = withStore(workspaceDir, (store) => store.layoutReviews.get(projectId, String(variables.viewId)));
     if (!layout) throw new Error("LAYOUT_NOT_FOUND");
     return { contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify({ viewId: layout.viewId, viewName: layout.viewName, viewType: layout.viewType, templateRef: layout.templateRef, projection: layout.projection, theme: layout.theme }) }] };
   });
@@ -127975,7 +127993,7 @@ function registerResources(server2, ctx) {
     const workspaceDir = workspaceByProject.get(projectId);
     if (!workspaceDir) throw new Error("WORKSPACE_UNKNOWN_CALL_A_WEAVER_TOOL_FIRST");
     const data = withStore(workspaceDir, (store) => {
-      const project = store.getProject(projectId);
+      const project = store.catalog.getProject(projectId);
       if (!project) throw new Error("PROJECT_NOT_FOUND");
       return { project, scenePack: getScenePack(project.scenePackId, project.scenePackVersion) };
     });
@@ -127986,7 +128004,7 @@ function registerResources(server2, ctx) {
     const nodeId = String(variables.nodeId);
     const workspaceDir = workspaceByProject.get(projectId);
     if (!workspaceDir) throw new Error("WORKSPACE_UNKNOWN_CALL_A_WEAVER_TOOL_FIRST");
-    const node = withStore(workspaceDir, (store) => store.getGraph(projectId).nodes.find((candidate) => candidate.id === nodeId));
+    const node = withStore(workspaceDir, (store) => store.graphChanges.read(projectId).nodes.find((candidate) => candidate.id === nodeId));
     if (!node) throw new Error("NODE_NOT_FOUND");
     return { contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(node) }] };
   });
@@ -127995,7 +128013,7 @@ function registerResources(server2, ctx) {
     const assetId = String(variables.assetId);
     const workspaceDir = workspaceByProject.get(projectId);
     if (!workspaceDir) throw new Error("WORKSPACE_UNKNOWN_CALL_A_WEAVER_TOOL_FIRST");
-    const item = withStore(workspaceDir, (store) => store.readAsset(assetId, false));
+    const item = withStore(workspaceDir, (store) => store.assets.read(assetId, false));
     if (item.asset.projectId !== projectId) throw new Error("ASSET_NOT_FOUND_OR_CROSS_PROJECT");
     return { contents: [{ uri: uri.href, mimeType: item.asset.mimeType, blob: Buffer.from(item.data).toString("base64") }] };
   });
@@ -128004,7 +128022,7 @@ function registerResources(server2, ctx) {
     const assetId = String(variables.assetId);
     const workspaceDir = workspaceByProject.get(projectId);
     if (!workspaceDir) throw new Error("WORKSPACE_UNKNOWN_CALL_A_WEAVER_TOOL_FIRST");
-    const item = withStore(workspaceDir, (store) => store.readAsset(assetId, true));
+    const item = withStore(workspaceDir, (store) => store.assets.read(assetId, true));
     if (item.asset.projectId !== projectId) throw new Error("ASSET_NOT_FOUND_OR_CROSS_PROJECT");
     return { contents: [{ uri: uri.href, mimeType: "image/webp", blob: Buffer.from(item.data).toString("base64") }] };
   });
@@ -128021,7 +128039,7 @@ var projectSchema2 = workspaceSchema.extend({ projectId: external_exports.string
 import { createHash as createHash5 } from "node:crypto";
 function chatSessionKeyFromRequest(extra, required2 = true) {
   if (previewHost()) return syntheticChatSessionKey();
-  const meta4 = extra?._meta;
+  const meta4 = typeof extra === "object" && extra && "_meta" in extra ? extra._meta : void 0;
   const direct = typeof meta4?.threadId === "string" ? meta4.threadId : void 0;
   const turnMetadata = meta4?.["x-codex-turn-metadata"];
   const nested = typeof turnMetadata?.thread_id === "string" ? turnMetadata.thread_id : void 0;
@@ -128033,454 +128051,65 @@ function chatSessionKeyFromRequest(extra, required2 = true) {
 }
 
 // packages/mcp/src/tools/agent-tasks.ts
-function registerAgentTasksTools(server2, ctx) {
-  const { mutateWithStore } = ctx;
-  server2.registerTool("weaver_prepare_agent_task", {
-    title: "Prepare Agent Task",
-    description: "Atomically capture the latest canvas state into a durable task before the widget sends a follow-up message.",
-    inputSchema: { ...workspaceSchema.shape, canvasSessionId: external_exports.string(), actionKey: external_exports.string(), userInstruction: external_exports.string().optional(), dispatchKey: external_exports.string().min(1) },
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    _meta: { ui: { visibility: ["app"] } }
-  }, defineTool(async ({ workspaceDir, canvasSessionId, actionKey, userInstruction, dispatchKey }, extra) => {
-    const chatSessionKey = chatSessionKeyFromRequest(extra);
-    const task = mutateWithStore(workspaceDir, (store) => store.prepareAgentTask({ canvasSessionId, actionKey, userInstruction, dispatchKey, chatSessionKey }));
-    workspaceByTask.set(task.taskId, workspaceDir);
-    return result(task, "Prepared agent task.");
-  }));
-  server2.registerTool("weaver_prepare_task_from_active_canvas", {
-    title: "Prepare Task From Active Canvas",
-    description: "Create a durable Weaver task only from the exact Canvas bound to the current Codex chat.",
-    inputSchema: { ...workspaceSchema.shape, actionKey: external_exports.enum(["develop_selection", "follow_up_ask", "layout_view", "develop_then_layout"]), userInstruction: external_exports.string().optional() },
+function registerAgentTasksTools(server2, { mutateWithStore }) {
+  server2.registerTool("weaver_prepare_task", {
+    title: "Prepare Task",
+    description: "Capture the current online Canvas binding and dispatch one auditable AgentTask.",
+    inputSchema: { ...workspaceSchema.shape, actionKey: external_exports.string().min(1), userInstruction: external_exports.string().optional(), dispatchKey: external_exports.string().optional() },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
-  }, defineTool(async ({ workspaceDir, actionKey, userInstruction }, extra) => {
+  }, defineTool(async ({ workspaceDir, actionKey, userInstruction, dispatchKey }, extra) => {
     const chatSessionKey = chatSessionKeyFromRequest(extra);
-    const dispatchKey = `chat-${randomUUID8()}`;
-    const task = mutateWithStore(workspaceDir, (store) => {
-      const { context } = store.getBoundCanvas(chatSessionKey, true);
-      const continuation = store.listCanvasTasks(context.canvasSessionId).find((candidate) => candidate.status === "ready_to_continue" && candidate.activeStage === "layout");
-      if (continuation && ["layout_view", "develop_then_layout"].includes(actionKey)) {
-        store.assertTaskChat(continuation.taskId, chatSessionKey);
-        const prepared2 = store.beginAgentContinuation({ taskId: continuation.taskId, dispatchKey, expectedTaskRevision: continuation.taskRevision });
-        const updated = userInstruction ? store.updateAgentTask(prepared2.taskId, { userInstruction }) : prepared2;
-        return store.confirmAgentDispatch(updated.taskId, dispatchKey);
+    const key = dispatchKey ?? randomUUID8();
+    const task2 = mutateWithStore(workspaceDir, (store) => {
+      const prepared = store.tasks.prepareBound({ chatSessionKey, actionKey, userInstruction, dispatchKey: key });
+      return store.tasks.confirmDispatch(prepared.taskId, key);
+    });
+    workspaceByTask.set(task2.taskId, workspaceDir);
+    return result(task2, "Prepared and dispatched task from active canvas.");
+  }));
+  const shape = {
+    ...workspaceSchema.shape,
+    taskId: external_exports.string().min(1),
+    action: external_exports.enum(["start", "progress", "continue", "complete", "fail", "cancel"]),
+    note: external_exports.string().max(280).optional(),
+    message: external_exports.string().optional(),
+    dispatchKey: external_exports.string().optional(),
+    expectedTaskRevision: external_exports.number().int().nonnegative().optional()
+  };
+  server2.registerTool("weaver_task_action", {
+    title: "Task Action",
+    description: "Advance, heartbeat, continue, finish, fail, or cancel an auditable Weaver AgentTask.",
+    inputSchema: shape,
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
+  }, defineTool(async ({ workspaceDir, taskId, action, note, message, dispatchKey, expectedTaskRevision }, extra) => {
+    taskActionSchema.parse({ workspaceDir, taskId, action, note, message, dispatchKey, expectedTaskRevision });
+    const chatSessionKey = chatSessionKeyFromRequest(extra);
+    return result(mutateWithStore(workspaceDir, (store) => {
+      if (action === "cancel") {
+        const task2 = store.tasks.assertCanvas(taskId, chatSessionKey);
+        return ["completed", "stale", "failed", "cancelled"].includes(task2.status) ? task2 : store.tasks.update(taskId, { status: "cancelled" });
       }
-      const prepared = store.prepareAgentTaskFromBoundCanvas({ chatSessionKey, actionKey, userInstruction, dispatchKey });
-      return store.confirmAgentDispatch(prepared.taskId, dispatchKey);
-    });
-    workspaceByTask.set(task.taskId, workspaceDir);
-    return result(task, "Prepared and dispatched task from active canvas.");
-  }));
-  server2.registerTool("weaver_confirm_agent_dispatch", { title: "Confirm Agent Dispatch", description: "Confirm that the Codex host accepted the visible task message.", inputSchema: { ...workspaceSchema.shape, taskId: external_exports.string(), dispatchKey: external_exports.string().min(1) }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } } }, defineTool(async ({ workspaceDir, taskId, dispatchKey }, extra) => {
-    const chatSessionKey = chatSessionKeyFromRequest(extra);
-    const task = mutateWithStore(workspaceDir, (store) => {
-      store.assertTaskChat(taskId, chatSessionKey);
-      return store.confirmAgentDispatch(taskId, dispatchKey);
-    });
-    workspaceByTask.set(task.taskId, workspaceDir);
-    return result(task);
-  }));
-  server2.registerTool("weaver_fail_agent_dispatch", { title: "Fail Agent Dispatch", description: "Record a rejected or unconfirmed Codex host dispatch without retrying it.", inputSchema: { ...workspaceSchema.shape, taskId: external_exports.string(), dispatchKey: external_exports.string().min(1), code: external_exports.enum(["AGENT_DISPATCH_REJECTED", "DISPATCH_UNCONFIRMED"]), message: external_exports.string().min(1) }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } } }, defineTool(async ({ workspaceDir, taskId, dispatchKey, code, message }, extra) => {
-    const chatSessionKey = chatSessionKeyFromRequest(extra);
-    return result(mutateWithStore(workspaceDir, (store) => {
-      store.assertTaskChat(taskId, chatSessionKey);
-      return store.failAgentDispatch(taskId, dispatchKey, { code, message });
+      store.tasks.assertChat(taskId, chatSessionKey, action !== "fail");
+      if (action === "start") return store.tasks.update(taskId, { status: "running" });
+      if (action === "progress") {
+        if (!note) throw new Error("INVALID_ARGS:note required");
+        return store.tasks.progress(taskId, note);
+      }
+      if (action === "continue") {
+        if (!dispatchKey || expectedTaskRevision === void 0) throw new Error("INVALID_ARGS:dispatchKey and expectedTaskRevision required");
+        return store.tasks.continue({ taskId, dispatchKey, expectedTaskRevision });
+      }
+      if (action === "complete") return store.tasks.update(taskId, { status: "completed" });
+      return store.tasks.update(taskId, { status: "failed", error: { code: "TASK_FAILED", message: message ?? "Task failed" } });
     }));
   }));
-  server2.registerTool("weaver_begin_agent_continuation", { title: "Begin Agent Continuation", description: "Atomically claim the layout dispatch for a reviewed mixed task.", inputSchema: { ...workspaceSchema.shape, taskId: external_exports.string(), dispatchKey: external_exports.string().min(1), expectedTaskRevision: external_exports.number().int().nonnegative() }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } } }, defineTool(async ({ workspaceDir, taskId, dispatchKey, expectedTaskRevision }, extra) => {
-    const chatSessionKey = chatSessionKeyFromRequest(extra);
-    return result(mutateWithStore(workspaceDir, (store) => {
-      store.assertTaskChat(taskId, chatSessionKey);
-      return store.beginAgentContinuation({ taskId, dispatchKey, expectedTaskRevision });
-    }));
-  }));
-  for (const [name, status] of [["weaver_start_agent_task", "running"], ["weaver_complete_agent_task", "completed"]]) {
-    server2.registerTool(name, { title: name.replaceAll("_", " "), description: `Set a durable Weaver agent task to ${status}.`, inputSchema: { ...workspaceSchema.shape, taskId: external_exports.string() }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } }, defineTool(async ({ workspaceDir, taskId }, extra) => {
-      const chatSessionKey = chatSessionKeyFromRequest(extra);
-      return result(mutateWithStore(workspaceDir, (store) => {
-        store.assertTaskChat(taskId, chatSessionKey);
-        return store.updateAgentTask(taskId, { status });
-      }));
-    }));
-  }
-  server2.registerTool("weaver_report_task_progress", { title: "Report Task Progress", description: "Post a one-line progress note on a running task; shown live on the canvas busy indicator and doubles as the liveness heartbeat.", inputSchema: { ...workspaceSchema.shape, taskId: external_exports.string(), note: external_exports.string().min(1).max(280) }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false } }, defineTool(async ({ workspaceDir, taskId, note }, extra) => {
-    const chatSessionKey = chatSessionKeyFromRequest(extra);
-    return result(mutateWithStore(workspaceDir, (store) => {
-      store.assertTaskChat(taskId, chatSessionKey);
-      return store.reportTaskProgress(taskId, note);
-    }));
-  }));
-  server2.registerTool("weaver_cancel_agent_task", { title: "Cancel Agent Task", description: "Cooperatively cancel a non-terminal task so later agent writes are rejected. Authorized by canvas control \u2014 the bound canvas can cancel any task running on it, even one a different agent session dispatched.", inputSchema: { ...workspaceSchema.shape, taskId: external_exports.string() }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } } }, defineTool(async ({ workspaceDir, taskId }, extra) => {
-    const chatSessionKey = chatSessionKeyFromRequest(extra);
-    return result(mutateWithStore(workspaceDir, (store) => {
-      const task = store.assertTaskCanvas(taskId, chatSessionKey);
-      if (["completed", "stale", "failed", "cancelled"].includes(task.status)) return task;
-      return store.updateAgentTask(taskId, { status: "cancelled" });
-    }));
-  }));
-  server2.registerTool("weaver_list_canvas_tasks", { title: "List Canvas Tasks", description: "Widget-only recovery of non-terminal tasks associated with one canvas session. Reaps expired tasks first.", inputSchema: { ...workspaceSchema.shape, canvasSessionId: external_exports.string() }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } } }, defineTool(async ({ workspaceDir, canvasSessionId }) => result(mutateWithStore(workspaceDir, (store) => {
-    store.reapExpiredCanvasTasks(canvasSessionId);
-    return store.listCanvasTasks(canvasSessionId);
-  }))));
-  server2.registerTool("weaver_list_project_tasks", { title: "List Project Tasks", description: "Widget-only recovery of non-terminal tasks for a reopened project canvas.", inputSchema: projectSchema2.shape, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } } }, defineTool(async ({ workspaceDir, projectId }) => result(withStore(workspaceDir, (store) => store.listProjectTasks(projectId)))));
 }
 
 // packages/mcp/src/tools/artifacts.ts
 function registerArtifactsTools(server2) {
   server2.registerTool("weaver_publish_artifact", { title: "Publish Weaver Artifact", description: "Save a scene-declared artifact from selected nodes at an exact graph revision.", inputSchema: { ...projectSchema2.shape, artifactType: external_exports.string(), title: external_exports.string(), content: external_exports.any(), sourceNodeIds: external_exports.array(external_exports.string()), graphRevision: external_exports.number().int().nonnegative() }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false } }, defineTool(async ({ workspaceDir, projectId, artifactType, title, content, sourceNodeIds, graphRevision }) => {
-    const output = withStore(workspaceDir, (store) => store.publishArtifact({ projectId, type: artifactType, title, content, sourceNodeIds, graphRevision }));
+    const output = withStore(workspaceDir, (store) => store.artifacts.publish({ projectId, type: artifactType, title, content, sourceNodeIds, graphRevision }));
     return result(output, `Published ${artifactType} artifact.`);
-  }));
-}
-
-// packages/mcp/src/tools/assets.ts
-function registerAssetsTools(server2) {
-  server2.registerTool("weaver_get_asset_preview", {
-    title: "Get Image Asset Preview",
-    description: "Widget-only read of a size-bounded thumbnail data URL for an image card.",
-    inputSchema: { ...projectSchema2.shape, assetId: external_exports.string().min(1) },
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    _meta: { ui: { visibility: ["app"] } }
-  }, defineTool(async ({ workspaceDir, projectId, assetId }) => {
-    const output = withStore(workspaceDir, (store) => {
-      const item = store.readAsset(assetId, true);
-      if (item.asset.projectId !== projectId) throw new Error("ASSET_NOT_FOUND_OR_CROSS_PROJECT");
-      return { assetId, dataUrl: `data:image/webp;base64,${Buffer.from(item.data).toString("base64")}` };
-    });
-    return result(output);
-  }));
-  server2.registerTool("weaver_import_image_asset", {
-    title: "Import Image Asset",
-    description: "Widget-only import of one JPEG, PNG, WebP or GIF up to 20MB. Validates bytes, deduplicates by SHA-256 and generates a bounded WebP thumbnail without changing graphRevision.",
-    inputSchema: { ...projectSchema2.shape, mimeType: external_exports.enum(["image/jpeg", "image/png", "image/webp", "image/gif"]), base64: external_exports.string().min(1).max(28 * 1024 * 1024) },
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    _meta: { ui: { visibility: ["app"] } }
-  }, async ({ workspaceDir, projectId, mimeType, base64: base643 }) => {
-    try {
-      const store = new WorkspaceStore(workspaceDir);
-      try {
-        const output = await store.importImageAsset({ projectId, mimeType, data: Buffer.from(base643, "base64") });
-        return result(output, output.deduplicated ? "Reused existing image asset." : "Imported image asset.");
-      } finally {
-        store.close();
-      }
-    } catch (error51) {
-      return failure(error51);
-    }
-  });
-}
-
-// packages/mcp/src/shared/bound-canvas.ts
-function resolveBoundCanvas(store, chatSessionKey) {
-  const { binding, context } = store.getBoundCanvas(chatSessionKey, false);
-  const project = store.getProject(context.projectId);
-  if (!project) throw new Error("PROJECT_NOT_FOUND");
-  const layout = store.getLayout(context.projectId, context.viewId);
-  if (!layout) throw new Error("LAYOUT_NOT_FOUND");
-  const seenAt = Date.parse(context.presence?.lastSeenAt ?? context.updatedAt);
-  return {
-    projectId: context.projectId,
-    viewId: context.viewId,
-    canvasSessionId: context.canvasSessionId,
-    bindingStatus: binding.status,
-    online: Date.now() - seenAt <= 3e4,
-    lastSeenAt: context.presence?.lastSeenAt ?? context.updatedAt,
-    graphRevision: project.graphRevision,
-    layoutRevision: layout.layoutRevision,
-    bindingRevision: binding.bindingRevision
-  };
-}
-
-// packages/mcp/src/tools/canvas-binding.ts
-function registerCanvasBindingTools(server2, ctx) {
-  const { mutateWithStore } = ctx;
-  server2.registerTool("weaver_sync_canvas_context", {
-    title: "Sync Canvas Context",
-    description: "Widget-only idempotent sync of selection, viewport, pinned nodes and independent graph/layout revisions.",
-    // `snapshot` is the fully-typed context schema (not z.any()) so hosts that
-    // validate/serialize widget args against the input schema before proxying —
-    // Codex's Apps-SDK does — can actually send the call. An untyped z.any()
-    // produced an empty schema Codex refused to proxy (-32000, the call never
-    // reached the server), which was the whole "画布连接失败" claim failure.
-    // readOnlyHint MUST be true: Codex's Apps-SDK proxy blocks widget-initiated
-    // *writes* (readOnlyHint:false) with -32000, and this is the one write the
-    // widget makes on load — the "画布连接失败" claim. It is an idempotent context
-    // sync (selection/viewport/heartbeat), not a destructive graph mutation, so
-    // read-only is an honest annotation that lets the proxy deliver the call.
-    inputSchema: { ...workspaceSchema.shape, snapshot: canvasContextSnapshotSchema },
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    _meta: { ui: { visibility: ["app"] }, "openai/widgetAccessible": true }
-  }, defineTool(async ({ workspaceDir, snapshot }, extra) => {
-    const chatSessionKey = snapshot?.agentEligible ? chatSessionKeyFromRequest(extra) : chatSessionKeyFromRequest(extra, false);
-    const output = mutateWithStore(workspaceDir, (store) => {
-      const context = store.syncCanvasContext(snapshot, chatSessionKey);
-      const project = store.getProject(context.projectId);
-      if (!project) throw new Error("PROJECT_NOT_FOUND");
-      const layout = store.getLayout(context.projectId, context.viewId);
-      if (!layout) throw new Error("LAYOUT_NOT_FOUND");
-      const binding = chatSessionKey ? store.getChatCanvasBinding(chatSessionKey) : void 0;
-      return {
-        context,
-        bindingStatus: binding?.status ?? "detached",
-        canvasSessionId: context.canvasSessionId,
-        graphRevision: project.graphRevision,
-        layoutRevision: layout.layoutRevision
-      };
-    });
-    return result(output);
-  }));
-  server2.registerTool("weaver_switch_chat_canvas", {
-    title: "Switch Chat Canvas",
-    description: "Widget-only explicit Project/View switch for the current Codex chat lease.",
-    inputSchema: { ...workspaceSchema.shape, leaseId: external_exports.string().regex(/^[a-f0-9]{64}$/), bindingRevision: external_exports.number().int().positive(), projectId: external_exports.string(), viewId: external_exports.string() },
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    _meta: { ui: { visibility: ["app"] } }
-  }, defineTool(async ({ workspaceDir, leaseId, bindingRevision, projectId, viewId }, extra) => {
-    const chatSessionKey = chatSessionKeyFromRequest(extra);
-    const binding = mutateWithStore(workspaceDir, (store) => store.switchChatCanvasBinding({ chatSessionKey, leaseId, bindingRevision, projectId, viewId }));
-    return result({ leaseId: binding.leaseId, bindingRevision: binding.bindingRevision, projectId: binding.projectId, viewId: binding.viewId });
-  }));
-  server2.registerTool("weaver_get_bound_canvas", {
-    title: "Get Bound Canvas",
-    description: "Resolve the exact Project, View and Canvas currently bound to this Codex chat. Never guesses from focus or recency.",
-    inputSchema: workspaceSchema.shape,
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    // Widget-only: the on-canvas widget calls this under its own name. Its own
-    // `visibility: ["app"]` overrides the allowlist bump so it stays
-    // widget-accessible but off the MODEL surface — the model reads the same
-    // binding via `weaver_read_session(resource:"bound_canvas")`.
-    _meta: { ui: { visibility: ["app"] } }
-  }, defineTool(async ({ workspaceDir }, extra) => {
-    const chatSessionKey = chatSessionKeyFromRequest(extra);
-    return result(withStore(workspaceDir, (store) => resolveBoundCanvas(store, chatSessionKey)));
-  }));
-  server2.registerTool("weaver_get_canvas_view_state", {
-    title: "Get Canvas View State",
-    description: "Widget-only restoration of this Canvas Session's viewport and selection for one View.",
-    inputSchema: { ...workspaceSchema.shape, canvasSessionId: external_exports.string(), viewId: external_exports.string() },
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    _meta: { ui: { visibility: ["app"] } }
-  }, defineTool(async ({ workspaceDir, canvasSessionId, viewId }) => result(withStore(workspaceDir, (store) => store.getCanvasViewState(canvasSessionId, viewId) ?? { canvasSessionId, viewId, firstOpen: true }))));
-}
-
-// packages/mcp/src/tools/canvas-prompts.ts
-import { randomUUID as randomUUID9 } from "node:crypto";
-
-// packages/mcp/src/shared/canvas-prompts.ts
-var waiters = /* @__PURE__ */ new Map();
-function notifyCanvasPrompt(workspaceDir) {
-  const set3 = waiters.get(workspaceDir);
-  if (!set3) return;
-  for (const waiter of [...set3]) waiter();
-}
-function awaitCanvasPromptSignal(workspaceDir, timeoutMs) {
-  return new Promise((resolve5) => {
-    let set3 = waiters.get(workspaceDir);
-    if (!set3) {
-      set3 = /* @__PURE__ */ new Set();
-      waiters.set(workspaceDir, set3);
-    }
-    const done = () => {
-      set3.delete(done);
-      if (set3.size === 0) waiters.delete(workspaceDir);
-      clearTimeout(timer2);
-      resolve5();
-    };
-    const timer2 = setTimeout(done, timeoutMs);
-    if (typeof timer2.unref === "function") timer2.unref();
-    set3.add(done);
-  });
-}
-
-// packages/mcp/src/tools/canvas-prompts.ts
-var AWAIT_DEFAULT_MS = 25e3;
-var AWAIT_MAX_MS = 6e4;
-var AWAIT_SLICE_MS = 5e3;
-function registerCanvasPromptsTools(server2, ctx) {
-  const { mutateWithStore } = ctx;
-  server2.registerTool("weaver_submit_canvas_prompt", {
-    title: "Submit Canvas Prompt",
-    description: "Widget-only: submit a natural-language instruction typed on the canvas against the exact bound online Canvas. Creates a durable, self-dispatched task for the terminal agent to pick up; does not itself run the model.",
-    inputSchema: { ...workspaceSchema.shape, instruction: external_exports.string().min(1), actionKey: external_exports.enum(["develop_selection", "follow_up_ask", "develop_then_layout"]).default("develop_selection") },
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
-    _meta: { ui: { visibility: ["app"] } }
-  }, defineTool(async ({ workspaceDir, instruction, actionKey }, extra) => {
-    const chatSessionKey = chatSessionKeyFromRequest(extra);
-    const dispatchKey = `canvas-${randomUUID9()}`;
-    const task = mutateWithStore(workspaceDir, (store) => {
-      const prepared = store.prepareAgentTaskFromBoundCanvas({ chatSessionKey, actionKey, userInstruction: instruction, dispatchKey });
-      return store.confirmAgentDispatch(prepared.taskId, dispatchKey);
-    });
-    workspaceByTask.set(task.taskId, workspaceDir);
-    notifyCanvasPrompt(workspaceDir);
-    return result({ taskId: task.taskId, status: task.status, actionKey }, "Submitted canvas prompt.");
-  }));
-  server2.registerTool("weaver_await_canvas_prompt", {
-    title: "Await Canvas Prompt",
-    description: "Terminal watch mode: long-poll for the next canvas-submitted instruction on the bound Canvas. Returns the pending task immediately when one exists, otherwise waits up to timeoutMs then returns { pending: false }. Loop this while watching.",
-    inputSchema: { ...workspaceSchema.shape, timeoutMs: external_exports.number().int().positive().max(AWAIT_MAX_MS).optional() },
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
-  }, defineTool(async ({ workspaceDir, timeoutMs }, extra) => {
-    const chatSessionKey = chatSessionKeyFromRequest(extra);
-    const deadline = Date.now() + Math.min(timeoutMs ?? AWAIT_DEFAULT_MS, AWAIT_MAX_MS);
-    for (; ; ) {
-      const pending = withStore(workspaceDir, (store) => {
-        let canvasSessionId;
-        try {
-          canvasSessionId = store.getBoundCanvas(chatSessionKey, false).context.canvasSessionId;
-        } catch {
-          return null;
-        }
-        return store.listCanvasTasks(canvasSessionId).filter((task) => task.status === "dispatched" && task.activeStage === "content").sort((a2, b) => a2.createdAt < b.createdAt ? -1 : 1)[0] ?? null;
-      });
-      if (pending) return result({ pending: true, task: pending }, "Picked up a canvas prompt. Handle it now (weaver_start_agent_task \u2192 resolve context \u2192 weaver_submit_changeset), then call weaver_await_canvas_prompt AGAIN to keep watching. Do not end your turn.");
-      const remaining = deadline - Date.now();
-      if (remaining <= 0) return result({ pending: false }, "No canvas prompt yet. Call weaver_await_canvas_prompt AGAIN immediately to keep watching \u2014 the canvas is the input. Do not end your turn or wait for the terminal.");
-      await awaitCanvasPromptSignal(workspaceDir, Math.min(remaining, AWAIT_SLICE_MS));
-    }
-  }));
-}
-
-// packages/mcp/src/shared/catalog-reads.ts
-function listProjects2(store) {
-  return store.listProjects();
-}
-function listProjectViews2(store, projectId, status) {
-  return store.listProjectViews(projectId, status).map((view) => ({ ...view, nodeCount: Object.keys(store.getLayout(projectId, view.id)?.nodes ?? {}).length }));
-}
-function searchProjectViews2(store, projectId, query = "", status = "active") {
-  return store.searchProjectViews(projectId, query, status).map((view) => ({ ...view, nodeCount: Object.keys(store.getLayout(projectId, view.id)?.nodes ?? {}).length }));
-}
-function getProjectView2(store, projectId, viewId) {
-  const view = store.getProjectView(projectId, viewId);
-  if (!view) throw new Error("VIEW_NOT_FOUND");
-  return view;
-}
-function listVisualTemplates(filter = {}) {
-  return builtinVisualTemplates.filter((item) => (!filter.scenePackId || item.compatibleScenePackIds.includes(filter.scenePackId)) && (!filter.family || item.family === filter.family) && (!filter.renderer || item.renderer === filter.renderer));
-}
-function readVisualTemplate(templateId, version2 = "1.0.0") {
-  const item = getVisualTemplate(templateId, version2);
-  if (!item) throw new Error("VISUAL_TEMPLATE_NOT_FOUND");
-  return item;
-}
-function readArtifact(store, artifactId) {
-  const artifact = store.getArtifact(artifactId);
-  if (!artifact) throw new Error("ARTIFACT_NOT_FOUND");
-  return artifact;
-}
-function readAssetMetadata(store, projectId, assetId) {
-  const asset = store.getAsset(assetId);
-  if (!asset || asset.projectId !== projectId) throw new Error("ASSET_NOT_FOUND_OR_CROSS_PROJECT");
-  return asset;
-}
-function listChangeSets2(store, projectId, status) {
-  return store.listChangeSets(projectId, status);
-}
-function readChangeSet(store, changeSetId, chatSessionKey) {
-  const value = store.getChangeSet(changeSetId);
-  if (!value) throw new Error("CHANGESET_NOT_FOUND");
-  store.assertTaskChat(value.taskId, chatSessionKey, false);
-  return value;
-}
-function previewChangeSet(store, changeSetId, chatSessionKey) {
-  const item = store.getChangeSet(changeSetId);
-  if (!item) throw new Error("CHANGESET_NOT_FOUND");
-  store.assertTaskChat(item.taskId, chatSessionKey, false);
-  const project = store.getProject(item.projectId);
-  if (!project) throw new Error("PROJECT_NOT_FOUND");
-  return {
-    changeSet: item,
-    stale: project.graphRevision !== item.baseGraphRevision,
-    currentGraphRevision: project.graphRevision,
-    summary: {
-      addedNodes: item.graphOperations.filter((op) => op.type === "add-node").length,
-      updatedNodes: item.graphOperations.filter((op) => ["update-node", "set-node-content", "attach-asset", "detach-asset", "set-node-cover"].includes(op.type)).length,
-      archivedNodes: item.graphOperations.filter((op) => op.type === "archive-node").length,
-      addedEdges: item.graphOperations.filter((op) => op.type === "add-edge").length,
-      updatedEdges: item.graphOperations.filter((op) => op.type === "update-edge").length,
-      archivedEdges: item.graphOperations.filter((op) => op.type === "archive-edge").length,
-      layoutOperations: item.layoutOperations.length
-    }
-  };
-}
-function readLayout(store, projectId, viewId) {
-  const layout = store.getLayout(projectId, viewId);
-  if (!layout) throw new Error("LAYOUT_NOT_FOUND");
-  return layout;
-}
-function readLayoutRun(store, layoutRunId, chatSessionKey) {
-  const item = store.getLayoutRun(layoutRunId);
-  if (!item) throw new Error("LAYOUT_RUN_NOT_FOUND");
-  if (item.taskId) store.assertTaskChat(item.taskId, chatSessionKey, false);
-  return item;
-}
-function layoutCapabilities() {
-  return {
-    strategies: ["tree", "layered", "radial", "force", "cluster", "grid", "timeline", "swimlane", "hybrid"],
-    recommendedStrategy: "cluster",
-    honoredConstraints: {
-      cluster: ["emphasis", "group", "direction", "separation", "spacing", "pin", "preserve-position"],
-      layered: ["direction", "emphasis"],
-      tree: ["direction"],
-      radial: ["emphasis"],
-      force: [],
-      grid: []
-    },
-    constraints: ["pin", "align", "distribute", "order", "rank", "group", "containment", "separation", "relative-position", "direction", "spacing", "avoid-overlap", "preserve-position", "edge-length", "edge-routing", "emphasis", "viewport-fit"],
-    candidateCount: { min: 1, max: 5, default: 3 }
-  };
-}
-
-// packages/mcp/src/shared/review-actions.ts
-function rejectChangeSet2(store, changeSetId, chatSessionKey) {
-  const item = store.getChangeSet(changeSetId);
-  if (!item) throw new Error("CHANGESET_NOT_FOUND");
-  store.assertTaskChat(item.taskId, chatSessionKey);
-  return store.rejectChangeSet(changeSetId);
-}
-function applyLayoutCandidate2(store, layoutRunId, candidateId, chatSessionKey) {
-  const run = store.getLayoutRun(layoutRunId);
-  if (!run) throw new Error("LAYOUT_RUN_NOT_FOUND");
-  if (run.taskId) store.assertTaskChat(run.taskId, chatSessionKey);
-  return store.applyLayoutCandidate(layoutRunId, candidateId);
-}
-function rejectLayoutRun2(store, layoutRunId, chatSessionKey) {
-  const run = store.getLayoutRun(layoutRunId);
-  if (!run) throw new Error("LAYOUT_RUN_NOT_FOUND");
-  if (run.taskId) store.assertTaskChat(run.taskId, chatSessionKey);
-  return store.rejectLayoutRun(layoutRunId);
-}
-function revertLayout2(store, projectId, viewId) {
-  return store.revertLayout(projectId, viewId);
-}
-
-// packages/mcp/src/tools/changesets.ts
-function registerChangesetsTools(server2, ctx) {
-  const { mutateWithStore } = ctx;
-  server2.registerTool("weaver_submit_changeset", { title: "Submit Weaver ChangeSet", description: "Submit structured graph and layout operations for review. Agents cannot write the database directly.", inputSchema: { ...workspaceSchema.shape, changeSet: changeSetSchema }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } }, defineTool(async ({ workspaceDir, changeSet }, extra) => {
-    const chatSessionKey = chatSessionKeyFromRequest(extra);
-    return result(mutateWithStore(workspaceDir, (store) => {
-      const validated = changeSetSchema.parse(typeof changeSet === "string" ? JSON.parse(changeSet) : changeSet);
-      store.assertTaskChat(validated.taskId, chatSessionKey);
-      return store.submitChangeSet(validated);
-    }), "Submitted ChangeSet.");
-  }));
-  server2.registerTool("weaver_apply_changeset", { title: "Apply Weaver ChangeSet", description: "Apply one reviewed ChangeSet with graph and per-view layout revision checks.", inputSchema: { ...workspaceSchema.shape, changeSetId: external_exports.string() }, annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false } }, defineTool(async ({ workspaceDir, changeSetId }, extra) => {
-    const chatSessionKey = chatSessionKeyFromRequest(extra);
-    return result(mutateWithStore(workspaceDir, (store) => {
-      const item = store.getChangeSet(changeSetId);
-      if (!item) throw new Error("CHANGESET_NOT_FOUND");
-      store.assertTaskChat(item.taskId, chatSessionKey);
-      return store.applyChangeSet(changeSetId);
-    }), "Applied ChangeSet.");
-  }));
-  server2.registerTool("weaver_preview_changeset", { title: "Preview Weaver ChangeSet", description: "Return a review-oriented summary and current revision status for one pending ChangeSet.", inputSchema: { ...workspaceSchema.shape, changeSetId: external_exports.string() }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } } }, defineTool(async ({ workspaceDir, changeSetId }, extra) => {
-    const chatSessionKey = chatSessionKeyFromRequest(extra);
-    return result(withStore(workspaceDir, (store) => previewChangeSet(store, changeSetId, chatSessionKey)));
-  }));
-  server2.registerTool("weaver_reject_changeset", { title: "Reject Weaver ChangeSet", description: "Reject one pending proposal without changing graph or layout revisions.", inputSchema: { ...workspaceSchema.shape, changeSetId: external_exports.string() }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } } }, defineTool(async ({ workspaceDir, changeSetId }, extra) => {
-    const chatSessionKey = chatSessionKeyFromRequest(extra);
-    return result(mutateWithStore(workspaceDir, (store) => rejectChangeSet2(store, changeSetId, chatSessionKey)));
   }));
 }
 
@@ -128589,165 +128218,87 @@ async function enrichPublicLink(rawUrl, dependencies = {}) {
   return { url: page.finalUrl.href, title, description, domain: page.finalUrl.hostname, image };
 }
 
-// packages/mcp/src/tools/content.ts
-function assertSceneContent(scene, semanticType, contentKind) {
-  const definition = scene.nodeTypes.find((candidate) => candidate.key === semanticType);
-  if (!definition) throw new Error(`NODE_TYPE_NOT_ALLOWED:${semanticType}`);
-  if (!definition.allowedContentKinds.includes(contentKind)) throw new Error(`CONTENT_KIND_NOT_ALLOWED:${contentKind}`);
-}
-function registerContentTools(server2) {
-  server2.registerTool("weaver_create_content_node", {
-    title: "Create Content Node",
-    description: "Widget-only creation of a document, image or link node at an explicit position in the active view. Increments graphRevision and only that view's layoutRevision.",
-    inputSchema: { ...projectSchema2.shape, viewId: external_exports.string().min(1), semanticType: external_exports.string().min(1), title: external_exports.string(), content: nodeContentSchema, x: external_exports.number(), y: external_exports.number() },
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+// packages/mcp/src/tools/canvas-action.ts
+function registerCanvasActionTool(server2, { mutateWithStore }) {
+  const shape = {
+    ...workspaceSchema.shape,
+    action: external_exports.enum(["claim", "sync", "switch", "create_node", "update_node", "archive_node", "attach_asset", "enrich_link", "layout_operations", "revert_layout"]),
+    snapshot: external_exports.unknown().optional(),
+    projectId: external_exports.string().optional(),
+    viewId: external_exports.string().optional(),
+    nodeId: external_exports.string().optional(),
+    assetId: external_exports.string().optional(),
+    role: external_exports.enum(["embedded", "cover"]).optional(),
+    leaseId: external_exports.string().optional(),
+    bindingRevision: external_exports.number().int().positive().optional(),
+    baseGraphRevision: external_exports.number().int().nonnegative().optional(),
+    baseLayoutRevision: external_exports.number().int().nonnegative().optional(),
+    semanticType: external_exports.string().optional(),
+    title: external_exports.string().optional(),
+    content: external_exports.unknown().optional(),
+    x: external_exports.number().optional(),
+    y: external_exports.number().optional(),
+    operations: external_exports.array(layoutOperationSchema).optional()
+  };
+  server2.registerTool("weaver_canvas_action", {
+    title: "Canvas Action",
+    description: "Claim/sync/switch the exact Canvas or apply direct user editing and manual layout intents.",
+    inputSchema: shape,
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
     _meta: { ui: { visibility: ["app"] } }
-  }, defineTool(async ({ workspaceDir, projectId, viewId, semanticType, title, content, x: x3, y: y3 }) => {
-    const output = withStore(workspaceDir, (store) => {
-      const project = store.getProject(projectId);
-      if (!project) throw new Error("PROJECT_NOT_FOUND");
-      const scene = getScenePack(project.scenePackId, project.scenePackVersion);
-      if (!scene) throw new Error("SCENE_PACK_NOT_FOUND");
-      assertSceneContent(scene, semanticType, content.kind);
-      if (content.kind === "link" && !["http:", "https:"].includes(new URL(content.url).protocol)) throw new Error("LINK_PROTOCOL_BLOCKED");
-      return store.createContentNode({ projectId, viewId, type: semanticType, title, content, x: x3, y: y3 });
-    });
-    return result(output, `Created ${content.kind} node.`);
-  }));
-  server2.registerTool("weaver_update_node_content", {
-    title: "Update Node Content",
-    description: "Widget-only revision-checked update of node title, semantic type or full content. Returns GRAPH_REVISION_CONFLICT instead of overwriting newer work.",
-    inputSchema: { ...projectSchema2.shape, nodeId: external_exports.string().min(1), baseGraphRevision: external_exports.number().int().nonnegative(), title: external_exports.string().optional(), semanticType: external_exports.string().min(1).optional(), content: nodeContentSchema.optional() },
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
-    _meta: { ui: { visibility: ["app"] } }
-  }, defineTool(async ({ workspaceDir, projectId, nodeId, baseGraphRevision, title, semanticType, content }) => {
-    const output = withStore(workspaceDir, (store) => {
-      const project = store.getProject(projectId);
-      if (!project) throw new Error("PROJECT_NOT_FOUND");
-      const scene = getScenePack(project.scenePackId, project.scenePackVersion);
-      if (!scene) throw new Error("SCENE_PACK_NOT_FOUND");
-      const current = store.getGraph(projectId).nodes.find((node) => node.id === nodeId);
-      if (!current) throw new Error("NODE_NOT_FOUND");
-      assertSceneContent(scene, semanticType ?? current.type, content?.kind ?? current.content.kind);
-      return store.updateNodeContent({ projectId, nodeId, baseGraphRevision, title, type: semanticType, content });
-    });
-    return result(output, "Saved node content.");
-  }));
-  server2.registerTool("weaver_archive_node", {
-    title: "Archive Node",
-    description: "Widget-only revision-checked soft-delete of a node and its connected edges. Increments graphRevision. Returns GRAPH_REVISION_CONFLICT instead of racing newer work.",
-    inputSchema: { ...projectSchema2.shape, nodeId: external_exports.string().min(1), baseGraphRevision: external_exports.number().int().nonnegative() },
-    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
-    _meta: { ui: { visibility: ["app"] } }
-  }, defineTool(async ({ workspaceDir, projectId, nodeId, baseGraphRevision }) => result(withStore(workspaceDir, (store) => {
-    const project = store.getProject(projectId);
-    if (!project) throw new Error("PROJECT_NOT_FOUND");
-    if (!store.getGraph(projectId).nodes.some((node) => node.id === nodeId)) throw new Error("NODE_NOT_FOUND");
-    return store.archiveNode({ projectId, nodeId, baseGraphRevision });
-  }), "Archived node.")));
-  server2.registerTool("weaver_attach_asset", {
-    title: "Attach Image Asset",
-    description: "Widget-only attachment of a validated project image as an article cover or embedded media reference.",
-    inputSchema: { ...projectSchema2.shape, nodeId: external_exports.string().min(1), assetId: external_exports.string().min(1), role: external_exports.enum(["embedded", "cover"]), baseGraphRevision: external_exports.number().int().nonnegative() },
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    _meta: { ui: { visibility: ["app"] } }
-  }, defineTool(async ({ workspaceDir, projectId, nodeId, assetId, role, baseGraphRevision }) => result(withStore(workspaceDir, (store) => store.attachAsset({ projectId, nodeId, assetId, role, baseGraphRevision })), "Attached image asset.")));
-  server2.registerTool("weaver_enrich_link", {
-    title: "Enrich Link Preview",
-    description: "Widget-only fetch of a public HTTP/HTTPS page's title, description and optional cover. Blocks local/private hosts, limits redirects, response size and timeout, and never extracts full page text.",
-    inputSchema: { ...projectSchema2.shape, nodeId: external_exports.string().min(1), baseGraphRevision: external_exports.number().int().nonnegative() },
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
-    _meta: { ui: { visibility: ["app"] } }
-  }, async ({ workspaceDir, projectId, nodeId, baseGraphRevision }) => {
-    const store = new WorkspaceStore(workspaceDir);
-    try {
-      const graph = store.getGraph(projectId);
+  }, defineTool(async (args, extra) => {
+    canvasActionSchema.parse(args);
+    const chatSessionKey = chatSessionKeyFromRequest(extra);
+    const required2 = (value, name) => {
+      if (value === void 0 || value === "") throw new Error(`INVALID_ARGS:${name} required`);
+      return value;
+    };
+    if (args.action === "enrich_link") {
+      const projectId = required2(args.projectId, "projectId");
+      const nodeId = required2(args.nodeId, "nodeId");
+      const baseGraphRevision = required2(args.baseGraphRevision, "baseGraphRevision");
+      const store = getWorkspaceStore(args.workspaceDir);
+      const graph = store.graphChanges.read(projectId);
       if (graph.revision !== baseGraphRevision) throw new Error("GRAPH_REVISION_CONFLICT");
       const node = graph.nodes.find((candidate) => candidate.id === nodeId);
-      if (!node || node.content.kind !== "link") throw new Error("LINK_NODE_NOT_FOUND");
-      try {
-        const enriched = await enrichPublicLink(node.content.url);
-        let imageAssetId;
-        if (enriched.image) imageAssetId = (await store.importImageAsset({ projectId, mimeType: enriched.image.mimeType, data: enriched.image.data })).asset.id;
-        const content = { kind: "link", url: enriched.url, title: enriched.title || node.title, description: enriched.description, domain: enriched.domain, imageAssetId, enrichmentStatus: "ready" };
-        return result(store.updateNodeContent({ projectId, nodeId, baseGraphRevision, title: content.title, content }), "Enriched link preview.");
-      } catch (error51) {
-        const failedContent = { ...node.content, enrichmentStatus: "failed" };
-        store.updateNodeContent({ projectId, nodeId, baseGraphRevision, content: failedContent });
-        throw error51;
-      }
-    } catch (error51) {
-      return failure(error51);
-    } finally {
-      store.close();
+      if (!node || node.content.kind !== "link") throw new Error("NODE_NOT_FOUND");
+      const enriched = await enrichPublicLink(node.content.url);
+      let imageAssetId;
+      if (enriched.image) imageAssetId = (await store.assets.importImage({ projectId, mimeType: enriched.image.mimeType, data: enriched.image.data })).asset.id;
+      return result(store.graphChanges.updateNode({ projectId, nodeId, baseGraphRevision, title: enriched.title || node.title, content: { kind: "link", url: enriched.url, title: enriched.title || node.title, description: enriched.description, domain: enriched.domain, imageAssetId, enrichmentStatus: "ready" } }));
     }
-  });
-}
-
-// packages/mcp/src/shared/graph-reads.ts
-function summarizeNode(store, node) {
-  const content = node.content.kind === "document" ? { ...node.content, markdown: void 0 } : node.content;
-  const assetIds = node.content.kind === "image" ? [node.content.assetId] : node.content.kind === "document" ? [node.content.coverAssetId, ...node.content.embeddedAssetIds].filter(Boolean) : node.content.kind === "link" ? [node.content.imageAssetId].filter(Boolean) : [];
-  return { id: node.id, projectId: node.projectId, type: node.type, title: node.title, contentKind: node.contentKind, content, properties: node.properties, archived: node.archived, createdAt: node.createdAt, updatedAt: node.updatedAt, assets: assetIds.map((id) => store.getAsset(id)).filter(Boolean) };
-}
-function readProjectManifest(store, projectId) {
-  const project = store.getProject(projectId);
-  if (!project) throw new Error("PROJECT_NOT_FOUND");
-  const scenePack = getScenePack(project.scenePackId, project.scenePackVersion);
-  return { project, scenePack, views: store.listProjectViews(projectId, "active").map((view) => ({ ...view, viewId: view.id, viewName: view.name, layoutRevision: store.getLayout(projectId, view.id)?.layoutRevision ?? 0 })) };
-}
-function readProjectGraph(store, projectId, viewId) {
-  const project = store.getProject(projectId);
-  if (!project) throw new Error("PROJECT_NOT_FOUND");
-  const graph = store.getGraph(projectId);
-  const layout = store.getLayout(projectId, viewId ?? project.defaultViewId);
-  if (!layout) throw new Error("LAYOUT_NOT_FOUND");
-  const nodes = graph.nodes.filter((node) => !node.archived);
-  const nodeIds = new Set(nodes.map((node) => node.id));
-  const edges = graph.edges.filter((edge) => !edge.archived && nodeIds.has(edge.sourceNodeId) && nodeIds.has(edge.targetNodeId));
-  return { project, nodes: nodes.map((node) => summarizeNode(store, node)), edges, layout };
-}
-function queryGraph(store, projectId, filter) {
-  const graph = store.getGraph(projectId);
-  let nodes = graph.nodes.filter((node) => !node.archived);
-  if (filter.nodeIds?.length) nodes = nodes.filter((node) => filter.nodeIds.includes(node.id));
-  if (filter.nodeTypes?.length) nodes = nodes.filter((node) => filter.nodeTypes.includes(node.type));
-  if (filter.text) nodes = nodes.filter((node) => `${node.title}
-${node.body}`.toLowerCase().includes(filter.text.toLowerCase()));
-  nodes = nodes.slice(0, filter.limit ?? 50);
-  const ids = new Set(nodes.map((node) => node.id));
-  const edges = graph.edges.filter((edge) => ids.has(edge.sourceNodeId) || ids.has(edge.targetNodeId));
-  return { revision: graph.revision, nodes: nodes.map((node) => summarizeNode(store, node)), edges };
-}
-function readNodeContent(store, projectId, nodeId) {
-  const graph = store.getGraph(projectId);
-  const node = graph.nodes.find((candidate) => candidate.id === nodeId);
-  if (!node) throw new Error(`NODE_NOT_FOUND:${nodeId}`);
-  return { graphRevision: graph.revision, node };
-}
-
-// packages/mcp/src/tools/graph.ts
-function registerGraphTools(server2) {
-  server2.registerTool("weaver_get_project_graph", {
-    title: "Get Project Graph",
-    description: "Read graph content and one independent view layout.",
-    inputSchema: { ...projectSchema2.shape, viewId: external_exports.string().optional() },
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    _meta: { ui: { visibility: ["app"] } }
-  }, defineTool(async ({ workspaceDir, projectId, viewId }) => {
-    const output = withStore(workspaceDir, (store) => readProjectGraph(store, projectId, viewId));
-    track(workspaceDir, projectId);
-    return result(output, "Loaded graph summaries and layout. Use weaver_get_node_content for full Markdown.");
+    return result(mutateWithStore(args.workspaceDir, (store) => {
+      if (args.action === "claim" || args.action === "sync") return store.sessions.syncCanvas(canvasContextSnapshotSchema.parse({ ...required2(args.snapshot, "snapshot"), syncPurpose: args.action === "claim" ? "claim" : "state" }), chatSessionKey);
+      if (args.action === "switch") return store.sessions.switchBinding({ chatSessionKey, leaseId: required2(args.leaseId, "leaseId"), bindingRevision: required2(args.bindingRevision, "bindingRevision"), projectId: required2(args.projectId, "projectId"), viewId: required2(args.viewId, "viewId") });
+      const projectId = required2(args.projectId, "projectId");
+      if (args.action === "create_node") return store.graphChanges.createNode({ projectId, viewId: required2(args.viewId, "viewId"), type: required2(args.semanticType, "semanticType"), title: required2(args.title, "title"), content: nodeContentSchema.parse(args.content), x: args.x ?? 0, y: args.y ?? 0 });
+      if (args.action === "update_node") return store.graphChanges.updateNode({ projectId, nodeId: required2(args.nodeId, "nodeId"), baseGraphRevision: required2(args.baseGraphRevision, "baseGraphRevision"), title: args.title, type: args.semanticType, content: args.content ? nodeContentSchema.parse(args.content) : void 0 });
+      if (args.action === "archive_node") return store.graphChanges.archiveNode({ projectId, nodeId: required2(args.nodeId, "nodeId"), baseGraphRevision: required2(args.baseGraphRevision, "baseGraphRevision") });
+      if (args.action === "attach_asset") return store.graphChanges.attachAsset({ projectId, nodeId: required2(args.nodeId, "nodeId"), assetId: required2(args.assetId, "assetId"), role: required2(args.role, "role"), baseGraphRevision: required2(args.baseGraphRevision, "baseGraphRevision") });
+      const viewId = required2(args.viewId, "viewId");
+      if (args.action === "revert_layout") return store.layoutReviews.revert(projectId, viewId);
+      const current = store.layoutReviews.get(projectId, viewId);
+      if (!current) throw new Error("LAYOUT_NOT_FOUND");
+      if (current.layoutRevision !== required2(args.baseLayoutRevision, "baseLayoutRevision")) throw new Error("LAYOUT_REVISION_CONFLICT");
+      return store.layoutReviews.save(applyLayoutOperations(current, required2(args.operations, "operations")), true, { operations: args.operations });
+    }));
   }));
-  server2.registerTool("weaver_get_node_content", {
-    title: "Get Full Node Content",
-    description: "Read the complete content of one Weaver node. Use this after graph discovery when full Markdown or media references are needed.",
-    inputSchema: { ...projectSchema2.shape, nodeId: external_exports.string().min(1) },
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    _meta: { ui: { visibility: ["app"] } }
-  }, defineTool(async ({ workspaceDir, projectId, nodeId }) => {
-    const output = withStore(workspaceDir, (store) => readNodeContent(store, projectId, nodeId));
-    return result(output);
+}
+
+// packages/mcp/src/tools/changesets.ts
+function registerChangesetsTools(server2, { mutateWithStore }) {
+  server2.registerTool("weaver_submit_changeset", {
+    title: "Submit ChangeSet",
+    description: "Submit auditable semantic Graph operations for review; never writes the Graph directly.",
+    inputSchema: { ...workspaceSchema.shape, changeSet: changeSetSchema },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }
+  }, defineTool(async ({ workspaceDir, changeSet }, extra) => {
+    const chatSessionKey = chatSessionKeyFromRequest(extra);
+    const validated = changeSetSchema.parse(changeSet);
+    return result(mutateWithStore(workspaceDir, (store) => {
+      store.tasks.assertChat(validated.taskId, chatSessionKey);
+      return store.graphChanges.submit(validated);
+    }), "Submitted ChangeSet.");
   }));
 }
 
@@ -128763,7 +128314,7 @@ import sharp2 from "sharp";
 async function importImageBytes(args) {
   const store = new WorkspaceStore(args.workspaceDir);
   try {
-    const output = await store.importImageAsset({ projectId: args.projectId, mimeType: args.mimeType, data: Buffer.from(args.base64, "base64") });
+    const output = await store.assets.importImage({ projectId: args.projectId, mimeType: args.mimeType, data: Buffer.from(args.base64, "base64") });
     return result({ assetId: output.asset.id, width: output.asset.width, height: output.asset.height, deduplicated: output.deduplicated }, output.deduplicated ? "Reused existing image asset." : "Imported image asset.");
   } finally {
     store.close();
@@ -128773,7 +128324,7 @@ async function importSvgImage(args) {
   const png = await sharp2(Buffer.from(args.svg), { density: Math.round(96 * args.scale) }).png().toBuffer();
   const store = new WorkspaceStore(args.workspaceDir);
   try {
-    const output = await store.importImageAsset({ projectId: args.projectId, mimeType: "image/png", data: png });
+    const output = await store.assets.importImage({ projectId: args.projectId, mimeType: "image/png", data: png });
     return result({ assetId: output.asset.id, width: output.asset.width, height: output.asset.height }, "Rendered SVG to image asset.");
   } finally {
     store.close();
@@ -128795,10 +128346,10 @@ var importAssetShape = {
 var importAssetSchema = external_exports.object(importAssetShape).superRefine((value, ctx) => {
   const fail = (message) => ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message });
   if (value.source === "bytes") {
-    if (!value.mimeType) fail("IMPORT_ASSET_REQUIRES_mimeType");
-    if (!value.base64) fail("IMPORT_ASSET_REQUIRES_base64");
+    if (!value.mimeType) fail("INVALID_ARGS:mimeType required");
+    if (!value.base64) fail("INVALID_ARGS:base64 required");
   } else {
-    if (!value.svg) fail("IMPORT_ASSET_REQUIRES_svg");
+    if (!value.svg) fail("INVALID_ARGS:svg required");
   }
 });
 function registerImportAssetTool(server2) {
@@ -128820,7 +128371,7 @@ function registerImportAssetTool(server2) {
 }
 
 // packages/mcp/src/tools/layout.ts
-import { randomUUID as randomUUID10 } from "node:crypto";
+import { randomUUID as randomUUID9 } from "node:crypto";
 
 // packages/layout-engine/src/engine.ts
 import { createHash as createHash6 } from "node:crypto";
@@ -129121,249 +128672,176 @@ async function generateLayoutCandidates(input) {
 }
 
 // packages/mcp/src/tools/layout.ts
-function registerLayoutTools(server2, ctx) {
-  const { eventHub: eventHub2, mutateWithStore } = ctx;
-  server2.registerTool("weaver_generate_layout_candidates", {
-    title: "Generate Layout Candidates",
-    description: "Validate an agent-authored semantic LayoutPlan, then let the deterministic engine calculate and score coordinates. The model must not provide final x/y positions.",
-    inputSchema: { ...workspaceSchema.shape, taskId: external_exports.string(), plan: external_exports.any() },
+function registerLayoutTools(server2, { eventHub: eventHub2, mutateWithStore }) {
+  server2.registerTool("weaver_recommend_layout", {
+    title: "Recommend Layout",
+    description: "Validate a semantic LayoutPlan and generate deterministic scored candidates; final coordinates are never model-authored.",
+    inputSchema: { ...workspaceSchema.shape, taskId: external_exports.string(), plan: external_exports.unknown() },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
-  }, async ({ workspaceDir, taskId, plan: rawPlan }, extra) => {
-    try {
-      const chatSessionKey = chatSessionKeyFromRequest(extra);
-      const output = await (async () => {
-        const store = new WorkspaceStore(workspaceDir);
-        try {
-          const task = store.assertTaskChat(taskId, chatSessionKey);
-          if (task.status !== "running") throw new Error(["completed", "stale", "failed", "cancelled"].includes(task.status) ? `TASK_TERMINAL:${task.status}` : `TASK_NOT_RUNNING:${task.status}`);
-          if (task.activeStage !== "layout") throw new Error(`TASK_STAGE_INVALID:${task.activeStage}`);
-          const plan = layoutPlanSchema.parse(rawPlan);
-          if (task.projectId !== plan.projectId) throw new Error("TASK_PROJECT_MISMATCH");
-          const graph = store.getGraph(plan.projectId);
-          if (graph.revision !== plan.baseGraphRevision) {
-            store.updateAgentTask(taskId, { status: "stale", error: { code: "GRAPH_REVISION_CONFLICT", message: `Expected graph r${plan.baseGraphRevision}, current r${graph.revision}` } });
-            throw new Error("GRAPH_REVISION_CONFLICT");
-          }
-          const current = store.getLayout(plan.projectId, plan.viewId);
-          if (!current) throw new Error("LAYOUT_NOT_FOUND");
-          if (current.layoutRevision !== plan.baseLayoutRevision) {
-            store.updateAgentTask(taskId, { status: "stale", error: { code: "LAYOUT_REVISION_CONFLICT", message: `Expected layout r${plan.baseLayoutRevision}, current r${current.layoutRevision}` } });
-            throw new Error("LAYOUT_REVISION_CONFLICT");
-          }
-          const layoutRunId = randomUUID10();
-          const project = store.getProject(plan.projectId);
-          const weights = project ? getScenePack(project.scenePackId, project.scenePackVersion)?.scoringWeights : void 0;
-          const candidates = await generateLayoutCandidates({ nodes: graph.nodes, edges: graph.edges, current, plan, layoutRunId, weights });
-          const run = store.saveLayoutRun({ id: layoutRunId, projectId: plan.projectId, viewId: plan.viewId, taskId, plan, candidates });
-          store.updateAgentTask(taskId, { status: "pending_review", activeStage: "layout", results: { ...task.results, layoutRunId: run.id } });
-          return { layoutRunId: run.id, candidates: candidates.map((candidate) => ({ id: candidate.id, label: candidate.label, metrics: candidate.metrics })) };
-        } finally {
-          store.close();
-        }
-      })();
-      eventHub2.notifyWorkspace(workspaceDir);
-      return result(output, `Generated ${output.candidates.length} deterministic layout candidates.`);
-    } catch (error51) {
-      return failure(error51);
-    }
-  });
-  server2.registerTool("weaver_get_layout_run", { title: "Get Layout Run", description: "Read layout candidates and quality metrics for the current chat-bound task.", inputSchema: { ...workspaceSchema.shape, layoutRunId: external_exports.string() }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } } }, defineTool(async ({ workspaceDir, layoutRunId }, extra) => {
+  }, defineTool(async ({ workspaceDir, taskId, plan: rawPlan }, extra) => {
     const chatSessionKey = chatSessionKeyFromRequest(extra);
-    return result(withStore(workspaceDir, (store) => readLayoutRun(store, layoutRunId, chatSessionKey)));
-  }));
-  server2.registerTool("weaver_apply_layout", { title: "Apply Layout Candidate", description: "Apply one valid preview candidate, archive the previous view layout, and increment layoutRevision without changing graphRevision.", inputSchema: { ...workspaceSchema.shape, layoutRunId: external_exports.string(), candidateId: external_exports.string() }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } } }, defineTool(async ({ workspaceDir, layoutRunId, candidateId }, extra) => {
-    const chatSessionKey = chatSessionKeyFromRequest(extra);
-    return result(mutateWithStore(workspaceDir, (store) => applyLayoutCandidate2(store, layoutRunId, candidateId, chatSessionKey)), "Applied layout candidate.");
-  }));
-  server2.registerTool("weaver_reject_layout", { title: "Reject Layout Run", description: "Reject a pending layout preview without changing graph or layout revisions.", inputSchema: { ...workspaceSchema.shape, layoutRunId: external_exports.string() }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } } }, defineTool(async ({ workspaceDir, layoutRunId }, extra) => {
-    const chatSessionKey = chatSessionKeyFromRequest(extra);
-    return result(mutateWithStore(workspaceDir, (store) => rejectLayoutRun2(store, layoutRunId, chatSessionKey)), "Rejected layout preview.");
-  }));
-  server2.registerTool("weaver_apply_layout_operations", { title: "Apply Manual Layout Operations", description: "Apply validated low-level layout operations from the widget, never graph mutations.", inputSchema: { ...projectSchema2.shape, viewId: external_exports.string(), baseLayoutRevision: external_exports.number().int().nonnegative(), operations: external_exports.array(layoutOperationSchema) }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } } }, defineTool(async ({ workspaceDir, projectId, viewId, baseLayoutRevision, operations }) => {
-    const next = mutateWithStore(workspaceDir, (store) => {
-      const current = store.getLayout(projectId, viewId);
+    const plan = layoutPlanSchema.parse(rawPlan);
+    const taskState = mutateWithStore(workspaceDir, (store) => {
+      const task2 = store.tasks.assertChat(taskId, chatSessionKey);
+      if (task2.status !== "running") throw new Error(`TASK_NOT_RUNNING:${task2.status}`);
+      if (task2.activeStage !== "layout") throw new Error("TASK_TRANSITION_INVALID:stage");
+      const graph = store.graphChanges.read(plan.projectId);
+      if (graph.revision !== plan.baseGraphRevision) throw new Error("GRAPH_REVISION_CONFLICT");
+      const current = store.layoutReviews.get(plan.projectId, plan.viewId);
       if (!current) throw new Error("LAYOUT_NOT_FOUND");
-      if (current.layoutRevision !== baseLayoutRevision) throw new Error("LAYOUT_REVISION_CONFLICT");
-      return store.saveLayout(applyLayoutOperations(current, operations), true, { operations });
+      if (current.layoutRevision !== plan.baseLayoutRevision) throw new Error("LAYOUT_REVISION_CONFLICT");
+      const project = store.catalog.getProject(plan.projectId);
+      const weights = project ? getScenePack(project.scenePackId, project.scenePackVersion)?.scoringWeights : void 0;
+      return { task: task2, graph, current, weights };
     });
-    return result(next);
+    const layoutRunId = randomUUID9();
+    const candidates = await generateLayoutCandidates({ nodes: taskState.graph.nodes, edges: taskState.graph.edges, current: taskState.current, plan, layoutRunId, weights: taskState.weights });
+    const output = mutateWithStore(workspaceDir, (store) => {
+      const run = store.layoutReviews.saveRun({ id: layoutRunId, projectId: plan.projectId, viewId: plan.viewId, taskId, plan, candidates });
+      store.tasks.update(taskId, { status: "pending_review", activeStage: "layout", results: { ...taskState.task.results, layoutRunId } });
+      return { layoutRunId: run.id, candidates: candidates.map(({ id, label, metrics }) => ({ id, label, metrics })) };
+    });
+    eventHub2.notifyWorkspace(workspaceDir);
+    return result(output, `Generated ${output.candidates.length} deterministic layout candidates.`);
   }));
-  server2.registerTool("weaver_revert_layout", { title: "Undo Layout", description: "Restore the previous archived layout as a new layout revision.", inputSchema: { ...projectSchema2.shape, viewId: external_exports.string() }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } } }, defineTool(async ({ workspaceDir, projectId, viewId }) => result(mutateWithStore(workspaceDir, (store) => revertLayout2(store, projectId, viewId)), "Restored previous layout.")));
-}
-
-// packages/mcp/src/shared/manage-view.ts
-var defaultStrategyByView = {
-  canvas: "hybrid",
-  tree: "tree",
-  graph: "force",
-  board: "swimlane",
-  timeline: "timeline",
-  flow: "layered",
-  table: "grid"
-};
-function assertViewMutationContext(store, projectId, chatSessionKey, lease) {
-  if (!chatSessionKey) return;
-  const binding = store.getChatCanvasBinding(chatSessionKey);
-  if (!binding || binding.projectId !== projectId) throw new Error("NO_CANVAS_BOUND_TO_CHAT");
-  if (lease?.leaseId && (binding.leaseId !== lease.leaseId || binding.bindingRevision !== lease.bindingRevision)) throw new Error("CHAT_CANVAS_LEASE_STALE");
-}
-function openOrCreateView(args) {
-  const output = withStore(args.workspaceDir, (store) => {
-    const project = store.getProject(args.projectId);
-    if (!project) throw new Error("PROJECT_NOT_FOUND");
-    const scene = getScenePack(project.scenePackId, project.scenePackVersion);
-    if (!scene) throw new Error("SCENE_PACK_NOT_FOUND");
-    if (!scene.recommendedViews.includes(args.viewType)) throw new Error(`VIEW_NOT_RECOMMENDED:${args.viewType}`);
-    const strategy = scene.defaultView === args.viewType ? scene.defaultStrategy : defaultStrategyByView[args.viewType];
-    return store.ensureView({ projectId: args.projectId, viewId: `${args.viewType}-default`, viewType: args.viewType, strategy });
-  });
-  track(args.workspaceDir, args.projectId);
-  return result(output, `Opened ${args.viewType} view.`);
-}
-function duplicateView(mutateWithStore, args) {
-  return result(mutateWithStore(args.workspaceDir, (store) => {
-    assertViewMutationContext(store, args.projectId, args.chatSessionKey, { leaseId: args.leaseId, bindingRevision: args.bindingRevision });
-    return store.duplicateProjectView({ projectId: args.projectId, viewId: args.viewId, name: args.name, baseCatalogRevision: args.baseCatalogRevision });
-  }));
-}
-function createViewFromTemplate(mutateWithStore, args) {
-  const template = getVisualTemplate(args.templateId, args.version);
-  if (!template) throw new Error("VISUAL_TEMPLATE_NOT_FOUND");
-  const output = mutateWithStore(args.workspaceDir, (store) => {
-    const project = store.getProject(args.projectId);
-    if (!project) throw new Error("PROJECT_NOT_FOUND");
-    const scene = getScenePack(project.scenePackId, project.scenePackVersion);
-    if (!scene) throw new Error("SCENE_PACK_NOT_FOUND");
-    const validation = validateVisualTemplateForProject(template, scene, store.getGraph(args.projectId).nodes);
-    if (!validation.compatible) throw new Error("VISUAL_TEMPLATE_SCENE_INCOMPATIBLE");
-    if (!validation.ready) throw new Error("VISUAL_TEMPLATE_DATA_NOT_READY");
-    const currentBinding = args.chatSessionKey ? store.getChatCanvasBinding(args.chatSessionKey) : null;
-    if (args.chatSessionKey && (!currentBinding || currentBinding.projectId !== args.projectId)) throw new Error("NO_CANVAS_BOUND_TO_CHAT");
-    const layout = store.createViewFromVisualTemplate({ projectId: args.projectId, template, baseGraphRevision: args.baseGraphRevision, viewName: args.viewName, chatBinding: args.chatSessionKey && currentBinding ? { chatSessionKey: args.chatSessionKey, leaseId: currentBinding.leaseId, bindingRevision: currentBinding.bindingRevision } : void 0 });
-    const binding2 = args.chatSessionKey ? store.getChatCanvasBinding(args.chatSessionKey) : void 0;
-    return { layout, binding: binding2 };
-  });
-  track(args.workspaceDir, args.projectId);
-  const binding = output.binding ? { leaseId: output.binding.leaseId, bindingRevision: output.binding.bindingRevision, projectId: output.binding.projectId, viewId: output.binding.viewId } : void 0;
-  return result({ ...output.layout, chatBinding: binding }, `Created ${output.layout.viewName}.`);
 }
 
 // packages/mcp/src/tools/manage-view.ts
-var manageViewShape = {
-  ...workspaceSchema.shape,
-  projectId: external_exports.string(),
-  action: external_exports.enum(["open_or_create", "duplicate", "create_from_template"]),
-  // open_or_create:
-  viewType: external_exports.string().optional(),
-  // duplicate:
-  viewId: external_exports.string().optional(),
-  name: external_exports.string().optional(),
-  baseCatalogRevision: external_exports.number().int().optional(),
-  // create_from_template:
-  templateId: external_exports.string().optional(),
-  version: external_exports.string().optional(),
-  baseGraphRevision: external_exports.number().int().optional(),
-  viewName: external_exports.string().optional(),
-  // binding (duplicate):
-  leaseId: external_exports.string().optional(),
-  bindingRevision: external_exports.number().int().optional()
-};
-var manageViewSchema = external_exports.object(manageViewShape).superRefine((value, ctx) => {
-  const fail = (message) => ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message });
-  if (value.action === "open_or_create") {
-    if (!value.viewType) fail("MANAGE_VIEW_REQUIRES_viewType");
-  } else if (value.action === "duplicate") {
-    if (!value.viewId) fail("MANAGE_VIEW_REQUIRES_viewId");
-    if (value.baseCatalogRevision === void 0) fail("MANAGE_VIEW_REQUIRES_baseCatalogRevision");
-  } else {
-    if (!value.templateId) fail("MANAGE_VIEW_REQUIRES_templateId");
-    if (value.baseGraphRevision === void 0) fail("MANAGE_VIEW_REQUIRES_baseGraphRevision");
-  }
-});
-function registerManageViewTool(server2, ctx) {
-  const { mutateWithStore } = ctx;
-  server2.registerTool("weaver_manage_view", {
-    title: "Manage View",
-    description: 'Open, duplicate or template a Project View. `action:"open_or_create"` + `viewType` opens the stored default projection for one of the seven view types (no graph change). `action:"duplicate"` + `viewId` + `baseCatalogRevision` makes an independent layout copy over the same graph. `action:"create_from_template"` + `templateId` (+`version`) + `baseGraphRevision` creates a new themed View from a compatible visual template without touching graphRevision or existing views.',
-    inputSchema: manageViewShape,
-    // idempotentHint:false — duplicate and create_from_template mint a NEW view on
-    // every call (not idempotent). Only open_or_create is idempotent; a single
-    // static hint cannot be true across the union, so use the conservative false
-    // (C4 lesson: an honest annotation for a non-idempotent write union).
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
-  }, defineTool(async (rawArgs, extra) => {
-    const args = parseRefined(manageViewSchema, rawArgs);
+function registerManageViewTool(server2, { mutateWithStore }) {
+  const shape = {
+    ...workspaceSchema.shape,
+    action: external_exports.enum(["create_project", "create_project_from_template", "create_view_from_template", "duplicate_view", "rename_view", "pin_view", "reorder_views", "set_default_view", "trash_view", "restore_view", "purge_view"]),
+    projectId: external_exports.string().optional(),
+    viewId: external_exports.string().optional(),
+    title: external_exports.string().optional(),
+    goal: external_exports.string().optional(),
+    scenePackId: external_exports.string().optional(),
+    templateId: external_exports.string().optional(),
+    version: external_exports.string().optional(),
+    name: external_exports.string().optional(),
+    viewName: external_exports.string().optional(),
+    pinned: external_exports.boolean().optional(),
+    viewIds: external_exports.array(external_exports.string()).optional(),
+    fallbackViewId: external_exports.string().optional(),
+    baseGraphRevision: external_exports.number().int().nonnegative().optional(),
+    baseCatalogRevision: external_exports.number().int().nonnegative().optional(),
+    leaseId: external_exports.string().optional(),
+    bindingRevision: external_exports.number().int().positive().optional()
+  };
+  server2.registerTool("weaver_catalog_action", {
+    title: "Catalog Action",
+    description: "Create Projects and manage durable Views/Templates through one audited catalog action.",
+    inputSchema: shape,
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false }
+  }, defineTool(async (args, extra) => {
+    catalogActionSchema.parse(args);
     const chatSessionKey = chatSessionKeyFromRequest(extra, false);
-    switch (args.action) {
-      case "open_or_create":
-        return openOrCreateView({ workspaceDir: args.workspaceDir, projectId: args.projectId, viewType: args.viewType });
-      case "duplicate":
-        return duplicateView(mutateWithStore, { workspaceDir: args.workspaceDir, projectId: args.projectId, viewId: args.viewId, name: args.name, baseCatalogRevision: args.baseCatalogRevision, leaseId: args.leaseId, bindingRevision: args.bindingRevision, chatSessionKey });
-      case "create_from_template":
-        return createViewFromTemplate(mutateWithStore, { workspaceDir: args.workspaceDir, projectId: args.projectId, templateId: args.templateId, version: args.version ?? "1.0.0", baseGraphRevision: args.baseGraphRevision, viewName: args.viewName, chatSessionKey });
+    return result(mutateWithStore(args.workspaceDir, (store) => {
+      const required2 = (value, name) => {
+        if (value === void 0 || value === "") throw new Error(`INVALID_ARGS:${name} required`);
+        return value;
+      };
+      if (args.action === "create_project") {
+        const scene = getScenePack(required2(args.scenePackId, "scenePackId"));
+        if (!scene) throw new Error("CATALOG_INVALID:scene pack");
+        return store.catalog.createSeededProject({ title: required2(args.title, "title"), goal: args.goal ?? "", scenePack: scene, chatSessionKey });
+      }
+      if (args.action === "create_project_from_template") {
+        const scene = getScenePack(required2(args.scenePackId, "scenePackId"));
+        const template = getVisualTemplate(required2(args.templateId, "templateId"), args.version);
+        if (!scene || !template) throw new Error("VISUAL_TEMPLATE_NOT_FOUND");
+        return store.catalog.createProjectFromTemplate({ title: required2(args.title, "title"), goal: args.goal ?? "", scenePack: scene, template, chatBinding: chatSessionKey ? { chatSessionKey } : void 0 });
+      }
+      const projectId = required2(args.projectId, "projectId");
+      if (args.action === "create_view_from_template") {
+        const template = getVisualTemplate(required2(args.templateId, "templateId"), args.version);
+        if (!template) throw new Error("VISUAL_TEMPLATE_NOT_FOUND");
+        return store.catalog.createViewFromTemplate({ projectId, template, baseGraphRevision: required2(args.baseGraphRevision, "baseGraphRevision"), viewName: args.viewName, chatBinding: chatSessionKey && args.leaseId && args.bindingRevision ? { chatSessionKey, leaseId: args.leaseId, bindingRevision: args.bindingRevision } : void 0 });
+      }
+      const base = required2(args.baseCatalogRevision, "baseCatalogRevision");
+      if (args.action === "reorder_views") return store.catalog.reorderViews({ projectId, viewIds: required2(args.viewIds, "viewIds"), baseCatalogRevision: base });
+      const viewId = required2(args.viewId, "viewId");
+      switch (args.action) {
+        case "duplicate_view":
+          return store.catalog.duplicateView({ projectId, viewId, name: args.name, baseCatalogRevision: base });
+        case "rename_view":
+          return store.catalog.renameView({ projectId, viewId, name: required2(args.name, "name"), baseCatalogRevision: base });
+        case "pin_view":
+          return store.catalog.pinView({ projectId, viewId, pinned: args.pinned ?? true, baseCatalogRevision: base });
+        case "set_default_view":
+          return store.catalog.setDefaultView({ projectId, viewId, baseCatalogRevision: base });
+        case "trash_view":
+          return store.catalog.trashView({ projectId, viewId, fallbackViewId: args.fallbackViewId, baseCatalogRevision: base });
+        case "restore_view":
+          return store.catalog.restoreView({ projectId, viewId, baseCatalogRevision: base });
+        case "purge_view":
+          return store.catalog.purgeView({ projectId, viewId, baseCatalogRevision: base });
+        default:
+          throw new Error("INVALID_ARGS:unsupported catalog action");
+      }
+    }));
+  }));
+}
+
+// packages/mcp/src/shared/catalog-reads.ts
+function listProjects2(store) {
+  return store.catalog.listProjects();
+}
+function listProjectViews2(store, projectId, status) {
+  return store.catalog.listViews(projectId, status).map((view) => ({ ...view, nodeCount: Object.keys(store.layoutReviews.get(projectId, view.id)?.nodes ?? {}).length }));
+}
+function searchProjectViews2(store, projectId, query = "", status = "active") {
+  return store.catalog.searchViews(projectId, query, status).map((view) => ({ ...view, nodeCount: Object.keys(store.layoutReviews.get(projectId, view.id)?.nodes ?? {}).length }));
+}
+function getProjectView2(store, projectId, viewId) {
+  const view = store.catalog.getView(projectId, viewId);
+  if (!view) throw new Error("VIEW_NOT_FOUND");
+  return view;
+}
+function listVisualTemplates(filter = {}) {
+  return builtinVisualTemplates.filter((item) => (!filter.scenePackId || item.compatibleScenePackIds.includes(filter.scenePackId)) && (!filter.family || item.family === filter.family) && (!filter.renderer || item.renderer === filter.renderer));
+}
+function readVisualTemplate(templateId, version2 = "1.0.0") {
+  const item = getVisualTemplate(templateId, version2);
+  if (!item) throw new Error("VISUAL_TEMPLATE_NOT_FOUND");
+  return item;
+}
+function readArtifact(store, artifactId) {
+  const artifact = store.artifacts.get(artifactId);
+  if (!artifact) throw new Error("ARTIFACT_NOT_FOUND");
+  return artifact;
+}
+function readAssetMetadata(store, projectId, assetId) {
+  const asset = store.assets.get(assetId);
+  if (!asset || asset.projectId !== projectId) throw new Error("ASSET_NOT_FOUND_OR_CROSS_PROJECT");
+  return asset;
+}
+function previewChangeSet(store, changeSetId, chatSessionKey) {
+  const item = store.graphChanges.get(changeSetId);
+  if (!item) throw new Error("CHANGESET_NOT_FOUND");
+  store.tasks.assertChat(item.taskId, chatSessionKey, false);
+  const project = store.catalog.getProject(item.projectId);
+  if (!project) throw new Error("PROJECT_NOT_FOUND");
+  return {
+    changeSet: item,
+    stale: project.graphRevision !== item.baseGraphRevision,
+    currentGraphRevision: project.graphRevision,
+    summary: {
+      addedNodes: item.graphOperations.filter((op) => op.type === "add-node").length,
+      updatedNodes: item.graphOperations.filter((op) => ["update-node", "set-node-content", "attach-asset", "detach-asset", "set-node-cover"].includes(op.type)).length,
+      archivedNodes: item.graphOperations.filter((op) => op.type === "archive-node").length,
+      addedEdges: item.graphOperations.filter((op) => op.type === "add-edge").length,
+      updatedEdges: item.graphOperations.filter((op) => op.type === "update-edge").length,
+      archivedEdges: item.graphOperations.filter((op) => op.type === "archive-edge").length,
+      layoutOperations: item.layoutOperations.length
     }
-  }));
+  };
 }
-
-// packages/mcp/src/shared/create-project.ts
-function createProjectFromTemplate(mutateWithStore, args) {
-  const scene = getScenePack(args.scenePackId);
-  if (!scene) throw new Error("SCENE_PACK_NOT_FOUND");
-  const template = getVisualTemplate(args.templateId, args.version);
-  if (!template) throw new Error("VISUAL_TEMPLATE_NOT_FOUND");
-  const output = mutateWithStore(args.workspaceDir, (store) => store.createProjectFromVisualTemplate({
-    title: args.title,
-    goal: args.goal,
-    scenePack: scene,
-    template,
-    automationLevel: args.automationLevel,
-    chatBinding: args.chatSessionKey ? { chatSessionKey: args.chatSessionKey, leaseId: args.leaseId, bindingRevision: args.bindingRevision } : void 0
-  }));
-  track(args.workspaceDir, output.project.id);
-  const binding = output.binding ? { leaseId: output.binding.leaseId, bindingRevision: output.binding.bindingRevision, projectId: output.binding.projectId, viewId: output.binding.viewId } : void 0;
-  return result({ ...output, binding }, `Created ${args.title} from ${template.name}.`);
-}
-
-// packages/mcp/src/tools/projects.ts
-function registerProjectsTools(server2, ctx) {
-  const { mutateWithStore } = ctx;
-  server2.registerTool("weaver_list_projects", {
-    title: "List Weaver Projects",
-    description: "List projects stored in <workspaceDir>/.weaver.",
-    inputSchema: workspaceSchema.shape,
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    _meta: { ui: { visibility: ["app"] } }
-  }, defineTool(async ({ workspaceDir }) => {
-    const projects = withStore(workspaceDir, (store) => listProjects2(store));
-    projects.forEach((project) => track(workspaceDir, project.id));
-    return result(projects, `${projects.length} Weaver projects.`);
-  }));
-  server2.registerTool("weaver_create_project", {
-    title: "Create Weaver Project",
-    description: "Create a project pinned to one scene-pack version. Without `template`, seeds one semantic root node. With `template:{templateId,version}`, atomically creates a starter content graph and themed default view from that compatible visual template.",
-    inputSchema: { ...workspaceSchema.shape, title: external_exports.string().min(1), goal: external_exports.string().default(""), scenePackId: external_exports.string().default("free-brainstorming"), automationLevel: external_exports.enum(["cautious", "collaborative", "automatic"]).default("collaborative"), template: external_exports.object({ templateId: external_exports.string(), version: external_exports.string().default("1.0.0") }).optional(), leaseId: external_exports.string().regex(/^[a-f0-9]{64}$/).optional(), bindingRevision: external_exports.number().int().positive().optional() },
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
-  }, defineTool(async ({ workspaceDir, title, goal, scenePackId, automationLevel, template, leaseId, bindingRevision }, extra) => {
-    const chatSessionKey = chatSessionKeyFromRequest(extra, false);
-    if (template) return createProjectFromTemplate(mutateWithStore, { workspaceDir, title, goal, scenePackId, templateId: template.templateId, version: template.version, automationLevel, chatSessionKey, leaseId, bindingRevision });
-    const scene = getScenePack(scenePackId);
-    if (!scene) throw new Error(`SCENE_PACK_NOT_FOUND:${scenePackId}`);
-    const created = mutateWithStore(workspaceDir, (store) => store.createSeededProject({ title, goal, scenePack: scene, automationLevel, chatSessionKey }));
-    track(workspaceDir, created.project.id);
-    const binding = created.binding ? { leaseId: created.binding.leaseId, bindingRevision: created.binding.bindingRevision, projectId: created.binding.projectId, viewId: created.binding.viewId } : void 0;
-    return result({ ...created.project, binding }, `Created ${created.project.title}.`);
-  }));
-  server2.registerTool("weaver_get_project_manifest", {
-    title: "Get Project Manifest",
-    description: "Get a project's pinned scene rules, available node/edge types, views, artifacts, revisions and automation level.",
-    inputSchema: projectSchema2.shape,
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    _meta: { ui: { visibility: ["app"] } }
-  }, defineTool(async ({ workspaceDir, projectId }) => {
-    const output = withStore(workspaceDir, (store) => readProjectManifest(store, projectId));
-    track(workspaceDir, projectId);
-    return result(output);
-  }));
+function readLayoutRun(store, layoutRunId, chatSessionKey) {
+  const item = store.layoutReviews.getRun(layoutRunId);
+  if (!item) throw new Error("LAYOUT_RUN_NOT_FOUND");
+  if (item.taskId) store.tasks.assertChat(item.taskId, chatSessionKey, false);
+  return item;
 }
 
 // packages/mcp/src/tools/read-catalog.ts
@@ -129374,7 +128852,7 @@ function registerReadCatalogTool(server2) {
     description: "Browse a workspace's catalog: projects (`project.list`), saved Views (`view.list` / `view.search` / `view.get`), built-in visual templates (`template.list` / `template.get`), a generated artifact (`artifact.get`), or an image asset's safe metadata (`asset.metadata`). Pick one via `resource`.",
     inputSchema: {
       ...workspaceSchema.shape,
-      resource: external_exports.enum(["project.list", "view.list", "view.search", "view.get", "template.list", "template.get", "artifact.get", "asset.metadata"]),
+      resource: external_exports.enum(["project.list", "view.list", "view.search", "view.get", "template.list", "template.get", "template.validate", "template.preview", "artifact.get", "asset.metadata", "asset.preview"]),
       projectId: external_exports.string().optional(),
       viewId: external_exports.string().optional(),
       assetId: external_exports.string().optional(),
@@ -129385,10 +128863,12 @@ function registerReadCatalogTool(server2) {
       status: external_exports.enum(["active", "trashed"]).optional(),
       scenePackId: external_exports.string().optional(),
       family: templateFamilySchema.optional(),
-      renderer: viewTypeSchema.optional()
+      renderer: viewTypeSchema.optional(),
+      baseGraphRevision: external_exports.number().int().nonnegative().optional(),
+      viewName: external_exports.string().optional()
     },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
-  }, defineTool(async ({ workspaceDir, resource, projectId, viewId, assetId, artifactId, templateId, version: version2, query, status, scenePackId, family, renderer }) => {
+  }, defineTool(async ({ workspaceDir, resource, projectId, viewId, assetId, artifactId, templateId, version: version2, query, status, scenePackId, family, renderer, baseGraphRevision, viewName }) => {
     switch (resource) {
       case "project.list": {
         const projects = withStore(workspaceDir, (store) => listProjects2(store));
@@ -129396,82 +128876,105 @@ function registerReadCatalogTool(server2) {
         return result(projects, `${projects.length} Weaver projects.`);
       }
       case "view.list": {
-        if (!projectId) throw new Error("CATALOG_RESOURCE_REQUIRES_projectId");
+        if (!projectId) throw new Error("INVALID_ARGS:projectId required");
         return result(withStore(workspaceDir, (store) => listProjectViews2(store, projectId, status)));
       }
       case "view.search": {
-        if (!projectId) throw new Error("CATALOG_RESOURCE_REQUIRES_projectId");
+        if (!projectId) throw new Error("INVALID_ARGS:projectId required");
         return result(withStore(workspaceDir, (store) => searchProjectViews2(store, projectId, query ?? "", status ?? "active")));
       }
       case "view.get": {
-        if (!projectId) throw new Error("CATALOG_RESOURCE_REQUIRES_projectId");
-        if (!viewId) throw new Error("CATALOG_RESOURCE_REQUIRES_viewId");
+        if (!projectId) throw new Error("INVALID_ARGS:projectId required");
+        if (!viewId) throw new Error("INVALID_ARGS:viewId required");
         return result(withStore(workspaceDir, (store) => getProjectView2(store, projectId, viewId)));
       }
       case "template.list": {
         return result(listVisualTemplates({ scenePackId, family, renderer }));
       }
       case "template.get": {
-        if (!templateId) throw new Error("CATALOG_RESOURCE_REQUIRES_templateId");
+        if (!templateId) throw new Error("INVALID_ARGS:templateId required");
         return result(readVisualTemplate(templateId, version2 ?? "1.0.0"));
       }
+      case "template.validate": {
+        if (!projectId || !templateId) throw new Error("INVALID_ARGS:projectId and templateId required");
+        return result(withStore(workspaceDir, (store) => {
+          const project = store.catalog.getProject(projectId);
+          if (!project) throw new Error("PROJECT_NOT_FOUND");
+          const scene = getScenePack(project.scenePackId, project.scenePackVersion);
+          const template = getVisualTemplate(templateId, version2);
+          if (!scene || !template) throw new Error("VISUAL_TEMPLATE_NOT_FOUND");
+          return validateVisualTemplateForProject(template, scene, store.graphChanges.read(projectId).nodes);
+        }));
+      }
+      case "template.preview": {
+        if (!projectId || !templateId || baseGraphRevision === void 0) throw new Error("INVALID_ARGS:projectId, templateId and baseGraphRevision required");
+        return result(withStore(workspaceDir, (store) => {
+          const template = getVisualTemplate(templateId, version2);
+          if (!template) throw new Error("VISUAL_TEMPLATE_NOT_FOUND");
+          return store.catalog.previewTemplate({ projectId, template, baseGraphRevision, viewName });
+        }));
+      }
       case "artifact.get": {
-        if (!artifactId) throw new Error("CATALOG_RESOURCE_REQUIRES_artifactId");
+        if (!artifactId) throw new Error("INVALID_ARGS:artifactId required");
         return result(withStore(workspaceDir, (store) => readArtifact(store, artifactId)));
       }
       case "asset.metadata": {
-        if (!projectId) throw new Error("CATALOG_RESOURCE_REQUIRES_projectId");
-        if (!assetId) throw new Error("CATALOG_RESOURCE_REQUIRES_assetId");
+        if (!projectId) throw new Error("INVALID_ARGS:projectId required");
+        if (!assetId) throw new Error("INVALID_ARGS:assetId required");
         return result(withStore(workspaceDir, (store) => readAssetMetadata(store, projectId, assetId)));
+      }
+      case "asset.preview": {
+        if (!projectId || !assetId) throw new Error("INVALID_ARGS:projectId and assetId required");
+        return result(withStore(workspaceDir, (store) => {
+          const item = store.assets.read(assetId, true);
+          if (item.asset.projectId !== projectId) throw new Error("ASSET_NOT_FOUND_OR_CROSS_PROJECT");
+          return { assetId, dataUrl: `data:image/webp;base64,${Buffer.from(item.data).toString("base64")}` };
+        }));
       }
     }
   }));
 }
-function registerReadReviewTool(server2) {
-  server2.registerTool("weaver_read_review", {
-    title: "Read Review",
-    description: "Review a proposed change: list/read/preview a ChangeSet (`changeset.list` / `changeset.get` / `changeset.preview`), read one view's layout (`layout.get`), read a layout run's candidates and metrics (`layout.run`), or read the available layout strategies and constraints (`layout.capabilities`). Pick one via `resource`.",
-    inputSchema: {
-      ...workspaceSchema.shape,
-      resource: external_exports.enum(["changeset.list", "changeset.get", "changeset.preview", "layout.get", "layout.run", "layout.capabilities"]),
-      projectId: external_exports.string().optional(),
-      viewId: external_exports.string().optional(),
-      changeSetId: external_exports.string().optional(),
-      layoutRunId: external_exports.string().optional(),
-      status: external_exports.enum(["pending", "applied", "rejected", "reverted"]).optional()
-    },
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
-  }, defineTool(async ({ workspaceDir, resource, projectId, viewId, changeSetId, layoutRunId, status }, extra) => {
-    switch (resource) {
-      case "changeset.list": {
-        if (!projectId) throw new Error("REVIEW_RESOURCE_REQUIRES_projectId");
-        return result(withStore(workspaceDir, (store) => listChangeSets2(store, projectId, status)));
-      }
-      case "changeset.get": {
-        if (!changeSetId) throw new Error("REVIEW_RESOURCE_REQUIRES_changeSetId");
-        const chatSessionKey = chatSessionKeyFromRequest(extra);
-        return result(withStore(workspaceDir, (store) => readChangeSet(store, changeSetId, chatSessionKey)));
-      }
-      case "changeset.preview": {
-        if (!changeSetId) throw new Error("REVIEW_RESOURCE_REQUIRES_changeSetId");
-        const chatSessionKey = chatSessionKeyFromRequest(extra);
-        return result(withStore(workspaceDir, (store) => previewChangeSet(store, changeSetId, chatSessionKey)));
-      }
-      case "layout.get": {
-        if (!projectId) throw new Error("REVIEW_RESOURCE_REQUIRES_projectId");
-        if (!viewId) throw new Error("REVIEW_RESOURCE_REQUIRES_viewId");
-        return result(withStore(workspaceDir, (store) => readLayout(store, projectId, viewId)));
-      }
-      case "layout.run": {
-        if (!layoutRunId) throw new Error("REVIEW_RESOURCE_REQUIRES_layoutRunId");
-        const chatSessionKey = chatSessionKeyFromRequest(extra);
-        return result(withStore(workspaceDir, (store) => readLayoutRun(store, layoutRunId, chatSessionKey)));
-      }
-      case "layout.capabilities": {
-        return result(layoutCapabilities());
-      }
-    }
-  }));
+
+// packages/mcp/src/shared/graph-reads.ts
+function summarizeNode(store, node) {
+  const content = node.content.kind === "document" ? { ...node.content, markdown: void 0 } : node.content;
+  const assetIds = node.content.kind === "image" ? [node.content.assetId] : node.content.kind === "document" ? [node.content.coverAssetId, ...node.content.embeddedAssetIds].filter(Boolean) : node.content.kind === "link" ? [node.content.imageAssetId].filter(Boolean) : [];
+  return { id: node.id, projectId: node.projectId, type: node.type, title: node.title, contentKind: node.contentKind, content, properties: node.properties, archived: node.archived, createdAt: node.createdAt, updatedAt: node.updatedAt, assets: assetIds.map((id) => store.assets.get(id)).filter(Boolean) };
+}
+function readProjectManifest(store, projectId) {
+  const project = store.catalog.getProject(projectId);
+  if (!project) throw new Error("PROJECT_NOT_FOUND");
+  const scenePack = getScenePack(project.scenePackId, project.scenePackVersion);
+  return { project, scenePack, views: store.catalog.listViews(projectId, "active").map((view) => ({ ...view, viewId: view.id, viewName: view.name, layoutRevision: store.layoutReviews.get(projectId, view.id)?.layoutRevision ?? 0 })) };
+}
+function readProjectGraph(store, projectId, viewId) {
+  const project = store.catalog.getProject(projectId);
+  if (!project) throw new Error("PROJECT_NOT_FOUND");
+  const graph = store.graphChanges.read(projectId);
+  const layout = store.layoutReviews.get(projectId, viewId ?? project.defaultViewId);
+  if (!layout) throw new Error("LAYOUT_NOT_FOUND");
+  const nodes = graph.nodes.filter((node) => !node.archived);
+  const nodeIds = new Set(nodes.map((node) => node.id));
+  const edges = graph.edges.filter((edge) => !edge.archived && nodeIds.has(edge.sourceNodeId) && nodeIds.has(edge.targetNodeId));
+  return { project, nodes: nodes.map((node) => summarizeNode(store, node)), edges, layout };
+}
+function queryGraph(store, projectId, filter) {
+  const graph = store.graphChanges.read(projectId);
+  let nodes = graph.nodes.filter((node) => !node.archived);
+  if (filter.nodeIds?.length) nodes = nodes.filter((node) => filter.nodeIds.includes(node.id));
+  if (filter.nodeTypes?.length) nodes = nodes.filter((node) => filter.nodeTypes.includes(node.type));
+  if (filter.text) nodes = nodes.filter((node) => `${node.title}
+${node.content.kind === "document" ? node.content.markdown : node.content.kind === "link" ? node.content.description : node.content.kind === "chart" ? node.content.title : node.content.caption}`.toLowerCase().includes(filter.text.toLowerCase()));
+  nodes = nodes.slice(0, filter.limit ?? 50);
+  const ids = new Set(nodes.map((node) => node.id));
+  const edges = graph.edges.filter((edge) => ids.has(edge.sourceNodeId) || ids.has(edge.targetNodeId));
+  return { revision: graph.revision, nodes: nodes.map((node) => summarizeNode(store, node)), edges };
+}
+function readNodeContent(store, projectId, nodeId) {
+  const graph = store.graphChanges.read(projectId);
+  const node = graph.nodes.find((candidate) => candidate.id === nodeId);
+  if (!node) throw new Error(`NODE_NOT_FOUND:${nodeId}`);
+  return { graphRevision: graph.revision, node };
 }
 
 // packages/mcp/src/tools/read-graph.ts
@@ -129492,7 +128995,7 @@ function registerReadGraphTool(server2) {
     },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
   }, defineTool(async ({ workspaceDir, resource, projectId, viewId, nodeId, nodeIds, nodeTypes, text, limit }) => {
-    if (!projectId) throw new Error("GRAPH_RESOURCE_REQUIRES_projectId");
+    if (!projectId) throw new Error("INVALID_ARGS:projectId required");
     switch (resource) {
       case "manifest": {
         const output = withStore(workspaceDir, (store) => readProjectManifest(store, projectId));
@@ -129509,12 +129012,33 @@ function registerReadGraphTool(server2) {
         return result(output);
       }
       case "node": {
-        if (!nodeId) throw new Error("GRAPH_RESOURCE_REQUIRES_nodeId");
+        if (!nodeId) throw new Error("INVALID_ARGS:nodeId required");
         const output = withStore(workspaceDir, (store) => readNodeContent(store, projectId, nodeId));
         return result(output);
       }
     }
   }));
+}
+
+// packages/mcp/src/shared/bound-canvas.ts
+function resolveBoundCanvas(store, chatSessionKey) {
+  const { binding, context } = store.sessions.boundCanvas(chatSessionKey, false);
+  const project = store.catalog.getProject(context.projectId);
+  if (!project) throw new Error("PROJECT_NOT_FOUND");
+  const layout = store.layoutReviews.get(context.projectId, context.viewId);
+  if (!layout) throw new Error("LAYOUT_NOT_FOUND");
+  const seenAt = Date.parse(context.presence?.lastSeenAt ?? context.updatedAt);
+  return {
+    projectId: context.projectId,
+    viewId: context.viewId,
+    canvasSessionId: context.canvasSessionId,
+    bindingStatus: binding.status,
+    online: Date.now() - seenAt <= 3e4,
+    lastSeenAt: context.presence?.lastSeenAt ?? context.updatedAt,
+    graphRevision: project.graphRevision,
+    layoutRevision: layout.layoutRevision,
+    bindingRevision: binding.bindingRevision
+  };
 }
 
 // packages/mcp/src/tools/read-session.ts
@@ -129524,271 +129048,127 @@ function registerReadSessionTool(server2) {
     description: "Read the current chat's session state: the bound canvas, a durable task, a canvas context snapshot, the resolved scene context, or a guard bundle (bound canvas + active task). Pick one via `resource`.",
     inputSchema: {
       ...workspaceSchema.shape,
-      resource: external_exports.enum(["bound_canvas", "task", "canvas_context", "resolved_context", "guard"]),
+      resource: external_exports.enum(["bound_canvas", "task", "canvas_tasks", "canvas_context", "canvas_view_state", "resolved_context", "guard"]),
       taskId: external_exports.string().optional(),
-      canvasSessionId: external_exports.string().optional()
+      canvasSessionId: external_exports.string().optional(),
+      viewId: external_exports.string().optional()
     },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
-  }, defineTool(async ({ workspaceDir, resource, taskId, canvasSessionId }, extra) => {
+  }, defineTool(async ({ workspaceDir, resource, taskId, canvasSessionId, viewId }, extra) => {
     switch (resource) {
       case "bound_canvas": {
         const chatSessionKey = chatSessionKeyFromRequest(extra);
         return result(withStore(workspaceDir, (store) => resolveBoundCanvas(store, chatSessionKey)));
       }
       case "task": {
-        if (!taskId) throw new Error("SESSION_RESOURCE_REQUIRES_taskId");
+        if (!taskId) throw new Error("INVALID_ARGS:taskId required");
         const chatSessionKey = chatSessionKeyFromRequest(extra);
-        const task = withStore(workspaceDir, (store) => store.assertTaskChat(taskId, chatSessionKey, false));
+        const task2 = withStore(workspaceDir, (store) => store.tasks.assertChat(taskId, chatSessionKey, false));
         workspaceByTask.set(taskId, workspaceDir);
-        return result(task);
+        return result(task2);
       }
       case "canvas_context": {
-        if (!canvasSessionId) throw new Error("SESSION_RESOURCE_REQUIRES_canvasSessionId");
-        const context = withStore(workspaceDir, (store) => store.getCanvasContext(canvasSessionId));
+        if (!canvasSessionId) throw new Error("INVALID_ARGS:canvasSessionId required");
+        const context = withStore(workspaceDir, (store) => store.sessions.canvasContext(canvasSessionId));
         if (!context) throw new Error("CANVAS_SESSION_NOT_FOUND");
         return result(context);
       }
+      case "canvas_tasks": {
+        if (!canvasSessionId) throw new Error("INVALID_ARGS:canvasSessionId required");
+        return result(withStore(workspaceDir, (store) => {
+          store.tasks.reapCanvas(canvasSessionId);
+          return store.tasks.listCanvas(canvasSessionId);
+        }));
+      }
+      case "canvas_view_state": {
+        if (!canvasSessionId || !viewId) throw new Error("INVALID_ARGS:canvasSessionId and viewId required");
+        return result(withStore(workspaceDir, (store) => store.catalog.canvasState(canvasSessionId, viewId) ?? { canvasSessionId, viewId, firstOpen: true }));
+      }
       case "resolved_context": {
-        if (!canvasSessionId) throw new Error("SESSION_RESOURCE_REQUIRES_canvasSessionId");
+        if (!canvasSessionId) throw new Error("INVALID_ARGS:canvasSessionId required");
         const output = withStore(workspaceDir, (store) => {
-          const context = store.getCanvasContext(canvasSessionId);
+          const context = store.sessions.canvasContext(canvasSessionId);
           if (!context) throw new Error("CANVAS_SESSION_NOT_FOUND");
-          const project = store.getProject(context.projectId);
+          const project = store.catalog.getProject(context.projectId);
           if (!project) throw new Error("PROJECT_NOT_FOUND");
           const scenePack = getScenePack(project.scenePackId, project.scenePackVersion);
           if (!scenePack) throw new Error("SCENE_PACK_NOT_FOUND");
-          const graph = store.getGraph(project.id);
-          const nodes = resolveSceneContext({ nodes: graph.nodes, edges: graph.edges, scenePack, selectedNodeIds: context.selectedNodeIds, pinnedNodeIds: context.pinnedContextNodeIds });
-          return { projectId: project.id, graphRevision: graph.revision, policy: scenePack.contextPolicy, nodeIds: nodes.map((node) => node.id), nodes };
+          const graph = store.graphChanges.read(project.id);
+          const resolved = resolveSceneContext({ nodes: graph.nodes, edges: graph.edges, scenePack, selectedNodeIds: context.selectedNodeIds, pinnedNodeIds: context.pinnedContextNodeIds });
+          return { projectId: project.id, graphRevision: graph.revision, policy: scenePack.contextPolicy, ...resolved };
         });
         return result(output, `Resolved ${output.nodes.length} context nodes.`);
       }
       case "guard": {
         const chatSessionKey = chatSessionKeyFromRequest(extra);
-        const { boundCanvas, task } = withStore(workspaceDir, (store) => {
+        const { boundCanvas, task: task2 } = withStore(workspaceDir, (store) => {
           const boundCanvas2 = resolveBoundCanvas(store, chatSessionKey);
-          const task2 = taskId ? store.assertTaskChat(taskId, chatSessionKey, false) : store.listCanvasTasks(boundCanvas2.canvasSessionId)[0] ?? null;
-          return { boundCanvas: boundCanvas2, task: task2 };
+          const task3 = taskId ? store.tasks.assertChat(taskId, chatSessionKey, false) : store.tasks.listCanvas(boundCanvas2.canvasSessionId)[0] ?? null;
+          return { boundCanvas: boundCanvas2, task: task3 };
         });
-        if (task) workspaceByTask.set(task.taskId, workspaceDir);
-        return result({ boundCanvas, task });
+        if (task2) workspaceByTask.set(task2.taskId, workspaceDir);
+        return result({ boundCanvas, task: task2 });
       }
     }
   }));
 }
 
+// packages/mcp/src/shared/review-actions.ts
+function rejectChangeSet2(store, changeSetId, chatSessionKey) {
+  const item = store.graphChanges.get(changeSetId);
+  if (!item) throw new Error("CHANGESET_NOT_FOUND");
+  store.tasks.assertChat(item.taskId, chatSessionKey);
+  return store.graphChanges.reject(changeSetId);
+}
+function applyLayoutCandidate2(store, layoutRunId, candidateId, chatSessionKey) {
+  const run = store.layoutReviews.getRun(layoutRunId);
+  if (!run) throw new Error("LAYOUT_RUN_NOT_FOUND");
+  if (run.taskId) store.tasks.assertChat(run.taskId, chatSessionKey);
+  return store.layoutReviews.applyCandidate(layoutRunId, candidateId);
+}
+function rejectLayoutRun2(store, layoutRunId, chatSessionKey) {
+  const run = store.layoutReviews.getRun(layoutRunId);
+  if (!run) throw new Error("LAYOUT_RUN_NOT_FOUND");
+  if (run.taskId) store.tasks.assertChat(run.taskId, chatSessionKey);
+  return store.layoutReviews.rejectRun(layoutRunId);
+}
+function revertLayout2(store, projectId, viewId) {
+  return store.layoutReviews.revert(projectId, viewId);
+}
+
 // packages/mcp/src/tools/review-action.ts
-var reviewActionShape = {
-  ...workspaceSchema.shape,
-  resource: external_exports.enum(["changeset", "layout_run"]),
-  action: external_exports.enum(["reject", "apply", "revert"]),
-  id: external_exports.string().optional(),
-  // changeSetId (reject) or layoutRunId (apply/reject); omit for revert
-  candidateId: external_exports.string().optional(),
-  // layout_run + apply only
-  projectId: external_exports.string().optional(),
-  // layout_run + revert only
-  viewId: external_exports.string().optional()
-  // layout_run + revert only
-};
-var reviewActionSchema = external_exports.object(reviewActionShape).superRefine((value, ctx) => {
-  const fail = (message) => ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message });
-  if (value.resource === "changeset") {
-    if (value.action === "apply") {
-      fail("CHANGESET_APPLY_FORBIDDEN");
-      return;
-    }
-    if (value.action !== "reject") {
-      fail("REVIEW_ACTION_INVALID_COMBO");
-      return;
-    }
-    if (!value.id) fail("REVIEW_ACTION_REQUIRES_id");
-    return;
-  }
-  if (value.action === "apply") {
-    if (!value.id) fail("REVIEW_ACTION_REQUIRES_id");
-    if (!value.candidateId) fail("REVIEW_ACTION_REQUIRES_candidateId");
-  } else if (value.action === "reject") {
-    if (!value.id) fail("REVIEW_ACTION_REQUIRES_id");
-  } else {
-    if (!value.projectId) fail("REVIEW_ACTION_REQUIRES_projectId");
-    if (!value.viewId) fail("REVIEW_ACTION_REQUIRES_viewId");
-  }
-});
-function registerReviewActionTool(server2, ctx) {
-  const { mutateWithStore } = ctx;
+function registerReviewActionTool(server2, { mutateWithStore }) {
   server2.registerTool("weaver_review_action", {
     title: "Review Action",
-    description: 'Act on a pending review item: reject a ChangeSet (`resource:"changeset", action:"reject", id`), or apply/reject/revert a layout (`resource:"layout_run"` with `action:"apply"` + `id` + `candidateId`, `action:"reject"` + `id`, or `action:"revert"` + `projectId` + `viewId`). Applying a ChangeSet is NOT available here \u2014 use weaver_apply_changeset for that.',
-    inputSchema: reviewActionShape,
-    // idempotentHint:false — layout apply throws LAYOUT_REVISION_CONFLICT on retry
-    // and revert bumps layoutRevision every call (matching the old apply/revert
-    // tools). A single static hint can't be true across the reject/apply/revert
-    // union, so use the codebase convention of false for apply/revert writes.
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
-  }, defineTool(async (rawArgs, extra) => {
-    const { workspaceDir, resource, action, id, candidateId, projectId, viewId } = parseRefined(reviewActionSchema, rawArgs);
+    description: "Preview, apply, reject, or revert a pending ChangeSet or LayoutRun.",
+    inputSchema: { ...workspaceSchema.shape, resource: external_exports.enum(["changeset", "layout_run"]), action: external_exports.enum(["preview", "apply", "reject", "revert"]), id: external_exports.string().optional(), candidateId: external_exports.string().optional(), projectId: external_exports.string().optional(), viewId: external_exports.string().optional() },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
+    _meta: { ui: { visibility: ["app", "model"] } }
+  }, defineTool(async ({ workspaceDir, resource, action, id, candidateId, projectId, viewId }, extra) => {
+    reviewActionSchema.parse({ workspaceDir, resource, action, id, candidateId, projectId, viewId });
     const chatSessionKey = chatSessionKeyFromRequest(extra);
-    if (resource === "changeset") {
-      return result(mutateWithStore(workspaceDir, (store) => rejectChangeSet2(store, id, chatSessionKey)));
-    }
-    switch (action) {
-      case "apply":
-        return result(mutateWithStore(workspaceDir, (store) => applyLayoutCandidate2(store, id, candidateId, chatSessionKey)), "Applied layout candidate.");
-      case "reject":
-        return result(mutateWithStore(workspaceDir, (store) => rejectLayoutRun2(store, id, chatSessionKey)), "Rejected layout preview.");
-      case "revert":
-        return result(mutateWithStore(workspaceDir, (store) => revertLayout2(store, projectId, viewId)), "Restored previous layout.");
-    }
-  }));
-}
-
-// packages/mcp/src/tools/templates.ts
-function registerTemplatesTools(server2, ctx) {
-  const { mutateWithStore } = ctx;
-  server2.registerTool("weaver_list_visual_templates", {
-    title: "List Visual Templates",
-    description: "List the built-in versioned structured visual templates, optionally filtered by scene, family or renderer.",
-    inputSchema: { scenePackId: external_exports.string().optional(), family: external_exports.enum(["canvas", "hierarchy", "relationship", "flow", "temporal", "board", "matrix", "table"]).optional(), renderer: viewTypeSchema.optional() },
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    _meta: { ui: { visibility: ["app"] } }
-  }, async ({ scenePackId, family, renderer }) => result(listVisualTemplates({ scenePackId, family, renderer })));
-  server2.registerTool("weaver_validate_visual_template", {
-    title: "Validate Visual Template",
-    description: "Check scene compatibility and current graph field readiness without writing data.",
-    inputSchema: { ...projectSchema2.shape, templateId: external_exports.string(), version: external_exports.string().default("1.0.0") },
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    _meta: { ui: { visibility: ["app"] } }
-  }, defineTool(async ({ workspaceDir, projectId, templateId, version: version2 }) => {
-    const template = getVisualTemplate(templateId, version2);
-    if (!template) throw new Error("VISUAL_TEMPLATE_NOT_FOUND");
-    const output = withStore(workspaceDir, (store) => {
-      const project = store.getProject(projectId);
-      if (!project) throw new Error("PROJECT_NOT_FOUND");
-      const scene = getScenePack(project.scenePackId, project.scenePackVersion);
-      if (!scene) throw new Error("SCENE_PACK_NOT_FOUND");
-      return validateVisualTemplateForProject(template, scene, store.getGraph(projectId).nodes);
-    });
-    return result(output);
-  }));
-  server2.registerTool("weaver_preview_visual_template", {
-    title: "Preview Visual Template",
-    description: "Project current graph data into a temporary template LayoutDocument without persisting it.",
-    inputSchema: { ...projectSchema2.shape, templateId: external_exports.string(), version: external_exports.string().default("1.0.0"), baseGraphRevision: external_exports.number().int().nonnegative(), viewName: external_exports.string().optional() },
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    _meta: { ui: { visibility: ["app"] } }
-  }, defineTool(async ({ workspaceDir, projectId, templateId, version: version2, baseGraphRevision, viewName }) => {
-    const template = getVisualTemplate(templateId, version2);
-    if (!template) throw new Error("VISUAL_TEMPLATE_NOT_FOUND");
-    const output = withStore(workspaceDir, (store) => store.previewVisualTemplate({ projectId, template, baseGraphRevision, viewName }));
-    return result(output);
-  }));
-  server2.registerTool("weaver_create_project_from_visual_template", {
-    title: "Create Project From Visual Template",
-    description: "Atomically create a project, starter content graph and themed default view from a compatible template.",
-    inputSchema: { ...workspaceSchema.shape, title: external_exports.string().min(1), goal: external_exports.string().default(""), scenePackId: external_exports.string(), templateId: external_exports.string(), version: external_exports.string().default("1.0.0"), automationLevel: external_exports.enum(["cautious", "collaborative", "automatic"]).default("collaborative"), leaseId: external_exports.string().regex(/^[a-f0-9]{64}$/).optional(), bindingRevision: external_exports.number().int().positive().optional() },
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
-    _meta: { ui: { visibility: ["app"] } }
-  }, defineTool(async ({ workspaceDir, title, goal, scenePackId, templateId, version: version2, automationLevel, leaseId, bindingRevision }, extra) => {
-    const chatSessionKey = chatSessionKeyFromRequest(extra, false);
-    return createProjectFromTemplate(mutateWithStore, { workspaceDir, title, goal, scenePackId, templateId, version: version2, automationLevel, chatSessionKey, leaseId, bindingRevision });
-  }));
-  server2.registerTool("weaver_create_view_from_visual_template", {
-    title: "Create View From Visual Template",
-    description: "Create a new independent themed view over the current graph without modifying graphRevision or existing views.",
-    inputSchema: { ...projectSchema2.shape, templateId: external_exports.string(), version: external_exports.string().default("1.0.0"), baseGraphRevision: external_exports.number().int().nonnegative(), viewName: external_exports.string().optional() },
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
-    _meta: { ui: { visibility: ["app"] } }
-  }, defineTool(async ({ workspaceDir, projectId, templateId, version: version2, baseGraphRevision, viewName }, extra) => {
-    const chatSessionKey = chatSessionKeyFromRequest(extra, false);
-    return createViewFromTemplate(mutateWithStore, { workspaceDir, projectId, templateId, version: version2, baseGraphRevision, viewName, chatSessionKey });
-  }));
-}
-
-// packages/mcp/src/tools/view-catalog.ts
-function registerViewMutationTool(server2, mutateWithStore, name, config2, run) {
-  const toolConfig = config2.meta ? { title: config2.title, description: config2.description, inputSchema: config2.inputSchema, annotations: config2.annotations, _meta: config2.meta } : { title: config2.title, description: config2.description, inputSchema: config2.inputSchema, annotations: config2.annotations };
-  server2.registerTool(name, toolConfig, defineTool(async (input, extra) => {
-    const chatSessionKey = chatSessionKeyFromRequest(extra, false);
-    return result(mutateWithStore(input.workspaceDir, (store) => {
-      assertViewMutationContext(store, input.projectId, chatSessionKey, { leaseId: input.leaseId, bindingRevision: input.bindingRevision });
-      return run(store, input, chatSessionKey);
+    const need = (value, name) => {
+      if (!value) throw new Error(`INVALID_ARGS:${name} required`);
+      return value;
+    };
+    return result(mutateWithStore(workspaceDir, (store) => {
+      if (resource === "changeset") {
+        const changeSetId = need(id, "id");
+        if (action === "preview") return previewChangeSet(store, changeSetId, chatSessionKey);
+        if (action === "reject") return rejectChangeSet2(store, changeSetId, chatSessionKey);
+        if (action === "apply") {
+          const item = store.graphChanges.get(changeSetId);
+          if (!item) throw new Error("CHANGESET_NOT_FOUND");
+          store.tasks.assertChat(item.taskId, chatSessionKey);
+          return store.graphChanges.apply(changeSetId);
+        }
+        throw new Error("INVALID_ARGS:changeset cannot revert");
+      }
+      if (action === "preview") return readLayoutRun(store, need(id, "id"), chatSessionKey);
+      if (action === "apply") return applyLayoutCandidate2(store, need(id, "id"), need(candidateId, "candidateId"), chatSessionKey);
+      if (action === "reject") return rejectLayoutRun2(store, need(id, "id"), chatSessionKey);
+      return revertLayout2(store, need(projectId, "projectId"), need(viewId, "viewId"));
     }));
-  }));
-}
-function registerViewCatalogTools(server2, ctx) {
-  const { mutateWithStore } = ctx;
-  server2.registerTool("weaver_list_project_views", {
-    title: "List Project Views",
-    description: "List durable saved Visual Views, including fixed order and recycle-bin status.",
-    inputSchema: { ...projectSchema2.shape, status: external_exports.enum(["active", "trashed"]).optional() },
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    _meta: { ui: { visibility: ["app"] } }
-  }, defineTool(async ({ workspaceDir, projectId, status }) => result(withStore(workspaceDir, (store) => listProjectViews2(store, projectId, status)))));
-  const viewMutationBase = { ...projectSchema2.shape, viewId: external_exports.string(), baseCatalogRevision: external_exports.number().int().nonnegative(), leaseId: external_exports.string().optional(), bindingRevision: external_exports.number().int().positive().optional() };
-  const appVisibility = { ui: { visibility: ["app"] } };
-  registerViewMutationTool(server2, mutateWithStore, "weaver_rename_project_view", {
-    title: "Rename Project View",
-    description: "Rename one saved View without changing graph or layout revisions.",
-    inputSchema: { ...viewMutationBase, name: external_exports.string().min(1).max(120) },
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    meta: appVisibility
-  }, (store, input) => store.renameProjectView({ projectId: input.projectId, viewId: input.viewId, name: input.name, baseCatalogRevision: input.baseCatalogRevision }));
-  registerViewMutationTool(server2, mutateWithStore, "weaver_pin_project_view", {
-    title: "Pin Project View",
-    description: "Pin or unpin a View in the top shortcut bar.",
-    inputSchema: { ...viewMutationBase, pinned: external_exports.boolean() },
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    meta: appVisibility
-  }, (store, input) => store.pinProjectView({ projectId: input.projectId, viewId: input.viewId, pinned: input.pinned, baseCatalogRevision: input.baseCatalogRevision }));
-  registerViewMutationTool(server2, mutateWithStore, "weaver_reorder_pinned_views", {
-    title: "Reorder Pinned Views",
-    description: "Persist the complete ordered list of pinned Views.",
-    inputSchema: { ...projectSchema2.shape, viewIds: external_exports.array(external_exports.string()), baseCatalogRevision: external_exports.number().int().nonnegative(), leaseId: external_exports.string().optional(), bindingRevision: external_exports.number().int().positive().optional() },
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    meta: appVisibility
-  }, (store, input) => store.reorderPinnedViews({ projectId: input.projectId, viewIds: input.viewIds, baseCatalogRevision: input.baseCatalogRevision }));
-  registerViewMutationTool(server2, mutateWithStore, "weaver_set_default_view", {
-    title: "Set Default View",
-    description: "Set the Project-wide initial View for new Chat bindings.",
-    inputSchema: viewMutationBase,
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    meta: appVisibility
-  }, (store, input) => store.setDefaultProjectView({ projectId: input.projectId, viewId: input.viewId, baseCatalogRevision: input.baseCatalogRevision }));
-  registerViewMutationTool(server2, mutateWithStore, "weaver_trash_project_view", {
-    title: "Move View to Recycle Bin",
-    description: "Soft-delete a View for 30 days, selecting a safe fallback without changing Graph data.",
-    inputSchema: { ...viewMutationBase, fallbackViewId: external_exports.string().optional() },
-    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
-    meta: appVisibility
-  }, (store, input, chatSessionKey) => {
-    const changed = store.trashProjectView({ projectId: input.projectId, viewId: input.viewId, fallbackViewId: input.fallbackViewId, baseCatalogRevision: input.baseCatalogRevision });
-    const nextBinding = chatSessionKey ? store.getChatCanvasBinding(chatSessionKey) : void 0;
-    return { ...changed, binding: nextBinding ? { leaseId: nextBinding.leaseId, bindingRevision: nextBinding.bindingRevision, projectId: nextBinding.projectId, viewId: nextBinding.viewId } : void 0 };
-  });
-  registerViewMutationTool(server2, mutateWithStore, "weaver_restore_project_view", {
-    title: "Restore Project View",
-    description: "Restore a View from the recycle bin without stealing focus.",
-    inputSchema: viewMutationBase,
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
-    meta: appVisibility
-  }, (store, input) => store.restoreProjectView({ projectId: input.projectId, viewId: input.viewId, baseCatalogRevision: input.baseCatalogRevision }));
-  registerViewMutationTool(server2, mutateWithStore, "weaver_purge_project_view", {
-    title: "Permanently Delete Project View",
-    description: "Permanently purge an already-trashed View and its layout history.",
-    inputSchema: viewMutationBase,
-    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
-    meta: appVisibility
-  }, (store, input) => store.purgeProjectView({ projectId: input.projectId, viewId: input.viewId, baseCatalogRevision: input.baseCatalogRevision }));
-  server2.registerTool("weaver_duplicate_project_view", {
-    title: "Duplicate Project View",
-    description: "Create an independent layout copy over the same content graph.",
-    inputSchema: { ...viewMutationBase, name: external_exports.string().max(120).optional() },
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
-    _meta: { ui: { visibility: ["app"] } }
-  }, defineTool(async ({ workspaceDir, projectId, viewId, name, baseCatalogRevision, leaseId, bindingRevision }, extra) => {
-    const chatSessionKey = chatSessionKeyFromRequest(extra, false);
-    return duplicateView(mutateWithStore, { workspaceDir, projectId, viewId, name, baseCatalogRevision, leaseId, bindingRevision, chatSessionKey });
   }));
 }
 
@@ -129811,23 +129191,24 @@ function autoOpenPreview(url2) {
 }
 function registerWorkspaceTools(server2, ctx) {
   const { eventHub: eventHub2, mutateWithStore, serverVersion } = ctx;
-  K3(server2, "weaver_open_workspace_widget", {
+  K3(server2, "weaver_open_space", {
     title: "Open Weaver Workspace",
     description: "Open the Weaver semantic canvas for an explicit local workspace and optional project. Codex renders it as an embedded panel; Claude Code opens it as a tokenized loopback browser preview.",
-    inputSchema: { workspaceDir: external_exports.string().min(1), projectId: external_exports.string().optional(), displayMode: external_exports.enum(["fullscreen", "inline"]).default("fullscreen") },
+    inputSchema: { workspaceDir: external_exports.string().min(1), projectId: external_exports.string().optional(), displayMode: external_exports.enum(["fullscreen", "inline"]).default("inline") },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     _meta: { ui: { resourceUri: LEGACY_WIDGET_URI, visibility: ["model", "app"] }, "ui/resourceUri": LEGACY_WIDGET_URI, "openai/outputTemplate": LEGACY_WIDGET_URI, "openai/widgetAccessible": true }
   }, defineTool(async (input, extra) => {
     const chatSessionKey = chatSessionKeyFromRequest(extra);
-    const binding = mutateWithStore(input.workspaceDir, (store) => {
+    const opened = mutateWithStore(input.workspaceDir, (store) => {
       let viewId;
       if (input.projectId) {
-        const project = store.getProject(input.projectId);
+        const project = store.catalog.getProject(input.projectId);
         if (!project) throw new Error("PROJECT_NOT_FOUND");
         viewId = project.defaultViewId;
       }
-      return store.openChatCanvasBinding({ chatSessionKey, projectId: input.projectId, viewId });
+      return { binding: store.sessions.openBinding({ chatSessionKey, projectId: input.projectId, viewId }), schemaResetBackupName: store.schemaResetBackupName };
     });
+    const { binding, schemaResetBackupName } = opened;
     const activeWidgetBuildId = widgetBuildId();
     const workspaceBuildId = workspaceWidgetBuildId(input.workspaceDir);
     const activeRuntimeMode = runtimeMode();
@@ -129838,7 +129219,7 @@ function registerWorkspaceTools(server2, ctx) {
       if (!isCodex && eventHub2.previewUrl) autoOpenPreview(eventHub2.previewUrl);
     }
     const preview = isPreview && !isCodex ? { previewUrl: eventHub2.previewUrl, previewToken: eventHub2.previewToken } : {};
-    const message = isCodex ? "Opened the Weaver canvas panel. The user selects nodes on the canvas, then asks you (in chat) to develop them: read the live selection with weaver_get_bound_canvas, do the work, then weaver_submit_changeset \u2014 the panel refreshes to show it. The canvas is a visual surface; you are triggered from the chat." : isPreview ? "Opened the Weaver canvas in your browser. If no window appeared, open previewUrl manually." : "Opened Weaver workspace widget.";
+    const message = isCodex ? 'Opened the Weaver canvas panel. The user selects nodes on the canvas, then asks you (in chat) to develop them: read the live selection with weaver_read_session(resource:"bound_canvas"), do the work, then weaver_submit_changeset \u2014 the panel refreshes to show it. The canvas is a visual surface; you are triggered from the chat.' : isPreview ? "Opened the Weaver canvas in your browser. If no window appeared, open previewUrl manually." : "Opened Weaver workspace widget.";
     return result({
       version: 2,
       widget: "weaver-workspace",
@@ -129851,11 +129232,12 @@ function registerWorkspaceTools(server2, ctx) {
       runtimeMode: activeRuntimeMode,
       buildMismatch: shouldBlockWorkspaceBuildMismatch(activeRuntimeMode, activeWidgetBuildId, workspaceBuildId),
       chatBinding: { leaseId: binding.leaseId, bindingRevision: binding.bindingRevision, projectId: binding.projectId, viewId: binding.viewId },
+      schemaReset: schemaResetBackupName ? { backupName: schemaResetBackupName } : void 0,
       ...isCodex ? { rendering: "native-widget" } : {},
       ...preview
     }, message);
   }));
-  server2.registerTool("weaver_open_canvas_event_stream", {
+  server2.registerTool("weaver_subscribe_canvas", {
     title: "Open Canvas Event Stream",
     description: "Widget-only creation of a project-scoped, read-only loopback SSE stream for durable Weaver task, graph and layout events.",
     inputSchema: { ...projectSchema2.shape, canvasSessionId: external_exports.string().min(1) },
@@ -129892,67 +129274,36 @@ function registerDiagnosticsTools(server2, ctx) {
 
 // packages/mcp/src/create-server.ts
 var PREVIEW_TOOL_ALLOWLIST = /* @__PURE__ */ new Set([
-  "weaver_apply_changeset",
-  "weaver_apply_layout",
-  "weaver_apply_layout_operations",
-  "weaver_archive_node",
-  "weaver_attach_asset",
-  "weaver_cancel_agent_task",
-  "weaver_create_content_node",
-  "weaver_create_project_from_visual_template",
-  "weaver_create_view_from_visual_template",
-  "weaver_duplicate_project_view",
-  "weaver_enrich_link",
-  "weaver_get_asset_preview",
-  "weaver_get_bound_canvas",
-  "weaver_get_canvas_view_state",
-  "weaver_get_layout_run",
-  "weaver_get_node_content",
-  "weaver_get_project_graph",
-  "weaver_get_project_manifest",
-  "weaver_import_image_asset",
-  "weaver_list_canvas_tasks",
-  "weaver_list_project_views",
-  "weaver_list_projects",
-  "weaver_list_visual_templates",
-  "weaver_open_canvas_event_stream",
-  "weaver_pin_project_view",
-  "weaver_preview_changeset",
-  "weaver_preview_visual_template",
-  "weaver_purge_project_view",
-  "weaver_reject_changeset",
-  "weaver_reject_layout",
-  "weaver_rename_project_view",
-  "weaver_reorder_pinned_views",
-  "weaver_restore_project_view",
-  "weaver_revert_layout",
-  "weaver_set_default_view",
-  "weaver_submit_canvas_prompt",
-  "weaver_switch_chat_canvas",
-  "weaver_sync_canvas_context",
-  "weaver_trash_project_view",
-  "weaver_update_node_content",
-  "weaver_validate_visual_template",
+  "weaver_open_space",
+  "weaver_read_catalog",
+  "weaver_read_graph",
+  "weaver_read_session",
+  "weaver_catalog_action",
+  "weaver_canvas_action",
+  "weaver_task_action",
+  "weaver_review_action",
+  "weaver_import_asset",
+  "weaver_subscribe_canvas",
   "weaver_get_diagnostics"
 ]);
 var CRITICAL_MODEL_TOOLS = [
-  "weaver_prepare_task_from_active_canvas",
-  "weaver_start_agent_task",
+  "weaver_prepare_task",
+  "weaver_task_action",
   "weaver_submit_changeset",
-  "weaver_apply_changeset",
-  "weaver_complete_agent_task",
-  "weaver_report_task_progress",
-  "weaver_await_canvas_prompt"
+  "weaver_review_action",
+  "weaver_read_session"
 ];
 function isModelFacing(meta4) {
   const visibility = meta4?.ui?.visibility;
   return !visibility || visibility.includes("model");
 }
 function computeToolSurface(registry2) {
+  const registeredNames = [...registry2.keys()].sort();
   const modelFacingNames = [...registry2.entries()].filter(([, tool]) => isModelFacing(tool.meta)).map(([name]) => name).sort();
   const modelFacingSet = new Set(modelFacingNames);
   return {
     registered: registry2.size,
+    registeredNames,
     modelFacing: modelFacingNames.length,
     widgetOnly: registry2.size - modelFacingNames.length,
     modelFacingNames,
@@ -129993,20 +129344,12 @@ async function createWeaverServer(options = {}) {
     return originalRegisterTool(name, config2, logged);
   };
   registerWorkspaceTools(server2, { eventHub: eventHub2, mutateWithStore, widgetUri, serverVersion });
-  registerProjectsTools(server2, { mutateWithStore });
-  registerTemplatesTools(server2, { mutateWithStore });
-  registerViewCatalogTools(server2, { mutateWithStore });
   registerManageViewTool(server2, { mutateWithStore });
-  registerGraphTools(server2);
+  registerCanvasActionTool(server2, { mutateWithStore });
   registerReadGraphTool(server2);
   registerReadCatalogTool(server2);
-  registerReadReviewTool(server2);
-  registerAssetsTools(server2);
   registerImportAssetTool(server2);
-  registerContentTools(server2);
-  registerCanvasBindingTools(server2, { mutateWithStore });
   registerReadSessionTool(server2);
-  registerCanvasPromptsTools(server2, { mutateWithStore });
   registerAgentTasksTools(server2, { mutateWithStore });
   registerLayoutTools(server2, { eventHub: eventHub2, mutateWithStore });
   registerChangesetsTools(server2, { mutateWithStore });
@@ -130026,7 +129369,10 @@ async function createWeaverServer(options = {}) {
   if (previewHost()) {
     eventHub2.configurePreview({ workspaceDir: options.previewWorkspaceDir ?? widgetRoot(), chatSessionKey: syntheticChatSessionKey(), dispatch: dispatch2, allowlist: PREVIEW_TOOL_ALLOWLIST });
   }
-  return { server: server2, eventHub: eventHub2, dispatch: dispatch2, toolMeta: (name) => registry2.get(name)?.meta, serverVersion, close: () => eventHub2.close() };
+  return { server: server2, eventHub: eventHub2, dispatch: dispatch2, toolMeta: (name) => registry2.get(name)?.meta, serverVersion, close: async () => {
+    closeWorkspaceStores();
+    await eventHub2.close();
+  } };
 }
 
 // packages/mcp/src/shutdown.ts

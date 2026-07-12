@@ -12,9 +12,29 @@ function theme(family: VisualFamily): ViewTheme {
   return { ...structuredClone(defaultViewTheme), canvas: { mode: "light", backgroundColor: background, pattern: family === "table" ? "grid" : "dots", patternGap: 20, patternSize: 1, patternColor: `${accent}66`, patternOpacity: 0.42 }, nodeStyles: { default: { fill, borderColor: `${accent}88`, textColor: "#20231f", accentColor: accent, borderRadius: family === "flow" ? 5 : 10, titleScale: family === "hierarchy" ? 1.12 : 1 } }, edgeStyles: { default: { color: accent, width: 1.6, dashed: family === "relationship", routing: family === "flow" ? "orthogonal" : "bezier", marker: "arrow" } } };
 }
 
+type RoleBinding = { nodes: Record<string, string>; edges: Record<string, string> };
+const roleBindings: Record<string, RoleBinding> = {
+  "free-brainstorming": { nodes: { center: "idea", note: "note", detail: "note", topic: "idea", root: "idea", branch: "question" }, edges: { relation: "association", parent: "inspires" } },
+  "problem-decomposition": { nodes: { center: "problem", note: "subproblem", detail: "evidence", topic: "subproblem", root: "problem", branch: "subproblem", evidence: "evidence" }, edges: { relation: "supports", parent: "decomposes" } },
+  "decision-comparison": { nodes: { center: "decision", note: "option", detail: "criterion", topic: "option", item: "option", group: "criterion", risk: "risk", criterion: "criterion" }, edges: { relation: "evaluates" } },
+  "argument-map": { nodes: { center: "claim", note: "evidence", detail: "inference", topic: "claim", concept: "claim", support: "evidence", example: "inference", item: "claim", criterion: "evidence", risk: "counterclaim", source: "evidence" }, edges: { relation: "supports", support: "supports" } },
+  "situational-vocabulary": { nodes: { center: "scene", note: "word", detail: "example", topic: "word", root: "scene", branch: "word" }, edges: { relation: "appears-in", parent: "appears-in" } },
+  "concept-learning": { nodes: { center: "concept", note: "definition", detail: "example", topic: "concept", root: "concept", branch: "definition", evidence: "example", concept: "concept", support: "definition", example: "example", item: "concept", source: "definition" }, edges: { relation: "defines", support: "defines", parent: "defines" } },
+  "learning-path": { nodes: { center: "goal", note: "resource", detail: "exercise", topic: "module", start: "goal", step: "module", decision: "exercise", output: "resource", goal: "goal", phase: "module", item: "resource" }, edges: { relation: "contains", next: "precedes", branch: "contains", precedes: "precedes" } },
+  "entity-relationship": { nodes: { center: "entity", note: "attribute", detail: "source", topic: "entity", concept: "entity", support: "source", example: "attribute", person: "entity", organization: "entity", event: "source", item: "entity", source: "source" }, edges: { relation: "relates-to", support: "relates-to", membership: "relates-to", influence: "relates-to" } },
+  "people-organization-network": { nodes: { center: "person", note: "role", detail: "event", topic: "organization", person: "person", organization: "organization", event: "event", period: "event", actor: "person", item: "person", source: "organization" }, edges: { relation: "collaborates", membership: "member-of", influence: "influences", precedes: "influences" } },
+  "causal-map": { nodes: { center: "cause", note: "mechanism", detail: "effect", topic: "mechanism", cause: "cause", mechanism: "mechanism", effect: "effect", feedback: "feedback" }, edges: { relation: "causes", cause: "causes", feedback: "amplifies" } },
+  "event-timeline": { nodes: { center: "event", note: "impact", detail: "actor", topic: "event", event: "event", period: "period", actor: "actor", goal: "event", phase: "period", item: "actor" }, edges: { relation: "impacts", precedes: "precedes" } },
+  "project-breakdown": { nodes: { center: "project", note: "task", detail: "risk", topic: "milestone", root: "project", branch: "milestone", evidence: "risk", start: "project", step: "task", decision: "risk", output: "milestone", goal: "project", phase: "milestone", item: "task", group: "milestone", risk: "risk", owner: "task" }, edges: { relation: "contains", parent: "contains", next: "depends-on", branch: "contains", precedes: "depends-on" } },
+  "process-design": { nodes: { center: "start", note: "step", detail: "output", topic: "step", start: "start", step: "step", decision: "decision", output: "output", item: "step", owner: "decision" }, edges: { relation: "next", next: "next", branch: "branch" } },
+};
+
 function bind(scenePackId: string, roles: string[], edgeRoles: string[], fields: Record<string, { propertyKey: string; required: boolean }> = {}) {
-  const scene = getScenePack(scenePackId)!;
-  return { nodeRoles: Object.fromEntries(roles.map((role, index) => [role, scene.nodeTypes[Math.min(index, scene.nodeTypes.length - 1)].key])), edgeRoles: Object.fromEntries(edgeRoles.map((role, index) => [role, scene.edgeTypes[Math.min(index, scene.edgeTypes.length - 1)]?.key ?? "association"])), fields };
+  const scene = getScenePack(scenePackId); const declared = roleBindings[scenePackId];
+  if (!scene || !declared) throw new Error(`VISUAL_TEMPLATE_BINDING_INVALID:${scenePackId}`);
+  const nodeRoles = Object.fromEntries(roles.map((role) => { const type = declared.nodes[role]; if (!type) throw new Error(`VISUAL_TEMPLATE_BINDING_INVALID:${scenePackId}:NODE_ROLE:${role}`); return [role, type]; }));
+  const boundEdges = Object.fromEntries(edgeRoles.map((role) => { const type = declared.edges[role]; if (!type) throw new Error(`VISUAL_TEMPLATE_BINDING_INVALID:${scenePackId}:EDGE_ROLE:${role}`); return [role, type]; }));
+  return { nodeRoles, edgeRoles: boundEdges, fields };
 }
 
 type Definition = { id: string; name: string; description: string; family: VisualFamily; renderer: ViewType; scenes: string[]; roles: string[]; edgeRoles: string[]; strategy: VisualTemplate["layoutPreset"]["strategy"]; projection: VisualTemplate["projection"]; fields?: Record<string, { propertyKey: string; required: boolean }> };
@@ -77,3 +97,16 @@ export function validateVisualTemplateForProject(template: VisualTemplate, scene
 }
 
 builtinVisualTemplates.forEach(validateVisualTemplateDefinition);
+
+export function validateCatalog(scenePacks: ScenePack[] = builtinScenePacks, templates: VisualTemplate[] = builtinVisualTemplates) {
+  const templateIds = new Set(templates.map((template) => template.id));
+  for (const scene of scenePacks) for (const templateId of scene.recommendedTemplateIds) {
+    const template = templates.find((candidate) => candidate.id === templateId);
+    if (!template || !template.compatibleScenePackIds.includes(scene.id)) throw new Error(`CATALOG_INVALID:${scene.id}:${templateId}`);
+  }
+  if (templateIds.size !== templates.length) throw new Error("CATALOG_INVALID:DUPLICATE_TEMPLATE_ID");
+  templates.forEach(validateVisualTemplateDefinition);
+  return { scenePacks, templates };
+}
+
+validateCatalog();

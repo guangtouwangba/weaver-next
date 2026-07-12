@@ -1,5 +1,7 @@
 # Architecture Notes
 
+> **历史草稿（已废弃）**：本文记录早期 tree-first/Web 方向。当前架构事实源为 [`architecture-current.md`](architecture-current.md) 与 superseding ADR。
+
 > Direction: see [PRD-Weaver-Redesign-2026.md](PRD-Weaver-Redesign-2026.md).
 > Core artifact is a **branching thinking tree**, not a canvas.
 

@@ -1,1 +1,0 @@
-"""Outline and crystallization services."""

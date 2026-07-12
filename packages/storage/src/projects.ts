@@ -47,7 +47,8 @@ export function createSeededProject(db: DatabaseSync, dataDir: string, input: { 
   transaction(db, () => {
     project = createProject(db, dataDir, { title: input.title, goal: input.goal, scenePack: input.scenePack, automationLevel: input.automationLevel, writeSnapshots: false });
     const timestamp = now();
-    const root = nodeSchema.parse({ id: randomUUID(), projectId: project.id, type: input.scenePack.nodeTypes[0].key, title: project.goal || project.title, body: "", properties: {}, archived: false, createdAt: timestamp, updatedAt: timestamp });
+    const markdown = project.goal || project.title;
+    const root = nodeSchema.parse({ id: randomUUID(), projectId: project.id, type: input.scenePack.nodeTypes[0].key, title: markdown, content: { kind: "document", mode: "note", markdown, excerpt: markdown, embeddedAssetIds: [] }, properties: {}, archived: false, createdAt: timestamp, updatedAt: timestamp });
     replaceGraph(db, { projectId: project.id, revision: 1, nodes: [root], edges: [] });
     project = getProject(db, project.id)!;
     const layout = getLayout(db, project.id, project.defaultViewId)!;

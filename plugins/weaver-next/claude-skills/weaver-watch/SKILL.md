@@ -13,7 +13,7 @@ handle each one. The user drives entirely from the canvas; the terminal is dedic
 Run the `weaver-open` flow first (unless a canvas is already bound and online):
 1. `workspaceDir` = git top-level of the current dir (fall back to cwd).
 2. `weaver_read_catalog(resource:"project.list")` → pick the project (named one; else the most recently updated, and say which).
-3. `weaver_open_workspace_widget` — the MCP process pops the browser window automatically (tokenized `previewUrl`). Only if none appears, run `open "<previewUrl>"` yourself.
+3. `weaver_open_space` — the MCP process pops the browser window automatically (tokenized `previewUrl`). Only if none appears, run `open "<previewUrl>"` yourself.
    - No `previewUrl` → the MCP isn't the Claude host; tell the user to (re)connect `weaver-preview`.
 4. Tell the user the board is live, to keep the window visible (its heartbeat keeps the canvas
    online), and that they can now **type in the on-canvas composer** — no need to return to the terminal.

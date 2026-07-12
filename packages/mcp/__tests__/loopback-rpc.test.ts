@@ -21,9 +21,9 @@ async function previewHub(options: { dispatch?: (name: string, args: Record<stri
   const root = mkdtempSync(join(tmpdir(), "weaver-rpc-")); roots.push(root); mkdirSync(root, { recursive: true });
   const store = new WorkspaceStore(root);
   const scene = getScenePack("free-brainstorming")!;
-  const project = store.createProject({ title: "RPC", goal: "", scenePack: scene });
+  const project = store.catalog.createProject({ title: "RPC", goal: "", scenePack: scene });
   const key = chatKey("proc-rpc");
-  const binding = store.openChatCanvasBinding({ chatSessionKey: key, projectId: project.id, viewId: project.defaultViewId });
+  const binding = store.sessions.openBinding({ chatSessionKey: key, projectId: project.id, viewId: project.defaultViewId });
   store.close();
   const calls: Array<{ name: string; args: Record<string, unknown> }> = [];
   const dispatch = options.dispatch ?? (async (name: string, args: Record<string, unknown>) => { calls.push({ name, args }); return { content: [{ type: "text", text: "OK" }], structuredContent: { ok: true, echoWorkspace: args.workspaceDir } }; });

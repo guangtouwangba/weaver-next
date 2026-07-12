@@ -55,23 +55,24 @@ export function registerWorkspaceTools(server: McpServer, ctx: WorkspaceToolsCtx
   // Codex still holds the old cached descriptor, which surfaced as
   // `-32602 Resource not found` and cascaded into the widget's -32000. The stable
   // URI always resolves to the current process's fresh inline HTML.
-  registerAppTool(server, "weaver_open_workspace_widget", {
+  registerAppTool(server, "weaver_open_space", {
     title: "Open Weaver Workspace",
     description: "Open the Weaver semantic canvas for an explicit local workspace and optional project. Codex renders it as an embedded panel; Claude Code opens it as a tokenized loopback browser preview.",
-    inputSchema: { workspaceDir: z.string().min(1), projectId: z.string().optional(), displayMode: z.enum(["fullscreen", "inline"]).default("fullscreen") },
+    inputSchema: { workspaceDir: z.string().min(1), projectId: z.string().optional(), displayMode: z.enum(["fullscreen", "inline"]).default("inline") },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     _meta: { ui: { resourceUri: LEGACY_WIDGET_URI, visibility: ["model", "app"] }, "ui/resourceUri": LEGACY_WIDGET_URI, "openai/outputTemplate": LEGACY_WIDGET_URI, "openai/widgetAccessible": true },
   }, defineTool(async (input, extra) => {
     const chatSessionKey = chatSessionKeyFromRequest(extra);
-    const binding = mutateWithStore(input.workspaceDir, (store) => {
+    const opened = mutateWithStore(input.workspaceDir, (store) => {
       let viewId: string | undefined;
       if (input.projectId) {
-        const project = store.getProject(input.projectId);
+        const project = store.catalog.getProject(input.projectId);
         if (!project) throw new Error("PROJECT_NOT_FOUND");
         viewId = project.defaultViewId;
       }
-      return store.openChatCanvasBinding({ chatSessionKey, projectId: input.projectId, viewId });
+      return { binding: store.sessions.openBinding({ chatSessionKey, projectId: input.projectId, viewId }), schemaResetBackupName: store.schemaResetBackupName };
     });
+    const { binding, schemaResetBackupName } = opened;
     const activeWidgetBuildId = widgetBuildId();
     const workspaceBuildId = workspaceWidgetBuildId(input.workspaceDir);
     const activeRuntimeMode = runtimeMode();
@@ -93,7 +94,7 @@ export function registerWorkspaceTools(server: McpServer, ctx: WorkspaceToolsCtx
     // Claude Code has no native panel, so it still gets the loopback browser URL.
     const preview = (isPreview && !isCodex) ? { previewUrl: eventHub.previewUrl, previewToken: eventHub.previewToken } : {};
     const message = isCodex
-      ? "Opened the Weaver canvas panel. The user selects nodes on the canvas, then asks you (in chat) to develop them: read the live selection with weaver_get_bound_canvas, do the work, then weaver_submit_changeset — the panel refreshes to show it. The canvas is a visual surface; you are triggered from the chat."
+      ? 'Opened the Weaver canvas panel. The user selects nodes on the canvas, then asks you (in chat) to develop them: read the live selection with weaver_read_session(resource:"bound_canvas"), do the work, then weaver_submit_changeset — the panel refreshes to show it. The canvas is a visual surface; you are triggered from the chat.'
       : isPreview
         ? "Opened the Weaver canvas in your browser. If no window appeared, open previewUrl manually."
         : "Opened Weaver workspace widget.";
@@ -103,12 +104,13 @@ export function registerWorkspaceTools(server: McpServer, ctx: WorkspaceToolsCtx
       workspaceWidgetBuildId: workspaceBuildId, runtimeMode: activeRuntimeMode,
       buildMismatch: shouldBlockWorkspaceBuildMismatch(activeRuntimeMode, activeWidgetBuildId, workspaceBuildId),
       chatBinding: { leaseId: binding.leaseId, bindingRevision: binding.bindingRevision, projectId: binding.projectId, viewId: binding.viewId },
+      schemaReset: schemaResetBackupName ? { backupName: schemaResetBackupName } : undefined,
       ...(isCodex ? { rendering: "native-widget" } : {}),
       ...preview,
     }, message);
   }));
 
-  server.registerTool("weaver_open_canvas_event_stream", {
+  server.registerTool("weaver_subscribe_canvas", {
     title: "Open Canvas Event Stream",
     description: "Widget-only creation of a project-scoped, read-only loopback SSE stream for durable Weaver task, graph and layout events.",
     inputSchema: { ...projectSchema.shape, canvasSessionId: z.string().min(1) },

@@ -3,7 +3,7 @@ import type { LayoutDocument, LayoutPlan, SpaceEdge, SpaceNode } from "@weaver/c
 import { generateLayoutCandidates } from "../src/engine.js";
 
 const timestamp = "2026-07-10T00:00:00.000Z";
-const nodes: SpaceNode[] = ["a", "b", "c", "d"].map((id, index) => ({ id, projectId: "p", type: index ? "idea" : "root", title: id, body: "", contentKind: "document", content: { kind: "document", mode: "note", markdown: "", excerpt: "", embeddedAssetIds: [] }, properties: {}, archived: false, createdAt: timestamp, updatedAt: timestamp }));
+const nodes: SpaceNode[] = ["a", "b", "c", "d"].map((id, index) => ({ id, projectId: "p", type: index ? "idea" : "root", title: id, contentKind: "document", content: { kind: "document", mode: "note", markdown: "", excerpt: "", embeddedAssetIds: [] }, properties: {}, archived: false, createdAt: timestamp, updatedAt: timestamp }));
 const edges: SpaceEdge[] = [
   { id: "ab", projectId: "p", type: "branch", sourceNodeId: "a", targetNodeId: "b", directed: true, properties: {}, archived: false, createdAt: timestamp, updatedAt: timestamp },
   { id: "ac", projectId: "p", type: "branch", sourceNodeId: "a", targetNodeId: "c", directed: true, properties: {}, archived: false, createdAt: timestamp, updatedAt: timestamp },
