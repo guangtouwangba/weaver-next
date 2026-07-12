@@ -5,7 +5,7 @@ import { bootedAt, fileLoggingEnabled, recentEntries, recentErrors } from "../lo
 import { defineTool, result } from "../shared/tool-runtime.js";
 import type { SseEventHub } from "../event-hub.js";
 
-export type DiagnosticsToolsCtx = { eventHub: SseEventHub; serverVersion: string };
+export type DiagnosticsToolsCtx = { eventHub: SseEventHub; serverVersion: string; toolSurface: () => unknown };
 
 /**
  * Observability surface. `weaver_get_diagnostics` lets an agent in EITHER host
@@ -15,10 +15,10 @@ export type DiagnosticsToolsCtx = { eventHub: SseEventHub; serverVersion: string
  * Claude Code alike: ask the server itself.
  */
 export function registerDiagnosticsTools(server: McpServer, ctx: DiagnosticsToolsCtx) {
-  const { eventHub, serverVersion } = ctx;
+  const { eventHub, serverVersion, toolSurface } = ctx;
   server.registerTool("weaver_get_diagnostics", {
     title: "Get Weaver Diagnostics",
-    description: "Read this MCP server's identity, health and recent structured activity log. Use it to see what the server actually did and why a call failed — works the same in Codex and Claude Code.",
+    description: "Read this MCP server's identity, health, recent activity log, and the model-facing tool surface it advertises. If `toolSurface.criticalPresent.weaver_submit_changeset` is true but you cannot call that tool, this host (e.g. Codex) dropped it from your tool list — not the server.",
     inputSchema: { limit: z.number().int().min(1).max(500).default(120).optional(), errorsOnly: z.boolean().optional(), workspaceDir: z.string().optional() },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   }, defineTool(async ({ limit, errorsOnly }) => {
@@ -33,6 +33,6 @@ export function registerDiagnosticsTools(server: McpServer, ctx: DiagnosticsTool
       previewAvailable: preview,
       fileLogging: fileLoggingEnabled(),
     };
-    return result({ server, errors: recentErrors(50), recent: errorsOnly ? [] : recentEntries(limit ?? 120) }, "Weaver server diagnostics.");
+    return result({ server, toolSurface: toolSurface(), errors: recentErrors(50), recent: errorsOnly ? [] : recentEntries(limit ?? 120) }, "Weaver server diagnostics.");
   }));
 }

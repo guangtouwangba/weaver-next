@@ -44,6 +44,38 @@ export const PREVIEW_TOOL_ALLOWLIST = new Set<string>([
 
 type CapturedTool = { shape?: ZodRawShape; handler: (...args: any[]) => unknown; meta?: Record<string, unknown> };
 
+/** The develop-loop write tools an agent MUST have to turn reasoning into a
+ * ChangeSet. If any of these is absent from the model-facing surface a task can
+ * only spin ("缺少提交 ChangeSet 的写入工具"), so we flag them explicitly. */
+export const CRITICAL_MODEL_TOOLS = [
+  "weaver_prepare_task_from_active_canvas", "weaver_start_agent_task", "weaver_submit_changeset",
+  "weaver_apply_changeset", "weaver_complete_agent_task", "weaver_report_task_progress", "weaver_await_canvas_prompt",
+] as const;
+
+/** A tool is model-facing unless its `ui.visibility` explicitly omits "model"
+ * (i.e. it is a widget-only tool). Absent visibility = a normal agent tool. */
+function isModelFacing(meta: Record<string, unknown> | undefined): boolean {
+  const visibility = (meta as { ui?: { visibility?: string[] } } | undefined)?.ui?.visibility;
+  return !visibility || visibility.includes("model");
+}
+
+/** What the server advertises to the MODEL, computed from the live registry.
+ * The server cannot see Codex's own tool-list cap, but this is the "should be
+ * available" set: if the agent can call weaver_get_diagnostics yet reports a
+ * CRITICAL tool missing while this says it is model-facing, Codex dropped it. */
+export type ToolSurface = { registered: number; modelFacing: number; widgetOnly: number; modelFacingNames: string[]; criticalPresent: Record<string, boolean> };
+function computeToolSurface(registry: Map<string, CapturedTool>): ToolSurface {
+  const modelFacingNames = [...registry.entries()].filter(([, tool]) => isModelFacing(tool.meta)).map(([name]) => name).sort();
+  const modelFacingSet = new Set(modelFacingNames);
+  return {
+    registered: registry.size,
+    modelFacing: modelFacingNames.length,
+    widgetOnly: registry.size - modelFacingNames.length,
+    modelFacingNames,
+    criticalPresent: Object.fromEntries(CRITICAL_MODEL_TOOLS.map((name) => [name, modelFacingSet.has(name)])),
+  };
+}
+
 export type WeaverServer = {
   server: McpServer;
   eventHub: SseEventHub;
@@ -121,12 +153,15 @@ export async function createWeaverServer(options: { previewWorkspaceDir?: string
   registerLayoutTools(server, { eventHub, mutateWithStore });
   registerChangesetsTools(server, { mutateWithStore });
   registerArtifactsTools(server);
-  registerDiagnosticsTools(server, { eventHub, serverVersion });
+  // Lazy: reads the registry at call time, so it reflects the full tool set even
+  // though diagnostics is registered before every tool below it exists yet.
+  registerDiagnosticsTools(server, { eventHub, serverVersion, toolSurface: () => computeToolSurface(registry) });
   registerResources(server, { eventHub, widgetUri });
 
   (server as any).registerTool = originalRegisterTool;
 
-  log("info", "server.boot", { serverVersion, hostKind: hostKind() ?? "codex", runtimeMode: process.env.WEAVER_RUNTIME_MODE ?? "installed", buildId: eventHub.buildId, origin: eventHub.origin, cwd: process.cwd(), node: process.version, toolCount: registry.size });
+  const surface = computeToolSurface(registry);
+  log("info", "server.boot", { serverVersion, hostKind: hostKind() ?? "codex", runtimeMode: process.env.WEAVER_RUNTIME_MODE ?? "installed", buildId: eventHub.buildId, origin: eventHub.origin, cwd: process.cwd(), node: process.version, toolCount: registry.size, modelFacingTools: surface.modelFacing, criticalModelTools: surface.criticalPresent });
 
   const dispatch = async (name: string, args: Record<string, unknown>) => {
     const entry = registry.get(name);

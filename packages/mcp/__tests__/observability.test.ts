@@ -50,6 +50,27 @@ describe("observability", () => {
     } finally { await close(); }
   });
 
+  it("reports the model-facing tool surface so a stuck agent can prove Codex dropped a tool", async () => {
+    const root = workspace();
+    const { dispatch, close } = await createWeaverServer({ previewWorkspaceDir: root });
+    try {
+      const diagnostics = await dispatch("weaver_get_diagnostics", {}) as any;
+      const surface = diagnostics.structuredContent.toolSurface;
+      // Whole registered surface, and the subset the server advertises to the model.
+      expect(surface.registered).toBeGreaterThan(40);
+      expect(surface.modelFacing).toBeGreaterThan(0);
+      expect(surface.widgetOnly).toBeGreaterThan(0);
+      expect(surface.modelFacing + surface.widgetOnly).toBe(surface.registered);
+      // The essential develop-loop write tools must be advertised model-facing.
+      expect(surface.modelFacingNames).toContain("weaver_submit_changeset");
+      expect(surface.modelFacingNames).toContain("weaver_start_agent_task");
+      expect(surface.criticalPresent.weaver_submit_changeset).toBe(true);
+      expect(surface.criticalPresent.weaver_start_agent_task).toBe(true);
+      // A widget-only tool (visibility ["app"], not in the preview allowlist) stays hidden from the model.
+      expect(surface.modelFacingNames).not.toContain("weaver_confirm_agent_dispatch");
+    } finally { await close(); }
+  });
+
   it("never returns a Claude preview capability URL through diagnostics", async () => {
     const root = workspace();
     const previousHost = process.env.WEAVER_HOST_KIND;
