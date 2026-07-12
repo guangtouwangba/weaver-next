@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Node, NodeProps } from "@xyflow/react";
-import { ExternalLink, FileImage, FileText, Lock } from "lucide-react";
+import { ExternalLink, FileImage, FileText, Lock, X } from "lucide-react";
 import type { CardData } from "../../types";
 import { NodeShell } from "./NodeShell";
 import { NodeBlockEditor } from "./NodeBlockEditor";
@@ -48,4 +48,21 @@ export function LinkCard({ data, id, selected }: NodeProps<Node<CardData>>) {
   </NodeShell>;
 }
 
-export function VisualGroupCard({ data }: NodeProps<Node<{ label: string; kind: string }>>) { return <section className="visual-group-card" data-kind={data.kind}><strong>{data.label}</strong></section>; }
+type GroupData = { groupId: string; label: string; kind: string; onRename?: (groupId: string, label: string) => void; onDissolve?: (groupId: string) => void };
+export function VisualGroupCard({ data }: NodeProps<Node<GroupData>>) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(data.label);
+  const commit = () => { setEditing(false); if (draft.trim() && draft !== data.label) data.onRename?.(data.groupId, draft.trim()); else setDraft(data.label); };
+  // Projection regions are derived by a View projection — read-only, not operable.
+  const operable = data.kind !== "projection" && Boolean(data.onRename);
+  // Only the title bar takes pointer events; the region body stays click-through
+  // so nodes and edges above it remain fully interactive.
+  return <section className="visual-group-card" data-kind={data.kind}>
+    <div className="visual-group-title nodrag nowheel" data-operable={operable || undefined}>
+      {editing
+        ? <input autoFocus value={draft} onChange={(event) => setDraft(event.target.value)} onBlur={commit} onKeyDown={(event) => { if (event.key === "Enter") commit(); if (event.key === "Escape") { setDraft(data.label); setEditing(false); } }} />
+        : <strong onDoubleClick={operable ? () => { setDraft(data.label); setEditing(true); } : undefined}>{data.label}</strong>}
+      {operable && data.onDissolve ? <button type="button" className="visual-group-dissolve" title={data.kind} onClick={() => data.onDissolve?.(data.groupId)}><X size={11} /></button> : null}
+    </div>
+  </section>;
+}

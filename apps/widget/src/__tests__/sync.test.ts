@@ -33,6 +33,25 @@ describe("widget SSE reducers", () => {
     expect(next.nodes.b).toEqual(layout.nodes.b);
   });
 
+  it("applies operable group deltas optimistically (create/assign/rename/delete)", () => {
+    const layout = { layoutRevision: 1, nodes: { a: { nodeId: "a", x: 0, y: 0, width: 100, height: 80, pinned: false }, b: { nodeId: "b", x: 200, y: 0, width: 100, height: 80, pinned: false } }, groups: {} as Record<string, { groupId: string; [k: string]: unknown }> };
+    const grouped = applyLayoutOperations(layout, 2, [
+      { type: "create-group", groupId: "g1", frame: { x: -20, y: -20, width: 340, height: 120 }, label: "Group", kind: "interaction" },
+      { type: "assign-node-to-group", nodeId: "a", groupId: "g1" },
+      { type: "assign-node-to-group", nodeId: "b", groupId: "g1" },
+    ]);
+    expect(grouped.groups.g1).toMatchObject({ groupId: "g1", label: "Group", kind: "interaction", width: 340 });
+    expect(grouped.nodes.a.groupId).toBe("g1");
+
+    const renamed = applyLayoutOperations(grouped, 3, [{ type: "rename-group", groupId: "g1", label: "Cluster" }]);
+    expect(renamed.groups.g1.label).toBe("Cluster");
+
+    const dissolved = applyLayoutOperations(renamed, 4, [{ type: "delete-group", groupId: "g1" }]);
+    expect(dissolved.groups.g1).toBeUndefined();
+    expect(dissolved.nodes.a.groupId).toBeUndefined();
+    expect(dissolved.nodes.a).toMatchObject({ x: 0, y: 0 });
+  });
+
   it("applies view projection and theme as layout-only deltas", () => {
     const layout = { layoutRevision: 1, nodes: {}, viewName: "Canvas", projection: { kind: "canvas" }, theme: { canvas: { backgroundColor: "white" } } };
     const next = applyLayoutOperations(layout, 2, [{ type: "set-view-name", viewName: "Roadmap" }, { type: "set-view-projection", projection: { kind: "timeline" } }, { type: "set-view-theme", theme: { canvas: { backgroundColor: "blue" } } }]);

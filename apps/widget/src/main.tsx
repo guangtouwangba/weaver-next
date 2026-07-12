@@ -67,7 +67,7 @@ function WeaverWidget() {
     standaloneDemo, project, layout, bootstrap, bindingRef, setStatus, selection, anchorNodeId, nodes, viewport, sessionId, stream, pendingInitialFitView, pendingViewportRestore,
   });
 
-  const { persistNodeFrame, persistNodeResize: _persistNodeResize, persistEdgeRoute, archiveNodes, togglePinned, toggleCanvasTheme, handleSelectionChange, handleNodeDrag } = useCanvasGraph({
+  const { persistNodeFrame, persistNodeResize: _persistNodeResize, persistEdgeRoute, groupSelection, archiveNodes, togglePinned, toggleCanvasTheme, handleSelectionChange, handleNodeDrag } = useCanvasGraph({
     standaloneDemo, setNodes, setEdges, graphNodes, graphEdges, assetPreviews, draggingNodeId, selection, setSelection, bootstrap, project, layout, setLayout, layoutRef, projectRef, setStatus, load,
   });
   const canvasViewport = useCanvasViewport({ nodes, selection, viewId: layout?.viewId, viewport, pendingInitialFitView, pendingViewportRestore, fitView, getViewport, setViewport, onViewportReady: () => { window.setTimeout(() => void syncContext(), 0); } });
@@ -131,7 +131,7 @@ function WeaverWidget() {
       />
       <CanvasStage
         standaloneDemo={standaloneDemo} displayedNodes={displayedNodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} layout={layout} handleCanvasWheel={canvasViewport.handleCanvasWheel} viewportState={canvasViewport.state} miniMapOpen={canvasViewport.miniMapOpen} setMiniMapOpen={canvasViewport.setMiniMapOpen} beginViewportInteraction={canvasViewport.beginInteraction} handleViewportMove={canvasViewport.handleMove} handleViewportMoveEnd={canvasViewport.handleMoveEnd} zoomBy={canvasViewport.zoomBy} fitAll={canvasViewport.fitAll} focusSelection={canvasViewport.focusSelection} toggleCanvasTheme={toggleCanvasTheme} onNodeClick={setAnchorNodeId} handleNodeDrag={handleNodeDrag} handleSelectionChange={handleSelectionChange} archiveNodes={archiveNodes}
-        draggingNodeId={draggingNodeId} viewport={viewport} setStatus={setStatus} syncContext={syncContext} persistNodeFrame={persistNodeFrame} persistEdgeRoute={persistEdgeRoute} openNodeViewer={openNodeViewer} bindingRef={bindingRef} selection={selection}
+        draggingNodeId={draggingNodeId} viewport={viewport} setStatus={setStatus} syncContext={syncContext} persistNodeFrame={persistNodeFrame} persistEdgeRoute={persistEdgeRoute} groupSelection={groupSelection} openNodeViewer={openNodeViewer} bindingRef={bindingRef} selection={selection}
         activeTask={activeTask} cancelActiveTask={cancelActiveTask} changePreview={changePreview} rejectChangeSet={rejectChangeSet} applyChangeSet={applyChangeSet}
         candidates={candidates} candidateIndex={candidateIndex} setCandidateIndex={setCandidateIndex} rejectLayout={rejectLayout} applyCandidate={applyCandidate}
         staleTask={staleTask} viewToast={viewToast} setViewToast={setViewToast} restoreProjectView={restoreProjectView}

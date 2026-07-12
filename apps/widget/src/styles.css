@@ -208,6 +208,15 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
    behind nodes/edges; only the title/border treatment separates them. */
 .visual-group-card { width: 100%; height: 100%; padding: 14px 16px; color: var(--muted); background: var(--group-fill); border: 1px solid var(--group-border); border-radius: var(--radius-card); pointer-events: none; }
 .visual-group-card strong { display: inline-block; font-size: 10px; letter-spacing: .07em; text-transform: uppercase; }
+/* Title bar is the only interactive part of a region; the body stays click-through. */
+.visual-group-title { position: absolute; top: 8px; left: 12px; display: inline-flex; align-items: center; gap: 6px; max-width: calc(100% - 24px); pointer-events: none; }
+.visual-group-title[data-operable="true"] { pointer-events: auto; }
+.visual-group-title strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.visual-group-title[data-operable="true"] strong { cursor: text; }
+.visual-group-title input { min-width: 80px; max-width: 220px; padding: 2px 6px; color: var(--fg-strong); background: var(--surface); border: 1px solid var(--blue); border-radius: var(--radius-xs); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; }
+.visual-group-dissolve { width: 18px; height: 18px; padding: 0; display: none; place-items: center; color: var(--muted); background: transparent; border: 0; border-radius: var(--radius-xs); }
+.visual-group-card:hover .visual-group-dissolve { display: grid; }
+.visual-group-dissolve:hover { color: var(--danger); background: var(--danger-soft); }
 /* Interaction: light, dashed, quiet — the default operable grouping. */
 .visual-group-card[data-kind="interaction"] { background: color-mix(in srgb, var(--group-fill) 60%, transparent); border-style: dashed; }
 /* Frame: a titled composition boundary — solid hairline + a title plate. */

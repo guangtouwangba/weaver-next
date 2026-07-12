@@ -2,6 +2,7 @@ import { useCallback, useEffect } from "react";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import type { Edge, Node } from "@xyflow/react";
 import { callTool } from "../mcp-client";
+import { applyLayoutOperations, type LayoutOperation } from "../sync";
 import { excerpt, toFlowEdge } from "../lib/graph-view";
 import { canvasThemeForMode } from "../lib/canvas-theme";
 import type { Bootstrap, CardData, GraphEdge, GraphNode, Layout, Project } from "../types";
@@ -138,6 +139,43 @@ export function useCanvasGraph(params: {
     } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); await load(); }
   }
 
+  // Operable groups (面 · DESIGN.md § Plane). All three are layout-only ops, so
+  // they never bump graphRevision — grouping is a view arrangement, not a Graph
+  // membership change. Optimistic in standalone; server-authoritative otherwise.
+  async function persistGroupOps(operations: LayoutOperation[], message: string) {
+    const currentLayout = layoutRef.current ?? layout; const currentProject = projectRef.current ?? project;
+    if (!currentLayout || !operations.length) return;
+    if (standaloneDemo || !currentProject) { const optimistic = applyLayoutOperations(currentLayout, currentLayout.layoutRevision + 1, operations); layoutRef.current = optimistic; setLayout(optimistic); setStatus(message); return; }
+    try { const next = await callTool<Layout>("weaver_canvas_action", { workspaceDir: bootstrap.workspaceDir, action: "layout_operations", projectId: currentProject.id, viewId: currentLayout.viewId, baseLayoutRevision: currentLayout.layoutRevision, operations }); layoutRef.current = next; setLayout(next); setStatus(`${message} · r${next.layoutRevision}`); }
+    catch (error) { setStatus(error instanceof Error ? error.message : String(error)); await load(); }
+  }
+
+  function groupSelection() {
+    const currentLayout = layoutRef.current ?? layout; if (!currentLayout || selection.length < 1) return;
+    const frames = selection.map((id) => currentLayout.nodes[id]).filter(Boolean);
+    if (!frames.length) return;
+    const pad = 28;
+    const minX = Math.min(...frames.map((frame) => frame.x)) - pad, minY = Math.min(...frames.map((frame) => frame.y)) - pad;
+    const maxX = Math.max(...frames.map((frame) => frame.x + frame.width)) + pad, maxY = Math.max(...frames.map((frame) => frame.y + frame.height)) + pad;
+    const viewId = currentLayout.viewId;
+    const groupId = `group:${crypto.randomUUID().slice(0, 8)}`;
+    const operations: LayoutOperation[] = [
+      { type: "create-group", viewId, groupId, frame: { x: minX, y: minY, width: maxX - minX, height: maxY - minY }, label: "Group", kind: "interaction" },
+      ...selection.map((nodeId) => ({ type: "assign-node-to-group", viewId, nodeId, groupId } as LayoutOperation)),
+    ];
+    void persistGroupOps(operations, `Grouped ${selection.length} nodes`);
+  }
+
+  function renameGroup(groupId: string, label: string) {
+    const viewId = (layoutRef.current ?? layout)?.viewId; if (!viewId || !label.trim()) return;
+    void persistGroupOps([{ type: "rename-group", viewId, groupId, label: label.trim() }], "Group renamed");
+  }
+
+  function dissolveGroup(groupId: string) {
+    const viewId = (layoutRef.current ?? layout)?.viewId; if (!viewId) return;
+    void persistGroupOps([{ type: "delete-group", viewId, groupId }], "Group dissolved");
+  }
+
   async function togglePinned() { if (!project || !layout || !selection.length || standaloneDemo) return; const shouldPin = selection.some((id) => !layout.nodes[id]?.pinned); try { const next = await callTool<Layout>("weaver_canvas_action", { workspaceDir: bootstrap.workspaceDir, action: "layout_operations", projectId: project.id, viewId: layout.viewId, baseLayoutRevision: layout.layoutRevision, operations: selection.map((nodeId) => ({ type: shouldPin ? "pin-node" : "unpin-node", viewId: layout.viewId, nodeId })) }); setLayout(next); setStatus(`${shouldPin ? "Pinned" : "Unpinned"} ${selection.length} nodes`); } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); } }
 
   async function toggleCanvasTheme() {
@@ -158,7 +196,7 @@ export function useCanvasGraph(params: {
 
   useEffect(() => {
     if (!layout) return;
-    const visualGroups: Node[] = Object.values(layout.groups ?? {}).map((group) => ({ id: `visual-group:${group.groupId}`, type: "visualGroup", position: { x: group.x, y: group.y }, data: { label: group.label ?? group.groupId.split(":").slice(1).join(":"), kind: group.kind ?? "interaction" }, style: { width: group.width, height: group.height, zIndex: -1 }, draggable: false, selectable: false, connectable: false }));
+    const visualGroups: Node[] = Object.values(layout.groups ?? {}).map((group) => ({ id: `visual-group:${group.groupId}`, type: "visualGroup", position: { x: group.x, y: group.y }, data: { groupId: group.groupId, label: group.label ?? group.groupId.split(":").slice(1).join(":"), kind: group.kind ?? "interaction", onRename: renameGroup, onDissolve: dissolveGroup }, style: { width: group.width, height: group.height, zIndex: -1 }, draggable: false, selectable: false, connectable: false }));
     const references = graphNodes.map((node) => ({ id: node.id, title: node.title }));
     setNodes([...visualGroups, ...graphNodes.map((item, index) => {
       const frame = layout.nodes[item.id] ?? { x: (index % 4) * 300, y: Math.floor(index / 4) * 190, width: item.contentKind === "chart" ? 320 : item.contentKind === "link" ? 300 : 280, height: item.contentKind === "chart" ? 220 : 160, pinned: false };
@@ -173,5 +211,5 @@ export function useCanvasGraph(params: {
 
   const handleSelectionChange = useCallback(({ nodes: selected }: { nodes: Node[] }) => { const next = selected.map((node) => node.id).sort(); setSelection((current) => current.length === next.length && current.every((id, index) => id === next[index]) ? current : next); }, [setSelection]);
   const handleNodeDrag = useCallback((_event: MouseEvent | TouchEvent, dragged: Node) => { setNodes((current) => current.map((node) => node.id === dragged.id ? { ...node, position: { x: dragged.position.x, y: dragged.position.y } } : node)); }, [setNodes]);
-  return { persistNodeFrame, persistNodeResize, persistEdgeRoute, archiveNodes, togglePinned, toggleCanvasTheme, handleSelectionChange, handleNodeDrag };
+  return { persistNodeFrame, persistNodeResize, persistEdgeRoute, groupSelection, renameGroup, dissolveGroup, archiveNodes, togglePinned, toggleCanvasTheme, handleSelectionChange, handleNodeDrag };
 }

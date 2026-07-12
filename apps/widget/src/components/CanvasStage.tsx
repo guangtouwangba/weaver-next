@@ -41,6 +41,7 @@ export function CanvasStage(props: {
   syncContext: () => Promise<boolean | undefined>;
   persistNodeFrame: (node: Node) => void | Promise<void>;
   persistEdgeRoute: (edgeId: string, patch: { lineStyle?: EdgeLineStyle; arrows?: EdgeArrows; routing?: EdgeRouting }) => void | Promise<void>;
+  groupSelection: () => void;
   openNodeViewer: (nodeId: string) => void | Promise<void>;
   bindingRef: MutableRefObject<ChatBindingBootstrap | undefined>;
   selection: string[];
@@ -59,7 +60,7 @@ export function CanvasStage(props: {
   setViewToast: Dispatch<SetStateAction<{ message: string; undoViewId?: string } | null>>;
   restoreProjectView: (viewId: string) => void | Promise<void>;
 }) {
-  const { displayedNodes, edges, onNodesChange, onEdgesChange, layout, handleCanvasWheel, viewportState, miniMapOpen, setMiniMapOpen, beginViewportInteraction, handleViewportMove, handleViewportMoveEnd, zoomBy, fitAll, focusSelection, toggleCanvasTheme, onNodeClick, handleNodeDrag, handleSelectionChange, archiveNodes, draggingNodeId, viewport, setStatus, syncContext, persistNodeFrame, persistEdgeRoute, openNodeViewer, selection, changePreview, rejectChangeSet, applyChangeSet, candidates, candidateIndex, setCandidateIndex, rejectLayout, applyCandidate, staleTask, viewToast, setViewToast, restoreProjectView } = props;
+  const { displayedNodes, edges, onNodesChange, onEdgesChange, layout, handleCanvasWheel, viewportState, miniMapOpen, setMiniMapOpen, beginViewportInteraction, handleViewportMove, handleViewportMoveEnd, zoomBy, fitAll, focusSelection, toggleCanvasTheme, onNodeClick, handleNodeDrag, handleSelectionChange, archiveNodes, draggingNodeId, viewport, setStatus, syncContext, persistNodeFrame, persistEdgeRoute, groupSelection, openNodeViewer, selection, changePreview, rejectChangeSet, applyChangeSet, candidates, candidateIndex, setCandidateIndex, rejectLayout, applyCandidate, staleTask, viewToast, setViewToast, restoreProjectView } = props;
   const { t } = useI18n();
   // A single-edge selection surfaces the style override bar. Track the id and
   // resolve the live Edge from props so its data stays fresh after an override.
@@ -83,7 +84,7 @@ export function CanvasStage(props: {
       {canvas?.pattern !== "plain" ? <Background variant={canvas?.pattern === "grid" ? BackgroundVariant.Lines : BackgroundVariant.Dots} gap={viewportState.zoom < .25 ? (canvas?.patternGap ?? 20) * 2 : canvas?.patternGap ?? 20} size={canvas?.patternSize ?? 1} color={canvas?.patternColor ?? "#aeb5aa"} style={{ opacity: patternOpacity, transition: "opacity 120ms ease" }} /> : null}
       {miniMapOpen ? <MiniMap pannable zoomable nodeStrokeWidth={0} maskColor={dark ? "rgba(13,15,14,.72)" : "rgba(242,243,237,.72)"} nodeColor={(node) => node.type === "image" ? "#eb775f" : node.type === "link" ? dark ? "#d9ddd8" : "#282d28" : layout?.theme?.nodeStyles.default?.accentColor ?? "#315cf6"} /> : null}
     </ReactFlow>
-    <CanvasNavigation state={viewportState} miniMapOpen={miniMapOpen} hasSelection={Boolean(selection.length)} dark={dark} onZoomOut={(bounds) => zoomBy(1 / 1.2, bounds)} onZoomIn={(bounds) => zoomBy(1.2, bounds)} onFit={fitAll} onFocus={focusSelection} onToggleMiniMap={() => setMiniMapOpen((open) => !open)} onToggleTheme={() => void toggleCanvasTheme()} onDeleteSelection={() => void archiveNodes(selection)} selectionCount={selection.length} />
+    <CanvasNavigation state={viewportState} miniMapOpen={miniMapOpen} hasSelection={Boolean(selection.length)} dark={dark} onZoomOut={(bounds) => zoomBy(1 / 1.2, bounds)} onZoomIn={(bounds) => zoomBy(1.2, bounds)} onFit={fitAll} onFocus={focusSelection} onToggleMiniMap={() => setMiniMapOpen((open) => !open)} onToggleTheme={() => void toggleCanvasTheme()} onDeleteSelection={() => void archiveNodes(selection)} onGroupSelection={groupSelection} selectionCount={selection.length} />
     <div className="canvas-gesture-hint"><span>{t("dragCanvas")}</span><span>{t("scrollPan")}</span><span>{t("scrollZoom")}</span><span>{t("shiftSelect")}</span></div>
     <EdgeStyleBar edge={selectedEdge} persistEdgeRoute={persistEdgeRoute} />
     <ChangeSetPreviewPanel changePreview={changePreview} rejectChangeSet={rejectChangeSet} applyChangeSet={applyChangeSet} />

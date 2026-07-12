@@ -16,6 +16,11 @@ export type LayoutOperation =
   | { type: "set-node-collapsed"; nodeId: string; collapsed: boolean }
   | { type: "set-node-z-index"; nodeId: string; zIndex: number }
   | { type: "set-edge-route"; edgeId: string; route: Record<string, unknown> }
+  | { type: "create-group"; groupId: string; frame: { x: number; y: number; width: number; height: number }; label?: string; kind?: string; direction?: string }
+  | { type: "rename-group"; groupId: string; label: string }
+  | { type: "delete-group"; groupId: string }
+  | { type: "assign-node-to-group"; nodeId: string; groupId: string | null }
+  | { type: "set-group-frame"; groupId: string; frame: { x: number; y: number; width: number; height: number } }
   | { type: "set-view-name"; viewName: string }
   | { type: "set-view-projection"; projection: unknown }
   | { type: "set-view-theme"; theme: unknown }
@@ -51,14 +56,20 @@ export function applyGraphDelta<Node extends { id: string }, Edge extends { id: 
   return { nodes: [...nodeMap.values()], edges: [...edgeMap.values()] };
 }
 
-type MutableLayoutNode = { pinned?: boolean; hidden?: boolean; collapsed?: boolean; zIndex?: number; [key: string]: unknown };
+type MutableLayoutNode = { pinned?: boolean; hidden?: boolean; collapsed?: boolean; zIndex?: number; groupId?: string; [key: string]: unknown };
 type MutableLayoutEdge = { edgeId: string; [key: string]: unknown };
-export function applyLayoutOperations<T extends { layoutRevision: number; nodes: Record<string, MutableLayoutNode>; edges?: Record<string, MutableLayoutEdge> }>(document: T, toRevision: number, operations: LayoutOperation[]): T {
+type MutableLayoutGroup = { groupId: string; [key: string]: unknown };
+export function applyLayoutOperations<T extends { layoutRevision: number; nodes: Record<string, MutableLayoutNode>; edges?: Record<string, MutableLayoutEdge>; groups?: Record<string, MutableLayoutGroup> }>(document: T, toRevision: number, operations: LayoutOperation[]): T {
   const next = structuredClone(document);
   for (const operation of operations) {
     const nodeId = "nodeId" in operation ? (operation.nodeId as string) : undefined;
     const node = nodeId ? next.nodes[nodeId] : undefined;
     if (operation.type === "set-edge-route" && "edgeId" in operation) { const edges = (next.edges ??= {}); const edgeId = operation.edgeId as string; edges[edgeId] = { ...(edges[edgeId] ?? { edgeId }), ...(operation.route as Record<string, unknown>) }; }
+    else if (operation.type === "create-group" && "groupId" in operation) { const op = operation as { groupId: string; frame: Record<string, unknown>; label?: string; kind?: string; direction?: string }; const groups = (next.groups ??= {}); groups[op.groupId] = { groupId: op.groupId, ...op.frame, kind: op.kind ?? "interaction", padding: 32, collapsed: false, ...(op.label !== undefined ? { label: op.label } : {}), ...(op.direction ? { direction: op.direction } : {}) }; }
+    else if (operation.type === "rename-group" && "groupId" in operation) { const op = operation as { groupId: string; label: string }; const group = next.groups?.[op.groupId]; if (group) group.label = op.label; }
+    else if (operation.type === "delete-group" && "groupId" in operation) { const groupId = (operation as { groupId: string }).groupId; if (next.groups) delete next.groups[groupId]; for (const candidate of Object.values(next.nodes)) if (candidate.groupId === groupId) candidate.groupId = undefined; }
+    else if (operation.type === "assign-node-to-group" && nodeId && node) node.groupId = (operation as { groupId: string | null }).groupId ?? undefined;
+    else if (operation.type === "set-group-frame" && "groupId" in operation) { const op = operation as { groupId: string; frame: Record<string, unknown> }; const groups = (next.groups ??= {}); groups[op.groupId] = { ...(groups[op.groupId] ?? { groupId: op.groupId }), ...op.frame }; }
     else if (operation.type === "set-node-frame" && nodeId) next.nodes[nodeId] = { ...(node ?? { nodeId, pinned: false }), ...(operation.frame as Record<string, unknown>) };
     else if (operation.type === "pin-node" && node) node.pinned = true;
     else if (operation.type === "unpin-node" && node) node.pinned = false;
