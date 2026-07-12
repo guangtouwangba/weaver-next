@@ -13,10 +13,10 @@ Native Weaver widget open. Weaver MCP tools only. Requires a host image model. C
 
 ## Workflow
 
-1. `weaver_get_bound_canvas`; read the target node (`weaver_get_node_content`) or take the described subject.
+1. `weaver_read_session(resource:"bound_canvas")`; read the target node (`weaver_read_graph(resource:"node")`) or take the described subject.
 2. Compose a concise art-direction prompt (subject, mood, medium/style, palette, aspect). No embedded paragraphs of text unless the user asks.
 3. Generate with the host image model. Resolve the exact bytes for THIS request (never a stale file); base64-encode.
-4. `weaver_ingest_image` → `assetId`.
+4. `weaver_import_asset(source:"bytes")` → `assetId`.
 5. Place via ChangeSet: `add-node` image placed BESIDE the source node (a clear nearby area) — or, if the user wants it as the node's picture, `weaver_attach_asset` with `role:"cover"`.
 6. Confirm node id / attachment and pending-review state.
 

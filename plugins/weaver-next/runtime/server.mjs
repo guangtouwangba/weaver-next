@@ -123510,6 +123510,7 @@ var canvasOfflineAfterMs = 3e4;
 var preparedTaskExpiryMs = 12e4;
 var dispatchedTaskExpiryMs = 18e4;
 var runningTaskExpiryMs = 6e5;
+var runningTaskMaxLifetimeMs = 18e5;
 var taskTransitions = {
   prepared: /* @__PURE__ */ new Set(["dispatched", "failed", "cancelled"]),
   dispatched: /* @__PURE__ */ new Set(["running", "failed", "cancelled"]),
@@ -125259,15 +125260,6 @@ function seedSemanticLayout(params) {
   updateSeedBounds(document2);
   return { clusterOf, groupCount: Object.keys(document2.groups).length };
 }
-function previewClusters(params) {
-  const constraints = normalizeConstraints(params.plan, params.current);
-  const clusters = detectClusters(params.nodes, params.edges, constraints, params.current);
-  const center = clusters.find((cluster) => cluster.isCenter);
-  return {
-    clusters: clusters.map((cluster) => ({ id: cluster.id, label: cluster.label, memberCount: cluster.memberIds.length, hubId: cluster.hubId, isCenter: cluster.isCenter, hubProminent: cluster.hubProminent })),
-    centerId: center?.memberIds[0]
-  };
-}
 
 // packages/storage/src/view-catalog.ts
 import { randomUUID as randomUUID3 } from "node:crypto";
@@ -125576,6 +125568,8 @@ function reapExpiredCanvasTasks(db, canvasSessionId) {
       reaped.push(updateAgentTask(db, task.taskId, { status: "failed", error: { code: "AGENT_DISPATCH_TIMEOUT", message: "No agent started this task within three minutes" } }));
     } else if (task.status === "running" && idleMs > runningTaskExpiryMs) {
       reaped.push(updateAgentTask(db, task.taskId, { status: "failed", error: { code: "AGENT_TASK_TIMEOUT", message: "Agent reported no progress for ten minutes; task reaped so the canvas is unblocked" } }));
+    } else if (task.status === "running" && Date.now() - Date.parse(task.createdAt) > runningTaskMaxLifetimeMs) {
+      reaped.push(updateAgentTask(db, task.taskId, { status: "failed", error: { code: "AGENT_TASK_MAX_LIFETIME", message: "Task exceeded its maximum running time; reaped so the canvas is unblocked" } }));
     }
   }
   return reaped;
@@ -125639,6 +125633,13 @@ function assertTaskChat(db, taskId, chatSessionKey, requireOnline = true) {
   if (task.chatSessionKey !== chatSessionKey) throw new Error("TASK_CHAT_MISMATCH");
   const { binding, context } = getBoundCanvas(db, chatSessionKey, requireOnline);
   if (binding.bindingRevision !== task.bindingRevision || binding.canvasSessionId !== task.canvasSessionId || context.projectId !== task.projectId) throw new Error("TASK_BINDING_STALE");
+  return task;
+}
+function assertTaskCanvas(db, taskId, chatSessionKey, requireOnline = false) {
+  const task = getAgentTask(db, taskId);
+  if (!task) throw new Error(`AGENT_TASK_NOT_FOUND:${taskId}`);
+  const { binding, context } = getBoundCanvas(db, chatSessionKey, requireOnline);
+  if (binding.canvasSessionId !== task.canvasSessionId || context.projectId !== task.projectId) throw new Error("TASK_NOT_ON_CANVAS");
   return task;
 }
 function getAgentTask(db, taskId) {
@@ -126716,6 +126717,9 @@ var WorkspaceStore = class {
   }
   assertTaskChat(taskId, chatSessionKey, requireOnline = true) {
     return assertTaskChat(this.db, taskId, chatSessionKey, requireOnline);
+  }
+  assertTaskCanvas(taskId, chatSessionKey, requireOnline = false) {
+    return assertTaskCanvas(this.db, taskId, chatSessionKey, requireOnline);
   }
   getAgentTask(taskId) {
     return getAgentTask(this.db, taskId);
@@ -128035,7 +128039,8 @@ function registerAgentTasksTools(server2, ctx) {
     title: "Prepare Agent Task",
     description: "Atomically capture the latest canvas state into a durable task before the widget sends a follow-up message.",
     inputSchema: { ...workspaceSchema.shape, canvasSessionId: external_exports.string(), actionKey: external_exports.string(), userInstruction: external_exports.string().optional(), dispatchKey: external_exports.string().min(1) },
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    _meta: { ui: { visibility: ["app"] } }
   }, defineTool(async ({ workspaceDir, canvasSessionId, actionKey, userInstruction, dispatchKey }, extra) => {
     const chatSessionKey = chatSessionKeyFromRequest(extra);
     const task = mutateWithStore(workspaceDir, (store) => store.prepareAgentTask({ canvasSessionId, actionKey, userInstruction, dispatchKey, chatSessionKey }));
@@ -128088,15 +128093,6 @@ function registerAgentTasksTools(server2, ctx) {
       return store.beginAgentContinuation({ taskId, dispatchKey, expectedTaskRevision });
     }));
   }));
-  server2.registerTool("weaver_mark_task_dispatched", { title: "Mark Task Dispatched", description: "Compatibility entry point for confirming the latest prepared dispatch.", inputSchema: { ...workspaceSchema.shape, taskId: external_exports.string() }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } }, defineTool(async ({ workspaceDir, taskId }, extra) => {
-    const chatSessionKey = chatSessionKeyFromRequest(extra);
-    return result(mutateWithStore(workspaceDir, (store) => {
-      const task = store.assertTaskChat(taskId, chatSessionKey);
-      const dispatch2 = [...task.dispatches].reverse().find((item) => item.state === "prepared");
-      if (!dispatch2) throw new Error("AGENT_DISPATCH_NOT_FOUND");
-      return store.confirmAgentDispatch(taskId, dispatch2.dispatchKey);
-    }));
-  }));
   for (const [name, status] of [["weaver_start_agent_task", "running"], ["weaver_complete_agent_task", "completed"]]) {
     server2.registerTool(name, { title: name.replaceAll("_", " "), description: `Set a durable Weaver agent task to ${status}.`, inputSchema: { ...workspaceSchema.shape, taskId: external_exports.string() }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } }, defineTool(async ({ workspaceDir, taskId }, extra) => {
       const chatSessionKey = chatSessionKeyFromRequest(extra);
@@ -128113,19 +128109,13 @@ function registerAgentTasksTools(server2, ctx) {
       return store.reportTaskProgress(taskId, note);
     }));
   }));
-  server2.registerTool("weaver_cancel_agent_task", { title: "Cancel Agent Task", description: "Cooperatively cancel a non-terminal task so later agent writes are rejected.", inputSchema: { ...workspaceSchema.shape, taskId: external_exports.string() }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } } }, defineTool(async ({ workspaceDir, taskId }, extra) => {
+  server2.registerTool("weaver_cancel_agent_task", { title: "Cancel Agent Task", description: "Cooperatively cancel a non-terminal task so later agent writes are rejected. Authorized by canvas control \u2014 the bound canvas can cancel any task running on it, even one a different agent session dispatched.", inputSchema: { ...workspaceSchema.shape, taskId: external_exports.string() }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } } }, defineTool(async ({ workspaceDir, taskId }, extra) => {
     const chatSessionKey = chatSessionKeyFromRequest(extra);
     return result(mutateWithStore(workspaceDir, (store) => {
-      const task = store.assertTaskChat(taskId, chatSessionKey, false);
+      const task = store.assertTaskCanvas(taskId, chatSessionKey);
       if (["completed", "stale", "failed", "cancelled"].includes(task.status)) return task;
       return store.updateAgentTask(taskId, { status: "cancelled" });
     }));
-  }));
-  server2.registerTool("weaver_get_agent_task", { title: "Get Agent Task", description: "Read a durable task only when it belongs to the current Codex chat binding.", inputSchema: { ...workspaceSchema.shape, taskId: external_exports.string() }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } }, defineTool(async ({ workspaceDir, taskId }, extra) => {
-    const chatSessionKey = chatSessionKeyFromRequest(extra);
-    const task = withStore(workspaceDir, (store) => store.assertTaskChat(taskId, chatSessionKey, false));
-    workspaceByTask.set(taskId, workspaceDir);
-    return result(task);
   }));
   server2.registerTool("weaver_list_canvas_tasks", { title: "List Canvas Tasks", description: "Widget-only recovery of non-terminal tasks associated with one canvas session. Reaps expired tasks first.", inputSchema: { ...workspaceSchema.shape, canvasSessionId: external_exports.string() }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } } }, defineTool(async ({ workspaceDir, canvasSessionId }) => result(mutateWithStore(workspaceDir, (store) => {
     store.reapExpiredCanvasTasks(canvasSessionId);
@@ -128140,26 +128130,10 @@ function registerArtifactsTools(server2) {
     const output = withStore(workspaceDir, (store) => store.publishArtifact({ projectId, type: artifactType, title, content, sourceNodeIds, graphRevision }));
     return result(output, `Published ${artifactType} artifact.`);
   }));
-  server2.registerTool("weaver_get_artifact", { title: "Get Weaver Artifact", description: "Read one project-local generated artifact.", inputSchema: { ...workspaceSchema.shape, artifactId: external_exports.string() }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } }, defineTool(async ({ workspaceDir, artifactId }) => {
-    const artifact = withStore(workspaceDir, (store) => store.getArtifact(artifactId));
-    if (!artifact) throw new Error("ARTIFACT_NOT_FOUND");
-    return result(artifact);
-  }));
 }
 
 // packages/mcp/src/tools/assets.ts
-import sharp2 from "sharp";
 function registerAssetsTools(server2) {
-  server2.registerTool("weaver_get_asset_metadata", {
-    title: "Get Image Asset Metadata",
-    description: "Read safe metadata for a project-local image asset without loading its original binary.",
-    inputSchema: { ...projectSchema2.shape, assetId: external_exports.string().min(1) },
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
-  }, defineTool(async ({ workspaceDir, projectId, assetId }) => {
-    const asset = withStore(workspaceDir, (store) => store.getAsset(assetId));
-    if (!asset || asset.projectId !== projectId) throw new Error("ASSET_NOT_FOUND_OR_CROSS_PROJECT");
-    return result(asset);
-  }));
   server2.registerTool("weaver_get_asset_preview", {
     title: "Get Image Asset Preview",
     description: "Widget-only read of a size-bounded thumbnail data URL for an image card.",
@@ -128193,43 +128167,27 @@ function registerAssetsTools(server2) {
       return failure(error51);
     }
   });
-  server2.registerTool("weaver_ingest_image", {
-    title: "Ingest Image (skill)",
-    description: "Import raw image bytes (base64) produced by an imagegen skill into the project's asset store and return an assetId to reference from a ChangeSet add-node image op. Content-addressed and deduplicated; validates that the declared mimeType matches the real bytes; does not change graphRevision.",
-    inputSchema: { ...projectSchema2.shape, mimeType: external_exports.enum(["image/jpeg", "image/png", "image/webp", "image/gif"]), base64: external_exports.string().min(1).max(28 * 1024 * 1024) },
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }
-  }, async ({ workspaceDir, projectId, mimeType, base64: base643 }) => {
-    try {
-      const store = new WorkspaceStore(workspaceDir);
-      try {
-        const output = await store.importImageAsset({ projectId, mimeType, data: Buffer.from(base643, "base64") });
-        return result({ assetId: output.asset.id, width: output.asset.width, height: output.asset.height, deduplicated: output.deduplicated }, output.deduplicated ? "Reused existing image asset." : "Imported image asset.");
-      } finally {
-        store.close();
-      }
-    } catch (error51) {
-      return failure(error51);
-    }
-  });
-  server2.registerTool("weaver_render_svg_image", {
-    title: "Render SVG to Image Asset",
-    description: "Rasterize an agent-authored SVG document to a PNG and import it as a project asset (returns assetId). Use for crisp-text infographics/covers and as the image path on hosts without a built-in image model. Deterministic; does not change graphRevision.",
-    inputSchema: { ...projectSchema2.shape, svg: external_exports.string().min(1).max(2 * 1024 * 1024), scale: external_exports.number().min(1).max(3).default(2) },
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }
-  }, async ({ workspaceDir, projectId, svg, scale }) => {
-    try {
-      const png = await sharp2(Buffer.from(svg), { density: Math.round(96 * scale) }).png().toBuffer();
-      const store = new WorkspaceStore(workspaceDir);
-      try {
-        const output = await store.importImageAsset({ projectId, mimeType: "image/png", data: png });
-        return result({ assetId: output.asset.id, width: output.asset.width, height: output.asset.height }, "Rendered SVG to image asset.");
-      } finally {
-        store.close();
-      }
-    } catch (error51) {
-      return failure(error51);
-    }
-  });
+}
+
+// packages/mcp/src/shared/bound-canvas.ts
+function resolveBoundCanvas(store, chatSessionKey) {
+  const { binding, context } = store.getBoundCanvas(chatSessionKey, false);
+  const project = store.getProject(context.projectId);
+  if (!project) throw new Error("PROJECT_NOT_FOUND");
+  const layout = store.getLayout(context.projectId, context.viewId);
+  if (!layout) throw new Error("LAYOUT_NOT_FOUND");
+  const seenAt = Date.parse(context.presence?.lastSeenAt ?? context.updatedAt);
+  return {
+    projectId: context.projectId,
+    viewId: context.viewId,
+    canvasSessionId: context.canvasSessionId,
+    bindingStatus: binding.status,
+    online: Date.now() - seenAt <= 3e4,
+    lastSeenAt: context.presence?.lastSeenAt ?? context.updatedAt,
+    graphRevision: project.graphRevision,
+    layoutRevision: layout.layoutRevision,
+    bindingRevision: binding.bindingRevision
+  };
 }
 
 // packages/mcp/src/tools/canvas-binding.ts
@@ -128286,39 +128244,14 @@ function registerCanvasBindingTools(server2, ctx) {
     description: "Resolve the exact Project, View and Canvas currently bound to this Codex chat. Never guesses from focus or recency.",
     inputSchema: workspaceSchema.shape,
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    _meta: { ui: { visibility: ["app", "model"] } }
+    // Widget-only: the on-canvas widget calls this under its own name. Its own
+    // `visibility: ["app"]` overrides the allowlist bump so it stays
+    // widget-accessible but off the MODEL surface — the model reads the same
+    // binding via `weaver_read_session(resource:"bound_canvas")`.
+    _meta: { ui: { visibility: ["app"] } }
   }, defineTool(async ({ workspaceDir }, extra) => {
     const chatSessionKey = chatSessionKeyFromRequest(extra);
-    const output = withStore(workspaceDir, (store) => {
-      const { binding, context } = store.getBoundCanvas(chatSessionKey, false);
-      const project = store.getProject(context.projectId);
-      if (!project) throw new Error("PROJECT_NOT_FOUND");
-      const layout = store.getLayout(context.projectId, context.viewId);
-      if (!layout) throw new Error("LAYOUT_NOT_FOUND");
-      const seenAt = Date.parse(context.presence?.lastSeenAt ?? context.updatedAt);
-      return {
-        projectId: context.projectId,
-        viewId: context.viewId,
-        canvasSessionId: context.canvasSessionId,
-        bindingStatus: binding.status,
-        online: Date.now() - seenAt <= 3e4,
-        lastSeenAt: context.presence?.lastSeenAt ?? context.updatedAt,
-        graphRevision: project.graphRevision,
-        layoutRevision: layout.layoutRevision,
-        bindingRevision: binding.bindingRevision
-      };
-    });
-    return result(output);
-  }));
-  server2.registerTool("weaver_get_canvas_context", {
-    title: "Get Canvas Context",
-    description: "Read the authoritative selection and view snapshot for one canvas session.",
-    inputSchema: { ...workspaceSchema.shape, canvasSessionId: external_exports.string() },
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
-  }, defineTool(async ({ workspaceDir, canvasSessionId }) => {
-    const context = withStore(workspaceDir, (store) => store.getCanvasContext(canvasSessionId));
-    if (!context) throw new Error("CANVAS_SESSION_NOT_FOUND");
-    return result(context);
+    return result(withStore(workspaceDir, (store) => resolveBoundCanvas(store, chatSessionKey)));
   }));
   server2.registerTool("weaver_get_canvas_view_state", {
     title: "Get Canvas View State",
@@ -128327,25 +128260,6 @@ function registerCanvasBindingTools(server2, ctx) {
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     _meta: { ui: { visibility: ["app"] } }
   }, defineTool(async ({ workspaceDir, canvasSessionId, viewId }) => result(withStore(workspaceDir, (store) => store.getCanvasViewState(canvasSessionId, viewId) ?? { canvasSessionId, viewId, firstOpen: true }))));
-  server2.registerTool("weaver_resolve_context", {
-    title: "Resolve Scene Context",
-    description: "Resolve a bounded, auditable node context using the project's pinned scene policy and current canvas selection.",
-    inputSchema: { ...workspaceSchema.shape, canvasSessionId: external_exports.string() },
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
-  }, defineTool(async ({ workspaceDir, canvasSessionId }) => {
-    const output = withStore(workspaceDir, (store) => {
-      const context = store.getCanvasContext(canvasSessionId);
-      if (!context) throw new Error("CANVAS_SESSION_NOT_FOUND");
-      const project = store.getProject(context.projectId);
-      if (!project) throw new Error("PROJECT_NOT_FOUND");
-      const scenePack = getScenePack(project.scenePackId, project.scenePackVersion);
-      if (!scenePack) throw new Error("SCENE_PACK_NOT_FOUND");
-      const graph = store.getGraph(project.id);
-      const nodes = resolveSceneContext({ nodes: graph.nodes, edges: graph.edges, scenePack, selectedNodeIds: context.selectedNodeIds, pinnedNodeIds: context.pinnedContextNodeIds });
-      return { projectId: project.id, graphRevision: graph.revision, policy: scenePack.contextPolicy, nodeIds: nodes.map((node) => node.id), nodes };
-    });
-    return result(output, `Resolved ${output.nodes.length} context nodes.`);
-  }));
 }
 
 // packages/mcp/src/tools/canvas-prompts.ts
@@ -128426,6 +128340,120 @@ function registerCanvasPromptsTools(server2, ctx) {
   }));
 }
 
+// packages/mcp/src/shared/catalog-reads.ts
+function listProjects2(store) {
+  return store.listProjects();
+}
+function listProjectViews2(store, projectId, status) {
+  return store.listProjectViews(projectId, status).map((view) => ({ ...view, nodeCount: Object.keys(store.getLayout(projectId, view.id)?.nodes ?? {}).length }));
+}
+function searchProjectViews2(store, projectId, query = "", status = "active") {
+  return store.searchProjectViews(projectId, query, status).map((view) => ({ ...view, nodeCount: Object.keys(store.getLayout(projectId, view.id)?.nodes ?? {}).length }));
+}
+function getProjectView2(store, projectId, viewId) {
+  const view = store.getProjectView(projectId, viewId);
+  if (!view) throw new Error("VIEW_NOT_FOUND");
+  return view;
+}
+function listVisualTemplates(filter = {}) {
+  return builtinVisualTemplates.filter((item) => (!filter.scenePackId || item.compatibleScenePackIds.includes(filter.scenePackId)) && (!filter.family || item.family === filter.family) && (!filter.renderer || item.renderer === filter.renderer));
+}
+function readVisualTemplate(templateId, version2 = "1.0.0") {
+  const item = getVisualTemplate(templateId, version2);
+  if (!item) throw new Error("VISUAL_TEMPLATE_NOT_FOUND");
+  return item;
+}
+function readArtifact(store, artifactId) {
+  const artifact = store.getArtifact(artifactId);
+  if (!artifact) throw new Error("ARTIFACT_NOT_FOUND");
+  return artifact;
+}
+function readAssetMetadata(store, projectId, assetId) {
+  const asset = store.getAsset(assetId);
+  if (!asset || asset.projectId !== projectId) throw new Error("ASSET_NOT_FOUND_OR_CROSS_PROJECT");
+  return asset;
+}
+function listChangeSets2(store, projectId, status) {
+  return store.listChangeSets(projectId, status);
+}
+function readChangeSet(store, changeSetId, chatSessionKey) {
+  const value = store.getChangeSet(changeSetId);
+  if (!value) throw new Error("CHANGESET_NOT_FOUND");
+  store.assertTaskChat(value.taskId, chatSessionKey, false);
+  return value;
+}
+function previewChangeSet(store, changeSetId, chatSessionKey) {
+  const item = store.getChangeSet(changeSetId);
+  if (!item) throw new Error("CHANGESET_NOT_FOUND");
+  store.assertTaskChat(item.taskId, chatSessionKey, false);
+  const project = store.getProject(item.projectId);
+  if (!project) throw new Error("PROJECT_NOT_FOUND");
+  return {
+    changeSet: item,
+    stale: project.graphRevision !== item.baseGraphRevision,
+    currentGraphRevision: project.graphRevision,
+    summary: {
+      addedNodes: item.graphOperations.filter((op) => op.type === "add-node").length,
+      updatedNodes: item.graphOperations.filter((op) => ["update-node", "set-node-content", "attach-asset", "detach-asset", "set-node-cover"].includes(op.type)).length,
+      archivedNodes: item.graphOperations.filter((op) => op.type === "archive-node").length,
+      addedEdges: item.graphOperations.filter((op) => op.type === "add-edge").length,
+      updatedEdges: item.graphOperations.filter((op) => op.type === "update-edge").length,
+      archivedEdges: item.graphOperations.filter((op) => op.type === "archive-edge").length,
+      layoutOperations: item.layoutOperations.length
+    }
+  };
+}
+function readLayout(store, projectId, viewId) {
+  const layout = store.getLayout(projectId, viewId);
+  if (!layout) throw new Error("LAYOUT_NOT_FOUND");
+  return layout;
+}
+function readLayoutRun(store, layoutRunId, chatSessionKey) {
+  const item = store.getLayoutRun(layoutRunId);
+  if (!item) throw new Error("LAYOUT_RUN_NOT_FOUND");
+  if (item.taskId) store.assertTaskChat(item.taskId, chatSessionKey, false);
+  return item;
+}
+function layoutCapabilities() {
+  return {
+    strategies: ["tree", "layered", "radial", "force", "cluster", "grid", "timeline", "swimlane", "hybrid"],
+    recommendedStrategy: "cluster",
+    honoredConstraints: {
+      cluster: ["emphasis", "group", "direction", "separation", "spacing", "pin", "preserve-position"],
+      layered: ["direction", "emphasis"],
+      tree: ["direction"],
+      radial: ["emphasis"],
+      force: [],
+      grid: []
+    },
+    constraints: ["pin", "align", "distribute", "order", "rank", "group", "containment", "separation", "relative-position", "direction", "spacing", "avoid-overlap", "preserve-position", "edge-length", "edge-routing", "emphasis", "viewport-fit"],
+    candidateCount: { min: 1, max: 5, default: 3 }
+  };
+}
+
+// packages/mcp/src/shared/review-actions.ts
+function rejectChangeSet2(store, changeSetId, chatSessionKey) {
+  const item = store.getChangeSet(changeSetId);
+  if (!item) throw new Error("CHANGESET_NOT_FOUND");
+  store.assertTaskChat(item.taskId, chatSessionKey);
+  return store.rejectChangeSet(changeSetId);
+}
+function applyLayoutCandidate2(store, layoutRunId, candidateId, chatSessionKey) {
+  const run = store.getLayoutRun(layoutRunId);
+  if (!run) throw new Error("LAYOUT_RUN_NOT_FOUND");
+  if (run.taskId) store.assertTaskChat(run.taskId, chatSessionKey);
+  return store.applyLayoutCandidate(layoutRunId, candidateId);
+}
+function rejectLayoutRun2(store, layoutRunId, chatSessionKey) {
+  const run = store.getLayoutRun(layoutRunId);
+  if (!run) throw new Error("LAYOUT_RUN_NOT_FOUND");
+  if (run.taskId) store.assertTaskChat(run.taskId, chatSessionKey);
+  return store.rejectLayoutRun(layoutRunId);
+}
+function revertLayout2(store, projectId, viewId) {
+  return store.revertLayout(projectId, viewId);
+}
+
 // packages/mcp/src/tools/changesets.ts
 function registerChangesetsTools(server2, ctx) {
   const { mutateWithStore } = ctx;
@@ -128446,37 +128474,13 @@ function registerChangesetsTools(server2, ctx) {
       return store.applyChangeSet(changeSetId);
     }), "Applied ChangeSet.");
   }));
-  server2.registerTool("weaver_list_changesets", { title: "List Weaver ChangeSets", description: "List pending or historical graph/layout proposals for a project.", inputSchema: { ...projectSchema2.shape, status: external_exports.enum(["pending", "applied", "rejected", "reverted"]).optional() }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } }, defineTool(async ({ workspaceDir, projectId, status }) => result(withStore(workspaceDir, (store) => store.listChangeSets(projectId, status)))));
-  server2.registerTool("weaver_get_changeset", { title: "Get Weaver ChangeSet", description: "Read one auditable graph/layout proposal for the current chat-bound task.", inputSchema: { ...workspaceSchema.shape, changeSetId: external_exports.string() }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } }, defineTool(async ({ workspaceDir, changeSetId }, extra) => {
+  server2.registerTool("weaver_preview_changeset", { title: "Preview Weaver ChangeSet", description: "Return a review-oriented summary and current revision status for one pending ChangeSet.", inputSchema: { ...workspaceSchema.shape, changeSetId: external_exports.string() }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } } }, defineTool(async ({ workspaceDir, changeSetId }, extra) => {
     const chatSessionKey = chatSessionKeyFromRequest(extra);
-    const item = withStore(workspaceDir, (store) => {
-      const value = store.getChangeSet(changeSetId);
-      if (!value) throw new Error("CHANGESET_NOT_FOUND");
-      store.assertTaskChat(value.taskId, chatSessionKey, false);
-      return value;
-    });
-    return result(item);
+    return result(withStore(workspaceDir, (store) => previewChangeSet(store, changeSetId, chatSessionKey)));
   }));
-  server2.registerTool("weaver_preview_changeset", { title: "Preview Weaver ChangeSet", description: "Return a review-oriented summary and current revision status for one pending ChangeSet.", inputSchema: { ...workspaceSchema.shape, changeSetId: external_exports.string() }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } }, defineTool(async ({ workspaceDir, changeSetId }, extra) => {
+  server2.registerTool("weaver_reject_changeset", { title: "Reject Weaver ChangeSet", description: "Reject one pending proposal without changing graph or layout revisions.", inputSchema: { ...workspaceSchema.shape, changeSetId: external_exports.string() }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } } }, defineTool(async ({ workspaceDir, changeSetId }, extra) => {
     const chatSessionKey = chatSessionKeyFromRequest(extra);
-    const preview = withStore(workspaceDir, (store) => {
-      const item = store.getChangeSet(changeSetId);
-      if (!item) throw new Error("CHANGESET_NOT_FOUND");
-      store.assertTaskChat(item.taskId, chatSessionKey, false);
-      const project = store.getProject(item.projectId);
-      if (!project) throw new Error("PROJECT_NOT_FOUND");
-      return { changeSet: item, stale: project.graphRevision !== item.baseGraphRevision, currentGraphRevision: project.graphRevision, summary: { addedNodes: item.graphOperations.filter((op) => op.type === "add-node").length, updatedNodes: item.graphOperations.filter((op) => ["update-node", "set-node-content", "attach-asset", "detach-asset", "set-node-cover"].includes(op.type)).length, archivedNodes: item.graphOperations.filter((op) => op.type === "archive-node").length, addedEdges: item.graphOperations.filter((op) => op.type === "add-edge").length, updatedEdges: item.graphOperations.filter((op) => op.type === "update-edge").length, archivedEdges: item.graphOperations.filter((op) => op.type === "archive-edge").length, layoutOperations: item.layoutOperations.length } };
-    });
-    return result(preview);
-  }));
-  server2.registerTool("weaver_reject_changeset", { title: "Reject Weaver ChangeSet", description: "Reject one pending proposal without changing graph or layout revisions.", inputSchema: { ...workspaceSchema.shape, changeSetId: external_exports.string() }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } }, defineTool(async ({ workspaceDir, changeSetId }, extra) => {
-    const chatSessionKey = chatSessionKeyFromRequest(extra);
-    return result(mutateWithStore(workspaceDir, (store) => {
-      const item = store.getChangeSet(changeSetId);
-      if (!item) throw new Error("CHANGESET_NOT_FOUND");
-      store.assertTaskChat(item.taskId, chatSessionKey);
-      return store.rejectChangeSet(changeSetId);
-    }));
+    return result(mutateWithStore(workspaceDir, (store) => rejectChangeSet2(store, changeSetId, chatSessionKey)));
   }));
 }
 
@@ -128680,66 +128684,138 @@ function registerContentTools(server2) {
   });
 }
 
-// packages/mcp/src/tools/graph.ts
+// packages/mcp/src/shared/graph-reads.ts
 function summarizeNode(store, node) {
   const content = node.content.kind === "document" ? { ...node.content, markdown: void 0 } : node.content;
   const assetIds = node.content.kind === "image" ? [node.content.assetId] : node.content.kind === "document" ? [node.content.coverAssetId, ...node.content.embeddedAssetIds].filter(Boolean) : node.content.kind === "link" ? [node.content.imageAssetId].filter(Boolean) : [];
   return { id: node.id, projectId: node.projectId, type: node.type, title: node.title, contentKind: node.contentKind, content, properties: node.properties, archived: node.archived, createdAt: node.createdAt, updatedAt: node.updatedAt, assets: assetIds.map((id) => store.getAsset(id)).filter(Boolean) };
 }
+function readProjectManifest(store, projectId) {
+  const project = store.getProject(projectId);
+  if (!project) throw new Error("PROJECT_NOT_FOUND");
+  const scenePack = getScenePack(project.scenePackId, project.scenePackVersion);
+  return { project, scenePack, views: store.listProjectViews(projectId, "active").map((view) => ({ ...view, viewId: view.id, viewName: view.name, layoutRevision: store.getLayout(projectId, view.id)?.layoutRevision ?? 0 })) };
+}
+function readProjectGraph(store, projectId, viewId) {
+  const project = store.getProject(projectId);
+  if (!project) throw new Error("PROJECT_NOT_FOUND");
+  const graph = store.getGraph(projectId);
+  const layout = store.getLayout(projectId, viewId ?? project.defaultViewId);
+  if (!layout) throw new Error("LAYOUT_NOT_FOUND");
+  const nodes = graph.nodes.filter((node) => !node.archived);
+  const nodeIds = new Set(nodes.map((node) => node.id));
+  const edges = graph.edges.filter((edge) => !edge.archived && nodeIds.has(edge.sourceNodeId) && nodeIds.has(edge.targetNodeId));
+  return { project, nodes: nodes.map((node) => summarizeNode(store, node)), edges, layout };
+}
+function queryGraph(store, projectId, filter) {
+  const graph = store.getGraph(projectId);
+  let nodes = graph.nodes.filter((node) => !node.archived);
+  if (filter.nodeIds?.length) nodes = nodes.filter((node) => filter.nodeIds.includes(node.id));
+  if (filter.nodeTypes?.length) nodes = nodes.filter((node) => filter.nodeTypes.includes(node.type));
+  if (filter.text) nodes = nodes.filter((node) => `${node.title}
+${node.body}`.toLowerCase().includes(filter.text.toLowerCase()));
+  nodes = nodes.slice(0, filter.limit ?? 50);
+  const ids = new Set(nodes.map((node) => node.id));
+  const edges = graph.edges.filter((edge) => ids.has(edge.sourceNodeId) || ids.has(edge.targetNodeId));
+  return { revision: graph.revision, nodes: nodes.map((node) => summarizeNode(store, node)), edges };
+}
+function readNodeContent(store, projectId, nodeId) {
+  const graph = store.getGraph(projectId);
+  const node = graph.nodes.find((candidate) => candidate.id === nodeId);
+  if (!node) throw new Error(`NODE_NOT_FOUND:${nodeId}`);
+  return { graphRevision: graph.revision, node };
+}
+
+// packages/mcp/src/tools/graph.ts
 function registerGraphTools(server2) {
   server2.registerTool("weaver_get_project_graph", {
     title: "Get Project Graph",
     description: "Read graph content and one independent view layout.",
     inputSchema: { ...projectSchema2.shape, viewId: external_exports.string().optional() },
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    _meta: { ui: { visibility: ["app"] } }
   }, defineTool(async ({ workspaceDir, projectId, viewId }) => {
-    const output = withStore(workspaceDir, (store) => {
-      const project = store.getProject(projectId);
-      if (!project) throw new Error("PROJECT_NOT_FOUND");
-      const graph = store.getGraph(projectId);
-      const layout = store.getLayout(projectId, viewId ?? project.defaultViewId);
-      if (!layout) throw new Error("LAYOUT_NOT_FOUND");
-      const nodes = graph.nodes.filter((node) => !node.archived);
-      const nodeIds = new Set(nodes.map((node) => node.id));
-      const edges = graph.edges.filter((edge) => !edge.archived && nodeIds.has(edge.sourceNodeId) && nodeIds.has(edge.targetNodeId));
-      return { project, nodes: nodes.map((node) => summarizeNode(store, node)), edges, layout };
-    });
+    const output = withStore(workspaceDir, (store) => readProjectGraph(store, projectId, viewId));
     track(workspaceDir, projectId);
     return result(output, "Loaded graph summaries and layout. Use weaver_get_node_content for full Markdown.");
-  }));
-  server2.registerTool("weaver_query_graph", {
-    title: "Query Project Graph",
-    description: "Filter semantic nodes and edges without loading the whole graph into model context.",
-    inputSchema: { ...projectSchema2.shape, nodeIds: external_exports.array(external_exports.string()).optional(), nodeTypes: external_exports.array(external_exports.string()).optional(), text: external_exports.string().optional(), limit: external_exports.number().int().min(1).max(200).default(50) },
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
-  }, defineTool(async ({ workspaceDir, projectId, nodeIds, nodeTypes, text, limit }) => {
-    const output = withStore(workspaceDir, (store) => {
-      const graph = store.getGraph(projectId);
-      let nodes = graph.nodes.filter((node) => !node.archived);
-      if (nodeIds?.length) nodes = nodes.filter((node) => nodeIds.includes(node.id));
-      if (nodeTypes?.length) nodes = nodes.filter((node) => nodeTypes.includes(node.type));
-      if (text) nodes = nodes.filter((node) => `${node.title}
-${node.body}`.toLowerCase().includes(text.toLowerCase()));
-      nodes = nodes.slice(0, limit);
-      const ids = new Set(nodes.map((node) => node.id));
-      const edges = graph.edges.filter((edge) => ids.has(edge.sourceNodeId) || ids.has(edge.targetNodeId));
-      return { revision: graph.revision, nodes: nodes.map((node) => summarizeNode(store, node)), edges };
-    });
-    return result(output);
   }));
   server2.registerTool("weaver_get_node_content", {
     title: "Get Full Node Content",
     description: "Read the complete content of one Weaver node. Use this after graph discovery when full Markdown or media references are needed.",
     inputSchema: { ...projectSchema2.shape, nodeId: external_exports.string().min(1) },
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    _meta: { ui: { visibility: ["app"] } }
   }, defineTool(async ({ workspaceDir, projectId, nodeId }) => {
-    const output = withStore(workspaceDir, (store) => {
-      const graph = store.getGraph(projectId);
-      const node = graph.nodes.find((candidate) => candidate.id === nodeId);
-      if (!node) throw new Error(`NODE_NOT_FOUND:${nodeId}`);
-      return { graphRevision: graph.revision, node };
-    });
+    const output = withStore(workspaceDir, (store) => readNodeContent(store, projectId, nodeId));
     return result(output);
+  }));
+}
+
+// packages/mcp/src/shared/refined-args.ts
+function parseRefined(schema, rawArgs) {
+  const parsed = schema.safeParse(rawArgs);
+  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "INVALID_ARGS");
+  return parsed.data;
+}
+
+// packages/mcp/src/shared/import-asset.ts
+import sharp2 from "sharp";
+async function importImageBytes(args) {
+  const store = new WorkspaceStore(args.workspaceDir);
+  try {
+    const output = await store.importImageAsset({ projectId: args.projectId, mimeType: args.mimeType, data: Buffer.from(args.base64, "base64") });
+    return result({ assetId: output.asset.id, width: output.asset.width, height: output.asset.height, deduplicated: output.deduplicated }, output.deduplicated ? "Reused existing image asset." : "Imported image asset.");
+  } finally {
+    store.close();
+  }
+}
+async function importSvgImage(args) {
+  const png = await sharp2(Buffer.from(args.svg), { density: Math.round(96 * args.scale) }).png().toBuffer();
+  const store = new WorkspaceStore(args.workspaceDir);
+  try {
+    const output = await store.importImageAsset({ projectId: args.projectId, mimeType: "image/png", data: png });
+    return result({ assetId: output.asset.id, width: output.asset.width, height: output.asset.height }, "Rendered SVG to image asset.");
+  } finally {
+    store.close();
+  }
+}
+
+// packages/mcp/src/tools/import-asset.ts
+var importAssetShape = {
+  ...workspaceSchema.shape,
+  projectId: external_exports.string(),
+  source: external_exports.enum(["bytes", "svg"]),
+  // source === "bytes" (← weaver_ingest_image):
+  mimeType: external_exports.enum(["image/jpeg", "image/png", "image/webp", "image/gif"]).optional(),
+  base64: external_exports.string().min(1).max(28 * 1024 * 1024).optional(),
+  // source === "svg" (← weaver_render_svg_image):
+  svg: external_exports.string().min(1).max(2 * 1024 * 1024).optional(),
+  scale: external_exports.number().min(1).max(3).default(2)
+};
+var importAssetSchema = external_exports.object(importAssetShape).superRefine((value, ctx) => {
+  const fail = (message) => ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message });
+  if (value.source === "bytes") {
+    if (!value.mimeType) fail("IMPORT_ASSET_REQUIRES_mimeType");
+    if (!value.base64) fail("IMPORT_ASSET_REQUIRES_base64");
+  } else {
+    if (!value.svg) fail("IMPORT_ASSET_REQUIRES_svg");
+  }
+});
+function registerImportAssetTool(server2) {
+  server2.registerTool("weaver_import_asset", {
+    title: "Import Asset (skill)",
+    description: 'Import an image produced by an imagegen skill into the project\'s asset store and return an `assetId` to reference from a ChangeSet add-node image op. `source:"bytes"` + `mimeType` + `base64` imports raw image bytes (content-addressed, deduplicated; validates the declared mimeType against the real bytes). `source:"svg"` + `svg` (+`scale`, default 2) rasterizes an agent-authored SVG to a PNG \u2014 use for crisp-text infographics/covers and on hosts without a built-in image model. Neither changes graphRevision.',
+    inputSchema: importAssetShape,
+    // idempotentHint:true — both merged writes are content-hash deduplicated (same
+    // bytes/SVG → same assetId, no new asset), matching what weaver_ingest_image
+    // and weaver_render_svg_image both declared.
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }
+  }, defineTool(async (rawArgs) => {
+    const args = parseRefined(importAssetSchema, rawArgs);
+    if (args.source === "bytes") {
+      return importImageBytes({ workspaceDir: args.workspaceDir, projectId: args.projectId, mimeType: args.mimeType, base64: args.base64 });
+    }
+    return importSvgImage({ workspaceDir: args.workspaceDir, projectId: args.projectId, svg: args.svg, scale: args.scale });
   }));
 }
 
@@ -129045,46 +129121,6 @@ async function generateLayoutCandidates(input) {
 }
 
 // packages/mcp/src/tools/layout.ts
-function layerOf2(node) {
-  const raw = node.properties?.layer;
-  return typeof raw === "string" ? raw.trim() : "";
-}
-function graphSignals(nodes, edges) {
-  const degree = /* @__PURE__ */ new Map();
-  for (const node of nodes) degree.set(node.id, 0);
-  for (const edge of edges) {
-    if (edge.sourceNodeId === edge.targetNodeId) continue;
-    degree.set(edge.sourceNodeId, (degree.get(edge.sourceNodeId) ?? 0) + 1);
-    degree.set(edge.targetNodeId, (degree.get(edge.targetNodeId) ?? 0) + 1);
-  }
-  const degrees = [...degree.values()];
-  const maxDegree = degrees.length ? Math.max(...degrees) : 0;
-  const topHubId = [...degree.entries()].sort((a2, b) => b[1] - a2[1] || a2[0].localeCompare(b[0]))[0]?.[0];
-  const positive = degrees.filter((d2) => d2 > 0).sort((a2, b) => a2 - b);
-  const medianDegree = positive.length ? positive.length % 2 ? positive[(positive.length - 1) / 2] : (positive[positive.length / 2 - 1] + positive[positive.length / 2]) / 2 : 0;
-  const isStar = maxDegree >= 3 && maxDegree >= 2 * Math.max(1, medianDegree);
-  const withLayer = nodes.filter((node) => layerOf2(node));
-  const layerCounts = /* @__PURE__ */ new Map();
-  for (const node of withLayer) {
-    const layer = layerOf2(node);
-    layerCounts.set(layer, (layerCounts.get(layer) ?? 0) + 1);
-  }
-  const distinctLayers = [...layerCounts.values()].filter((count) => count >= 2).length;
-  const kinds = /* @__PURE__ */ new Map();
-  for (const node of nodes) kinds.set(node.contentKind, (kinds.get(node.contentKind) ?? 0) + 1);
-  const dominantContentKind = [...kinds.entries()].sort((a2, b) => b[1] - a2[1])[0]?.[0];
-  return {
-    nodeCount: nodes.length,
-    edgeCount: edges.length,
-    layerCoverage: nodes.length ? Math.round(withLayer.length / nodes.length * 100) / 100 : 0,
-    distinctLayers,
-    maxDegree,
-    medianDegree,
-    isStar,
-    dominantContentKind,
-    topHubId
-  };
-}
 function registerLayoutTools(server2, ctx) {
   const { eventHub: eventHub2, mutateWithStore } = ctx;
   server2.registerTool("weaver_generate_layout_candidates", {
@@ -129131,33 +129167,17 @@ function registerLayoutTools(server2, ctx) {
       return failure(error51);
     }
   });
-  server2.registerTool("weaver_get_layout_run", { title: "Get Layout Run", description: "Read layout candidates and quality metrics for the current chat-bound task.", inputSchema: { ...workspaceSchema.shape, layoutRunId: external_exports.string() }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } }, defineTool(async ({ workspaceDir, layoutRunId }, extra) => {
+  server2.registerTool("weaver_get_layout_run", { title: "Get Layout Run", description: "Read layout candidates and quality metrics for the current chat-bound task.", inputSchema: { ...workspaceSchema.shape, layoutRunId: external_exports.string() }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } } }, defineTool(async ({ workspaceDir, layoutRunId }, extra) => {
     const chatSessionKey = chatSessionKeyFromRequest(extra);
-    const run = withStore(workspaceDir, (store) => {
-      const item = store.getLayoutRun(layoutRunId);
-      if (!item) throw new Error("LAYOUT_RUN_NOT_FOUND");
-      if (item.taskId) store.assertTaskChat(item.taskId, chatSessionKey, false);
-      return item;
-    });
-    return result(run);
+    return result(withStore(workspaceDir, (store) => readLayoutRun(store, layoutRunId, chatSessionKey)));
   }));
-  server2.registerTool("weaver_apply_layout", { title: "Apply Layout Candidate", description: "Apply one valid preview candidate, archive the previous view layout, and increment layoutRevision without changing graphRevision.", inputSchema: { ...workspaceSchema.shape, layoutRunId: external_exports.string(), candidateId: external_exports.string() }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false } }, defineTool(async ({ workspaceDir, layoutRunId, candidateId }, extra) => {
+  server2.registerTool("weaver_apply_layout", { title: "Apply Layout Candidate", description: "Apply one valid preview candidate, archive the previous view layout, and increment layoutRevision without changing graphRevision.", inputSchema: { ...workspaceSchema.shape, layoutRunId: external_exports.string(), candidateId: external_exports.string() }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } } }, defineTool(async ({ workspaceDir, layoutRunId, candidateId }, extra) => {
     const chatSessionKey = chatSessionKeyFromRequest(extra);
-    return result(mutateWithStore(workspaceDir, (store) => {
-      const run = store.getLayoutRun(layoutRunId);
-      if (!run) throw new Error("LAYOUT_RUN_NOT_FOUND");
-      if (run.taskId) store.assertTaskChat(run.taskId, chatSessionKey);
-      return store.applyLayoutCandidate(layoutRunId, candidateId);
-    }), "Applied layout candidate.");
+    return result(mutateWithStore(workspaceDir, (store) => applyLayoutCandidate2(store, layoutRunId, candidateId, chatSessionKey)), "Applied layout candidate.");
   }));
-  server2.registerTool("weaver_reject_layout", { title: "Reject Layout Run", description: "Reject a pending layout preview without changing graph or layout revisions.", inputSchema: { ...workspaceSchema.shape, layoutRunId: external_exports.string() }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } }, defineTool(async ({ workspaceDir, layoutRunId }, extra) => {
+  server2.registerTool("weaver_reject_layout", { title: "Reject Layout Run", description: "Reject a pending layout preview without changing graph or layout revisions.", inputSchema: { ...workspaceSchema.shape, layoutRunId: external_exports.string() }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } } }, defineTool(async ({ workspaceDir, layoutRunId }, extra) => {
     const chatSessionKey = chatSessionKeyFromRequest(extra);
-    return result(mutateWithStore(workspaceDir, (store) => {
-      const run = store.getLayoutRun(layoutRunId);
-      if (!run) throw new Error("LAYOUT_RUN_NOT_FOUND");
-      if (run.taskId) store.assertTaskChat(run.taskId, chatSessionKey);
-      return store.rejectLayoutRun(layoutRunId);
-    }), "Rejected layout preview.");
+    return result(mutateWithStore(workspaceDir, (store) => rejectLayoutRun2(store, layoutRunId, chatSessionKey)), "Rejected layout preview.");
   }));
   server2.registerTool("weaver_apply_layout_operations", { title: "Apply Manual Layout Operations", description: "Apply validated low-level layout operations from the widget, never graph mutations.", inputSchema: { ...projectSchema2.shape, viewId: external_exports.string(), baseLayoutRevision: external_exports.number().int().nonnegative(), operations: external_exports.array(layoutOperationSchema) }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } } }, defineTool(async ({ workspaceDir, projectId, viewId, baseLayoutRevision, operations }) => {
     const next = mutateWithStore(workspaceDir, (store) => {
@@ -129168,108 +129188,140 @@ function registerLayoutTools(server2, ctx) {
     });
     return result(next);
   }));
-  server2.registerTool("weaver_revert_layout", { title: "Undo Layout", description: "Restore the previous archived layout as a new layout revision.", inputSchema: { ...projectSchema2.shape, viewId: external_exports.string() }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false } }, defineTool(async ({ workspaceDir, projectId, viewId }) => result(mutateWithStore(workspaceDir, (store) => store.revertLayout(projectId, viewId)), "Restored previous layout.")));
-  server2.registerTool("weaver_get_layout", { title: "Get Weaver Layout", description: "Read one independent view layout and layoutRevision.", inputSchema: { ...projectSchema2.shape, viewId: external_exports.string() }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } }, defineTool(async ({ workspaceDir, projectId, viewId }) => {
-    const layout = withStore(workspaceDir, (store) => store.getLayout(projectId, viewId));
-    if (!layout) throw new Error("LAYOUT_NOT_FOUND");
-    return result(layout);
+  server2.registerTool("weaver_revert_layout", { title: "Undo Layout", description: "Restore the previous archived layout as a new layout revision.", inputSchema: { ...projectSchema2.shape, viewId: external_exports.string() }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } } }, defineTool(async ({ workspaceDir, projectId, viewId }) => result(mutateWithStore(workspaceDir, (store) => revertLayout2(store, projectId, viewId)), "Restored previous layout.")));
+}
+
+// packages/mcp/src/shared/manage-view.ts
+var defaultStrategyByView = {
+  canvas: "hybrid",
+  tree: "tree",
+  graph: "force",
+  board: "swimlane",
+  timeline: "timeline",
+  flow: "layered",
+  table: "grid"
+};
+function assertViewMutationContext(store, projectId, chatSessionKey, lease) {
+  if (!chatSessionKey) return;
+  const binding = store.getChatCanvasBinding(chatSessionKey);
+  if (!binding || binding.projectId !== projectId) throw new Error("NO_CANVAS_BOUND_TO_CHAT");
+  if (lease?.leaseId && (binding.leaseId !== lease.leaseId || binding.bindingRevision !== lease.bindingRevision)) throw new Error("CHAT_CANVAS_LEASE_STALE");
+}
+function openOrCreateView(args) {
+  const output = withStore(args.workspaceDir, (store) => {
+    const project = store.getProject(args.projectId);
+    if (!project) throw new Error("PROJECT_NOT_FOUND");
+    const scene = getScenePack(project.scenePackId, project.scenePackVersion);
+    if (!scene) throw new Error("SCENE_PACK_NOT_FOUND");
+    if (!scene.recommendedViews.includes(args.viewType)) throw new Error(`VIEW_NOT_RECOMMENDED:${args.viewType}`);
+    const strategy = scene.defaultView === args.viewType ? scene.defaultStrategy : defaultStrategyByView[args.viewType];
+    return store.ensureView({ projectId: args.projectId, viewId: `${args.viewType}-default`, viewType: args.viewType, strategy });
+  });
+  track(args.workspaceDir, args.projectId);
+  return result(output, `Opened ${args.viewType} view.`);
+}
+function duplicateView(mutateWithStore, args) {
+  return result(mutateWithStore(args.workspaceDir, (store) => {
+    assertViewMutationContext(store, args.projectId, args.chatSessionKey, { leaseId: args.leaseId, bindingRevision: args.bindingRevision });
+    return store.duplicateProjectView({ projectId: args.projectId, viewId: args.viewId, name: args.name, baseCatalogRevision: args.baseCatalogRevision });
   }));
-  server2.registerTool("weaver_get_layout_capabilities", { title: "Get Layout Capabilities", description: "Read available deterministic layout strategies and the constraints each honors.", inputSchema: {}, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } }, async () => result({
-    strategies: ["tree", "layered", "radial", "force", "cluster", "grid", "timeline", "swimlane", "hybrid"],
-    // `cluster`/`hybrid` run the semantic hierarchy layout: it groups nodes into
-    // labeled regions (by each node's `properties.layer`, explicit `group`
-    // constraints, or graph topology), enlarges hub nodes, and separates regions
-    // with wide whitespace — the best choice for a knowledge/industry map an
-    // analyst must read at a glance. It emits three structurally distinct
-    // candidates (语义聚类 / 分区矩阵 / 紧凑网格) and honors these constraints.
-    // New graph/canvas views are already seeded with this semantic arrangement on
-    // first open (no layout pass needed). To pick a strategy for a specific graph,
-    // call weaver_recommend_layout first — it returns a ready-to-run LayoutPlan draft.
-    recommendedStrategy: "cluster",
-    honoredConstraints: {
-      cluster: ["emphasis", "group", "direction", "separation", "spacing", "pin", "preserve-position"],
-      layered: ["direction", "emphasis"],
-      tree: ["direction"],
-      radial: ["emphasis"],
-      force: [],
-      grid: []
-    },
-    constraints: ["pin", "align", "distribute", "order", "rank", "group", "containment", "separation", "relative-position", "direction", "spacing", "avoid-overlap", "preserve-position", "edge-length", "edge-routing", "emphasis", "viewport-fit"],
-    candidateCount: { min: 1, max: 5, default: 3 }
+}
+function createViewFromTemplate(mutateWithStore, args) {
+  const template = getVisualTemplate(args.templateId, args.version);
+  if (!template) throw new Error("VISUAL_TEMPLATE_NOT_FOUND");
+  const output = mutateWithStore(args.workspaceDir, (store) => {
+    const project = store.getProject(args.projectId);
+    if (!project) throw new Error("PROJECT_NOT_FOUND");
+    const scene = getScenePack(project.scenePackId, project.scenePackVersion);
+    if (!scene) throw new Error("SCENE_PACK_NOT_FOUND");
+    const validation = validateVisualTemplateForProject(template, scene, store.getGraph(args.projectId).nodes);
+    if (!validation.compatible) throw new Error("VISUAL_TEMPLATE_SCENE_INCOMPATIBLE");
+    if (!validation.ready) throw new Error("VISUAL_TEMPLATE_DATA_NOT_READY");
+    const currentBinding = args.chatSessionKey ? store.getChatCanvasBinding(args.chatSessionKey) : null;
+    if (args.chatSessionKey && (!currentBinding || currentBinding.projectId !== args.projectId)) throw new Error("NO_CANVAS_BOUND_TO_CHAT");
+    const layout = store.createViewFromVisualTemplate({ projectId: args.projectId, template, baseGraphRevision: args.baseGraphRevision, viewName: args.viewName, chatBinding: args.chatSessionKey && currentBinding ? { chatSessionKey: args.chatSessionKey, leaseId: currentBinding.leaseId, bindingRevision: currentBinding.bindingRevision } : void 0 });
+    const binding2 = args.chatSessionKey ? store.getChatCanvasBinding(args.chatSessionKey) : void 0;
+    return { layout, binding: binding2 };
+  });
+  track(args.workspaceDir, args.projectId);
+  const binding = output.binding ? { leaseId: output.binding.leaseId, bindingRevision: output.binding.bindingRevision, projectId: output.binding.projectId, viewId: output.binding.viewId } : void 0;
+  return result({ ...output.layout, chatBinding: binding }, `Created ${output.layout.viewName}.`);
+}
+
+// packages/mcp/src/tools/manage-view.ts
+var manageViewShape = {
+  ...workspaceSchema.shape,
+  projectId: external_exports.string(),
+  action: external_exports.enum(["open_or_create", "duplicate", "create_from_template"]),
+  // open_or_create:
+  viewType: external_exports.string().optional(),
+  // duplicate:
+  viewId: external_exports.string().optional(),
+  name: external_exports.string().optional(),
+  baseCatalogRevision: external_exports.number().int().optional(),
+  // create_from_template:
+  templateId: external_exports.string().optional(),
+  version: external_exports.string().optional(),
+  baseGraphRevision: external_exports.number().int().optional(),
+  viewName: external_exports.string().optional(),
+  // binding (duplicate):
+  leaseId: external_exports.string().optional(),
+  bindingRevision: external_exports.number().int().optional()
+};
+var manageViewSchema = external_exports.object(manageViewShape).superRefine((value, ctx) => {
+  const fail = (message) => ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message });
+  if (value.action === "open_or_create") {
+    if (!value.viewType) fail("MANAGE_VIEW_REQUIRES_viewType");
+  } else if (value.action === "duplicate") {
+    if (!value.viewId) fail("MANAGE_VIEW_REQUIRES_viewId");
+    if (value.baseCatalogRevision === void 0) fail("MANAGE_VIEW_REQUIRES_baseCatalogRevision");
+  } else {
+    if (!value.templateId) fail("MANAGE_VIEW_REQUIRES_templateId");
+    if (value.baseGraphRevision === void 0) fail("MANAGE_VIEW_REQUIRES_baseGraphRevision");
+  }
+});
+function registerManageViewTool(server2, ctx) {
+  const { mutateWithStore } = ctx;
+  server2.registerTool("weaver_manage_view", {
+    title: "Manage View",
+    description: 'Open, duplicate or template a Project View. `action:"open_or_create"` + `viewType` opens the stored default projection for one of the seven view types (no graph change). `action:"duplicate"` + `viewId` + `baseCatalogRevision` makes an independent layout copy over the same graph. `action:"create_from_template"` + `templateId` (+`version`) + `baseGraphRevision` creates a new themed View from a compatible visual template without touching graphRevision or existing views.',
+    inputSchema: manageViewShape,
+    // idempotentHint:false — duplicate and create_from_template mint a NEW view on
+    // every call (not idempotent). Only open_or_create is idempotent; a single
+    // static hint cannot be true across the union, so use the conservative false
+    // (C4 lesson: an honest annotation for a non-idempotent write union).
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
+  }, defineTool(async (rawArgs, extra) => {
+    const args = parseRefined(manageViewSchema, rawArgs);
+    const chatSessionKey = chatSessionKeyFromRequest(extra, false);
+    switch (args.action) {
+      case "open_or_create":
+        return openOrCreateView({ workspaceDir: args.workspaceDir, projectId: args.projectId, viewType: args.viewType });
+      case "duplicate":
+        return duplicateView(mutateWithStore, { workspaceDir: args.workspaceDir, projectId: args.projectId, viewId: args.viewId, name: args.name, baseCatalogRevision: args.baseCatalogRevision, leaseId: args.leaseId, bindingRevision: args.bindingRevision, chatSessionKey });
+      case "create_from_template":
+        return createViewFromTemplate(mutateWithStore, { workspaceDir: args.workspaceDir, projectId: args.projectId, templateId: args.templateId, version: args.version ?? "1.0.0", baseGraphRevision: args.baseGraphRevision, viewName: args.viewName, chatSessionKey });
+    }
   }));
-  server2.registerTool("weaver_validate_layout_plan", { title: "Validate LayoutPlan", description: "Validate semantic layout constraints without calculating or applying coordinates.", inputSchema: { plan: external_exports.any() }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } }, defineTool(async ({ plan }) => result({ valid: true, plan: layoutPlanSchema.parse(plan) })));
-  server2.registerTool("weaver_recommend_layout", {
-    title: "Recommend Layout",
-    description: "Analyze the project graph and recommend a layout strategy, a ready-to-run LayoutPlan draft, and a preview of the clusters that would form. Read-only planning aid \u2014 call this before weaver_generate_layout_candidates so the first layout is well-chosen.",
-    inputSchema: { ...projectSchema2.shape, viewId: external_exports.string().optional(), goal: external_exports.string().optional() },
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
-  }, defineTool(async ({ workspaceDir, projectId, viewId, goal }) => {
-    const payload = withStore(workspaceDir, (store) => {
-      const project = store.getProject(projectId);
-      if (!project) throw new Error("PROJECT_NOT_FOUND");
-      const scene = getScenePack(project.scenePackId, project.scenePackVersion);
-      const graph = store.getGraph(projectId);
-      const nodes = graph.nodes.filter((node) => !node.archived);
-      const nodeIds = new Set(nodes.map((node) => node.id));
-      const edges = graph.edges.filter((edge) => !edge.archived && nodeIds.has(edge.sourceNodeId) && nodeIds.has(edge.targetNodeId));
-      const targetViewId = viewId ?? `${scene?.defaultView ?? "graph"}-default`;
-      const current = store.getLayout(projectId, targetViewId);
-      const titleById = new Map(nodes.map((node) => [node.id, node.title]));
-      const signals = graphSignals(nodes, edges);
-      const g = (goal ?? "").toLowerCase();
-      const direction = current?.config.direction ?? "left-right";
-      const previewPlan = layoutPlanSchema.parse({ projectId, viewId: targetViewId, baseGraphRevision: graph.revision, baseLayoutRevision: current?.layoutRevision ?? 0, scope: { type: "whole-view" }, strategy: "cluster", direction, constraints: [], preserve: { pinnedNodes: false, manualGroups: false }, candidateCount: 3 });
-      const stubCurrent = { config: { direction }, nodes: {} };
-      const { clusters } = previewClusters({ nodes, edges, plan: previewPlan, current: current ?? stubCurrent });
-      const labeledClusters = clusters.filter((cluster) => !cluster.isCenter && cluster.memberCount >= 2).length;
-      let strategy = "grid";
-      let planDirection;
-      let rationale;
-      if (/timeline|时间线|时间轴|历史|chronolog/.test(g)) {
-        strategy = "timeline";
-        rationale = "\u76EE\u6807\u504F\u65F6\u95F4\u7EBF,\u6309\u65F6\u95F4\u5B57\u6BB5\u6A2A\u5411\u6392\u5E03\u3002";
-      } else if (/flow|流程|pipeline|因果|cause|工作流|工序/.test(g)) {
-        strategy = "layered";
-        planDirection = "left-right";
-        rationale = "\u76EE\u6807\u504F\u6D41\u7A0B/\u56E0\u679C,\u7528\u5206\u5C42\u6709\u5411\u5E03\u5C40\u5448\u73B0\u5DE6\u2192\u53F3\u6D41\u5411\u3002";
-      } else if (signals.edgeCount === 0) {
-        strategy = "grid";
-        rationale = "\u56FE\u4E2D\u6CA1\u6709\u8FB9,\u7F3A\u4E4F\u53EF\u5229\u7528\u7684\u7ED3\u6784,\u5148\u7528\u89C4\u6574\u7F51\u683C\u3002";
-      } else if (signals.distinctLayers >= 2 || labeledClusters >= 2) {
-        strategy = "cluster";
-        rationale = `\u5185\u5BB9\u53EF\u5206\u6210 ${Math.max(signals.distinctLayers, labeledClusters)} \u4E2A\u5E26\u6807\u7B7E\u5206\u533A(\u6309 layer/\u4E3B\u9898),\u8BED\u4E49\u805A\u7C7B\u80FD\u5448\u73B0\u4FE1\u606F\u5206\u5C42\u4E0E\u7C07\u95F4\u7559\u767D\u3002`;
-      } else if (signals.isStar) {
-        strategy = "cluster";
-        rationale = "\u56FE\u5448\u5F3A\u5355\u67A2\u7EBD\u661F\u578B,\u8BED\u4E49\u805A\u7C7B\u4EE5\u67A2\u7EBD\u4E3A\u4E2D\u5FC3\u3001\u536B\u661F\u73AF\u7ED5,\u5C42\u6B21\u6700\u6E05\u6670\u3002";
-      } else {
-        strategy = "grid";
-        rationale = "\u7ED3\u6784\u8F83\u6241\u5E73\u3001\u65E0\u660E\u663E\u5206\u5C42\u6216\u67A2\u7EBD,\u89C4\u6574\u7F51\u683C\u5DF2\u8DB3\u591F\u3002";
-      }
-      const constraints = [];
-      if (strategy === "cluster" && signals.isStar && signals.topHubId) constraints.push({ type: "emphasis", nodeIds: [signals.topHubId] });
-      const suggestedPlan = layoutPlanSchema.parse({
-        projectId,
-        viewId: targetViewId,
-        baseGraphRevision: graph.revision,
-        baseLayoutRevision: current?.layoutRevision ?? 0,
-        scope: { type: "whole-view" },
-        strategy,
-        ...planDirection ? { direction: planDirection } : {},
-        constraints,
-        preserve: {},
-        candidateCount: 3,
-        rationale
-      });
-      const alternatives = [
-        { strategy: "cluster", rationale: "\u8BED\u4E49\u5206\u533A,\u4FE1\u606F\u5206\u5C42 + \u5BC6\u5EA6\u5206\u6563\u3002" },
-        { strategy: "layered", rationale: "\u6709\u5411\u6D41\u7A0B/\u4F9D\u8D56,\u5206\u5C42\u5C55\u73B0\u6D41\u5411\u3002" },
-        { strategy: "grid", rationale: "\u65E0\u7ED3\u6784\u65F6\u7684\u89C4\u6574\u515C\u5E95\u3002" }
-      ].filter((alt) => alt.strategy !== strategy);
-      const clusterPreview = clusters.map((cluster) => ({ label: cluster.label, memberCount: cluster.memberCount, hub: cluster.hubId ? titleById.get(cluster.hubId) ?? cluster.hubId : void 0, isCenter: Boolean(cluster.isCenter) }));
-      return { recommendedStrategy: strategy, rationale, signals, clusterPreview, suggestedPlan, alternatives, viewExists: Boolean(current) };
-    });
-    return result(payload, `Recommended ${payload.recommendedStrategy} layout.`);
+}
+
+// packages/mcp/src/shared/create-project.ts
+function createProjectFromTemplate(mutateWithStore, args) {
+  const scene = getScenePack(args.scenePackId);
+  if (!scene) throw new Error("SCENE_PACK_NOT_FOUND");
+  const template = getVisualTemplate(args.templateId, args.version);
+  if (!template) throw new Error("VISUAL_TEMPLATE_NOT_FOUND");
+  const output = mutateWithStore(args.workspaceDir, (store) => store.createProjectFromVisualTemplate({
+    title: args.title,
+    goal: args.goal,
+    scenePack: scene,
+    template,
+    automationLevel: args.automationLevel,
+    chatBinding: args.chatSessionKey ? { chatSessionKey: args.chatSessionKey, leaseId: args.leaseId, bindingRevision: args.bindingRevision } : void 0
   }));
+  track(args.workspaceDir, output.project.id);
+  const binding = output.binding ? { leaseId: output.binding.leaseId, bindingRevision: output.binding.bindingRevision, projectId: output.binding.projectId, viewId: output.binding.viewId } : void 0;
+  return result({ ...output, binding }, `Created ${args.title} from ${template.name}.`);
 }
 
 // packages/mcp/src/tools/projects.ts
@@ -129279,32 +129331,23 @@ function registerProjectsTools(server2, ctx) {
     title: "List Weaver Projects",
     description: "List projects stored in <workspaceDir>/.weaver.",
     inputSchema: workspaceSchema.shape,
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    _meta: { ui: { visibility: ["app"] } }
   }, defineTool(async ({ workspaceDir }) => {
-    const projects = withStore(workspaceDir, (store) => store.listProjects());
+    const projects = withStore(workspaceDir, (store) => listProjects2(store));
     projects.forEach((project) => track(workspaceDir, project.id));
     return result(projects, `${projects.length} Weaver projects.`);
   }));
-  server2.registerTool("weaver_recommend_scene", {
-    title: "Recommend Weaver Scene",
-    description: "Recommend scene packs from a natural-language goal without creating a project.",
-    inputSchema: { goal: external_exports.string().min(1) },
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
-  }, async ({ goal }) => {
-    const normalized = goal.toLowerCase();
-    const preferred = normalized.match(/word|vocab|单词|词汇/) ? "situational-vocabulary" : normalized.match(/cause|因果/) ? "causal-map" : normalized.match(/timeline|时间线|历史/) ? "event-timeline" : normalized.match(/project|项目/) ? "project-breakdown" : "free-brainstorming";
-    const ordered = [...builtinScenePacks].sort((left) => left.id === preferred ? -1 : 1).slice(0, 3).map((scene, index2) => ({ scenePackId: scene.id, viewType: scene.defaultView, confidence: index2 === 0 ? 0.9 : 0.55, rationale: index2 === 0 ? `Goal best matches ${scene.name}.` : `Alternative ${scene.name}.` }));
-    return result(ordered, `Recommended ${ordered[0].scenePackId}.`);
-  });
   server2.registerTool("weaver_create_project", {
     title: "Create Weaver Project",
-    description: "Create a project pinned to one scene-pack version with one semantic root node.",
-    inputSchema: { ...workspaceSchema.shape, title: external_exports.string().min(1), goal: external_exports.string().default(""), scenePackId: external_exports.string().default("free-brainstorming"), automationLevel: external_exports.enum(["cautious", "collaborative", "automatic"]).default("collaborative") },
+    description: "Create a project pinned to one scene-pack version. Without `template`, seeds one semantic root node. With `template:{templateId,version}`, atomically creates a starter content graph and themed default view from that compatible visual template.",
+    inputSchema: { ...workspaceSchema.shape, title: external_exports.string().min(1), goal: external_exports.string().default(""), scenePackId: external_exports.string().default("free-brainstorming"), automationLevel: external_exports.enum(["cautious", "collaborative", "automatic"]).default("collaborative"), template: external_exports.object({ templateId: external_exports.string(), version: external_exports.string().default("1.0.0") }).optional(), leaseId: external_exports.string().regex(/^[a-f0-9]{64}$/).optional(), bindingRevision: external_exports.number().int().positive().optional() },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
-  }, defineTool(async ({ workspaceDir, title, goal, scenePackId, automationLevel }, extra) => {
+  }, defineTool(async ({ workspaceDir, title, goal, scenePackId, automationLevel, template, leaseId, bindingRevision }, extra) => {
+    const chatSessionKey = chatSessionKeyFromRequest(extra, false);
+    if (template) return createProjectFromTemplate(mutateWithStore, { workspaceDir, title, goal, scenePackId, templateId: template.templateId, version: template.version, automationLevel, chatSessionKey, leaseId, bindingRevision });
     const scene = getScenePack(scenePackId);
     if (!scene) throw new Error(`SCENE_PACK_NOT_FOUND:${scenePackId}`);
-    const chatSessionKey = chatSessionKeyFromRequest(extra, false);
     const created = mutateWithStore(workspaceDir, (store) => store.createSeededProject({ title, goal, scenePack: scene, automationLevel, chatSessionKey }));
     track(workspaceDir, created.project.id);
     const binding = created.binding ? { leaseId: created.binding.leaseId, bindingRevision: created.binding.bindingRevision, projectId: created.binding.projectId, viewId: created.binding.viewId } : void 0;
@@ -129314,16 +129357,289 @@ function registerProjectsTools(server2, ctx) {
     title: "Get Project Manifest",
     description: "Get a project's pinned scene rules, available node/edge types, views, artifacts, revisions and automation level.",
     inputSchema: projectSchema2.shape,
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    _meta: { ui: { visibility: ["app"] } }
   }, defineTool(async ({ workspaceDir, projectId }) => {
-    const output = withStore(workspaceDir, (store) => {
-      const project = store.getProject(projectId);
-      if (!project) throw new Error("PROJECT_NOT_FOUND");
-      const scenePack = getScenePack(project.scenePackId, project.scenePackVersion);
-      return { project, scenePack, views: store.listProjectViews(projectId, "active").map((view) => ({ ...view, viewId: view.id, viewName: view.name, layoutRevision: store.getLayout(projectId, view.id)?.layoutRevision ?? 0 })) };
-    });
+    const output = withStore(workspaceDir, (store) => readProjectManifest(store, projectId));
     track(workspaceDir, projectId);
     return result(output);
+  }));
+}
+
+// packages/mcp/src/tools/read-catalog.ts
+var templateFamilySchema = external_exports.enum(["canvas", "hierarchy", "relationship", "flow", "temporal", "board", "matrix", "table"]);
+function registerReadCatalogTool(server2) {
+  server2.registerTool("weaver_read_catalog", {
+    title: "Read Catalog",
+    description: "Browse a workspace's catalog: projects (`project.list`), saved Views (`view.list` / `view.search` / `view.get`), built-in visual templates (`template.list` / `template.get`), a generated artifact (`artifact.get`), or an image asset's safe metadata (`asset.metadata`). Pick one via `resource`.",
+    inputSchema: {
+      ...workspaceSchema.shape,
+      resource: external_exports.enum(["project.list", "view.list", "view.search", "view.get", "template.list", "template.get", "artifact.get", "asset.metadata"]),
+      projectId: external_exports.string().optional(),
+      viewId: external_exports.string().optional(),
+      assetId: external_exports.string().optional(),
+      artifactId: external_exports.string().optional(),
+      templateId: external_exports.string().optional(),
+      version: external_exports.string().optional(),
+      query: external_exports.string().optional(),
+      status: external_exports.enum(["active", "trashed"]).optional(),
+      scenePackId: external_exports.string().optional(),
+      family: templateFamilySchema.optional(),
+      renderer: viewTypeSchema.optional()
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
+  }, defineTool(async ({ workspaceDir, resource, projectId, viewId, assetId, artifactId, templateId, version: version2, query, status, scenePackId, family, renderer }) => {
+    switch (resource) {
+      case "project.list": {
+        const projects = withStore(workspaceDir, (store) => listProjects2(store));
+        projects.forEach((project) => track(workspaceDir, project.id));
+        return result(projects, `${projects.length} Weaver projects.`);
+      }
+      case "view.list": {
+        if (!projectId) throw new Error("CATALOG_RESOURCE_REQUIRES_projectId");
+        return result(withStore(workspaceDir, (store) => listProjectViews2(store, projectId, status)));
+      }
+      case "view.search": {
+        if (!projectId) throw new Error("CATALOG_RESOURCE_REQUIRES_projectId");
+        return result(withStore(workspaceDir, (store) => searchProjectViews2(store, projectId, query ?? "", status ?? "active")));
+      }
+      case "view.get": {
+        if (!projectId) throw new Error("CATALOG_RESOURCE_REQUIRES_projectId");
+        if (!viewId) throw new Error("CATALOG_RESOURCE_REQUIRES_viewId");
+        return result(withStore(workspaceDir, (store) => getProjectView2(store, projectId, viewId)));
+      }
+      case "template.list": {
+        return result(listVisualTemplates({ scenePackId, family, renderer }));
+      }
+      case "template.get": {
+        if (!templateId) throw new Error("CATALOG_RESOURCE_REQUIRES_templateId");
+        return result(readVisualTemplate(templateId, version2 ?? "1.0.0"));
+      }
+      case "artifact.get": {
+        if (!artifactId) throw new Error("CATALOG_RESOURCE_REQUIRES_artifactId");
+        return result(withStore(workspaceDir, (store) => readArtifact(store, artifactId)));
+      }
+      case "asset.metadata": {
+        if (!projectId) throw new Error("CATALOG_RESOURCE_REQUIRES_projectId");
+        if (!assetId) throw new Error("CATALOG_RESOURCE_REQUIRES_assetId");
+        return result(withStore(workspaceDir, (store) => readAssetMetadata(store, projectId, assetId)));
+      }
+    }
+  }));
+}
+function registerReadReviewTool(server2) {
+  server2.registerTool("weaver_read_review", {
+    title: "Read Review",
+    description: "Review a proposed change: list/read/preview a ChangeSet (`changeset.list` / `changeset.get` / `changeset.preview`), read one view's layout (`layout.get`), read a layout run's candidates and metrics (`layout.run`), or read the available layout strategies and constraints (`layout.capabilities`). Pick one via `resource`.",
+    inputSchema: {
+      ...workspaceSchema.shape,
+      resource: external_exports.enum(["changeset.list", "changeset.get", "changeset.preview", "layout.get", "layout.run", "layout.capabilities"]),
+      projectId: external_exports.string().optional(),
+      viewId: external_exports.string().optional(),
+      changeSetId: external_exports.string().optional(),
+      layoutRunId: external_exports.string().optional(),
+      status: external_exports.enum(["pending", "applied", "rejected", "reverted"]).optional()
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
+  }, defineTool(async ({ workspaceDir, resource, projectId, viewId, changeSetId, layoutRunId, status }, extra) => {
+    switch (resource) {
+      case "changeset.list": {
+        if (!projectId) throw new Error("REVIEW_RESOURCE_REQUIRES_projectId");
+        return result(withStore(workspaceDir, (store) => listChangeSets2(store, projectId, status)));
+      }
+      case "changeset.get": {
+        if (!changeSetId) throw new Error("REVIEW_RESOURCE_REQUIRES_changeSetId");
+        const chatSessionKey = chatSessionKeyFromRequest(extra);
+        return result(withStore(workspaceDir, (store) => readChangeSet(store, changeSetId, chatSessionKey)));
+      }
+      case "changeset.preview": {
+        if (!changeSetId) throw new Error("REVIEW_RESOURCE_REQUIRES_changeSetId");
+        const chatSessionKey = chatSessionKeyFromRequest(extra);
+        return result(withStore(workspaceDir, (store) => previewChangeSet(store, changeSetId, chatSessionKey)));
+      }
+      case "layout.get": {
+        if (!projectId) throw new Error("REVIEW_RESOURCE_REQUIRES_projectId");
+        if (!viewId) throw new Error("REVIEW_RESOURCE_REQUIRES_viewId");
+        return result(withStore(workspaceDir, (store) => readLayout(store, projectId, viewId)));
+      }
+      case "layout.run": {
+        if (!layoutRunId) throw new Error("REVIEW_RESOURCE_REQUIRES_layoutRunId");
+        const chatSessionKey = chatSessionKeyFromRequest(extra);
+        return result(withStore(workspaceDir, (store) => readLayoutRun(store, layoutRunId, chatSessionKey)));
+      }
+      case "layout.capabilities": {
+        return result(layoutCapabilities());
+      }
+    }
+  }));
+}
+
+// packages/mcp/src/tools/read-graph.ts
+function registerReadGraphTool(server2) {
+  server2.registerTool("weaver_read_graph", {
+    title: "Read Graph",
+    description: "Read a project's graph: the pinned scene manifest (`manifest`), the whole-graph summary + one view layout (`full`), a filtered node/edge query (`query`), or the full content of one node (`node`). Pick one via `resource`.",
+    inputSchema: {
+      ...workspaceSchema.shape,
+      resource: external_exports.enum(["manifest", "full", "query", "node"]),
+      projectId: external_exports.string().optional(),
+      viewId: external_exports.string().optional(),
+      nodeId: external_exports.string().optional(),
+      nodeIds: external_exports.array(external_exports.string()).optional(),
+      nodeTypes: external_exports.array(external_exports.string()).optional(),
+      text: external_exports.string().optional(),
+      limit: external_exports.number().int().positive().max(200).optional()
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
+  }, defineTool(async ({ workspaceDir, resource, projectId, viewId, nodeId, nodeIds, nodeTypes, text, limit }) => {
+    if (!projectId) throw new Error("GRAPH_RESOURCE_REQUIRES_projectId");
+    switch (resource) {
+      case "manifest": {
+        const output = withStore(workspaceDir, (store) => readProjectManifest(store, projectId));
+        track(workspaceDir, projectId);
+        return result(output);
+      }
+      case "full": {
+        const output = withStore(workspaceDir, (store) => readProjectGraph(store, projectId, viewId));
+        track(workspaceDir, projectId);
+        return result(output, 'Loaded graph summaries and layout. Use weaver_read_graph(resource:"node") for full Markdown.');
+      }
+      case "query": {
+        const output = withStore(workspaceDir, (store) => queryGraph(store, projectId, { nodeIds, nodeTypes, text, limit }));
+        return result(output);
+      }
+      case "node": {
+        if (!nodeId) throw new Error("GRAPH_RESOURCE_REQUIRES_nodeId");
+        const output = withStore(workspaceDir, (store) => readNodeContent(store, projectId, nodeId));
+        return result(output);
+      }
+    }
+  }));
+}
+
+// packages/mcp/src/tools/read-session.ts
+function registerReadSessionTool(server2) {
+  server2.registerTool("weaver_read_session", {
+    title: "Read Session",
+    description: "Read the current chat's session state: the bound canvas, a durable task, a canvas context snapshot, the resolved scene context, or a guard bundle (bound canvas + active task). Pick one via `resource`.",
+    inputSchema: {
+      ...workspaceSchema.shape,
+      resource: external_exports.enum(["bound_canvas", "task", "canvas_context", "resolved_context", "guard"]),
+      taskId: external_exports.string().optional(),
+      canvasSessionId: external_exports.string().optional()
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
+  }, defineTool(async ({ workspaceDir, resource, taskId, canvasSessionId }, extra) => {
+    switch (resource) {
+      case "bound_canvas": {
+        const chatSessionKey = chatSessionKeyFromRequest(extra);
+        return result(withStore(workspaceDir, (store) => resolveBoundCanvas(store, chatSessionKey)));
+      }
+      case "task": {
+        if (!taskId) throw new Error("SESSION_RESOURCE_REQUIRES_taskId");
+        const chatSessionKey = chatSessionKeyFromRequest(extra);
+        const task = withStore(workspaceDir, (store) => store.assertTaskChat(taskId, chatSessionKey, false));
+        workspaceByTask.set(taskId, workspaceDir);
+        return result(task);
+      }
+      case "canvas_context": {
+        if (!canvasSessionId) throw new Error("SESSION_RESOURCE_REQUIRES_canvasSessionId");
+        const context = withStore(workspaceDir, (store) => store.getCanvasContext(canvasSessionId));
+        if (!context) throw new Error("CANVAS_SESSION_NOT_FOUND");
+        return result(context);
+      }
+      case "resolved_context": {
+        if (!canvasSessionId) throw new Error("SESSION_RESOURCE_REQUIRES_canvasSessionId");
+        const output = withStore(workspaceDir, (store) => {
+          const context = store.getCanvasContext(canvasSessionId);
+          if (!context) throw new Error("CANVAS_SESSION_NOT_FOUND");
+          const project = store.getProject(context.projectId);
+          if (!project) throw new Error("PROJECT_NOT_FOUND");
+          const scenePack = getScenePack(project.scenePackId, project.scenePackVersion);
+          if (!scenePack) throw new Error("SCENE_PACK_NOT_FOUND");
+          const graph = store.getGraph(project.id);
+          const nodes = resolveSceneContext({ nodes: graph.nodes, edges: graph.edges, scenePack, selectedNodeIds: context.selectedNodeIds, pinnedNodeIds: context.pinnedContextNodeIds });
+          return { projectId: project.id, graphRevision: graph.revision, policy: scenePack.contextPolicy, nodeIds: nodes.map((node) => node.id), nodes };
+        });
+        return result(output, `Resolved ${output.nodes.length} context nodes.`);
+      }
+      case "guard": {
+        const chatSessionKey = chatSessionKeyFromRequest(extra);
+        const { boundCanvas, task } = withStore(workspaceDir, (store) => {
+          const boundCanvas2 = resolveBoundCanvas(store, chatSessionKey);
+          const task2 = taskId ? store.assertTaskChat(taskId, chatSessionKey, false) : store.listCanvasTasks(boundCanvas2.canvasSessionId)[0] ?? null;
+          return { boundCanvas: boundCanvas2, task: task2 };
+        });
+        if (task) workspaceByTask.set(task.taskId, workspaceDir);
+        return result({ boundCanvas, task });
+      }
+    }
+  }));
+}
+
+// packages/mcp/src/tools/review-action.ts
+var reviewActionShape = {
+  ...workspaceSchema.shape,
+  resource: external_exports.enum(["changeset", "layout_run"]),
+  action: external_exports.enum(["reject", "apply", "revert"]),
+  id: external_exports.string().optional(),
+  // changeSetId (reject) or layoutRunId (apply/reject); omit for revert
+  candidateId: external_exports.string().optional(),
+  // layout_run + apply only
+  projectId: external_exports.string().optional(),
+  // layout_run + revert only
+  viewId: external_exports.string().optional()
+  // layout_run + revert only
+};
+var reviewActionSchema = external_exports.object(reviewActionShape).superRefine((value, ctx) => {
+  const fail = (message) => ctx.addIssue({ code: external_exports.ZodIssueCode.custom, message });
+  if (value.resource === "changeset") {
+    if (value.action === "apply") {
+      fail("CHANGESET_APPLY_FORBIDDEN");
+      return;
+    }
+    if (value.action !== "reject") {
+      fail("REVIEW_ACTION_INVALID_COMBO");
+      return;
+    }
+    if (!value.id) fail("REVIEW_ACTION_REQUIRES_id");
+    return;
+  }
+  if (value.action === "apply") {
+    if (!value.id) fail("REVIEW_ACTION_REQUIRES_id");
+    if (!value.candidateId) fail("REVIEW_ACTION_REQUIRES_candidateId");
+  } else if (value.action === "reject") {
+    if (!value.id) fail("REVIEW_ACTION_REQUIRES_id");
+  } else {
+    if (!value.projectId) fail("REVIEW_ACTION_REQUIRES_projectId");
+    if (!value.viewId) fail("REVIEW_ACTION_REQUIRES_viewId");
+  }
+});
+function registerReviewActionTool(server2, ctx) {
+  const { mutateWithStore } = ctx;
+  server2.registerTool("weaver_review_action", {
+    title: "Review Action",
+    description: 'Act on a pending review item: reject a ChangeSet (`resource:"changeset", action:"reject", id`), or apply/reject/revert a layout (`resource:"layout_run"` with `action:"apply"` + `id` + `candidateId`, `action:"reject"` + `id`, or `action:"revert"` + `projectId` + `viewId`). Applying a ChangeSet is NOT available here \u2014 use weaver_apply_changeset for that.',
+    inputSchema: reviewActionShape,
+    // idempotentHint:false — layout apply throws LAYOUT_REVISION_CONFLICT on retry
+    // and revert bumps layoutRevision every call (matching the old apply/revert
+    // tools). A single static hint can't be true across the reject/apply/revert
+    // union, so use the codebase convention of false for apply/revert writes.
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
+  }, defineTool(async (rawArgs, extra) => {
+    const { workspaceDir, resource, action, id, candidateId, projectId, viewId } = parseRefined(reviewActionSchema, rawArgs);
+    const chatSessionKey = chatSessionKeyFromRequest(extra);
+    if (resource === "changeset") {
+      return result(mutateWithStore(workspaceDir, (store) => rejectChangeSet2(store, id, chatSessionKey)));
+    }
+    switch (action) {
+      case "apply":
+        return result(mutateWithStore(workspaceDir, (store) => applyLayoutCandidate2(store, id, candidateId, chatSessionKey)), "Applied layout candidate.");
+      case "reject":
+        return result(mutateWithStore(workspaceDir, (store) => rejectLayoutRun2(store, id, chatSessionKey)), "Rejected layout preview.");
+      case "revert":
+        return result(mutateWithStore(workspaceDir, (store) => revertLayout2(store, projectId, viewId)), "Restored previous layout.");
+    }
   }));
 }
 
@@ -129334,33 +129650,15 @@ function registerTemplatesTools(server2, ctx) {
     title: "List Visual Templates",
     description: "List the built-in versioned structured visual templates, optionally filtered by scene, family or renderer.",
     inputSchema: { scenePackId: external_exports.string().optional(), family: external_exports.enum(["canvas", "hierarchy", "relationship", "flow", "temporal", "board", "matrix", "table"]).optional(), renderer: viewTypeSchema.optional() },
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
-  }, async ({ scenePackId, family, renderer }) => result(builtinVisualTemplates.filter((item) => (!scenePackId || item.compatibleScenePackIds.includes(scenePackId)) && (!family || item.family === family) && (!renderer || item.renderer === renderer))));
-  server2.registerTool("weaver_get_visual_template", {
-    title: "Get Visual Template",
-    description: "Read one immutable VisualTemplate definition.",
-    inputSchema: { templateId: external_exports.string(), version: external_exports.string().default("1.0.0") },
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
-  }, async ({ templateId, version: version2 }) => {
-    const item = getVisualTemplate(templateId, version2);
-    return item ? result(item) : failure(new Error("VISUAL_TEMPLATE_NOT_FOUND"));
-  });
-  server2.registerTool("weaver_recommend_visual_templates", {
-    title: "Recommend Visual Templates",
-    description: "Recommend compatible visual templates for a natural-language goal without changing data.",
-    inputSchema: { goal: external_exports.string().min(1), scenePackId: external_exports.string().optional() },
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
-  }, async ({ goal, scenePackId }) => {
-    const text = goal.toLowerCase();
-    const family = text.match(/时间|路线|timeline|roadmap/) ? "temporal" : text.match(/流程|因果|flow|cause/) ? "flow" : text.match(/看板|泳道|kanban|lane/) ? "board" : text.match(/矩阵|象限|matrix|swot/) ? "matrix" : text.match(/表格|对比|table|compare/) ? "table" : text.match(/树|思维导图|tree|mind/) ? "hierarchy" : text.match(/关系|网络|network|relation/) ? "relationship" : "canvas";
-    const matches = builtinVisualTemplates.filter((item) => item.family === family && (!scenePackId || item.compatibleScenePackIds.includes(scenePackId))).slice(0, 3).map((template, index2) => ({ templateId: template.id, version: template.version, confidence: index2 === 0 ? 0.92 : 0.72, rationale: `${template.name} matches the requested ${family} visual.` }));
-    return result(matches, `Recommended ${matches.length} visual templates.`);
-  });
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    _meta: { ui: { visibility: ["app"] } }
+  }, async ({ scenePackId, family, renderer }) => result(listVisualTemplates({ scenePackId, family, renderer })));
   server2.registerTool("weaver_validate_visual_template", {
     title: "Validate Visual Template",
     description: "Check scene compatibility and current graph field readiness without writing data.",
     inputSchema: { ...projectSchema2.shape, templateId: external_exports.string(), version: external_exports.string().default("1.0.0") },
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    _meta: { ui: { visibility: ["app"] } }
   }, defineTool(async ({ workspaceDir, projectId, templateId, version: version2 }) => {
     const template = getVisualTemplate(templateId, version2);
     if (!template) throw new Error("VISUAL_TEMPLATE_NOT_FOUND");
@@ -129377,7 +129675,8 @@ function registerTemplatesTools(server2, ctx) {
     title: "Preview Visual Template",
     description: "Project current graph data into a temporary template LayoutDocument without persisting it.",
     inputSchema: { ...projectSchema2.shape, templateId: external_exports.string(), version: external_exports.string().default("1.0.0"), baseGraphRevision: external_exports.number().int().nonnegative(), viewName: external_exports.string().optional() },
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    _meta: { ui: { visibility: ["app"] } }
   }, defineTool(async ({ workspaceDir, projectId, templateId, version: version2, baseGraphRevision, viewName }) => {
     const template = getVisualTemplate(templateId, version2);
     if (!template) throw new Error("VISUAL_TEMPLATE_NOT_FOUND");
@@ -129388,63 +129687,25 @@ function registerTemplatesTools(server2, ctx) {
     title: "Create Project From Visual Template",
     description: "Atomically create a project, starter content graph and themed default view from a compatible template.",
     inputSchema: { ...workspaceSchema.shape, title: external_exports.string().min(1), goal: external_exports.string().default(""), scenePackId: external_exports.string(), templateId: external_exports.string(), version: external_exports.string().default("1.0.0"), automationLevel: external_exports.enum(["cautious", "collaborative", "automatic"]).default("collaborative"), leaseId: external_exports.string().regex(/^[a-f0-9]{64}$/).optional(), bindingRevision: external_exports.number().int().positive().optional() },
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+    _meta: { ui: { visibility: ["app"] } }
   }, defineTool(async ({ workspaceDir, title, goal, scenePackId, templateId, version: version2, automationLevel, leaseId, bindingRevision }, extra) => {
-    const scene = getScenePack(scenePackId);
-    if (!scene) throw new Error("SCENE_PACK_NOT_FOUND");
-    const template = getVisualTemplate(templateId, version2);
-    if (!template) throw new Error("VISUAL_TEMPLATE_NOT_FOUND");
     const chatSessionKey = chatSessionKeyFromRequest(extra, false);
-    const output = mutateWithStore(workspaceDir, (store) => store.createProjectFromVisualTemplate({ title, goal, scenePack: scene, template, automationLevel, chatBinding: chatSessionKey ? { chatSessionKey, leaseId, bindingRevision } : void 0 }));
-    track(workspaceDir, output.project.id);
-    const binding = output.binding ? { leaseId: output.binding.leaseId, bindingRevision: output.binding.bindingRevision, projectId: output.binding.projectId, viewId: output.binding.viewId } : void 0;
-    return result({ ...output, binding }, `Created ${title} from ${template.name}.`);
+    return createProjectFromTemplate(mutateWithStore, { workspaceDir, title, goal, scenePackId, templateId, version: version2, automationLevel, chatSessionKey, leaseId, bindingRevision });
   }));
   server2.registerTool("weaver_create_view_from_visual_template", {
     title: "Create View From Visual Template",
     description: "Create a new independent themed view over the current graph without modifying graphRevision or existing views.",
     inputSchema: { ...projectSchema2.shape, templateId: external_exports.string(), version: external_exports.string().default("1.0.0"), baseGraphRevision: external_exports.number().int().nonnegative(), viewName: external_exports.string().optional() },
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+    _meta: { ui: { visibility: ["app"] } }
   }, defineTool(async ({ workspaceDir, projectId, templateId, version: version2, baseGraphRevision, viewName }, extra) => {
-    const template = getVisualTemplate(templateId, version2);
-    if (!template) throw new Error("VISUAL_TEMPLATE_NOT_FOUND");
     const chatSessionKey = chatSessionKeyFromRequest(extra, false);
-    const output = mutateWithStore(workspaceDir, (store) => {
-      const project = store.getProject(projectId);
-      if (!project) throw new Error("PROJECT_NOT_FOUND");
-      const scene = getScenePack(project.scenePackId, project.scenePackVersion);
-      if (!scene) throw new Error("SCENE_PACK_NOT_FOUND");
-      const validation = validateVisualTemplateForProject(template, scene, store.getGraph(projectId).nodes);
-      if (!validation.compatible) throw new Error("VISUAL_TEMPLATE_SCENE_INCOMPATIBLE");
-      if (!validation.ready) throw new Error("VISUAL_TEMPLATE_DATA_NOT_READY");
-      const currentBinding = chatSessionKey ? store.getChatCanvasBinding(chatSessionKey) : null;
-      if (chatSessionKey && (!currentBinding || currentBinding.projectId !== projectId)) throw new Error("NO_CANVAS_BOUND_TO_CHAT");
-      const layout = store.createViewFromVisualTemplate({ projectId, template, baseGraphRevision, viewName, chatBinding: chatSessionKey && currentBinding ? { chatSessionKey, leaseId: currentBinding.leaseId, bindingRevision: currentBinding.bindingRevision } : void 0 });
-      const binding2 = chatSessionKey ? store.getChatCanvasBinding(chatSessionKey) : void 0;
-      return { layout, binding: binding2 };
-    });
-    track(workspaceDir, projectId);
-    const binding = output.binding ? { leaseId: output.binding.leaseId, bindingRevision: output.binding.bindingRevision, projectId: output.binding.projectId, viewId: output.binding.viewId } : void 0;
-    return result({ ...output.layout, chatBinding: binding }, `Created ${output.layout.viewName}.`);
+    return createViewFromTemplate(mutateWithStore, { workspaceDir, projectId, templateId, version: version2, baseGraphRevision, viewName, chatSessionKey });
   }));
 }
 
 // packages/mcp/src/tools/view-catalog.ts
-var defaultStrategyByView = {
-  canvas: "hybrid",
-  tree: "tree",
-  graph: "force",
-  board: "swimlane",
-  timeline: "timeline",
-  flow: "layered",
-  table: "grid"
-};
-function assertViewMutationContext(store, projectId, chatSessionKey, lease) {
-  if (!chatSessionKey) return;
-  const binding = store.getChatCanvasBinding(chatSessionKey);
-  if (!binding || binding.projectId !== projectId) throw new Error("NO_CANVAS_BOUND_TO_CHAT");
-  if (lease?.leaseId && (binding.leaseId !== lease.leaseId || binding.bindingRevision !== lease.bindingRevision)) throw new Error("CHAT_CANVAS_LEASE_STALE");
-}
 function registerViewMutationTool(server2, mutateWithStore, name, config2, run) {
   const toolConfig = config2.meta ? { title: config2.title, description: config2.description, inputSchema: config2.inputSchema, annotations: config2.annotations, _meta: config2.meta } : { title: config2.title, description: config2.description, inputSchema: config2.inputSchema, annotations: config2.annotations };
   server2.registerTool(name, toolConfig, defineTool(async (input, extra) => {
@@ -129461,24 +129722,9 @@ function registerViewCatalogTools(server2, ctx) {
     title: "List Project Views",
     description: "List durable saved Visual Views, including fixed order and recycle-bin status.",
     inputSchema: { ...projectSchema2.shape, status: external_exports.enum(["active", "trashed"]).optional() },
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
-  }, defineTool(async ({ workspaceDir, projectId, status }) => result(withStore(workspaceDir, (store) => store.listProjectViews(projectId, status).map((view) => ({ ...view, nodeCount: Object.keys(store.getLayout(projectId, view.id)?.nodes ?? {}).length }))))));
-  server2.registerTool("weaver_search_project_views", {
-    title: "Search Project Views",
-    description: "Search View names, types and template ids without loading graph content.",
-    inputSchema: { ...projectSchema2.shape, query: external_exports.string().default(""), status: external_exports.enum(["active", "trashed"]).default("active") },
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
-  }, defineTool(async ({ workspaceDir, projectId, query, status }) => result(withStore(workspaceDir, (store) => store.searchProjectViews(projectId, query, status).map((view) => ({ ...view, nodeCount: Object.keys(store.getLayout(projectId, view.id)?.nodes ?? {}).length }))))));
-  server2.registerTool("weaver_get_project_view", {
-    title: "Get Project View",
-    description: "Read one saved View catalog record.",
-    inputSchema: { ...projectSchema2.shape, viewId: external_exports.string() },
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
-  }, defineTool(async ({ workspaceDir, projectId, viewId }) => {
-    const view = withStore(workspaceDir, (store) => store.getProjectView(projectId, viewId));
-    if (!view) throw new Error("VIEW_NOT_FOUND");
-    return result(view);
-  }));
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    _meta: { ui: { visibility: ["app"] } }
+  }, defineTool(async ({ workspaceDir, projectId, status }) => result(withStore(workspaceDir, (store) => listProjectViews2(store, projectId, status)))));
   const viewMutationBase = { ...projectSchema2.shape, viewId: external_exports.string(), baseCatalogRevision: external_exports.number().int().nonnegative(), leaseId: external_exports.string().optional(), bindingRevision: external_exports.number().int().positive().optional() };
   const appVisibility = { ui: { visibility: ["app"] } };
   registerViewMutationTool(server2, mutateWithStore, "weaver_rename_project_view", {
@@ -129534,34 +129780,16 @@ function registerViewCatalogTools(server2, ctx) {
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
     meta: appVisibility
   }, (store, input) => store.purgeProjectView({ projectId: input.projectId, viewId: input.viewId, baseCatalogRevision: input.baseCatalogRevision }));
-  registerViewMutationTool(server2, mutateWithStore, "weaver_duplicate_project_view", {
+  server2.registerTool("weaver_duplicate_project_view", {
     title: "Duplicate Project View",
     description: "Create an independent layout copy over the same content graph.",
     inputSchema: { ...viewMutationBase, name: external_exports.string().max(120).optional() },
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
-  }, (store, input) => store.duplicateProjectView({ projectId: input.projectId, viewId: input.viewId, name: input.name, baseCatalogRevision: input.baseCatalogRevision }));
-  server2.registerTool("weaver_get_or_create_view", {
-    title: "Get or Create Project View",
-    description: "Open an independent stored projection for one of the seven view types, creating its initial layout without changing graphRevision or another view.",
-    inputSchema: { ...projectSchema2.shape, viewType: viewTypeSchema },
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }
-  }, async ({ workspaceDir, projectId, viewType }) => {
-    try {
-      const output = withStore(workspaceDir, (store) => {
-        const project = store.getProject(projectId);
-        if (!project) throw new Error("PROJECT_NOT_FOUND");
-        const scene = getScenePack(project.scenePackId, project.scenePackVersion);
-        if (!scene) throw new Error("SCENE_PACK_NOT_FOUND");
-        if (!scene.recommendedViews.includes(viewType)) throw new Error(`VIEW_NOT_RECOMMENDED:${viewType}`);
-        const strategy = scene.defaultView === viewType ? scene.defaultStrategy : defaultStrategyByView[viewType];
-        return store.ensureView({ projectId, viewId: `${viewType}-default`, viewType, strategy });
-      });
-      track(workspaceDir, projectId);
-      return result(output, `Opened ${viewType} view.`);
-    } catch (error51) {
-      return failure(error51);
-    }
-  });
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+    _meta: { ui: { visibility: ["app"] } }
+  }, defineTool(async ({ workspaceDir, projectId, viewId, name, baseCatalogRevision, leaseId, bindingRevision }, extra) => {
+    const chatSessionKey = chatSessionKeyFromRequest(extra, false);
+    return duplicateView(mutateWithStore, { workspaceDir, projectId, viewId, name, baseCatalogRevision, leaseId, bindingRevision, chatSessionKey });
+  }));
 }
 
 // packages/mcp/src/tools/workspace.ts
@@ -129768,14 +129996,21 @@ async function createWeaverServer(options = {}) {
   registerProjectsTools(server2, { mutateWithStore });
   registerTemplatesTools(server2, { mutateWithStore });
   registerViewCatalogTools(server2, { mutateWithStore });
+  registerManageViewTool(server2, { mutateWithStore });
   registerGraphTools(server2);
+  registerReadGraphTool(server2);
+  registerReadCatalogTool(server2);
+  registerReadReviewTool(server2);
   registerAssetsTools(server2);
+  registerImportAssetTool(server2);
   registerContentTools(server2);
   registerCanvasBindingTools(server2, { mutateWithStore });
+  registerReadSessionTool(server2);
   registerCanvasPromptsTools(server2, { mutateWithStore });
   registerAgentTasksTools(server2, { mutateWithStore });
   registerLayoutTools(server2, { eventHub: eventHub2, mutateWithStore });
   registerChangesetsTools(server2, { mutateWithStore });
+  registerReviewActionTool(server2, { mutateWithStore });
   registerArtifactsTools(server2);
   registerDiagnosticsTools(server2, { eventHub: eventHub2, serverVersion, toolSurface: () => computeToolSurface(registry2) });
   registerResources(server2, { eventHub: eventHub2, widgetUri });

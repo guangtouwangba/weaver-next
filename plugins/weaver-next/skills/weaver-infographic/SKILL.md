@@ -13,11 +13,11 @@ The native Weaver widget is open for the active project. Weaver state is read an
 
 ## Workflow
 
-1. Confirm the bound canvas: `weaver_get_bound_canvas`. If none, tell the user to open the space (or run the open skill).
+1. Confirm the bound canvas: `weaver_read_session(resource:"bound_canvas")`. If none, tell the user to open the space (or run the open skill).
 
 2. Gather the source content.
-   - Read the selection: `weaver_get_canvas_context` and `weaver_resolve_context`.
-   - Pull full bodies only for the nodes you will visualize: `weaver_get_node_content`.
+   - Read the selection: `weaver_read_session(resource:"canvas_context")` and `weaver_read_session(resource:"resolved_context")`.
+   - Pull full bodies only for the nodes you will visualize: `weaver_read_graph(resource:"node")`.
    - If the user described a topic instead of selecting nodes, use that text as the brief.
 
 3. Plan the infographic (do not skip). Decide, and keep these:
@@ -29,13 +29,13 @@ The native Weaver widget is open for the active project. Weaver state is read an
 
 4. Choose the generation path.
    - **Host image model (Codex, default):** compose a single prompt that embeds ALL text verbatim (title, each section heading + insight + data), names the chosen style's palette + elements + the archetype + aspect ratio, and instructs: "editorial infographic, flat vector, crisp legible <language> text exactly as written, no lorem ipsum, generous whitespace, clear visual hierarchy." Generate with the host's built-in image generation.
-   - **SVG path (Claude, or when text is dense/precise):** author a self-contained SVG (viewBox = the aspect at ~1080px long edge) laying out the sections per the archetype using the style palette; then call `weaver_render_svg_image` with that SVG. Prefer this whenever numeric precision matters.
+   - **SVG path (Claude, or when text is dense/precise):** author a self-contained SVG (viewBox = the aspect at ~1080px long edge) laying out the sections per the archetype using the style palette; then call `weaver_import_asset(source:"svg")` with that SVG. Prefer this whenever numeric precision matters.
 
 5. Resolve the actual bytes carefully.
    - Host path: use the exact file/base64 the current generation call produced. Do NOT pick the newest file in a stale `generated_images` dir; match it to THIS request (timestamp). Read the file and base64-encode it.
-   - SVG path: `weaver_render_svg_image` already returns the `assetId`; skip step 6.
+   - SVG path: `weaver_import_asset(source:"svg")` already returns the `assetId`; skip step 6.
 
-6. Ingest: `weaver_ingest_image` with `{ projectId, mimeType, base64 }` → `assetId`.
+6. Ingest: `weaver_import_asset` with `{ source:"bytes", projectId, mimeType, base64 }` → `assetId`.
 
 7. Place via ChangeSet (reviewable). Within the active task, `weaver_submit_changeset` with:
    - one `add-node` op: `{ type:"add-node", node: { id:<uuid>, projectId, type:"entity", title:<title>, body:"", contentKind:"image", content:{ kind:"image", assetId, alt:<title>, caption:<source + asOf> }, properties:{}, archived:false, createdAt, updatedAt } }`
@@ -46,6 +46,6 @@ The native Weaver widget is open for the active project. Weaver state is read an
 
 ## Notes
 
-- Bake text INTO the image; do not leave a text-free background. When Chinese/precise numeric text must be pixel-crisp, prefer the SVG path (`weaver_render_svg_image`).
+- Bake text INTO the image; do not leave a text-free background. When Chinese/precise numeric text must be pixel-crisp, prefer the SVG path (`weaver_import_asset(source:"svg")`).
 - Every figure must be traceable to a source node; put the source in the caption.
 - Never overwrite an existing asset; ingestion is content-addressed and safe.

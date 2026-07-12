@@ -15,7 +15,7 @@ Weaver's canvas opens in a real browser window next to the terminal — the same
 
 ## Steps
 1. Resolve the user's active workspace directory (the repo root the MCP was launched in).
-2. Call `weaver_list_projects`. Pick the matching project; if none exists use `weaver-create-space`; if ambiguous, ask the user.
+2. Call `weaver_read_catalog(resource:"project.list")`. Pick the matching project; if none exists use `weaver-create-space`; if ambiguous, ask the user.
 3. Call `weaver_open_workspace_widget` with the explicit `workspaceDir` and `projectId`. The MCP process **opens the tokenized `previewUrl` (loopback) in the default browser automatically** and returns it plus the `chatBinding`. There is no embedded widget panel in either host.
 4. Only if the browser window did not appear, open it yourself via the OS opener (`open "<previewUrl>"` on macOS, `xdg-open "<previewUrl>"` on Linux). Do not print the token in long-lived logs.
 5. Tell the user the canvas is live and to keep the window visible (its heartbeat keeps the canvas bound and online for agent tasks). If they closed it, `<workspace>/.weaver/preview.json` holds the same URL to reopen.
