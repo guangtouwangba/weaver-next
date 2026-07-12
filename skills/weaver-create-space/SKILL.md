@@ -8,7 +8,7 @@ description: Create a scene-driven Weaver space from a natural-language goal or 
 1. Resolve the user's active workspace directory. Never use the plugin repository as the data workspace unless it is the user's intended workspace.
 2. Call `weaver_recommend_scene` and `weaver_recommend_visual_templates` with the user's goal.
 3. Explain the top Scene Pack and VisualTemplate recommendation in one sentence. Honor explicit choices.
-4. Prefer `weaver_create_project_from_visual_template` when a visual template is selected; otherwise call `weaver_create_project`.
+4. Call `weaver_create_project`. When a visual template is selected, pass `template:{templateId, version}` to create the project, starter content graph, and themed default view from it; otherwise omit `template` for a plain scene-seeded project.
 5. Creation atomically creates the first `ProjectView`, sets it as the Project default, and binds it to the current Codex Chat. Call `weaver_open_workspace_widget` with the workspace and returned project id to mount the Canvas and activate its independent Canvas Session.
 
 Each scene semantic type declares `defaultContentKind` and `allowedContentKinds`. The first phase supports `document`, `image`, and `link`; do not represent these content kinds as scene semantic types.

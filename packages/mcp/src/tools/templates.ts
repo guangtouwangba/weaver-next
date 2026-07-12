@@ -6,6 +6,7 @@ import { builtinVisualTemplates, getVisualTemplate, validateVisualTemplateForPro
 import { projectSchema, workspaceSchema } from "../shared/schemas.js";
 import { listVisualTemplates } from "../shared/catalog-reads.js";
 import { track } from "../shared/workspace-registry.js";
+import { createProjectFromTemplate } from "../shared/create-project.js";
 import { defineTool, result, withStore, type MutateWithStore } from "../shared/tool-runtime.js";
 import { chatSessionKeyFromRequest } from "../thread-context.js";
 
@@ -45,10 +46,15 @@ export function registerTemplatesTools(server: McpServer, ctx: TemplatesToolsCtx
     inputSchema: { ...projectSchema.shape, templateId: z.string(), version: z.string().default("1.0.0"), baseGraphRevision: z.number().int().nonnegative(), viewName: z.string().optional() }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   }, defineTool(async ({ workspaceDir, projectId, templateId, version, baseGraphRevision, viewName }) => { const template = getVisualTemplate(templateId, version); if (!template) throw new Error("VISUAL_TEMPLATE_NOT_FOUND"); const output = withStore(workspaceDir, (store) => store.previewVisualTemplate({ projectId, template, baseGraphRevision, viewName })); return result(output); }));
 
+  // Widget-only: the preview widget's template gallery creates projects here
+  // (apps/widget useVisualTemplateGallery), so it stays REGISTERED under this
+  // exact name with `_meta.ui.visibility=["app"]` (off the model surface). The
+  // model creates from a template via weaver_create_project(template:{...}); both
+  // call the same shared helper (see shared/create-project.ts) so they never drift.
   server.registerTool("weaver_create_project_from_visual_template", {
     title: "Create Project From Visual Template", description: "Atomically create a project, starter content graph and themed default view from a compatible template.",
-    inputSchema: { ...workspaceSchema.shape, title: z.string().min(1), goal: z.string().default(""), scenePackId: z.string(), templateId: z.string(), version: z.string().default("1.0.0"), automationLevel: z.enum(["cautious", "collaborative", "automatic"]).default("collaborative"), leaseId: z.string().regex(/^[a-f0-9]{64}$/).optional(), bindingRevision: z.number().int().positive().optional() }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
-  }, defineTool(async ({ workspaceDir, title, goal, scenePackId, templateId, version, automationLevel, leaseId, bindingRevision }, extra) => { const scene = getScenePack(scenePackId); if (!scene) throw new Error("SCENE_PACK_NOT_FOUND"); const template = getVisualTemplate(templateId, version); if (!template) throw new Error("VISUAL_TEMPLATE_NOT_FOUND"); const chatSessionKey = chatSessionKeyFromRequest(extra, false); const output = mutateWithStore(workspaceDir, (store) => store.createProjectFromVisualTemplate({ title, goal, scenePack: scene, template, automationLevel, chatBinding: chatSessionKey ? { chatSessionKey, leaseId, bindingRevision } : undefined })); track(workspaceDir, output.project.id); const binding = output.binding ? { leaseId: output.binding.leaseId, bindingRevision: output.binding.bindingRevision, projectId: output.binding.projectId, viewId: output.binding.viewId } : undefined; return result({ ...output, binding }, `Created ${title} from ${template.name}.`); }));
+    inputSchema: { ...workspaceSchema.shape, title: z.string().min(1), goal: z.string().default(""), scenePackId: z.string(), templateId: z.string(), version: z.string().default("1.0.0"), automationLevel: z.enum(["cautious", "collaborative", "automatic"]).default("collaborative"), leaseId: z.string().regex(/^[a-f0-9]{64}$/).optional(), bindingRevision: z.number().int().positive().optional() }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } },
+  }, defineTool(async ({ workspaceDir, title, goal, scenePackId, templateId, version, automationLevel, leaseId, bindingRevision }, extra) => { const chatSessionKey = chatSessionKeyFromRequest(extra, false); return createProjectFromTemplate(mutateWithStore, { workspaceDir, title, goal, scenePackId, templateId, version, automationLevel, chatSessionKey, leaseId, bindingRevision }); }));
 
   server.registerTool("weaver_create_view_from_visual_template", {
     title: "Create View From Visual Template", description: "Create a new independent themed view over the current graph without modifying graphRevision or existing views.",
