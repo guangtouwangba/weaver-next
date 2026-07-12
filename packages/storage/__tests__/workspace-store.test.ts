@@ -132,6 +132,21 @@ describe("WorkspaceStore", () => {
     db.close();
   });
 
+  it("stores a chart content node and sizes it as a hero card", () => {
+    const db = store();
+    const scene = getScenePack("entity-relationship")!;
+    const project = db.createProject({ title: "Invest", goal: "", scenePack: scene });
+    const line = db.createContentNode({ projectId: project.id, viewId: project.defaultViewId, type: "entity", title: "市场规模", content: { kind: "chart", chartType: "line", title: "市场规模", series: [{ name: "规模", points: [{ label: "2020", value: 120 }, { label: "2021", value: 180 }] }], sourceNote: "券商研报", asOf: "2026Q2" } as any, x: 0, y: 0 });
+    const stored = db.getGraph(project.id).nodes.find((node) => node.id === line.node.id)!;
+    expect(stored.contentKind).toBe("chart");
+    expect(stored.content.kind === "chart" && stored.content.chartType).toBe("line");
+    expect(db.getLayout(project.id, project.defaultViewId)!.nodes[line.node.id]).toMatchObject({ width: 320, height: 220 });
+
+    const metric = db.createContentNode({ projectId: project.id, viewId: project.defaultViewId, type: "entity", title: "增速", content: { kind: "chart", chartType: "metric", title: "增速", metric: { value: 24, unit: "%", delta: 3.1, deltaLabel: "同比" } } as any, x: 400, y: 0 });
+    expect(db.getLayout(project.id, project.defaultViewId)!.nodes[metric.node.id]).toMatchObject({ width: 240, height: 130 });
+    db.close();
+  });
+
   it("creates a project atomically from a visual template", () => {
     const db = store(); const scene = getScenePack("problem-decomposition")!; const template = getVisualTemplate("logic-tree")!;
     const chatSessionKey = createHash("sha256").update("template-chat").digest("hex");
@@ -250,6 +265,26 @@ describe("WorkspaceStore", () => {
     expect(nodes.find((node) => node.id === keep.node.id)?.archived).toBe(false);
     expect(() => db.archiveNode({ projectId: project.id, nodeId: remove.node.id, baseGraphRevision: rev })).toThrow("GRAPH_REVISION_CONFLICT");
     expect(() => db.archiveNode({ projectId: project.id, nodeId: "nope", baseGraphRevision: rev + 1 })).toThrow("NODE_NOT_FOUND");
+    db.close();
+  });
+
+  it("places a skill-generated image as an image node via a ChangeSet", async () => {
+    const db = store();
+    const scene = getScenePack("entity-relationship")!;
+    const project = db.createProject({ title: "Imagegen", goal: "", scenePack: scene });
+    const png = await sharp({ create: { width: 4, height: 3, channels: 3, background: { r: 20, g: 40, b: 80 } } }).png().toBuffer();
+    const asset = await db.importImageAsset({ projectId: project.id, mimeType: "image/png", data: png });
+
+    const chatSessionKey = bindCanvas(db, project, scene, "imagegen-session");
+    const task = db.prepareAgentTask({ canvasSessionId: "imagegen-session", actionKey: "develop_selection", chatSessionKey });
+    dispatchAndStart(db, task);
+    const ts = new Date().toISOString();
+    db.submitChangeSet({ id: "cs-img", taskId: task.taskId, projectId: project.id, baseGraphRevision: 0, baseLayoutRevisions: {}, graphOperations: [{ type: "add-node", node: { id: "chart-cover", projectId: project.id, type: "entity", title: "赛道信息图", body: "", contentKind: "image", content: { kind: "image", assetId: asset.asset.id, alt: "赛道信息图", caption: "券商研报 · 2026Q2" }, properties: {}, archived: false, createdAt: ts, updatedAt: ts } }], layoutOperations: [], rationale: "Place generated infographic", riskLevel: "low", status: "pending", createdAt: ts, updatedAt: ts });
+    db.applyChangeSet("cs-img");
+
+    const node = db.getGraph(project.id).nodes.find((n) => n.id === "chart-cover")!;
+    expect(node.contentKind).toBe("image");
+    expect(node.content.kind === "image" && node.content.assetId).toBe(asset.asset.id);
     db.close();
   });
 
