@@ -1,0 +1,7 @@
+interface:
+  display_name: "Weaver Cover Image"
+  short_description: "Generate a cover image for a Weaver report or topic"
+  default_prompt: "Use $weaver:weaver-cover-image to generate a cover for the current topic or selected node."
+
+policy:
+  allow_implicit_invocation: true
