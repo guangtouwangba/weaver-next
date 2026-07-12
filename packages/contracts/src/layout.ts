@@ -27,6 +27,10 @@ export type NodeLayout = z.infer<typeof nodeLayoutSchema>;
 export const edgeLayoutSchema = z.object({
   edgeId: z.string(),
   routing: z.enum(["straight", "bezier", "orthogonal", "bundled"]).default("bezier"),
+  // Per-edge visual overrides. Optional so an edge with no override inherits its
+  // relationship type's semantic default; older persisted layouts stay valid.
+  lineStyle: z.enum(["solid", "dashed"]).optional(),
+  arrows: z.enum(["none", "forward", "both"]).optional(),
   sourcePort: z.string().optional(),
   targetPort: z.string().optional(),
   waypoints: z.array(pointSchema).default([]),

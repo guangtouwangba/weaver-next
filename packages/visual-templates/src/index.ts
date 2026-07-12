@@ -9,7 +9,7 @@ const palette: Record<VisualFamily, [string, string, string]> = {
 
 function theme(family: VisualFamily): ViewTheme {
   const [accent, background, fill] = palette[family];
-  return { ...structuredClone(defaultViewTheme), canvas: { mode: "light", backgroundColor: background, pattern: family === "table" ? "grid" : "dots", patternGap: 20, patternSize: 1, patternColor: `${accent}66`, patternOpacity: 0.42 }, nodeStyles: { default: { fill, borderColor: `${accent}88`, textColor: "#20231f", accentColor: accent, borderRadius: family === "flow" ? 5 : 10, titleScale: family === "hierarchy" ? 1.12 : 1 } }, edgeStyles: { default: { color: accent, width: 1.6, dashed: family === "relationship", routing: family === "flow" ? "orthogonal" : "bezier", marker: "arrow" } } };
+  return { ...structuredClone(defaultViewTheme), canvas: { mode: "light", backgroundColor: background, pattern: family === "table" ? "grid" : "dots", patternGap: 20, patternSize: 1, patternColor: `${accent}66`, patternOpacity: 0.42 }, nodeStyles: { default: { fill, borderColor: `${accent}88`, textColor: "#20231f", accentColor: accent, borderRadius: family === "flow" ? 5 : 10, titleScale: family === "hierarchy" ? 1.12 : 1 } }, edgeStyles: { default: { color: accent, width: 1.6, dashed: family === "relationship", routing: family === "flow" ? "orthogonal" : "bezier", arrows: "forward" } } };
 }
 
 type RoleBinding = { nodes: Record<string, string>; edges: Record<string, string> };

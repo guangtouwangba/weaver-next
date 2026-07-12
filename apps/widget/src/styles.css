@@ -1,37 +1,64 @@
 :root {
-  /* TapNow Canvas — dark, near-monochrome, media-first. A tight grey ramp plus a
-     single blue accent so generated media is the only source of color. */
+  /* Single source of truth for the Weaver Semantic Canvas design tokens. Values
+     mirror the front-matter of the root DESIGN.md (near-monochrome dark shell +
+     one blue accent). Dark is the default; a future light theme is authored, not
+     derived by inversion. Keep this block in sync with DESIGN.md § colors. */
   font-family: "Inter", -apple-system, system-ui, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   color: #f5f5f5;
   background: #0f0f0f;
   /* Surfaces */
-  --bg: #0f0f0f;
-  --canvas: #0a0a0a;
-  --surface: #1f1f1f;
-  --surface-muted: #2b2b2b;
-  --surface-accent: #404040;
+  --bg: #0f0f0f;               /* colors.background — app shell */
+  --canvas: #0a0a0a;           /* colors.canvas — infinite plane */
+  --surface: #1f1f1f;          /* colors.surface — nodes + panels */
+  --surface-muted: #2b2b2b;    /* colors.surface-muted — quiet controls/hover */
+  --surface-raised: #404040;   /* colors.surface-raised — selected node / raised */
+  --surface-accent: #404040;   /* legacy alias of --surface-raised */
   /* Foreground */
-  --ink: #f5f5f5;
-  --fg-strong: #fafafa;
+  --ink: #f5f5f5;              /* colors.foreground */
+  --fg: #f5f5f5;               /* alias used by menus */
+  --fg-strong: #fafafa;        /* colors.foreground-strong */
   --paper: #1f1f1f;
-  --muted: #7a7a7a;
+  --muted: #7a7a7a;            /* colors.foreground-muted */
   /* Single accent hue */
-  --blue: #1fa2dc;
-  --blue-bright: #33a8ff;
+  --blue: #1fa2dc;             /* colors.primary */
+  --blue-bright: #33a8ff;      /* colors.primary-bright */
   --blue-soft: rgba(31, 162, 220, .16);
-  /* Lines */
-  --line: rgba(255, 255, 255, .1);
-  --line-strong: rgba(255, 255, 255, .18);
-  --edge: rgba(255, 255, 255, .376);
-  --select-ring: #ffffff;
+  --primary-soft: #90c4e5;     /* colors.primary-soft — anchored context text */
+  /* Lines / borders */
+  --line: rgba(255, 255, 255, .1);        /* colors.border */
+  --line-strong: rgba(255, 255, 255, .2); /* colors.border-strong */
+  --border: rgba(255, 255, 255, .1);      /* DESIGN alias */
+  --border-strong: rgba(255, 255, 255, .2);
+  /* Typed edges */
+  --edge: rgba(255, 255, 255, .376);      /* colors.edge — normal connector */
+  --edge-muted: rgba(255, 255, 255, .18); /* colors.edge-muted — de-emphasized */
+  --select-ring: #ffffff;                 /* colors.selection */
+  /* Plane / regions */
+  --group-fill: rgba(31, 162, 220, .08);  /* colors.group-fill */
+  --group-border: rgba(31, 162, 220, .4); /* colors.group-border */
   /* Status */
   --danger: #f26d63;
   --danger-soft: rgba(244, 67, 54, .16);
   --success: #4caf50;
+  --warning: #ff9800;
+  /* Type families */
   --font-reading: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  --font-metadata: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* Rounded */
+  --radius-xs: 4px;
   --radius-control: 8px;
   --radius-card: 12px;
+  --radius-panel: 14px;
   --radius-overlay: 16px;
+  --radius-full: 9999px;
+  /* Spacing rhythm (4px base, 8px primary) */
+  --space-xxs: 4px;
+  --space-xs: 6px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+  --space-xxl: 32px;
   --ease-out: cubic-bezier(.22, 1, .36, 1);
 }
 * { box-sizing: border-box; }
@@ -253,7 +280,18 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .react-flow__attribution { display: none; }
 .react-flow__edge-text { fill: var(--muted); font-size: 9px; }.react-flow__edge-textbg { fill: #0a0a0a; fill-opacity: .92; }
 .weaver-edge-label { position: absolute; z-index: 4; padding: 2px 5px; color: var(--muted); background: color-mix(in srgb, var(--canvas-background, var(--canvas)) 82%, transparent); border-radius: 4px; font-size: 8px; line-height: 1; pointer-events: all; white-space: nowrap; }
-.weaver-edge-label[data-reference="true"] { opacity: .66; font-style: italic; }
+.weaver-edge-label[data-muted="true"], .weaver-edge-label[data-reference="true"] { opacity: .66; font-style: italic; }
+.weaver-edge-label[data-selected="true"] { color: var(--fg-strong); opacity: 1; font-style: normal; box-shadow: 0 0 0 1px var(--blue); }
+
+/* Edge style override bar — one coherent island near the canvas perimeter. */
+.floating-panel { color: var(--fg); background: rgba(31, 31, 31, .92); border: 1px solid var(--line); border-radius: var(--radius-panel); box-shadow: 0 10px 30px rgba(0, 0, 0, .45); backdrop-filter: blur(12px); }
+.edge-style-bar { position: absolute; z-index: 16; left: 50%; bottom: 62px; transform: translateX(-50%); height: 40px; padding: 4px 6px; display: flex; align-items: center; gap: 4px; }
+.edge-style-group { display: flex; align-items: center; gap: 2px; }
+.edge-style-sep { width: 1px; height: 20px; margin: 0 3px; background: var(--line); }
+.edge-style-bar button { min-width: 30px; height: 30px; padding: 0 5px; display: grid; place-items: center; color: var(--muted); background: transparent; border: 0; border-radius: var(--radius-control); }
+.edge-style-bar button:hover { color: var(--fg-strong); background: var(--surface-muted); }
+.edge-style-bar button[data-active="true"] { color: var(--blue-bright); background: var(--blue-soft); }
+.edge-style-bar svg { display: block; }
 
 .canvas-navigation { position: absolute; z-index: 14; left: 14px; bottom: 14px; height: 38px; padding: 4px; display: flex; align-items: center; gap: 2px; color: var(--fg); background: rgba(31, 31, 31, .86); border: 1px solid var(--line); border-radius: var(--radius-full, 9999px); box-shadow: 0 7px 24px rgba(0, 0, 0, .35); backdrop-filter: blur(12px); }
 .canvas-navigation button { width: 29px; height: 29px; padding: 0; display: grid; place-items: center; color: inherit; background: transparent; border: 0; border-radius: 50%; }

@@ -80,6 +80,29 @@ export function useCanvasGraph(params: {
     } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); await load(); }
   }
 
+  // Manual per-edge visual override (DESIGN.md § Line: semantic default + manual
+  // override). Emits a `set-edge-route` layout operation — visual only, never
+  // bumps graphRevision. Merges the patch onto any existing override so changing
+  // the arrow keeps a previously chosen line style.
+  async function persistEdgeRoute(edgeId: string, patch: { lineStyle?: "solid" | "dashed"; arrows?: "none" | "forward" | "both"; routing?: "straight" | "bezier" | "orthogonal" | "bundled" }) {
+    const currentLayout = layoutRef.current ?? layout;
+    const currentProject = projectRef.current ?? project;
+    if (!currentLayout) return;
+    const existing = currentLayout.edges?.[edgeId];
+    const route: Record<string, unknown> = { edgeId, routing: patch.routing ?? existing?.routing ?? "straight", waypoints: existing?.waypoints ?? [] };
+    const lineStyle = patch.lineStyle ?? existing?.lineStyle; if (lineStyle) route.lineStyle = lineStyle;
+    const arrows = patch.arrows ?? existing?.arrows; if (arrows) route.arrows = arrows;
+    if (existing?.sourcePort) route.sourcePort = existing.sourcePort;
+    if (existing?.targetPort) route.targetPort = existing.targetPort;
+    const optimistic = { ...currentLayout, edges: { ...(currentLayout.edges ?? {}), [edgeId]: { ...(existing ?? {}), ...route } } } as Layout;
+    layoutRef.current = optimistic; setLayout(optimistic);
+    if (standaloneDemo || !currentProject) { setStatus("Edge style updated"); return; }
+    try {
+      const next = await callTool<Layout>("weaver_canvas_action", { workspaceDir: bootstrap.workspaceDir, action: "layout_operations", projectId: currentProject.id, viewId: currentLayout.viewId, baseLayoutRevision: currentLayout.layoutRevision, operations: [{ type: "set-edge-route", viewId: currentLayout.viewId, edgeId, route }] });
+      layoutRef.current = next; setLayout(next); setStatus(`Edge style saved · r${next.layoutRevision}`);
+    } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); await load(); }
+  }
+
   async function togglePinned() { if (!project || !layout || !selection.length || standaloneDemo) return; const shouldPin = selection.some((id) => !layout.nodes[id]?.pinned); try { const next = await callTool<Layout>("weaver_canvas_action", { workspaceDir: bootstrap.workspaceDir, action: "layout_operations", projectId: project.id, viewId: layout.viewId, baseLayoutRevision: layout.layoutRevision, operations: selection.map((nodeId) => ({ type: shouldPin ? "pin-node" : "unpin-node", viewId: layout.viewId, nodeId })) }); setLayout(next); setStatus(`${shouldPin ? "Pinned" : "Unpinned"} ${selection.length} nodes`); } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); } }
 
   async function toggleCanvasTheme() {
@@ -114,5 +137,5 @@ export function useCanvasGraph(params: {
 
   const handleSelectionChange = useCallback(({ nodes: selected }: { nodes: Node[] }) => { const next = selected.map((node) => node.id).sort(); setSelection((current) => current.length === next.length && current.every((id, index) => id === next[index]) ? current : next); }, [setSelection]);
   const handleNodeDrag = useCallback((_event: MouseEvent | TouchEvent, dragged: Node) => { setNodes((current) => current.map((node) => node.id === dragged.id ? { ...node, position: { x: dragged.position.x, y: dragged.position.y } } : node)); }, [setNodes]);
-  return { persistNodeFrame, persistNodeResize, archiveNodes, togglePinned, toggleCanvasTheme, handleSelectionChange, handleNodeDrag };
+  return { persistNodeFrame, persistNodeResize, persistEdgeRoute, archiveNodes, togglePinned, toggleCanvasTheme, handleSelectionChange, handleNodeDrag };
 }

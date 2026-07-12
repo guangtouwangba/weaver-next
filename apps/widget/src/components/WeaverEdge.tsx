@@ -1,9 +1,25 @@
 import { BaseEdge, EdgeLabelRenderer, getBezierPath, getSmoothStepPath, getStraightPath, type EdgeProps } from "@xyflow/react";
+import type { EdgeArrows, EdgeLineStyle, EdgeRouting } from "../lib/edge-style";
 
-type RouteData = { routing?: "straight" | "bezier" | "orthogonal" | "bundled"; waypoints?: Array<{ x: number; y: number }>; semanticType?: string };
+type RouteData = { routing?: EdgeRouting; waypoints?: Array<{ x: number; y: number }>; semanticType?: string; arrows?: EdgeArrows; lineStyle?: EdgeLineStyle; muted?: boolean };
+
+// Single arrowhead marker, shared by markerStart and markerEnd. orient
+// "auto-start-reverse" flips it for the start end, so `both` reuses the same id.
+// fill "context-stroke" inherits the edge's stroke colour, so selection (blue)
+// and muted states colour the arrowhead automatically. Mounted once by the stage.
+export const WEAVER_EDGE_MARKER_ID = "weaver-arrow";
+export function WeaverEdgeMarkers() {
+  return <svg aria-hidden style={{ position: "absolute", width: 0, height: 0, overflow: "hidden" }}>
+    <defs>
+      <marker id={WEAVER_EDGE_MARKER_ID} viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="context-stroke" />
+      </marker>
+    </defs>
+  </svg>;
+}
 
 export function WeaverEdge(props: EdgeProps) {
-  const { id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd, style, label, data } = props;
+  const { id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, selected, style, label, data } = props;
   const route = (data ?? {}) as RouteData;
   let path: string;
   let labelX: number;
@@ -14,14 +30,28 @@ export function WeaverEdge(props: EdgeProps) {
     const middle = points[Math.floor(points.length / 2)]; labelX = middle.x; labelY = middle.y;
   } else if (route.routing === "orthogonal") {
     [path, labelX, labelY] = getSmoothStepPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, borderRadius: 12 });
-  } else if (route.routing === "straight") {
-    [path, labelX, labelY] = getStraightPath({ sourceX, sourceY, targetX, targetY });
-  } else {
+  } else if (route.routing === "bezier" || route.routing === "bundled") {
     [path, labelX, labelY] = getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition });
+  } else {
+    // Straight is the default routing for typed edges.
+    [path, labelX, labelY] = getStraightPath({ sourceX, sourceY, targetX, targetY });
   }
-  const reference = route.semanticType === "context-reference";
+  const arrows = route.arrows ?? "forward";
+  const dashed = route.lineStyle === "dashed";
+  const muted = route.muted ?? false;
+  const markerRef = `url(#${WEAVER_EDGE_MARKER_ID})`;
+  const baseWidth = Number(style?.strokeWidth ?? 1.5);
   return <>
-    <BaseEdge id={id} path={path} markerEnd={markerEnd} style={{ ...style, strokeDasharray: reference ? "5 6" : style?.strokeDasharray, opacity: reference ? 0.58 : style?.opacity }} />
-    {label ? <EdgeLabelRenderer><span className="weaver-edge-label" data-reference={reference} style={{ transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)` }}>{String(label)}</span></EdgeLabelRenderer> : null}
+    <BaseEdge id={id} path={path} interactionWidth={24}
+      markerStart={arrows === "both" ? markerRef : undefined}
+      markerEnd={arrows === "forward" || arrows === "both" ? markerRef : undefined}
+      style={{
+        ...style,
+        stroke: selected ? "var(--blue)" : style?.stroke,
+        strokeWidth: selected ? baseWidth + 1 : baseWidth,
+        strokeDasharray: dashed ? "6 5" : undefined,
+        opacity: selected ? 1 : muted ? 0.5 : style?.opacity,
+      }} />
+    {label ? <EdgeLabelRenderer><span className="weaver-edge-label" data-selected={selected || undefined} data-muted={muted || undefined} style={{ transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)` }}>{String(label)}</span></EdgeLabelRenderer> : null}
   </>;
 }

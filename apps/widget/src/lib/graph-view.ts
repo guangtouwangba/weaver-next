@@ -4,6 +4,7 @@ import type { GraphEdge, GraphNode, Layout, Project } from "../types";
 import { DocumentCard, ImageCard, LinkCard, VisualGroupCard } from "../components/nodes/ContentCards";
 import { ChartCard } from "../components/nodes/ChartCard";
 import { WeaverEdge } from "../components/WeaverEdge";
+import { resolveEdgeVisual } from "./edge-style";
 
 export function excerpt(markdown: string) { return markdown.replace(/[#>*_`[\]()!-]/g, " ").replace(/\s+/g, " ").trim().slice(0, 280); }
 
@@ -29,12 +30,14 @@ export function toFlowEdge(item: GraphEdge, layout: Layout): Edge {
   const handles = resolveEdgeHandles(layout.nodes[item.sourceNodeId], layout.nodes[item.targetNodeId]);
   const sourceHandle = route?.sourcePort ? `source-${route.sourcePort.replace(/^(source|target)-/, "")}` : handles.sourceHandle;
   const targetHandle = route?.targetPort ? `target-${route.targetPort.replace(/^(source|target)-/, "")}` : handles.targetHandle;
+  // Per-edge layout override wins over the relationship type's semantic default.
+  const visual = resolveEdgeVisual(item.type, route);
   return {
     id: item.id, source: item.sourceNodeId, target: item.targetNodeId, label: item.type,
     sourceHandle, targetHandle,
     type: "weaver",
-    data: { routing: route?.routing ?? edgeTheme?.routing ?? "bezier", waypoints: route?.waypoints ?? [], semanticType: item.type },
-    style: { stroke: edgeTheme?.color, strokeWidth: edgeTheme?.width, strokeDasharray: edgeTheme?.dashed ? "6 5" : undefined },
+    data: { routing: visual.routing, arrows: visual.arrows, lineStyle: visual.lineStyle, muted: visual.muted, waypoints: route?.waypoints ?? [], semanticType: item.type },
+    style: { stroke: edgeTheme?.color, strokeWidth: edgeTheme?.width },
   };
 }
 

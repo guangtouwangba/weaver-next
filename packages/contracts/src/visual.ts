@@ -29,7 +29,7 @@ export const defaultProjectionByView = {
 } as const;
 
 const nodeStyleSchema = z.object({ fill: z.string(), borderColor: z.string(), textColor: z.string(), accentColor: z.string().optional(), borderRadius: z.number().nonnegative(), titleScale: z.number().positive() });
-const edgeStyleSchema = z.object({ color: z.string(), width: z.number().positive(), dashed: z.boolean(), routing: z.enum(["straight", "bezier", "orthogonal", "bundled"]), marker: z.enum(["none", "arrow"]) });
+const edgeStyleSchema = z.object({ color: z.string(), width: z.number().positive(), dashed: z.boolean(), routing: z.enum(["straight", "bezier", "orthogonal", "bundled"]), arrows: z.enum(["none", "forward", "both"]).default("forward"), curvature: z.number().optional() });
 export const viewThemeSchema = z.object({
   canvas: z.object({
     mode: z.enum(["dark", "light"]).default("light"),
@@ -48,7 +48,7 @@ export type ViewTheme = z.infer<typeof viewThemeSchema>;
 export const defaultViewTheme: ViewTheme = {
   canvas: { mode: "light", backgroundColor: "#f2f3ed", pattern: "dots", patternGap: 20, patternSize: 1, patternColor: "#aeb5aa", patternOpacity: 0.42 },
   nodeStyles: { default: { fill: "#fbfbf6", borderColor: "#cbd0c6", textColor: "#20231f", accentColor: "#315cf6", borderRadius: 8, titleScale: 1 } },
-  edgeStyles: { default: { color: "#7e867c", width: 1.5, dashed: false, routing: "bezier", marker: "arrow" } },
+  edgeStyles: { default: { color: "#7e867c", width: 1.5, dashed: false, routing: "straight", arrows: "forward" } },
 };
 
 export const sceneTemplateBindingSchema = z.object({
