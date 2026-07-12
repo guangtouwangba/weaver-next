@@ -14,6 +14,7 @@ const messages = {
     visualGallery: "视觉模板库", existingViews: "个已有视图", existingViewsHint: "打开已有视角，或明确创建另一个。", createProject: "创建项目", createAnotherView: "再创建一个视图…", createNewView: "创建新视图", schemaResetNotice: "旧数据已备份，并已创建新的 Weaver 空间。", backupLabel: "备份",
     visualSystem: "Weaver 视觉系统", createFromTemplate: "从视觉模板创建", visualTemplateHint: "从语义骨架、投影、布局与主题开始。", visualViewHint: "将同一内容投影为另一种结构，不改变图谱。", closeTemplateGallery: "关闭模板库", allVisuals: "全部视觉", searchTemplates: "搜索模板…", existing: "已有", backToTemplates: "返回模板", projectTitle: "项目名称", goal: "目标", goalPlaceholder: "你想探索什么？", scenePack: "场景包", viewName: "视图名称", viewNamePlaceholder: "为这个视角命名", open: "打开", selectTemplate: "选择模板", selectTemplateHint: "应用前检查结构、数据要求、布局和主题。", checkingData: "正在检查当前数据…", dataReady: "个节点可用于此视图", valuesMissing: "个必填值缺失", selectToValidate: "选择模板以校验当前数据", missing: "缺失", previewGenerated: "预览生成于 graph r",
     edgeStyleBar: "连线样式", lineStyleLabel: "线型", arrowsLabel: "箭头", routingLabel: "走向", solidLine: "实线", dashedLine: "虚线", noArrow: "无箭头", singleArrow: "单向箭头", doubleArrow: "双向箭头", straightLine: "直线", curvedLine: "曲线",
+    blockPlaceholder: "开始写作…",
   },
   "en-US": {
     openFullscreen: "Open fullscreen", backToChat: "Back to chat", currentSpace: "Current space", live: "Live", connecting: "Connecting", reconnect: "Reconnect", create: "Create", allViews: "All Views", pin: "Pin", unpin: "Unpin", undoLayout: "Undo layout", selected: "Selected", nodes: "nodes", emptySpace: "Choose a template to create your first semantic space", graphSnapshot: "Semantic space snapshot", language: "中文",
@@ -27,6 +28,7 @@ const messages = {
     visualGallery: "Visual Template Gallery", existingViews: "existing Views", existingViewsHint: "Open an existing perspective or intentionally create another.", createProject: "Create project", createAnotherView: "Create another View…", createNewView: "Create new View", schemaResetNotice: "Old data was backed up and a new Weaver space was created.", backupLabel: "Backup",
     canvasConnecting: "Connecting Weaver canvas", canvasConnectFailed: "Weaver canvas connection failed", canvasDuplicate: "This canvas is already open in another tab", buildMismatch: "Widget build mismatch", canvasDetached: "This canvas is no longer bound to the current Chat", claimingHelp: "Claiming the canvas session; viewport restoration runs independently.", duplicateHelp: "Use the active Weaver tab. Closing this tab will not affect canvas data.", detachedHelp: "Open Weaver again from the current Chat.", errorCode: "Error code", retryHelp: "You can retry now.", buildMismatchHelp: "Reload using the workspace development entry.",
     edgeStyleBar: "Edge style", lineStyleLabel: "Line style", arrowsLabel: "Arrows", routingLabel: "Routing", solidLine: "Solid", dashedLine: "Dashed", noArrow: "No arrow", singleArrow: "Single arrow", doubleArrow: "Double arrow", straightLine: "Straight", curvedLine: "Curved",
+    blockPlaceholder: "Start writing…",
   },
 } as const;
 export type MessageKey = keyof typeof messages["en-US"];

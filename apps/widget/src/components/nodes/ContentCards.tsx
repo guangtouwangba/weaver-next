@@ -1,17 +1,32 @@
+import { useCallback, useEffect, useState } from "react";
 import type { Node, NodeProps } from "@xyflow/react";
 import { ExternalLink, FileImage, FileText, Lock } from "lucide-react";
 import type { CardData } from "../../types";
 import { NodeShell } from "./NodeShell";
+import { NodeBlockEditor } from "./NodeBlockEditor";
 import { useI18n } from "../../lib/i18n";
 
 export function DocumentCard({ data, id, selected }: NodeProps<Node<CardData>>) {
   const { t } = useI18n();
+  // Lazily pull the node's full Markdown the first time it is selected, then keep
+  // it so the card renders as a live document (read-only until selected).
+  const [markdown, setMarkdown] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    if (!selected || markdown !== null || loading || !data.fetchMarkdown) return;
+    setLoading(true);
+    void data.fetchMarkdown(id).then(setMarkdown).finally(() => setLoading(false));
+  }, [selected, markdown, loading, id, data]);
+  const onSave = useCallback((next: string) => { setMarkdown(next); void data.saveMarkdown?.(id, next); }, [data, id]);
+  const hasDoc = markdown !== null && markdown.trim().length > 0;
   return <NodeShell data={data} className="document-card" id={id} selected={selected}>
     {data.imageSrc ? <img className="document-cover" src={data.imageSrc} alt="" /> : null}
     <div className="card-kicker"><FileText size={11} /> {data.semanticType}</div>
     <strong>{data.title || t("untitledArticle")}</strong>
-    <p>{data.excerpt || t("openToWrite")}</p>
-    <div className="card-foot">{data.pinned ? <><Lock size={11} /> {t("fixedLabel")}</> : t("document")}</div>
+    {markdown !== null
+      ? <div className="node-doc" onDoubleClick={(event) => selected && event.stopPropagation()}><NodeBlockEditor markdown={markdown} editable={selected} placeholder={t("blockPlaceholder")} onSave={onSave} /></div>
+      : <p className="node-doc-rest">{data.excerpt || t("openToWrite")}</p>}
+    <div className="card-foot">{data.pinned ? <><Lock size={11} /> {t("fixedLabel")}</> : hasDoc || loading ? t("document") : t("openToWrite")}</div>
   </NodeShell>;
 }
 

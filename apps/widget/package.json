@@ -10,12 +10,17 @@
   },
   "dependencies": {
     "@modelcontextprotocol/ext-apps": "^1.7.4",
+    "@tiptap/extension-placeholder": "^3.27.3",
+    "@tiptap/pm": "^3.27.3",
+    "@tiptap/react": "^3.27.3",
+    "@tiptap/starter-kit": "^3.27.3",
     "@weaver/contracts": "0.1.0",
     "@xyflow/react": "^12.9.3",
     "lucide-react": "^0.468.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-markdown": "^10.1.0"
+    "react-markdown": "^10.1.0",
+    "tiptap-markdown": "^0.9.0"
   },
   "devDependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",

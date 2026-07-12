@@ -2,7 +2,7 @@ import { useCallback, useEffect } from "react";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import type { Edge, Node } from "@xyflow/react";
 import { callTool } from "../mcp-client";
-import { toFlowEdge } from "../lib/graph-view";
+import { excerpt, toFlowEdge } from "../lib/graph-view";
 import { canvasThemeForMode } from "../lib/canvas-theme";
 import type { Bootstrap, CardData, GraphEdge, GraphNode, Layout, Project } from "../types";
 
@@ -103,6 +103,29 @@ export function useCanvasGraph(params: {
     } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); await load(); }
   }
 
+  // In-card document editing (DESIGN.md § Point). The bulk graph read strips
+  // Markdown to keep agent context small, so a node lazily fetches its own full
+  // Markdown the first time it is edited, and saves it back as a graph mutation
+  // (content is authoritative in the Graph, so this correctly bumps graphRevision).
+  async function fetchMarkdown(nodeId: string): Promise<string> {
+    if (standaloneDemo) { const node = graphNodes.find((item) => item.id === nodeId); return node?.content.kind === "document" ? node.content.markdown ?? "" : ""; }
+    const currentProject = projectRef.current ?? project; if (!currentProject) return "";
+    try { const res = await callTool<{ node: GraphNode }>("weaver_read_graph", { resource: "node", workspaceDir: bootstrap.workspaceDir, projectId: currentProject.id, nodeId }); const content = res.node.content; return content.kind === "document" ? content.markdown ?? "" : ""; }
+    catch (error) { setStatus(error instanceof Error ? error.message : String(error)); return ""; }
+  }
+
+  async function saveMarkdown(nodeId: string, markdown: string) {
+    const item = graphNodes.find((node) => node.id === nodeId); if (!item || item.content.kind !== "document") return;
+    if (standaloneDemo) { setStatus("Saved locally"); return; }
+    const currentProject = projectRef.current ?? project; if (!currentProject) return;
+    const content = { ...item.content, markdown, excerpt: excerpt(markdown) };
+    try {
+      await callTool("weaver_canvas_action", { action: "update_node", workspaceDir: bootstrap.workspaceDir, projectId: currentProject.id, nodeId, baseGraphRevision: currentProject.graphRevision, content });
+      setStatus("Saved");
+      await load();
+    } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); await load(); }
+  }
+
   async function togglePinned() { if (!project || !layout || !selection.length || standaloneDemo) return; const shouldPin = selection.some((id) => !layout.nodes[id]?.pinned); try { const next = await callTool<Layout>("weaver_canvas_action", { workspaceDir: bootstrap.workspaceDir, action: "layout_operations", projectId: project.id, viewId: layout.viewId, baseLayoutRevision: layout.layoutRevision, operations: selection.map((nodeId) => ({ type: shouldPin ? "pin-node" : "unpin-node", viewId: layout.viewId, nodeId })) }); setLayout(next); setStatus(`${shouldPin ? "Pinned" : "Unpinned"} ${selection.length} nodes`); } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); } }
 
   async function toggleCanvasTheme() {
@@ -128,7 +151,7 @@ export function useCanvasGraph(params: {
       const frame = layout.nodes[item.id] ?? { x: (index % 4) * 300, y: Math.floor(index / 4) * 190, width: item.contentKind === "chart" ? 320 : item.contentKind === "link" ? 300 : 280, height: item.contentKind === "chart" ? 220 : 160, pinned: false };
       const coverId = item.content.kind === "document" ? item.content.coverAssetId : item.content.kind === "image" ? item.content.assetId : item.content.kind === "link" ? item.content.imageAssetId : undefined;
       const nodeTheme = layout.theme?.nodeStyles[item.type] ?? layout.theme?.nodeStyles.default;
-      const data: CardData = { title: item.title, semanticType: item.type, pinned: frame.pinned, contentKind: item.contentKind, excerpt: item.content.kind === "document" ? item.content.excerpt : undefined, imageSrc: coverId ? assetPreviews[coverId] : undefined, caption: item.content.kind === "image" ? item.content.caption : undefined, domain: item.content.kind === "link" ? item.content.domain : undefined, description: item.content.kind === "link" ? item.content.description : undefined, status: item.content.kind === "link" ? item.content.enrichmentStatus : undefined, chart: item.content.kind === "chart" ? item.content : undefined, onResizeStart: (nodeId) => { draggingNodeId.current = nodeId; setStatus("Resizing node…"); }, onResizeEnd: persistNodeResize };
+      const data: CardData = { title: item.title, semanticType: item.type, pinned: frame.pinned, contentKind: item.contentKind, excerpt: item.content.kind === "document" ? item.content.excerpt : undefined, imageSrc: coverId ? assetPreviews[coverId] : undefined, caption: item.content.kind === "image" ? item.content.caption : undefined, domain: item.content.kind === "link" ? item.content.domain : undefined, description: item.content.kind === "link" ? item.content.description : undefined, status: item.content.kind === "link" ? item.content.enrichmentStatus : undefined, chart: item.content.kind === "chart" ? item.content : undefined, fetchMarkdown, saveMarkdown, onResizeStart: (nodeId) => { draggingNodeId.current = nodeId; setStatus("Resizing node…"); }, onResizeEnd: persistNodeResize };
       return { id: item.id, type: item.contentKind, position: { x: frame.x, y: frame.y }, data, style: { width: frame.width, height: frame.height, "--node-fill": nodeTheme?.fill, "--node-border": nodeTheme?.borderColor, "--node-text": nodeTheme?.textColor, "--node-accent": nodeTheme?.accentColor, "--node-radius": `${nodeTheme?.borderRadius ?? 8}px`, "--node-title-scale": nodeTheme?.titleScale ?? 1 } as React.CSSProperties };
     })]);
   }, [assetPreviews, graphNodes, layout, setNodes]);
