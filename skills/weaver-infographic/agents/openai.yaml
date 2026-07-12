@@ -1,0 +1,7 @@
+interface:
+  display_name: "Weaver Infographic"
+  short_description: "Turn selected Weaver nodes into one infographic image"
+  default_prompt: "Use $weaver:weaver-infographic to make an infographic from the current Weaver canvas selection."
+
+policy:
+  allow_implicit_invocation: true
