@@ -1,5 +1,5 @@
 import { Check, Loader2, Send, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { hostMode } from "../mcp-client";
 import type { AgentTask, GraphNode } from "../types";
 
@@ -18,6 +18,12 @@ export function activeTaskBusyLabel(task: AgentTask | null): string | undefined 
   }
 }
 
+/** " · 已 N 分钟" once a task has run ≥1 minute — makes zombie tasks obvious at a glance. */
+export function taskAgeSuffix(createdAt: string, nowMs: number): string {
+  const minutes = Math.floor((nowMs - Date.parse(createdAt)) / 60_000);
+  return Number.isFinite(minutes) && minutes >= 1 ? ` · 已 ${minutes} 分钟` : "";
+}
+
 // The canvas composer. On any agent host (Codex or Claude Code) it is a collapsed "ask"
 // pill by default — so it never obstructs the canvas — that expands into a real input.
 // Submitting sends the instruction against the bound canvas for the agent to pick up.
@@ -32,10 +38,18 @@ export function SelectionContextBar(props: {
   cancelActiveTask?: () => void | Promise<void>;
   busy: boolean;
   busyLabel?: string;
+  busySince?: string;
 }) {
-  const { selection, anchorNodeId, nodes, setAnchorNodeId, removeNode, submitPrompt, cancelActiveTask, busy, busyLabel } = props;
+  const { selection, anchorNodeId, nodes, setAnchorNodeId, removeNode, submitPrompt, cancelActiveTask, busy, busyLabel, busySince } = props;
   const agentHost = hostMode !== "dev";
   const [expanded, setExpanded] = useState(false);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    if (!busy) return;
+    setNowMs(Date.now());
+    const id = window.setInterval(() => setNowMs(Date.now()), 30_000);
+    return () => window.clearInterval(id);
+  }, [busy]);
   const [draft, setDraft] = useState("");
   const byId = new Map(nodes.map((node) => [node.id, node]));
 
@@ -52,7 +66,7 @@ export function SelectionContextBar(props: {
     return <section className="follow-up-composer" data-expanded="true" aria-label="Canvas context">{chips}</section>;
   }
 
-  if (busy) return <div className="prompt-trigger busy" aria-live="polite"><Loader2 size={14} className="spin" /><span>{busyLabel ?? "处理中…"}</span>{cancelActiveTask ? <button type="button" className="prompt-cancel" onClick={() => void cancelActiveTask()} aria-label="Cancel" title="取消"><X size={12} /></button> : null}</div>;
+  if (busy) return <div className="prompt-trigger busy" aria-live="polite"><Loader2 size={14} className="spin" /><span>{`${busyLabel ?? "处理中…"}${busySince ? taskAgeSuffix(busySince, nowMs) : ""}`}</span>{cancelActiveTask ? <button type="button" className="prompt-cancel" onClick={() => void cancelActiveTask()} aria-label="Cancel" title="取消"><X size={12} /></button> : null}</div>;
 
   if (!expanded) return <button type="button" className="prompt-trigger" onClick={() => setExpanded(true)} aria-label="Ask on the canvas"><span>提问</span></button>;
 

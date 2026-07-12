@@ -13,13 +13,18 @@ const connectedMcp = createMcpAppConnection(mcp);
 
 export const connectMcpApp = () => connectedMcp.connect();
 
+// A browser host always has `window`/`location`; guarding here only keeps this module
+// importable in a plain node context (e.g. unit tests) — browser behavior is unchanged.
+const browserWindow: (Window & typeof globalThis) | undefined = typeof window === "undefined" ? undefined : window;
+const browserLocation: Location | undefined = typeof location === "undefined" ? undefined : location;
+
 /** Injected by the MCP process's /preview route when Claude Code is the agent host. */
-export const weaverPreview = window.__weaverPreview;
+export const weaverPreview = browserWindow?.__weaverPreview;
 
 // `isLocalDevelopment` means the Vite dev proxy (no chat binding, agent unavailable).
 // The Claude preview is also on 127.0.0.1 but is a bound agent host, so it is excluded.
-export const isLocalDevelopment = isDevHost(location.hostname, weaverPreview);
-export const hostMode = resolveHostMode(location.hostname, weaverPreview);
+export const isLocalDevelopment = isDevHost(browserLocation?.hostname ?? "localhost", weaverPreview);
+export const hostMode = resolveHostMode(browserLocation?.hostname ?? "localhost", weaverPreview);
 
 // Codex loopback bypass. Codex's tools/call proxy rejects some widget calls in the
 // renderer before they ever reach the MCP server ("-32000 MCP proxy request failed" —
@@ -29,7 +34,7 @@ export const hostMode = resolveHostMode(location.hostname, weaverPreview);
 // uses the proxy as a fallback. The endpoint is baked into the ui:// resource HTML
 // (`window.__weaverCodexLoopback`) by the serving process; putting a URL in the tool
 // result instead makes Codex open a browser sidebar rather than the native panel.
-let codexLoopback: { origin: string; token: string } | undefined = window.__weaverCodexLoopback;
+let codexLoopback: { origin: string; token: string } | undefined = browserWindow?.__weaverCodexLoopback;
 export function setCodexLoopback(previewUrl?: string, token?: string) {
   if (!previewUrl || !token) return;
   try { codexLoopback = { origin: new URL(previewUrl).origin, token }; }

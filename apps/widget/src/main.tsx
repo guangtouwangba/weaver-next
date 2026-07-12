@@ -147,7 +147,7 @@ function WeaverWidget() {
         activeTask={activeTask} cancelActiveTask={cancelActiveTask} changePreview={changePreview} rejectChangeSet={rejectChangeSet} applyChangeSet={applyChangeSet}
         candidates={candidates} candidateIndex={candidateIndex} setCandidateIndex={setCandidateIndex} rejectLayout={rejectLayout} applyCandidate={applyCandidate}
         staleTask={staleTask} viewToast={viewToast} setViewToast={setViewToast} restoreProjectView={restoreProjectView}
-        followUpComposer={<SelectionContextBar selection={selection} anchorNodeId={anchorNodeId} nodes={graphNodes} setAnchorNodeId={setAnchorNodeId} removeNode={(nodeId) => setSelection((current) => current.filter((id) => id !== nodeId))} submitPrompt={submitCanvasPrompt} cancelActiveTask={cancelActiveTask} busy={Boolean(activeTask)} busyLabel={activeTaskBusyLabel(activeTask)} />}
+        followUpComposer={<SelectionContextBar selection={selection} anchorNodeId={anchorNodeId} nodes={graphNodes} setAnchorNodeId={setAnchorNodeId} removeNode={(nodeId) => setSelection((current) => current.filter((id) => id !== nodeId))} submitPrompt={submitCanvasPrompt} cancelActiveTask={cancelActiveTask} busy={Boolean(activeTask)} busyLabel={activeTaskBusyLabel(activeTask)} busySince={activeTask?.createdAt} />}
       />
       <ProjectPickerModal projectChoices={projectChoices} chooseProject={chooseProject} startFromTemplateGallery={startFromTemplateGallery} />
       <TemplateGalleryModal
