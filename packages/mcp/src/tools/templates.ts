@@ -5,8 +5,8 @@ import { getScenePack } from "@weaver/scene-packs";
 import { builtinVisualTemplates, getVisualTemplate, validateVisualTemplateForProject } from "@weaver/visual-templates";
 import { projectSchema, workspaceSchema } from "../shared/schemas.js";
 import { listVisualTemplates } from "../shared/catalog-reads.js";
-import { track } from "../shared/workspace-registry.js";
 import { createProjectFromTemplate } from "../shared/create-project.js";
+import { createViewFromTemplate } from "../shared/manage-view.js";
 import { defineTool, result, withStore, type MutateWithStore } from "../shared/tool-runtime.js";
 import { chatSessionKeyFromRequest } from "../thread-context.js";
 
@@ -56,8 +56,16 @@ export function registerTemplatesTools(server: McpServer, ctx: TemplatesToolsCtx
     inputSchema: { ...workspaceSchema.shape, title: z.string().min(1), goal: z.string().default(""), scenePackId: z.string(), templateId: z.string(), version: z.string().default("1.0.0"), automationLevel: z.enum(["cautious", "collaborative", "automatic"]).default("collaborative"), leaseId: z.string().regex(/^[a-f0-9]{64}$/).optional(), bindingRevision: z.number().int().positive().optional() }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } },
   }, defineTool(async ({ workspaceDir, title, goal, scenePackId, templateId, version, automationLevel, leaseId, bindingRevision }, extra) => { const chatSessionKey = chatSessionKeyFromRequest(extra, false); return createProjectFromTemplate(mutateWithStore, { workspaceDir, title, goal, scenePackId, templateId, version, automationLevel, chatSessionKey, leaseId, bindingRevision }); }));
 
+  // Widget-only: the preview widget's template gallery creates Views here
+  // (apps/widget useVisualTemplateGallery), so it stays REGISTERED under this
+  // exact name with `_meta.ui.visibility=["app"]` (off the model surface). The
+  // model creates a View from a template via weaver_manage_view(action:"create_from_template");
+  // both call the shared createViewFromTemplate helper (see shared/manage-view.ts) so they never drift.
   server.registerTool("weaver_create_view_from_visual_template", {
     title: "Create View From Visual Template", description: "Create a new independent themed view over the current graph without modifying graphRevision or existing views.",
-    inputSchema: { ...projectSchema.shape, templateId: z.string(), version: z.string().default("1.0.0"), baseGraphRevision: z.number().int().nonnegative(), viewName: z.string().optional() }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
-  }, defineTool(async ({ workspaceDir, projectId, templateId, version, baseGraphRevision, viewName }, extra) => { const template = getVisualTemplate(templateId, version); if (!template) throw new Error("VISUAL_TEMPLATE_NOT_FOUND"); const chatSessionKey = chatSessionKeyFromRequest(extra, false); const output = mutateWithStore(workspaceDir, (store) => { const project = store.getProject(projectId); if (!project) throw new Error("PROJECT_NOT_FOUND"); const scene = getScenePack(project.scenePackId, project.scenePackVersion); if (!scene) throw new Error("SCENE_PACK_NOT_FOUND"); const validation = validateVisualTemplateForProject(template, scene, store.getGraph(projectId).nodes); if (!validation.compatible) throw new Error("VISUAL_TEMPLATE_SCENE_INCOMPATIBLE"); if (!validation.ready) throw new Error("VISUAL_TEMPLATE_DATA_NOT_READY"); const currentBinding = chatSessionKey ? store.getChatCanvasBinding(chatSessionKey) : null; if (chatSessionKey && (!currentBinding || currentBinding.projectId !== projectId)) throw new Error("NO_CANVAS_BOUND_TO_CHAT"); const layout = store.createViewFromVisualTemplate({ projectId, template, baseGraphRevision, viewName, chatBinding: chatSessionKey && currentBinding ? { chatSessionKey, leaseId: currentBinding.leaseId, bindingRevision: currentBinding.bindingRevision } : undefined }); const binding = chatSessionKey ? store.getChatCanvasBinding(chatSessionKey) : undefined; return { layout, binding }; }); track(workspaceDir, projectId); const binding = output.binding ? { leaseId: output.binding.leaseId, bindingRevision: output.binding.bindingRevision, projectId: output.binding.projectId, viewId: output.binding.viewId } : undefined; return result({ ...output.layout, chatBinding: binding }, `Created ${output.layout.viewName}.`); }));
+    inputSchema: { ...projectSchema.shape, templateId: z.string(), version: z.string().default("1.0.0"), baseGraphRevision: z.number().int().nonnegative(), viewName: z.string().optional() }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } },
+  }, defineTool(async ({ workspaceDir, projectId, templateId, version, baseGraphRevision, viewName }, extra) => {
+    const chatSessionKey = chatSessionKeyFromRequest(extra, false);
+    return createViewFromTemplate(mutateWithStore, { workspaceDir, projectId, templateId, version, baseGraphRevision, viewName, chatSessionKey });
+  }));
 }

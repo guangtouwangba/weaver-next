@@ -1,26 +1,13 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { viewTypeSchema, type LayoutDocument } from "@weaver/contracts";
-import { getScenePack } from "@weaver/scene-packs";
 import type { WorkspaceStore } from "@weaver/storage";
 import { projectSchema } from "../shared/schemas.js";
 import { listProjectViews } from "../shared/catalog-reads.js";
-import { track } from "../shared/workspace-registry.js";
-import { defineTool, failure, result, withStore, type MutateWithStore } from "../shared/tool-runtime.js";
+import { assertViewMutationContext, duplicateView } from "../shared/manage-view.js";
+import { defineTool, result, withStore, type MutateWithStore } from "../shared/tool-runtime.js";
 import { chatSessionKeyFromRequest } from "../thread-context.js";
 
 export type ViewCatalogToolsCtx = { mutateWithStore: MutateWithStore };
-
-const defaultStrategyByView = {
-  canvas: "hybrid", tree: "tree", graph: "force", board: "swimlane", timeline: "timeline", flow: "layered", table: "grid",
-} as const;
-
-function assertViewMutationContext(store: WorkspaceStore, projectId: string, chatSessionKey?: string, lease?: { leaseId?: string; bindingRevision?: number }) {
-  if (!chatSessionKey) return;
-  const binding = store.getChatCanvasBinding(chatSessionKey);
-  if (!binding || binding.projectId !== projectId) throw new Error("NO_CANVAS_BOUND_TO_CHAT");
-  if (lease?.leaseId && (binding.leaseId !== lease.leaseId || binding.bindingRevision !== lease.bindingRevision)) throw new Error("CHAT_CANVAS_LEASE_STALE");
-}
 
 type ViewMutationAnnotations = { readOnlyHint: boolean; destructiveHint: boolean; idempotentHint: boolean; openWorldHint: boolean };
 
@@ -56,7 +43,7 @@ function registerViewMutationTool(
   }));
 }
 
-/** View catalog: list/search/read saved Views, the 8 near-identical catalog mutations, and get-or-create-view. */
+/** View catalog: list saved Views, the near-identical catalog mutations, and the app-only duplicate write. */
 export function registerViewCatalogTools(server: McpServer, ctx: ViewCatalogToolsCtx) {
   const { mutateWithStore } = ctx;
 
@@ -121,27 +108,19 @@ export function registerViewCatalogTools(server: McpServer, ctx: ViewCatalogTool
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false }, meta: appVisibility,
   }, (store, input) => store.purgeProjectView({ projectId: input.projectId, viewId: input.viewId, baseCatalogRevision: input.baseCatalogRevision }));
 
-  registerViewMutationTool(server, mutateWithStore, "weaver_duplicate_project_view", {
+  // Widget-only: the preview widget's View menu duplicates Views here
+  // (apps/widget useViewCatalog), so it stays REGISTERED under this exact name
+  // with `_meta.ui.visibility=["app"]` (off the model surface). The model
+  // duplicates via weaver_manage_view(action:"duplicate"); both call the shared
+  // duplicateView helper (see shared/manage-view.ts) so they never drift.
+  // `weaver_get_or_create_view` was model-only (not widget-called) and is now
+  // folded into weaver_manage_view(action:"open_or_create") — its registration is removed.
+  server.registerTool("weaver_duplicate_project_view", {
     title: "Duplicate Project View", description: "Create an independent layout copy over the same content graph.",
     inputSchema: { ...viewMutationBase, name: z.string().max(120).optional() },
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
-  }, (store, input) => store.duplicateProjectView({ projectId: input.projectId, viewId: input.viewId, name: input.name, baseCatalogRevision: input.baseCatalogRevision }));
-
-  // Structurally distinct from the 8 mutations above: no chat-lease guard, uses `withStore` (not
-  // `mutateWithStore`, so it does not emit a workspace event) — preserved exactly as in the original file.
-  server.registerTool("weaver_get_or_create_view", {
-    title: "Get or Create Project View",
-    description: "Open an independent stored projection for one of the seven view types, creating its initial layout without changing graphRevision or another view.",
-    inputSchema: { ...projectSchema.shape, viewType: viewTypeSchema },
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-  }, async ({ workspaceDir, projectId, viewType }) => { try {
-    const output = withStore(workspaceDir, (store) => {
-      const project = store.getProject(projectId); if (!project) throw new Error("PROJECT_NOT_FOUND");
-      const scene = getScenePack(project.scenePackId, project.scenePackVersion); if (!scene) throw new Error("SCENE_PACK_NOT_FOUND");
-      if (!scene.recommendedViews.includes(viewType)) throw new Error(`VIEW_NOT_RECOMMENDED:${viewType}`);
-      const strategy = (scene.defaultView === viewType ? scene.defaultStrategy : defaultStrategyByView[viewType]) as LayoutDocument["strategy"];
-      return store.ensureView({ projectId, viewId: `${viewType}-default`, viewType, strategy });
-    });
-    track(workspaceDir, projectId); return result(output, `Opened ${viewType} view.`);
-  } catch (error) { return failure(error); } });
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } },
+  }, defineTool(async ({ workspaceDir, projectId, viewId, name, baseCatalogRevision, leaseId, bindingRevision }, extra) => {
+    const chatSessionKey = chatSessionKeyFromRequest(extra, false);
+    return duplicateView(mutateWithStore, { workspaceDir, projectId, viewId, name, baseCatalogRevision, leaseId, bindingRevision, chatSessionKey });
+  }));
 }

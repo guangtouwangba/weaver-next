@@ -10,7 +10,7 @@ description: Translate natural-language Weaver layout and structured-visual requ
 3. Read `weaver_read_graph(resource:"manifest")`, `weaver_read_session(resource:"canvas_context")`, and `weaver_read_graph(resource:"full")` for the task's view.
 4. If the user requests a visual form such as a timeline, board, matrix, table, flow, tree, or relationship network, call `weaver_read_catalog(resource:"view.list")` and `weaver_recommend_visual_templates`, then `weaver_validate_visual_template`.
 5. Before creating a template View, disclose matching existing instances and offer to open one. Duplicate templates are allowed, but creation must be an explicit “create another View” choice and should use a user-readable View name.
-6. When the template is compatible and ready, call `weaver_preview_visual_template`; report that applying it creates a new independent View. Use `weaver_create_view_from_visual_template` only after confirmation or under automatic project permission.
+6. When the template is compatible and ready, call `weaver_preview_visual_template`; report that applying it creates a new independent View. Use `weaver_manage_view(action:"create_from_template")` only after confirmation or under automatic project permission.
 7. If required fields are missing, propose a separate content ChangeSet and revalidate after it is applied. Never add fields silently while applying a template.
 8. For ordinary spatial cleanup, translate the user's language into a LayoutPlan. Read [layout-plan.md](references/layout-plan.md) for the contract and mapping examples.
 9. Preserve pinned nodes, manual groups, and relative order unless the user explicitly says otherwise.
