@@ -33,13 +33,16 @@ type PackInput = {
 };
 
 function pack(input: PackInput): ScenePack {
+  // Research packs may hold chart/data cards (market-size trends, share pies, KPI
+  // metrics) alongside prose/media; other categories stay document/image/link.
+  const allowedContentKinds = input.category === "research" ? ["document", "image", "link", "chart"] : ["document", "image", "link"];
   return scenePackSchema.parse({
     id: input.id,
     version: "1.0.0",
     name: input.name,
     category: input.category,
     description: input.description,
-    nodeTypes: input.nodeTypes.map(([key, label, color]) => ({ key, label, color, defaultWidth: 220, defaultHeight: 112, requiredProperties: [], properties: commonProperties[input.id]?.[key] ?? [], defaultContentKind: "document", allowedContentKinds: ["document", "image", "link"] })),
+    nodeTypes: input.nodeTypes.map(([key, label, color]) => ({ key, label, color, defaultWidth: 220, defaultHeight: 112, requiredProperties: [], properties: commonProperties[input.id]?.[key] ?? [], defaultContentKind: "document", allowedContentKinds })),
     edgeTypes: input.edgeTypes.map(([key, label, directed = true]) => ({ key, label, directed, sourceTypes: [], targetTypes: [] })),
     recommendedViews: input.views,
     defaultView: input.views[0],

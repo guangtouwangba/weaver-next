@@ -4,12 +4,12 @@
 // usage (demo/seed data, MCP responses) doesn't match the contracts shape stay local —
 // see the refactor report for the per-type compatibility notes.
 
-import type { NodeContent, ViewTheme } from "@weaver/contracts";
+import type { ChartContent, NodeContent, ViewTheme } from "@weaver/contracts";
 
 export type { VisualFamily, ViewTheme, VisualTemplate, TemplateValidationResult as TemplateValidation, AgentTaskIntent as TaskIntent, AgentTask } from "@weaver/contracts";
 // These alias cleanly: the widget always supplies every field on construction, and the
 // contracts shapes are otherwise structurally identical to the local ones.
-export type { DocumentContent, ImageContent, LinkContent, NodeContent } from "@weaver/contracts";
+export type { DocumentContent, ImageContent, LinkContent, ChartContent, ChartSeries, ChartType, NodeContent } from "@weaver/contracts";
 
 export type ToolResult<T> = { structuredContent?: T; isError?: boolean; content?: Array<{ type: string; text?: string }> };
 export type ChatBindingBootstrap = { leaseId: string; bindingRevision: number; projectId?: string; viewId?: string };
@@ -72,7 +72,7 @@ export type ProjectView = { id: string; projectId: string; name: string; viewTyp
 
 export type Manifest = { scenePack: { id?: string; recommendedViews: string[]; recommendedTemplateIds?: string[]; nodeTypes: Array<{ key: string; label: string; defaultContentKind: NodeContent["kind"]; allowedContentKinds: NodeContent["kind"][] }> }; views?: ViewSummary[] };
 
-export type CardData = { title: string; semanticType: string; pinned: boolean; contentKind: NodeContent["kind"]; excerpt?: string; imageSrc?: string; caption?: string; domain?: string; description?: string; status?: string; onResizeStart?: (nodeId: string) => void; onResizeEnd?: (nodeId: string, frame: { x: number; y: number; width: number; height: number }) => void };
+export type CardData = { title: string; semanticType: string; pinned: boolean; contentKind: NodeContent["kind"]; excerpt?: string; imageSrc?: string; caption?: string; domain?: string; description?: string; status?: string; chart?: ChartContent; onResizeStart?: (nodeId: string) => void; onResizeEnd?: (nodeId: string, frame: { x: number; y: number; width: number; height: number }) => void };
 export type EditorDraft = { title: string; semanticType: string; markdown: string; excerpt: string; coverAssetId?: string; embeddedAssetIds: string[] };
 
 export type ChangeSetPreview = { changeSet: { id: string; rationale: string; riskLevel: string; graphOperations: unknown[]; layoutOperations: unknown[] }; stale: boolean; currentGraphRevision: number; summary: { addedNodes: number; updatedNodes: number; archivedNodes: number; addedEdges: number; updatedEdges: number; archivedEdges: number; layoutOperations: number } };

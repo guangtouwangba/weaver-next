@@ -4,7 +4,7 @@ import { Maximize2 } from "lucide-react";
 import type { CardData } from "../../types";
 
 export function NodeShell({ children, data, className, id, selected }: { children: React.ReactNode; data: CardData; className: string; id: string; selected: boolean }) {
-  const minimum = data.contentKind === "image" ? { width: 160, height: 140 } : data.contentKind === "link" ? { width: 220, height: 120 } : { width: 180, height: 100 };
+  const minimum = data.contentKind === "image" ? { width: 160, height: 140 } : data.contentKind === "link" ? { width: 220, height: 120 } : data.contentKind === "chart" ? (data.chart?.chartType === "metric" ? { width: 150, height: 96 } : { width: 220, height: 170 }) : { width: 180, height: 100 };
   return <>
     <NodeResizer isVisible={selected} minWidth={minimum.width} minHeight={minimum.height} maxWidth={900} maxHeight={700} color="#315cf6" onResizeStart={() => data.onResizeStart?.(id)} onResizeEnd={(_event, frame) => data.onResizeEnd?.(id, frame)} />
     <article className={`content-card ${className}`} data-pinned={data.pinned} data-selected={selected}>

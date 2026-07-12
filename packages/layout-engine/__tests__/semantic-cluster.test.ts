@@ -179,6 +179,28 @@ describe("semantic cluster layout", () => {
   });
 });
 
+describe("chart nodes as hero cards", () => {
+  it("sizes chart nodes big and metric cards smaller", async () => {
+    const chartNode = (id: string, chartType: string): SpaceNode => ({
+      id, projectId: "p", type: "entity", title: id, body: "",
+      contentKind: "chart",
+      content: { kind: "chart", chartType, title: id, series: chartType === "metric" ? [] : [{ name: "s", points: [{ label: "a", value: 1 }, { label: "b", value: 2 }] }], metric: chartType === "metric" ? { value: 5, unit: "", delta: 1, deltaLabel: "" } : undefined, unit: "", xLabel: "", yLabel: "", sourceNote: "", asOf: "" },
+      properties: { layer: "市场事实" }, archived: false, createdAt: timestamp, updatedAt: timestamp,
+    } as unknown as SpaceNode);
+    const doc = (id: string): SpaceNode => ({
+      id, projectId: "p", type: "entity", title: id, body: "", contentKind: "document",
+      content: { kind: "document", mode: "note", markdown: "", excerpt: "", embeddedAssetIds: [] },
+      properties: { layer: "市场事实" }, archived: false, createdAt: timestamp, updatedAt: timestamp,
+    });
+    const cnodes = [chartNode("mkt", "line"), chartNode("kpi", "metric"), doc("d1"), doc("d2")];
+    const cedges = [edge("ce1", "mkt", "d1"), edge("ce2", "kpi", "d2"), edge("ce3", "mkt", "kpi")];
+    const current: LayoutDocument = { ...makeCurrent(), nodes: Object.fromEntries(cnodes.map((n, i) => [n.id, { nodeId: n.id, x: i * 260, y: 0, width: 220, height: 112, rotation: 0, zIndex: 0, pinned: false, hidden: false, collapsed: false }])) };
+    const [candidate] = await generateLayoutCandidates({ nodes: cnodes, edges: cedges, current, plan: makePlan(), layoutRunId: "run-chart" });
+    expect(candidate.document.nodes.mkt).toMatchObject({ width: 320, height: 220 });
+    expect(candidate.document.nodes.kpi).toMatchObject({ width: 240, height: 130 });
+  });
+});
+
 describe("seedSemanticLayout (initial layout)", () => {
   it("seeds a fresh view into labeled, overlap-free, hub-sized clusters", () => {
     const document = makeEmptyDoc();

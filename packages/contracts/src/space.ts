@@ -3,7 +3,7 @@ import { z } from "zod";
 export const automationLevelSchema = z.enum(["cautious", "collaborative", "automatic"]);
 export type AutomationLevel = z.infer<typeof automationLevelSchema>;
 
-export const contentKindSchema = z.enum(["document", "image", "link"]);
+export const contentKindSchema = z.enum(["document", "image", "link", "chart"]);
 export type ContentKind = z.infer<typeof contentKindSchema>;
 
 export const documentContentSchema = z.object({
@@ -35,7 +35,34 @@ export const linkContentSchema = z.object({
 });
 export type LinkContent = z.infer<typeof linkContentSchema>;
 
-export const nodeContentSchema = z.discriminatedUnion("kind", [documentContentSchema, imageContentSchema, linkContentSchema]);
+export const chartTypeSchema = z.enum(["line", "bar", "pie", "area", "metric"]);
+export type ChartType = z.infer<typeof chartTypeSchema>;
+
+export const chartSeriesSchema = z.object({
+  name: z.string().default(""),
+  color: z.string().optional(),
+  points: z.array(z.object({ label: z.string().default(""), value: z.number() })).default([]),
+});
+export type ChartSeries = z.infer<typeof chartSeriesSchema>;
+
+// A data-visualization node: quantitative/trend content an analyst reads at a
+// glance. `series` drives line/bar/area/pie; `metric` drives the KPI card.
+// `sourceNote`/`asOf` keep every figure auditable (investment research must cite).
+export const chartContentSchema = z.object({
+  kind: z.literal("chart"),
+  chartType: chartTypeSchema,
+  title: z.string().default(""),
+  series: z.array(chartSeriesSchema).default([]),
+  metric: z.object({ value: z.number(), unit: z.string().default(""), delta: z.number().optional(), deltaLabel: z.string().default("") }).optional(),
+  unit: z.string().default(""),
+  xLabel: z.string().default(""),
+  yLabel: z.string().default(""),
+  sourceNote: z.string().default(""),
+  asOf: z.string().default(""),
+});
+export type ChartContent = z.infer<typeof chartContentSchema>;
+
+export const nodeContentSchema = z.discriminatedUnion("kind", [documentContentSchema, imageContentSchema, linkContentSchema, chartContentSchema]);
 export type NodeContent = z.infer<typeof nodeContentSchema>;
 
 const nodeBaseSchema = z.object({

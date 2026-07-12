@@ -23,7 +23,8 @@ export function graphDelta(db: DatabaseSync, previous: GraphSnapshot, next: Grap
   const summarize = (node: SpaceNode) => {
     const assetIds = node.content.kind === "image" ? [node.content.assetId]
       : node.content.kind === "document" ? [node.content.coverAssetId, ...node.content.embeddedAssetIds].filter(Boolean) as string[]
-        : [node.content.imageAssetId].filter(Boolean) as string[];
+        : node.content.kind === "link" ? [node.content.imageAssetId].filter(Boolean) as string[]
+          : [];
     return {
       ...node,
       body: "",
@@ -130,7 +131,7 @@ export function attachAsset(db: DatabaseSync, input: { projectId: string; nodeId
 }
 
 export function assertContentAssets(db: DatabaseSync, projectId: string, content: NodeContent) {
-  const ids = content.kind === "image" ? [content.assetId] : content.kind === "document" ? [content.coverAssetId, ...content.embeddedAssetIds].filter(Boolean) as string[] : [content.imageAssetId].filter(Boolean) as string[];
+  const ids = content.kind === "image" ? [content.assetId] : content.kind === "document" ? [content.coverAssetId, ...content.embeddedAssetIds].filter(Boolean) as string[] : content.kind === "link" ? [content.imageAssetId].filter(Boolean) as string[] : [];
   for (const id of ids) {
     const asset = getAsset(db, id);
     if (!asset || asset.projectId !== projectId) throw new Error(`ASSET_NOT_FOUND_OR_CROSS_PROJECT:${id}`);
@@ -141,6 +142,7 @@ export function defaultNodeFrame(db: DatabaseSync, node: SpaceNode, x: number, y
   let width = 280; let height = 160;
   if (node.content.kind === "document" && node.content.mode === "note") { width = 220; height = 112; }
   if (node.content.kind === "link") { width = 300; height = 180; }
+  if (node.content.kind === "chart") { const metric = node.content.chartType === "metric"; width = metric ? 240 : 320; height = metric ? 130 : 220; }
   if (node.content.kind === "image") {
     const asset = getAsset(db, node.content.assetId)!;
     width = Math.max(180, Math.min(360, asset.width));

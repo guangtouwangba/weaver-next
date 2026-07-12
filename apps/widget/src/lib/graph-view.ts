@@ -2,6 +2,7 @@ import type { Edge } from "@xyflow/react";
 import { resolveEdgeHandles } from "../sync";
 import type { GraphEdge, GraphNode, Layout, Project } from "../types";
 import { DocumentCard, ImageCard, LinkCard, VisualGroupCard } from "../components/nodes/ContentCards";
+import { ChartCard } from "../components/nodes/ChartCard";
 import { WeaverEdge } from "../components/WeaverEdge";
 
 export function excerpt(markdown: string) { return markdown.replace(/[#>*_`[\]()!-]/g, " ").replace(/\s+/g, " ").trim().slice(0, 280); }
@@ -37,5 +38,5 @@ export function toFlowEdge(item: GraphEdge, layout: Layout): Edge {
   };
 }
 
-export const nodeTypes = { document: DocumentCard, image: ImageCard, link: LinkCard, visualGroup: VisualGroupCard };
+export const nodeTypes = { document: DocumentCard, image: ImageCard, link: LinkCard, chart: ChartCard, visualGroup: VisualGroupCard };
 export const edgeTypes = { weaver: WeaverEdge };

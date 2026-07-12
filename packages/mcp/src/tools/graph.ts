@@ -10,7 +10,8 @@ function summarizeNode(store: WorkspaceStore, node: SpaceNode) {
   const content = node.content.kind === "document" ? { ...node.content, markdown: undefined } : node.content;
   const assetIds = node.content.kind === "image" ? [node.content.assetId]
     : node.content.kind === "document" ? [node.content.coverAssetId, ...node.content.embeddedAssetIds].filter(Boolean) as string[]
-      : [node.content.imageAssetId].filter(Boolean) as string[];
+      : node.content.kind === "link" ? [node.content.imageAssetId].filter(Boolean) as string[]
+        : [];
   return { id: node.id, projectId: node.projectId, type: node.type, title: node.title, contentKind: node.contentKind, content, properties: node.properties, archived: node.archived, createdAt: node.createdAt, updatedAt: node.updatedAt, assets: assetIds.map((id) => store.getAsset(id)).filter(Boolean) };
 }
 
