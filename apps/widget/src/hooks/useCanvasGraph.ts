@@ -158,7 +158,7 @@ export function useCanvasGraph(params: {
 
   useEffect(() => {
     if (!layout) return;
-    const visualGroups: Node[] = Object.values(layout.groups ?? {}).map((group) => ({ id: `visual-group:${group.groupId}`, type: "visualGroup", position: { x: group.x, y: group.y }, data: { label: group.groupId.split(":").slice(1).join(":"), kind: layout.projection?.kind ?? "group" }, style: { width: group.width, height: group.height, zIndex: -1 }, draggable: false, selectable: false, connectable: false }));
+    const visualGroups: Node[] = Object.values(layout.groups ?? {}).map((group) => ({ id: `visual-group:${group.groupId}`, type: "visualGroup", position: { x: group.x, y: group.y }, data: { label: group.label ?? group.groupId.split(":").slice(1).join(":"), kind: group.kind ?? "interaction" }, style: { width: group.width, height: group.height, zIndex: -1 }, draggable: false, selectable: false, connectable: false }));
     const references = graphNodes.map((node) => ({ id: node.id, title: node.title }));
     setNodes([...visualGroups, ...graphNodes.map((item, index) => {
       const frame = layout.nodes[item.id] ?? { x: (index % 4) * 300, y: Math.floor(index / 4) * 190, width: item.contentKind === "chart" ? 320 : item.contentKind === "link" ? 300 : 280, height: item.contentKind === "chart" ? 220 : 160, pinned: false };

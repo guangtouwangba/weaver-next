@@ -204,8 +204,20 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .react-flow__pane.draggable { cursor: grab; }
 .react-flow__pane.dragging { cursor: grabbing; }
 .react-flow__node.selected .content-card { box-shadow: 0 0 0 2px var(--select-ring); }
-.visual-group-card { width: 100%; height: 100%; padding: 14px 16px; color: color-mix(in srgb, var(--node-accent, var(--blue)) 78%, #ffffff); background: color-mix(in srgb, var(--node-fill, var(--surface)) 68%, transparent); border: 1px dashed color-mix(in srgb, var(--node-accent, var(--blue)) 40%, transparent); border-radius: var(--radius-card); pointer-events: none; }
-.visual-group-card strong { display: block; font-size: 10px; letter-spacing: .07em; text-transform: uppercase; }
+/* Plane — four visually distinct region kinds (DESIGN.md § Plane). All render
+   behind nodes/edges; only the title/border treatment separates them. */
+.visual-group-card { width: 100%; height: 100%; padding: 14px 16px; color: var(--muted); background: var(--group-fill); border: 1px solid var(--group-border); border-radius: var(--radius-card); pointer-events: none; }
+.visual-group-card strong { display: inline-block; font-size: 10px; letter-spacing: .07em; text-transform: uppercase; }
+/* Interaction: light, dashed, quiet — the default operable grouping. */
+.visual-group-card[data-kind="interaction"] { background: color-mix(in srgb, var(--group-fill) 60%, transparent); border-style: dashed; }
+/* Frame: a titled composition boundary — solid hairline + a title plate. */
+.visual-group-card[data-kind="frame"] { background: color-mix(in srgb, var(--surface) 40%, transparent); border-color: var(--line-strong); }
+.visual-group-card[data-kind="frame"] strong, .visual-group-card[data-kind="semantic"] strong { padding: 3px 8px; color: var(--fg-strong); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-control); }
+/* Semantic: backed by explicit membership — stronger accent border. */
+.visual-group-card[data-kind="semantic"] { color: color-mix(in srgb, var(--blue) 78%, #ffffff); background: var(--group-fill); border: 1px solid var(--group-border); }
+/* Projection: derived lane/column/band — subtle band, must not read as a node. */
+.visual-group-card[data-kind="projection"] { background: color-mix(in srgb, var(--surface) 22%, transparent); border: 1px solid var(--line); border-radius: var(--radius-xs); }
+.visual-group-card[data-kind="projection"] strong { color: var(--muted); }
 .react-flow__resize-control.handle { z-index: 22; width: 11px; height: 11px; background: var(--blue); border: 2px solid var(--bg); border-radius: 50%; box-shadow: 0 1px 4px rgba(0, 0, 0, .5); }
 .react-flow__resize-control.line { z-index: 21; border-color: var(--blue); }
 .content-card { container-type: size; position: relative; width: 100%; height: 100%; overflow: hidden; color: var(--node-text, var(--fg-strong)); background: var(--node-fill, var(--surface)); border-color: var(--node-border, var(--line)); border-radius: var(--node-radius, var(--radius-card)); transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease; }
