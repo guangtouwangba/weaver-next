@@ -138,6 +138,7 @@ export class WorkspaceStore {
   confirmAgentDispatch(taskId: string, dispatchKey: string) { return agentTasks.confirmAgentDispatch(this.db, taskId, dispatchKey); }
   failAgentDispatch(taskId: string, dispatchKey: string, input: { code: "AGENT_DISPATCH_REJECTED" | "DISPATCH_UNCONFIRMED"; message: string }) { return agentTasks.failAgentDispatch(this.db, taskId, dispatchKey, input); }
   beginAgentContinuation(input: { taskId: string; dispatchKey: string; expectedTaskRevision: number }) { return agentTasks.beginAgentContinuation(this.db, input); }
+  reportTaskProgress(taskId: string, note: string) { return agentTasks.reportTaskProgress(this.db, taskId, note); }
 
   // --- changesets ---
   submitChangeSet(changeSet: ChangeSet) { return changesets.submitChangeSet(this.db, changeSet); }

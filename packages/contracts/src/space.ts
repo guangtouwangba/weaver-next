@@ -294,6 +294,7 @@ export const agentTaskSchema = z.object({
   intent: agentTaskIntentSchema.default("develop_selection"),
   activeStage: agentTaskStageSchema.default("content"),
   results: z.object({ changeSetId: z.string().optional(), layoutRunId: z.string().optional() }).default({}),
+  progressNote: z.string().max(280).optional(),
   dispatches: z.array(agentDispatchRecordSchema).default([]),
   // Legacy fields remain readable while stored tasks migrate to `results`.
   layoutRunId: z.string().optional(),

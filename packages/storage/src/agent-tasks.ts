@@ -94,10 +94,10 @@ export function listProjectTasks(db: DatabaseSync, projectId: string, includeTer
     .filter((task) => includeTerminal || !terminal.has(task.status));
 }
 
-export function updateAgentTask(db: DatabaseSync, taskId: string, patch: Partial<AgentTask>) {
+export function updateAgentTask(db: DatabaseSync, taskId: string, patch: Partial<AgentTask>, options: { force?: boolean } = {}) {
   const current = getAgentTask(db, taskId);
   if (!current) throw new Error(`AGENT_TASK_NOT_FOUND:${taskId}`);
-  const unchanged = Object.entries(patch).every(([key, value]) => json((current as any)[key]) === json(value));
+  const unchanged = !options.force && Object.entries(patch).every(([key, value]) => json((current as any)[key]) === json(value));
   if (unchanged) return current;
   if (patch.status && patch.status !== current.status && !taskTransitions[current.status].has(patch.status)) throw new Error(`TASK_TRANSITION_INVALID:${current.status}->${patch.status}`);
   const next = agentTaskSchema.parse({ ...current, ...patch, taskRevision: current.taskRevision + 1, taskId: current.taskId, projectId: current.projectId, updatedAt: now() });
@@ -134,4 +134,13 @@ export function beginAgentContinuation(db: DatabaseSync, input: { taskId: string
   if (task.status !== "ready_to_continue" || task.activeStage !== "layout") throw new Error(`TASK_TRANSITION_INVALID:${task.status}->prepared`);
   const record = { dispatchKey: input.dispatchKey, stage: "layout" as const, state: "prepared" as const, attemptedAt: now() };
   return updateAgentTask(db, task.taskId, { status: "prepared", dispatches: [...task.dispatches, record] });
+}
+
+/** One-line heartbeat from the agent. Bumping taskRevision/updatedAt is the point:
+ * it feeds the busy pill AND resets the running-task reaper clock. */
+export function reportTaskProgress(db: DatabaseSync, taskId: string, note: string) {
+  const task = getAgentTask(db, taskId);
+  if (!task) throw new Error(`AGENT_TASK_NOT_FOUND:${taskId}`);
+  if (task.status !== "running") throw new Error(`TASK_NOT_RUNNING:${task.status}`);
+  return updateAgentTask(db, taskId, { progressNote: note }, { force: true });
 }

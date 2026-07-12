@@ -343,6 +343,33 @@ describe("WorkspaceStore", () => {
     db.close();
   });
 
+  it("records progress notes only while running", () => {
+    const db = store(); const scene = getScenePack("free-brainstorming")!;
+    const project = db.createProject({ title: "Progress", goal: "", scenePack: scene });
+    const chatSessionKey = bindCanvas(db, project, scene, "progress-session");
+    const task = db.prepareAgentTask({ canvasSessionId: "progress-session", actionKey: "develop_selection", chatSessionKey });
+    expect(() => db.reportTaskProgress(task.taskId, "太早了")).toThrow("TASK_NOT_RUNNING:prepared");
+    dispatchAndStart(db, task);
+    const updated = db.reportTaskProgress(task.taskId, "已写入 12/32 个节点…");
+    expect(updated.progressNote).toBe("已写入 12/32 个节点…");
+    expect(updated.taskRevision).toBeGreaterThan(task.taskRevision);
+    db.close();
+  });
+
+  it("bumps the heartbeat even when the note repeats", () => {
+    const db = store(); const scene = getScenePack("free-brainstorming")!;
+    const project = db.createProject({ title: "Progress", goal: "", scenePack: scene });
+    const chatSessionKey = bindCanvas(db, project, scene, "progress-session-2");
+    const task = db.prepareAgentTask({ canvasSessionId: "progress-session-2", actionKey: "develop_selection", chatSessionKey });
+    dispatchAndStart(db, task);
+    const first = db.reportTaskProgress(task.taskId, "waiting on tool call");
+    const second = db.reportTaskProgress(task.taskId, "waiting on tool call");
+    // taskRevision is the definitive heartbeat proof: without force the repeated note would
+    // short-circuit to a no-op and keep the same revision. updatedAt can tie in the same ms.
+    expect(second.taskRevision).toBeGreaterThan(first.taskRevision);
+    db.close();
+  });
+
   it("claims a mixed-task continuation once", () => {
     const db = store(); const scene = getScenePack("free-brainstorming")!;
     const project = db.createProject({ title: "Continuation", goal: "", scenePack: scene });
