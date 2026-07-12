@@ -1,0 +1,7 @@
+interface:
+  display_name: "Weaver Illustrate"
+  short_description: "Generate an artistic illustration for a Weaver node or topic"
+  default_prompt: "Use $weaver:weaver-illustrate to illustrate the selected node or a described subject."
+
+policy:
+  allow_implicit_invocation: true

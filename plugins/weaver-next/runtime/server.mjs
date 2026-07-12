@@ -122944,7 +122944,7 @@ import { DatabaseSync as DatabaseSync2 } from "node:sqlite";
 
 // packages/contracts/src/space.ts
 var automationLevelSchema = external_exports.enum(["cautious", "collaborative", "automatic"]);
-var contentKindSchema = external_exports.enum(["document", "image", "link"]);
+var contentKindSchema = external_exports.enum(["document", "image", "link", "chart"]);
 var documentContentSchema = external_exports.object({
   kind: external_exports.literal("document"),
   mode: external_exports.enum(["note", "article"]).default("note"),
@@ -122968,7 +122968,25 @@ var linkContentSchema = external_exports.object({
   imageAssetId: external_exports.string().optional(),
   enrichmentStatus: external_exports.enum(["pending", "ready", "failed"]).default("pending")
 });
-var nodeContentSchema = external_exports.discriminatedUnion("kind", [documentContentSchema, imageContentSchema, linkContentSchema]);
+var chartTypeSchema = external_exports.enum(["line", "bar", "pie", "area", "metric"]);
+var chartSeriesSchema = external_exports.object({
+  name: external_exports.string().default(""),
+  color: external_exports.string().optional(),
+  points: external_exports.array(external_exports.object({ label: external_exports.string().default(""), value: external_exports.number() })).default([])
+});
+var chartContentSchema = external_exports.object({
+  kind: external_exports.literal("chart"),
+  chartType: chartTypeSchema,
+  title: external_exports.string().default(""),
+  series: external_exports.array(chartSeriesSchema).default([]),
+  metric: external_exports.object({ value: external_exports.number(), unit: external_exports.string().default(""), delta: external_exports.number().optional(), deltaLabel: external_exports.string().default("") }).optional(),
+  unit: external_exports.string().default(""),
+  xLabel: external_exports.string().default(""),
+  yLabel: external_exports.string().default(""),
+  sourceNote: external_exports.string().default(""),
+  asOf: external_exports.string().default("")
+});
+var nodeContentSchema = external_exports.discriminatedUnion("kind", [documentContentSchema, imageContentSchema, linkContentSchema, chartContentSchema]);
 var nodeBaseSchema = external_exports.object({
   id: external_exports.string().min(1),
   projectId: external_exports.string().min(1),
@@ -123026,6 +123044,7 @@ var projectSchema = external_exports.object({
   graphRevision: external_exports.number().int().nonnegative().default(0),
   viewCatalogRevision: external_exports.number().int().nonnegative().default(0),
   createdFromTemplate: external_exports.object({ id: external_exports.string(), version: external_exports.string() }).optional(),
+  starterNodeIds: external_exports.array(external_exports.string()).default([]),
   createdAt: external_exports.string(),
   updatedAt: external_exports.string()
 });
@@ -123212,6 +123231,7 @@ var agentTaskSchema = external_exports.object({
   intent: agentTaskIntentSchema.default("develop_selection"),
   activeStage: agentTaskStageSchema.default("content"),
   results: external_exports.object({ changeSetId: external_exports.string().optional(), layoutRunId: external_exports.string().optional() }).default({}),
+  progressNote: external_exports.string().max(280).optional(),
   dispatches: external_exports.array(agentDispatchRecordSchema).default([]),
   // Legacy fields remain readable while stored tasks migrate to `results`.
   layoutRunId: external_exports.string().optional(),
@@ -123487,6 +123507,9 @@ function friendlyViewName(layout) {
 }
 var terminalTaskStatuses = /* @__PURE__ */ new Set(["completed", "stale", "failed", "cancelled"]);
 var canvasOfflineAfterMs = 3e4;
+var preparedTaskExpiryMs = 12e4;
+var dispatchedTaskExpiryMs = 18e4;
+var runningTaskExpiryMs = 6e5;
 var taskTransitions = {
   prepared: /* @__PURE__ */ new Set(["dispatched", "failed", "cancelled"]),
   dispatched: /* @__PURE__ */ new Set(["running", "failed", "cancelled"]),
@@ -123844,6 +123867,1408 @@ function saveTaskAsset(dataDir, taskId, fileName, data) {
 // packages/storage/src/layout-templates.ts
 import { randomUUID as randomUUID4 } from "node:crypto";
 
+// packages/layout-engine/src/semantic/constraints.ts
+function normalizeConstraints(plan, current) {
+  const emphasisIds = [];
+  const groups = [];
+  const separations = [];
+  const fixedIds = /* @__PURE__ */ new Set();
+  let spacingMultiplier = 1;
+  for (const constraint of plan.constraints) {
+    switch (constraint.type) {
+      case "emphasis":
+        for (const id of constraint.nodeIds) if (!emphasisIds.includes(id)) emphasisIds.push(id);
+        break;
+      case "group":
+        if (constraint.nodeIds.length) groups.push({ label: typeof constraint.value === "string" ? constraint.value : "", nodeIds: [...constraint.nodeIds] });
+        break;
+      case "separation":
+        for (let i = 0; i < constraint.nodeIds.length; i += 1) {
+          for (let j2 = i + 1; j2 < constraint.nodeIds.length; j2 += 1) separations.push([constraint.nodeIds[i], constraint.nodeIds[j2]]);
+        }
+        break;
+      case "spacing":
+        if (typeof constraint.value === "number" && constraint.value > 0) spacingMultiplier = constraint.value;
+        break;
+      case "pin":
+      case "preserve-position":
+        for (const id of constraint.nodeIds) fixedIds.add(id);
+        break;
+      default:
+        break;
+    }
+  }
+  if (plan.preserve.pinnedNodes) {
+    for (const [nodeId, node] of Object.entries(current.nodes)) {
+      if (node.pinned) fixedIds.add(nodeId);
+    }
+  }
+  return {
+    emphasisIds,
+    groups: groups.sort((a2, b) => a2.label.localeCompare(b.label)),
+    separations,
+    direction: plan.direction ?? current.config.direction,
+    spacingMultiplier,
+    fixedIds,
+    preserveManualGroups: plan.preserve.manualGroups
+  };
+}
+
+// packages/layout-engine/src/semantic/detect.ts
+var LAYER_KEY = "layer";
+var MISC_LABEL = "\u5206\u6790\u8981\u70B9";
+function buildTopology(nodes, edges) {
+  const inScope = new Set(nodes.map((n) => n.id));
+  const degree = /* @__PURE__ */ new Map();
+  const adjacency = /* @__PURE__ */ new Map();
+  for (const node of nodes) {
+    degree.set(node.id, 0);
+    adjacency.set(node.id, /* @__PURE__ */ new Map());
+  }
+  for (const edge of edges) {
+    if (edge.archived || !inScope.has(edge.sourceNodeId) || !inScope.has(edge.targetNodeId) || edge.sourceNodeId === edge.targetNodeId) continue;
+    degree.set(edge.sourceNodeId, (degree.get(edge.sourceNodeId) ?? 0) + 1);
+    degree.set(edge.targetNodeId, (degree.get(edge.targetNodeId) ?? 0) + 1);
+    const a2 = adjacency.get(edge.sourceNodeId);
+    a2.set(edge.targetNodeId, (a2.get(edge.targetNodeId) ?? 0) + 1);
+    const b = adjacency.get(edge.targetNodeId);
+    b.set(edge.sourceNodeId, (b.get(edge.sourceNodeId) ?? 0) + 1);
+  }
+  return { degree, adjacency };
+}
+function layerOf(node) {
+  const raw = node.properties?.[LAYER_KEY];
+  return typeof raw === "string" ? raw.trim() : "";
+}
+function median(values) {
+  if (!values.length) return 0;
+  const sorted = [...values].sort((a2, b) => a2 - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+function edgesInto(nodeId, members, adjacency) {
+  let total = 0;
+  for (const [other, count] of adjacency.get(nodeId) ?? []) if (members.has(other)) total += count;
+  return total;
+}
+function detectClusters(nodes, edges, constraints, current) {
+  const sorted = [...nodes].sort((a2, b) => a2.id.localeCompare(b.id));
+  const { degree, adjacency } = buildTopology(sorted, edges);
+  const assigned = /* @__PURE__ */ new Map();
+  const clusters = [];
+  const push = (cluster) => {
+    clusters.push(cluster);
+    for (const id of cluster.memberIds) assigned.set(id, cluster.id);
+  };
+  const unassigned = () => sorted.filter((n) => !assigned.has(n.id));
+  constraints.groups.forEach((group, index2) => {
+    const members = group.nodeIds.filter((id) => degree.has(id) && !assigned.has(id));
+    if (members.length) push({ id: `group-${index2}`, label: group.label || `\u5206\u7EC4 ${index2 + 1}`, memberIds: members });
+  });
+  if (constraints.preserveManualGroups) {
+    const byGroup = /* @__PURE__ */ new Map();
+    for (const node of unassigned()) {
+      const gid = current.nodes[node.id]?.groupId;
+      if (gid) (byGroup.get(gid) ?? byGroup.set(gid, []).get(gid)).push(node.id);
+    }
+    for (const gid of [...byGroup.keys()].sort()) {
+      const members = byGroup.get(gid);
+      if (members.length) push({ id: `manual-${gid}`, label: gid.includes(":") ? gid.split(":").slice(1).join(":") : gid, memberIds: members });
+    }
+  }
+  const degrees = sorted.map((n) => degree.get(n.id) ?? 0);
+  const hubThreshold = Math.max(2, 2 * median(degrees.filter((d2) => d2 > 0)));
+  const centerCandidate = [...sorted].sort((a2, b) => degree.get(b.id) - degree.get(a2.id) || a2.id.localeCompare(b.id))[0];
+  const centerId = centerCandidate && !assigned.has(centerCandidate.id) && (degree.get(centerCandidate.id) ?? 0) >= hubThreshold ? centerCandidate.id : void 0;
+  const rest = unassigned().filter((n) => n.id !== centerId);
+  const byLayer = /* @__PURE__ */ new Map();
+  const noLayer = [];
+  for (const node of rest) {
+    const layer = layerOf(node);
+    if (layer) (byLayer.get(layer) ?? byLayer.set(layer, []).get(layer)).push(node.id);
+    else noLayer.push(node.id);
+  }
+  const bigLayers = [...byLayer.entries()].filter(([, m3]) => m3.length >= 2).sort((a2, b) => a2[0].localeCompare(b[0]));
+  for (const [layer, members] of bigLayers) push({ id: `layer-${layer}`, label: layer, memberIds: members });
+  const singletonLayerIds = [...byLayer.entries()].filter(([, m3]) => m3.length < 2).flatMap(([, m3]) => m3);
+  const orphans = [...singletonLayerIds, ...noLayer].filter((id) => !assigned.has(id)).sort((a2, b) => a2.localeCompare(b));
+  if (clusters.length === 0 && !centerId && orphans.length) {
+    return hubStar(sorted, degree, adjacency, constraints);
+  }
+  if (orphans.length >= 2) {
+    push({ id: "misc", label: MISC_LABEL, memberIds: orphans });
+  } else if (orphans.length === 1) {
+    const largest = [...clusters].filter((c2) => !c2.isCenter).sort((a2, b) => b.memberIds.length - a2.memberIds.length || a2.id.localeCompare(b.id))[0];
+    if (largest) {
+      largest.memberIds.push(orphans[0]);
+      assigned.set(orphans[0], largest.id);
+    } else push({ id: "misc", label: MISC_LABEL, memberIds: orphans });
+  }
+  if (centerId) {
+    const centerNode = sorted.find((n) => n.id === centerId);
+    clusters.unshift({ id: "center", label: layerOf(centerNode) || centerNode.title || "\u6838\u5FC3", memberIds: [centerId], isCenter: true });
+    assigned.set(centerId, "center");
+  }
+  applySeparations(clusters, constraints, degree, adjacency);
+  assignHubs(clusters, constraints, degree);
+  return clusters.filter((c2) => c2.memberIds.length > 0);
+}
+function hubStar(nodes, degree, adjacency, constraints) {
+  const degrees = nodes.map((n) => degree.get(n.id) ?? 0);
+  const med = median(degrees.filter((d2) => d2 > 0));
+  const anchorFloor = Math.max(3, 2 * med);
+  const anchorCap = Math.max(1, Math.ceil(nodes.length / 6));
+  const anchors = [...nodes].filter((n) => (degree.get(n.id) ?? 0) >= anchorFloor || constraints.emphasisIds.includes(n.id)).sort((a2, b) => degree.get(b.id) - degree.get(a2.id) || a2.id.localeCompare(b.id)).slice(0, anchorCap);
+  if (!anchors.length) return [{ id: "all", label: "\u5168\u90E8", memberIds: nodes.map((n) => n.id).sort((a2, b) => a2.localeCompare(b)) }];
+  const anchorIds = new Set(anchors.map((a2) => a2.id));
+  const clusters = anchors.map((a2) => ({ id: `hub-${a2.id}`, label: a2.title || a2.id, memberIds: [a2.id], hubId: a2.id }));
+  const clusterByAnchor = new Map(clusters.map((c2) => [c2.hubId, c2]));
+  const leftover = [];
+  for (const node of nodes) {
+    if (anchorIds.has(node.id)) continue;
+    let best;
+    let bestScore = 0;
+    for (const anchor of anchors) {
+      const score = adjacency.get(node.id)?.get(anchor.id) ?? 0;
+      if (score > bestScore) {
+        bestScore = score;
+        best = clusterByAnchor.get(anchor.id);
+      }
+    }
+    if (best) best.memberIds.push(node.id);
+    else leftover.push(node.id);
+  }
+  if (leftover.length) clusters.push({ id: "misc", label: MISC_LABEL, memberIds: leftover.sort((a2, b) => a2.localeCompare(b)) });
+  applySeparations(clusters, constraints, degree, adjacency);
+  assignHubs(clusters, constraints, degree);
+  return clusters;
+}
+function applySeparations(clusters, constraints, degree, adjacency) {
+  if (!constraints.separations.length) return;
+  const clusterOf = /* @__PURE__ */ new Map();
+  for (const cluster of clusters) for (const id of cluster.memberIds) clusterOf.set(id, cluster);
+  for (const [a2, b] of constraints.separations) {
+    const ca = clusterOf.get(a2);
+    const cb = clusterOf.get(b);
+    if (!ca || !cb || ca !== cb) continue;
+    const mover = (degree.get(a2) ?? 0) <= (degree.get(b) ?? 0) ? a2 : b;
+    ca.memberIds = ca.memberIds.filter((id) => id !== mover);
+    const target = clusters.filter((c2) => c2 !== ca && !c2.isCenter).map((c2) => ({ c: c2, score: edgesInto(mover, new Set(c2.memberIds), adjacency) })).sort((x3, y3) => y3.score - x3.score || x3.c.id.localeCompare(y3.c.id))[0];
+    if (target) {
+      target.c.memberIds.push(mover);
+      clusterOf.set(mover, target.c);
+    } else {
+      const spill = { id: `split-${mover}`, label: MISC_LABEL, memberIds: [mover] };
+      clusters.push(spill);
+      clusterOf.set(mover, spill);
+    }
+  }
+}
+function assignHubs(clusters, constraints, degree) {
+  for (const cluster of clusters) {
+    if (!cluster.hubId || !cluster.memberIds.includes(cluster.hubId)) {
+      const emphasis = cluster.memberIds.filter((id) => constraints.emphasisIds.includes(id)).sort((a2, b) => a2.localeCompare(b))[0];
+      cluster.hubId = emphasis ?? [...cluster.memberIds].sort((a2, b) => (degree.get(b) ?? 0) - (degree.get(a2) ?? 0) || a2.localeCompare(b))[0];
+    }
+    const hubId = cluster.hubId;
+    const others = cluster.memberIds.filter((id) => id !== hubId);
+    const maxOther = others.length ? Math.max(...others.map((id) => degree.get(id) ?? 0)) : -1;
+    cluster.hubProminent = Boolean(cluster.isCenter || constraints.emphasisIds.includes(hubId) || (degree.get(hubId) ?? 0) > maxOther);
+  }
+}
+
+// packages/layout-engine/src/semantic/size.ts
+var ENGINE_SIZES = /* @__PURE__ */ new Set(["220x112", "280x160", "300x180", "340x190", "260x140", "320x220", "240x130"]);
+var HUB_SIZE = { width: 340, height: 190 };
+var LEAF_SIZE = { width: 220, height: 112 };
+var BODY_SIZE = { width: 260, height: 140 };
+var CHART_SIZE = { width: 320, height: 220 };
+var METRIC_SIZE = { width: 240, height: 130 };
+var DOC_MIN = { width: 180, height: 100 };
+function isManuallyResized(width, height) {
+  return !ENGINE_SIZES.has(`${Math.round(width)}x${Math.round(height)}`);
+}
+function applySizeHierarchy(document2, clusters, nodesById, preserveNodeSizes, fixedIds) {
+  if (preserveNodeSizes) return;
+  const hubIds = new Set(clusters.filter((c2) => c2.hubProminent).map((c2) => c2.hubId).filter((id) => Boolean(id)));
+  for (const cluster of clusters) {
+    for (const id of cluster.memberIds) {
+      const frame2 = document2.nodes[id];
+      const node = nodesById.get(id);
+      if (!frame2 || !node || fixedIds.has(id)) continue;
+      if (isManuallyResized(frame2.width, frame2.height)) continue;
+      if (node.contentKind === "chart") {
+        const size = node.content.kind === "chart" && node.content.chartType === "metric" ? METRIC_SIZE : CHART_SIZE;
+        frame2.width = size.width;
+        frame2.height = size.height;
+        continue;
+      }
+      if (node.contentKind !== "document") continue;
+      const target = hubIds.has(id) ? HUB_SIZE : node.type === "attribute" || node.type === "source" ? LEAF_SIZE : BODY_SIZE;
+      frame2.width = Math.max(DOC_MIN.width, target.width);
+      frame2.height = Math.max(DOC_MIN.height, target.height);
+    }
+  }
+}
+
+// packages/layout-engine/src/semantic/geometry.ts
+function bboxOf(frames, padding = 0) {
+  if (!frames.length) return { x: 0, y: 0, width: 0, height: 0 };
+  const minX = Math.min(...frames.map((f2) => f2.x));
+  const minY = Math.min(...frames.map((f2) => f2.y));
+  const maxX = Math.max(...frames.map((f2) => f2.x + f2.width));
+  const maxY = Math.max(...frames.map((f2) => f2.y + f2.height));
+  return { x: minX - padding, y: minY - padding, width: maxX - minX + padding * 2, height: maxY - minY + padding * 2 };
+}
+function overlapArea(a2, b) {
+  const w2 = Math.max(0, Math.min(a2.x + a2.width, b.x + b.width) - Math.max(a2.x, b.x));
+  const h2 = Math.max(0, Math.min(a2.y + a2.height, b.y + b.height) - Math.max(a2.y, b.y));
+  return w2 * h2;
+}
+function translateNode(node, dx, dy) {
+  node.x += dx;
+  node.y += dy;
+}
+function circleRadius(node) {
+  return Math.hypot(node.width, node.height) / 2;
+}
+
+// packages/layout-engine/src/semantic/micro.ts
+var GROUP_PADDING = 32;
+function layoutClusterLocal(cluster, document2, spacing, variant) {
+  const memberFrames = cluster.memberIds.map((id) => document2.nodes[id]).filter(Boolean);
+  if (!memberFrames.length) return { x: 0, y: 0, width: 0, height: 0 };
+  const hubId = cluster.hubId && document2.nodes[cluster.hubId] ? cluster.hubId : cluster.memberIds[0];
+  const hub = document2.nodes[hubId];
+  const satellites = cluster.memberIds.filter((id) => id !== hubId && document2.nodes[id]).sort((a2, b) => a2.localeCompare(b));
+  hub.x = -hub.width / 2;
+  hub.y = -hub.height / 2;
+  if (satellites.length) {
+    if (variant === "rows") placeRows(hub, satellites, document2, spacing);
+    else placeRadial(hub, satellites, document2, spacing);
+  }
+  return bboxOf(memberFrames, GROUP_PADDING);
+}
+function placeRadial(hub, satellites, document2, spacing) {
+  const hubR = circleRadius(hub);
+  const maxSatR = Math.max(...satellites.map((id) => circleRadius(document2.nodes[id])));
+  const baseR = hubR + spacing + maxSatR;
+  let index2 = 0;
+  let ring2 = 0;
+  while (index2 < satellites.length) {
+    const r2 = baseR + ring2 * (2 * maxSatR + spacing);
+    const ratio = Math.min(0.999, (maxSatR + spacing / 2) / r2);
+    const capacity = Math.max(1, Math.floor(Math.PI / Math.asin(ratio)));
+    const count = Math.min(capacity, satellites.length - index2);
+    for (let k2 = 0; k2 < count; k2 += 1) {
+      const angle = Math.PI * 2 * k2 / count - Math.PI / 2;
+      const cx = Math.cos(angle) * r2;
+      const cy = Math.sin(angle) * r2;
+      const node = document2.nodes[satellites[index2 + k2]];
+      node.x = cx - node.width / 2;
+      node.y = cy - node.height / 2;
+    }
+    index2 += count;
+    ring2 += 1;
+  }
+}
+function placeRows(hub, satellites, document2, spacing) {
+  const cols = Math.max(1, Math.ceil(Math.sqrt(satellites.length)));
+  const cellWidth = Math.max(...satellites.map((id) => document2.nodes[id].width)) + spacing;
+  const cellHeight = Math.max(...satellites.map((id) => document2.nodes[id].height)) + spacing;
+  const gridWidth = cols * cellWidth;
+  const startX = -gridWidth / 2 + cellWidth / 2;
+  const gridTop = hub.height / 2 + spacing;
+  satellites.forEach((id, index2) => {
+    const col = index2 % cols;
+    const row = Math.floor(index2 / cols);
+    const cx = startX + col * cellWidth;
+    const cy = gridTop + cellHeight / 2 + row * cellHeight;
+    const node = document2.nodes[id];
+    node.x = cx - node.width / 2;
+    node.y = cy - node.height / 2;
+  });
+}
+
+// node_modules/d3-force/src/center.js
+function center_default(x3, y3) {
+  var nodes, strength = 1;
+  if (x3 == null) x3 = 0;
+  if (y3 == null) y3 = 0;
+  function force() {
+    var i, n = nodes.length, node, sx = 0, sy = 0;
+    for (i = 0; i < n; ++i) {
+      node = nodes[i], sx += node.x, sy += node.y;
+    }
+    for (sx = (sx / n - x3) * strength, sy = (sy / n - y3) * strength, i = 0; i < n; ++i) {
+      node = nodes[i], node.x -= sx, node.y -= sy;
+    }
+  }
+  force.initialize = function(_2) {
+    nodes = _2;
+  };
+  force.x = function(_2) {
+    return arguments.length ? (x3 = +_2, force) : x3;
+  };
+  force.y = function(_2) {
+    return arguments.length ? (y3 = +_2, force) : y3;
+  };
+  force.strength = function(_2) {
+    return arguments.length ? (strength = +_2, force) : strength;
+  };
+  return force;
+}
+
+// node_modules/d3-quadtree/src/add.js
+function add_default(d2) {
+  const x3 = +this._x.call(null, d2), y3 = +this._y.call(null, d2);
+  return add(this.cover(x3, y3), x3, y3, d2);
+}
+function add(tree, x3, y3, d2) {
+  if (isNaN(x3) || isNaN(y3)) return tree;
+  var parent, node = tree._root, leaf = { data: d2 }, x0 = tree._x0, y0 = tree._y0, x1 = tree._x1, y1 = tree._y1, xm, ym, xp, yp, right, bottom, i, j2;
+  if (!node) return tree._root = leaf, tree;
+  while (node.length) {
+    if (right = x3 >= (xm = (x0 + x1) / 2)) x0 = xm;
+    else x1 = xm;
+    if (bottom = y3 >= (ym = (y0 + y1) / 2)) y0 = ym;
+    else y1 = ym;
+    if (parent = node, !(node = node[i = bottom << 1 | right])) return parent[i] = leaf, tree;
+  }
+  xp = +tree._x.call(null, node.data);
+  yp = +tree._y.call(null, node.data);
+  if (x3 === xp && y3 === yp) return leaf.next = node, parent ? parent[i] = leaf : tree._root = leaf, tree;
+  do {
+    parent = parent ? parent[i] = new Array(4) : tree._root = new Array(4);
+    if (right = x3 >= (xm = (x0 + x1) / 2)) x0 = xm;
+    else x1 = xm;
+    if (bottom = y3 >= (ym = (y0 + y1) / 2)) y0 = ym;
+    else y1 = ym;
+  } while ((i = bottom << 1 | right) === (j2 = (yp >= ym) << 1 | xp >= xm));
+  return parent[j2] = node, parent[i] = leaf, tree;
+}
+function addAll(data) {
+  var d2, i, n = data.length, x3, y3, xz = new Array(n), yz = new Array(n), x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (i = 0; i < n; ++i) {
+    if (isNaN(x3 = +this._x.call(null, d2 = data[i])) || isNaN(y3 = +this._y.call(null, d2))) continue;
+    xz[i] = x3;
+    yz[i] = y3;
+    if (x3 < x0) x0 = x3;
+    if (x3 > x1) x1 = x3;
+    if (y3 < y0) y0 = y3;
+    if (y3 > y1) y1 = y3;
+  }
+  if (x0 > x1 || y0 > y1) return this;
+  this.cover(x0, y0).cover(x1, y1);
+  for (i = 0; i < n; ++i) {
+    add(this, xz[i], yz[i], data[i]);
+  }
+  return this;
+}
+
+// node_modules/d3-quadtree/src/cover.js
+function cover_default(x3, y3) {
+  if (isNaN(x3 = +x3) || isNaN(y3 = +y3)) return this;
+  var x0 = this._x0, y0 = this._y0, x1 = this._x1, y1 = this._y1;
+  if (isNaN(x0)) {
+    x1 = (x0 = Math.floor(x3)) + 1;
+    y1 = (y0 = Math.floor(y3)) + 1;
+  } else {
+    var z2 = x1 - x0 || 1, node = this._root, parent, i;
+    while (x0 > x3 || x3 >= x1 || y0 > y3 || y3 >= y1) {
+      i = (y3 < y0) << 1 | x3 < x0;
+      parent = new Array(4), parent[i] = node, node = parent, z2 *= 2;
+      switch (i) {
+        case 0:
+          x1 = x0 + z2, y1 = y0 + z2;
+          break;
+        case 1:
+          x0 = x1 - z2, y1 = y0 + z2;
+          break;
+        case 2:
+          x1 = x0 + z2, y0 = y1 - z2;
+          break;
+        case 3:
+          x0 = x1 - z2, y0 = y1 - z2;
+          break;
+      }
+    }
+    if (this._root && this._root.length) this._root = node;
+  }
+  this._x0 = x0;
+  this._y0 = y0;
+  this._x1 = x1;
+  this._y1 = y1;
+  return this;
+}
+
+// node_modules/d3-quadtree/src/data.js
+function data_default() {
+  var data = [];
+  this.visit(function(node) {
+    if (!node.length) do
+      data.push(node.data);
+    while (node = node.next);
+  });
+  return data;
+}
+
+// node_modules/d3-quadtree/src/extent.js
+function extent_default(_2) {
+  return arguments.length ? this.cover(+_2[0][0], +_2[0][1]).cover(+_2[1][0], +_2[1][1]) : isNaN(this._x0) ? void 0 : [[this._x0, this._y0], [this._x1, this._y1]];
+}
+
+// node_modules/d3-quadtree/src/quad.js
+function quad_default(node, x0, y0, x1, y1) {
+  this.node = node;
+  this.x0 = x0;
+  this.y0 = y0;
+  this.x1 = x1;
+  this.y1 = y1;
+}
+
+// node_modules/d3-quadtree/src/find.js
+function find_default(x3, y3, radius) {
+  var data, x0 = this._x0, y0 = this._y0, x1, y1, x22, y22, x32 = this._x1, y32 = this._y1, quads = [], node = this._root, q, i;
+  if (node) quads.push(new quad_default(node, x0, y0, x32, y32));
+  if (radius == null) radius = Infinity;
+  else {
+    x0 = x3 - radius, y0 = y3 - radius;
+    x32 = x3 + radius, y32 = y3 + radius;
+    radius *= radius;
+  }
+  while (q = quads.pop()) {
+    if (!(node = q.node) || (x1 = q.x0) > x32 || (y1 = q.y0) > y32 || (x22 = q.x1) < x0 || (y22 = q.y1) < y0) continue;
+    if (node.length) {
+      var xm = (x1 + x22) / 2, ym = (y1 + y22) / 2;
+      quads.push(
+        new quad_default(node[3], xm, ym, x22, y22),
+        new quad_default(node[2], x1, ym, xm, y22),
+        new quad_default(node[1], xm, y1, x22, ym),
+        new quad_default(node[0], x1, y1, xm, ym)
+      );
+      if (i = (y3 >= ym) << 1 | x3 >= xm) {
+        q = quads[quads.length - 1];
+        quads[quads.length - 1] = quads[quads.length - 1 - i];
+        quads[quads.length - 1 - i] = q;
+      }
+    } else {
+      var dx = x3 - +this._x.call(null, node.data), dy = y3 - +this._y.call(null, node.data), d2 = dx * dx + dy * dy;
+      if (d2 < radius) {
+        var d3 = Math.sqrt(radius = d2);
+        x0 = x3 - d3, y0 = y3 - d3;
+        x32 = x3 + d3, y32 = y3 + d3;
+        data = node.data;
+      }
+    }
+  }
+  return data;
+}
+
+// node_modules/d3-quadtree/src/remove.js
+function remove_default(d2) {
+  if (isNaN(x3 = +this._x.call(null, d2)) || isNaN(y3 = +this._y.call(null, d2))) return this;
+  var parent, node = this._root, retainer, previous, next, x0 = this._x0, y0 = this._y0, x1 = this._x1, y1 = this._y1, x3, y3, xm, ym, right, bottom, i, j2;
+  if (!node) return this;
+  if (node.length) while (true) {
+    if (right = x3 >= (xm = (x0 + x1) / 2)) x0 = xm;
+    else x1 = xm;
+    if (bottom = y3 >= (ym = (y0 + y1) / 2)) y0 = ym;
+    else y1 = ym;
+    if (!(parent = node, node = node[i = bottom << 1 | right])) return this;
+    if (!node.length) break;
+    if (parent[i + 1 & 3] || parent[i + 2 & 3] || parent[i + 3 & 3]) retainer = parent, j2 = i;
+  }
+  while (node.data !== d2) if (!(previous = node, node = node.next)) return this;
+  if (next = node.next) delete node.next;
+  if (previous) return next ? previous.next = next : delete previous.next, this;
+  if (!parent) return this._root = next, this;
+  next ? parent[i] = next : delete parent[i];
+  if ((node = parent[0] || parent[1] || parent[2] || parent[3]) && node === (parent[3] || parent[2] || parent[1] || parent[0]) && !node.length) {
+    if (retainer) retainer[j2] = node;
+    else this._root = node;
+  }
+  return this;
+}
+function removeAll(data) {
+  for (var i = 0, n = data.length; i < n; ++i) this.remove(data[i]);
+  return this;
+}
+
+// node_modules/d3-quadtree/src/root.js
+function root_default() {
+  return this._root;
+}
+
+// node_modules/d3-quadtree/src/size.js
+function size_default() {
+  var size = 0;
+  this.visit(function(node) {
+    if (!node.length) do
+      ++size;
+    while (node = node.next);
+  });
+  return size;
+}
+
+// node_modules/d3-quadtree/src/visit.js
+function visit_default(callback) {
+  var quads = [], q, node = this._root, child, x0, y0, x1, y1;
+  if (node) quads.push(new quad_default(node, this._x0, this._y0, this._x1, this._y1));
+  while (q = quads.pop()) {
+    if (!callback(node = q.node, x0 = q.x0, y0 = q.y0, x1 = q.x1, y1 = q.y1) && node.length) {
+      var xm = (x0 + x1) / 2, ym = (y0 + y1) / 2;
+      if (child = node[3]) quads.push(new quad_default(child, xm, ym, x1, y1));
+      if (child = node[2]) quads.push(new quad_default(child, x0, ym, xm, y1));
+      if (child = node[1]) quads.push(new quad_default(child, xm, y0, x1, ym));
+      if (child = node[0]) quads.push(new quad_default(child, x0, y0, xm, ym));
+    }
+  }
+  return this;
+}
+
+// node_modules/d3-quadtree/src/visitAfter.js
+function visitAfter_default(callback) {
+  var quads = [], next = [], q;
+  if (this._root) quads.push(new quad_default(this._root, this._x0, this._y0, this._x1, this._y1));
+  while (q = quads.pop()) {
+    var node = q.node;
+    if (node.length) {
+      var child, x0 = q.x0, y0 = q.y0, x1 = q.x1, y1 = q.y1, xm = (x0 + x1) / 2, ym = (y0 + y1) / 2;
+      if (child = node[0]) quads.push(new quad_default(child, x0, y0, xm, ym));
+      if (child = node[1]) quads.push(new quad_default(child, xm, y0, x1, ym));
+      if (child = node[2]) quads.push(new quad_default(child, x0, ym, xm, y1));
+      if (child = node[3]) quads.push(new quad_default(child, xm, ym, x1, y1));
+    }
+    next.push(q);
+  }
+  while (q = next.pop()) {
+    callback(q.node, q.x0, q.y0, q.x1, q.y1);
+  }
+  return this;
+}
+
+// node_modules/d3-quadtree/src/x.js
+function defaultX(d2) {
+  return d2[0];
+}
+function x_default(_2) {
+  return arguments.length ? (this._x = _2, this) : this._x;
+}
+
+// node_modules/d3-quadtree/src/y.js
+function defaultY(d2) {
+  return d2[1];
+}
+function y_default(_2) {
+  return arguments.length ? (this._y = _2, this) : this._y;
+}
+
+// node_modules/d3-quadtree/src/quadtree.js
+function quadtree(nodes, x3, y3) {
+  var tree = new Quadtree(x3 == null ? defaultX : x3, y3 == null ? defaultY : y3, NaN, NaN, NaN, NaN);
+  return nodes == null ? tree : tree.addAll(nodes);
+}
+function Quadtree(x3, y3, x0, y0, x1, y1) {
+  this._x = x3;
+  this._y = y3;
+  this._x0 = x0;
+  this._y0 = y0;
+  this._x1 = x1;
+  this._y1 = y1;
+  this._root = void 0;
+}
+function leaf_copy(leaf) {
+  var copy = { data: leaf.data }, next = copy;
+  while (leaf = leaf.next) next = next.next = { data: leaf.data };
+  return copy;
+}
+var treeProto = quadtree.prototype = Quadtree.prototype;
+treeProto.copy = function() {
+  var copy = new Quadtree(this._x, this._y, this._x0, this._y0, this._x1, this._y1), node = this._root, nodes, child;
+  if (!node) return copy;
+  if (!node.length) return copy._root = leaf_copy(node), copy;
+  nodes = [{ source: node, target: copy._root = new Array(4) }];
+  while (node = nodes.pop()) {
+    for (var i = 0; i < 4; ++i) {
+      if (child = node.source[i]) {
+        if (child.length) nodes.push({ source: child, target: node.target[i] = new Array(4) });
+        else node.target[i] = leaf_copy(child);
+      }
+    }
+  }
+  return copy;
+};
+treeProto.add = add_default;
+treeProto.addAll = addAll;
+treeProto.cover = cover_default;
+treeProto.data = data_default;
+treeProto.extent = extent_default;
+treeProto.find = find_default;
+treeProto.remove = remove_default;
+treeProto.removeAll = removeAll;
+treeProto.root = root_default;
+treeProto.size = size_default;
+treeProto.visit = visit_default;
+treeProto.visitAfter = visitAfter_default;
+treeProto.x = x_default;
+treeProto.y = y_default;
+
+// node_modules/d3-force/src/constant.js
+function constant_default(x3) {
+  return function() {
+    return x3;
+  };
+}
+
+// node_modules/d3-force/src/jiggle.js
+function jiggle_default(random) {
+  return (random() - 0.5) * 1e-6;
+}
+
+// node_modules/d3-force/src/collide.js
+function x(d2) {
+  return d2.x + d2.vx;
+}
+function y(d2) {
+  return d2.y + d2.vy;
+}
+function collide_default(radius) {
+  var nodes, radii, random, strength = 1, iterations = 1;
+  if (typeof radius !== "function") radius = constant_default(radius == null ? 1 : +radius);
+  function force() {
+    var i, n = nodes.length, tree, node, xi, yi, ri, ri2;
+    for (var k2 = 0; k2 < iterations; ++k2) {
+      tree = quadtree(nodes, x, y).visitAfter(prepare);
+      for (i = 0; i < n; ++i) {
+        node = nodes[i];
+        ri = radii[node.index], ri2 = ri * ri;
+        xi = node.x + node.vx;
+        yi = node.y + node.vy;
+        tree.visit(apply);
+      }
+    }
+    function apply(quad, x0, y0, x1, y1) {
+      var data = quad.data, rj = quad.r, r2 = ri + rj;
+      if (data) {
+        if (data.index > node.index) {
+          var x3 = xi - data.x - data.vx, y3 = yi - data.y - data.vy, l = x3 * x3 + y3 * y3;
+          if (l < r2 * r2) {
+            if (x3 === 0) x3 = jiggle_default(random), l += x3 * x3;
+            if (y3 === 0) y3 = jiggle_default(random), l += y3 * y3;
+            l = (r2 - (l = Math.sqrt(l))) / l * strength;
+            node.vx += (x3 *= l) * (r2 = (rj *= rj) / (ri2 + rj));
+            node.vy += (y3 *= l) * r2;
+            data.vx -= x3 * (r2 = 1 - r2);
+            data.vy -= y3 * r2;
+          }
+        }
+        return;
+      }
+      return x0 > xi + r2 || x1 < xi - r2 || y0 > yi + r2 || y1 < yi - r2;
+    }
+  }
+  function prepare(quad) {
+    if (quad.data) return quad.r = radii[quad.data.index];
+    for (var i = quad.r = 0; i < 4; ++i) {
+      if (quad[i] && quad[i].r > quad.r) {
+        quad.r = quad[i].r;
+      }
+    }
+  }
+  function initialize() {
+    if (!nodes) return;
+    var i, n = nodes.length, node;
+    radii = new Array(n);
+    for (i = 0; i < n; ++i) node = nodes[i], radii[node.index] = +radius(node, i, nodes);
+  }
+  force.initialize = function(_nodes, _random) {
+    nodes = _nodes;
+    random = _random;
+    initialize();
+  };
+  force.iterations = function(_2) {
+    return arguments.length ? (iterations = +_2, force) : iterations;
+  };
+  force.strength = function(_2) {
+    return arguments.length ? (strength = +_2, force) : strength;
+  };
+  force.radius = function(_2) {
+    return arguments.length ? (radius = typeof _2 === "function" ? _2 : constant_default(+_2), initialize(), force) : radius;
+  };
+  return force;
+}
+
+// node_modules/d3-force/src/link.js
+function index(d2) {
+  return d2.index;
+}
+function find(nodeById, nodeId) {
+  var node = nodeById.get(nodeId);
+  if (!node) throw new Error("node not found: " + nodeId);
+  return node;
+}
+function link_default(links) {
+  var id = index, strength = defaultStrength, strengths, distance = constant_default(30), distances, nodes, count, bias, random, iterations = 1;
+  if (links == null) links = [];
+  function defaultStrength(link) {
+    return 1 / Math.min(count[link.source.index], count[link.target.index]);
+  }
+  function force(alpha) {
+    for (var k2 = 0, n = links.length; k2 < iterations; ++k2) {
+      for (var i = 0, link, source, target, x3, y3, l, b; i < n; ++i) {
+        link = links[i], source = link.source, target = link.target;
+        x3 = target.x + target.vx - source.x - source.vx || jiggle_default(random);
+        y3 = target.y + target.vy - source.y - source.vy || jiggle_default(random);
+        l = Math.sqrt(x3 * x3 + y3 * y3);
+        l = (l - distances[i]) / l * alpha * strengths[i];
+        x3 *= l, y3 *= l;
+        target.vx -= x3 * (b = bias[i]);
+        target.vy -= y3 * b;
+        source.vx += x3 * (b = 1 - b);
+        source.vy += y3 * b;
+      }
+    }
+  }
+  function initialize() {
+    if (!nodes) return;
+    var i, n = nodes.length, m3 = links.length, nodeById = new Map(nodes.map((d2, i2) => [id(d2, i2, nodes), d2])), link;
+    for (i = 0, count = new Array(n); i < m3; ++i) {
+      link = links[i], link.index = i;
+      if (typeof link.source !== "object") link.source = find(nodeById, link.source);
+      if (typeof link.target !== "object") link.target = find(nodeById, link.target);
+      count[link.source.index] = (count[link.source.index] || 0) + 1;
+      count[link.target.index] = (count[link.target.index] || 0) + 1;
+    }
+    for (i = 0, bias = new Array(m3); i < m3; ++i) {
+      link = links[i], bias[i] = count[link.source.index] / (count[link.source.index] + count[link.target.index]);
+    }
+    strengths = new Array(m3), initializeStrength();
+    distances = new Array(m3), initializeDistance();
+  }
+  function initializeStrength() {
+    if (!nodes) return;
+    for (var i = 0, n = links.length; i < n; ++i) {
+      strengths[i] = +strength(links[i], i, links);
+    }
+  }
+  function initializeDistance() {
+    if (!nodes) return;
+    for (var i = 0, n = links.length; i < n; ++i) {
+      distances[i] = +distance(links[i], i, links);
+    }
+  }
+  force.initialize = function(_nodes, _random) {
+    nodes = _nodes;
+    random = _random;
+    initialize();
+  };
+  force.links = function(_2) {
+    return arguments.length ? (links = _2, initialize(), force) : links;
+  };
+  force.id = function(_2) {
+    return arguments.length ? (id = _2, force) : id;
+  };
+  force.iterations = function(_2) {
+    return arguments.length ? (iterations = +_2, force) : iterations;
+  };
+  force.strength = function(_2) {
+    return arguments.length ? (strength = typeof _2 === "function" ? _2 : constant_default(+_2), initializeStrength(), force) : strength;
+  };
+  force.distance = function(_2) {
+    return arguments.length ? (distance = typeof _2 === "function" ? _2 : constant_default(+_2), initializeDistance(), force) : distance;
+  };
+  return force;
+}
+
+// node_modules/d3-dispatch/src/dispatch.js
+var noop = { value: () => {
+} };
+function dispatch() {
+  for (var i = 0, n = arguments.length, _2 = {}, t; i < n; ++i) {
+    if (!(t = arguments[i] + "") || t in _2 || /[\s.]/.test(t)) throw new Error("illegal type: " + t);
+    _2[t] = [];
+  }
+  return new Dispatch(_2);
+}
+function Dispatch(_2) {
+  this._ = _2;
+}
+function parseTypenames(typenames, types) {
+  return typenames.trim().split(/^|\s+/).map(function(t) {
+    var name = "", i = t.indexOf(".");
+    if (i >= 0) name = t.slice(i + 1), t = t.slice(0, i);
+    if (t && !types.hasOwnProperty(t)) throw new Error("unknown type: " + t);
+    return { type: t, name };
+  });
+}
+Dispatch.prototype = dispatch.prototype = {
+  constructor: Dispatch,
+  on: function(typename, callback) {
+    var _2 = this._, T2 = parseTypenames(typename + "", _2), t, i = -1, n = T2.length;
+    if (arguments.length < 2) {
+      while (++i < n) if ((t = (typename = T2[i]).type) && (t = get(_2[t], typename.name))) return t;
+      return;
+    }
+    if (callback != null && typeof callback !== "function") throw new Error("invalid callback: " + callback);
+    while (++i < n) {
+      if (t = (typename = T2[i]).type) _2[t] = set2(_2[t], typename.name, callback);
+      else if (callback == null) for (t in _2) _2[t] = set2(_2[t], typename.name, null);
+    }
+    return this;
+  },
+  copy: function() {
+    var copy = {}, _2 = this._;
+    for (var t in _2) copy[t] = _2[t].slice();
+    return new Dispatch(copy);
+  },
+  call: function(type, that) {
+    if ((n = arguments.length - 2) > 0) for (var args = new Array(n), i = 0, n, t; i < n; ++i) args[i] = arguments[i + 2];
+    if (!this._.hasOwnProperty(type)) throw new Error("unknown type: " + type);
+    for (t = this._[type], i = 0, n = t.length; i < n; ++i) t[i].value.apply(that, args);
+  },
+  apply: function(type, that, args) {
+    if (!this._.hasOwnProperty(type)) throw new Error("unknown type: " + type);
+    for (var t = this._[type], i = 0, n = t.length; i < n; ++i) t[i].value.apply(that, args);
+  }
+};
+function get(type, name) {
+  for (var i = 0, n = type.length, c2; i < n; ++i) {
+    if ((c2 = type[i]).name === name) {
+      return c2.value;
+    }
+  }
+}
+function set2(type, name, callback) {
+  for (var i = 0, n = type.length; i < n; ++i) {
+    if (type[i].name === name) {
+      type[i] = noop, type = type.slice(0, i).concat(type.slice(i + 1));
+      break;
+    }
+  }
+  if (callback != null) type.push({ name, value: callback });
+  return type;
+}
+var dispatch_default = dispatch;
+
+// node_modules/d3-timer/src/timer.js
+var frame = 0;
+var timeout = 0;
+var interval = 0;
+var pokeDelay = 1e3;
+var taskHead;
+var taskTail;
+var clockLast = 0;
+var clockNow = 0;
+var clockSkew = 0;
+var clock = typeof performance === "object" && performance.now ? performance : Date;
+var setFrame = typeof window === "object" && window.requestAnimationFrame ? window.requestAnimationFrame.bind(window) : function(f2) {
+  setTimeout(f2, 17);
+};
+function now2() {
+  return clockNow || (setFrame(clearNow), clockNow = clock.now() + clockSkew);
+}
+function clearNow() {
+  clockNow = 0;
+}
+function Timer() {
+  this._call = this._time = this._next = null;
+}
+Timer.prototype = timer.prototype = {
+  constructor: Timer,
+  restart: function(callback, delay, time3) {
+    if (typeof callback !== "function") throw new TypeError("callback is not a function");
+    time3 = (time3 == null ? now2() : +time3) + (delay == null ? 0 : +delay);
+    if (!this._next && taskTail !== this) {
+      if (taskTail) taskTail._next = this;
+      else taskHead = this;
+      taskTail = this;
+    }
+    this._call = callback;
+    this._time = time3;
+    sleep();
+  },
+  stop: function() {
+    if (this._call) {
+      this._call = null;
+      this._time = Infinity;
+      sleep();
+    }
+  }
+};
+function timer(callback, delay, time3) {
+  var t = new Timer();
+  t.restart(callback, delay, time3);
+  return t;
+}
+function timerFlush() {
+  now2();
+  ++frame;
+  var t = taskHead, e;
+  while (t) {
+    if ((e = clockNow - t._time) >= 0) t._call.call(void 0, e);
+    t = t._next;
+  }
+  --frame;
+}
+function wake() {
+  clockNow = (clockLast = clock.now()) + clockSkew;
+  frame = timeout = 0;
+  try {
+    timerFlush();
+  } finally {
+    frame = 0;
+    nap();
+    clockNow = 0;
+  }
+}
+function poke() {
+  var now3 = clock.now(), delay = now3 - clockLast;
+  if (delay > pokeDelay) clockSkew -= delay, clockLast = now3;
+}
+function nap() {
+  var t0, t1 = taskHead, t2, time3 = Infinity;
+  while (t1) {
+    if (t1._call) {
+      if (time3 > t1._time) time3 = t1._time;
+      t0 = t1, t1 = t1._next;
+    } else {
+      t2 = t1._next, t1._next = null;
+      t1 = t0 ? t0._next = t2 : taskHead = t2;
+    }
+  }
+  taskTail = t0;
+  sleep(time3);
+}
+function sleep(time3) {
+  if (frame) return;
+  if (timeout) timeout = clearTimeout(timeout);
+  var delay = time3 - clockNow;
+  if (delay > 24) {
+    if (time3 < Infinity) timeout = setTimeout(wake, time3 - clock.now() - clockSkew);
+    if (interval) interval = clearInterval(interval);
+  } else {
+    if (!interval) clockLast = clock.now(), interval = setInterval(poke, pokeDelay);
+    frame = 1, setFrame(wake);
+  }
+}
+
+// node_modules/d3-force/src/lcg.js
+var a = 1664525;
+var c = 1013904223;
+var m = 4294967296;
+function lcg_default() {
+  let s = 1;
+  return () => (s = (a * s + c) % m) / m;
+}
+
+// node_modules/d3-force/src/simulation.js
+function x2(d2) {
+  return d2.x;
+}
+function y2(d2) {
+  return d2.y;
+}
+var initialRadius = 10;
+var initialAngle = Math.PI * (3 - Math.sqrt(5));
+function simulation_default(nodes) {
+  var simulation, alpha = 1, alphaMin = 1e-3, alphaDecay = 1 - Math.pow(alphaMin, 1 / 300), alphaTarget = 0, velocityDecay = 0.6, forces = /* @__PURE__ */ new Map(), stepper = timer(step), event = dispatch_default("tick", "end"), random = lcg_default();
+  if (nodes == null) nodes = [];
+  function step() {
+    tick();
+    event.call("tick", simulation);
+    if (alpha < alphaMin) {
+      stepper.stop();
+      event.call("end", simulation);
+    }
+  }
+  function tick(iterations) {
+    var i, n = nodes.length, node;
+    if (iterations === void 0) iterations = 1;
+    for (var k2 = 0; k2 < iterations; ++k2) {
+      alpha += (alphaTarget - alpha) * alphaDecay;
+      forces.forEach(function(force) {
+        force(alpha);
+      });
+      for (i = 0; i < n; ++i) {
+        node = nodes[i];
+        if (node.fx == null) node.x += node.vx *= velocityDecay;
+        else node.x = node.fx, node.vx = 0;
+        if (node.fy == null) node.y += node.vy *= velocityDecay;
+        else node.y = node.fy, node.vy = 0;
+      }
+    }
+    return simulation;
+  }
+  function initializeNodes() {
+    for (var i = 0, n = nodes.length, node; i < n; ++i) {
+      node = nodes[i], node.index = i;
+      if (node.fx != null) node.x = node.fx;
+      if (node.fy != null) node.y = node.fy;
+      if (isNaN(node.x) || isNaN(node.y)) {
+        var radius = initialRadius * Math.sqrt(0.5 + i), angle = i * initialAngle;
+        node.x = radius * Math.cos(angle);
+        node.y = radius * Math.sin(angle);
+      }
+      if (isNaN(node.vx) || isNaN(node.vy)) {
+        node.vx = node.vy = 0;
+      }
+    }
+  }
+  function initializeForce(force) {
+    if (force.initialize) force.initialize(nodes, random);
+    return force;
+  }
+  initializeNodes();
+  return simulation = {
+    tick,
+    restart: function() {
+      return stepper.restart(step), simulation;
+    },
+    stop: function() {
+      return stepper.stop(), simulation;
+    },
+    nodes: function(_2) {
+      return arguments.length ? (nodes = _2, initializeNodes(), forces.forEach(initializeForce), simulation) : nodes;
+    },
+    alpha: function(_2) {
+      return arguments.length ? (alpha = +_2, simulation) : alpha;
+    },
+    alphaMin: function(_2) {
+      return arguments.length ? (alphaMin = +_2, simulation) : alphaMin;
+    },
+    alphaDecay: function(_2) {
+      return arguments.length ? (alphaDecay = +_2, simulation) : +alphaDecay;
+    },
+    alphaTarget: function(_2) {
+      return arguments.length ? (alphaTarget = +_2, simulation) : alphaTarget;
+    },
+    velocityDecay: function(_2) {
+      return arguments.length ? (velocityDecay = 1 - _2, simulation) : 1 - velocityDecay;
+    },
+    randomSource: function(_2) {
+      return arguments.length ? (random = _2, forces.forEach(initializeForce), simulation) : random;
+    },
+    force: function(name, _2) {
+      return arguments.length > 1 ? (_2 == null ? forces.delete(name) : forces.set(name, initializeForce(_2)), simulation) : forces.get(name);
+    },
+    find: function(x3, y3, radius) {
+      var i = 0, n = nodes.length, dx, dy, d2, node, closest;
+      if (radius == null) radius = Infinity;
+      else radius *= radius;
+      for (i = 0; i < n; ++i) {
+        node = nodes[i];
+        dx = x3 - node.x;
+        dy = y3 - node.y;
+        d2 = dx * dx + dy * dy;
+        if (d2 < radius) closest = node, radius = d2;
+      }
+      return closest;
+    },
+    on: function(name, _2) {
+      return arguments.length > 1 ? (event.on(name, _2), simulation) : event.on(name);
+    }
+  };
+}
+
+// node_modules/d3-force/src/manyBody.js
+function manyBody_default() {
+  var nodes, node, random, alpha, strength = constant_default(-30), strengths, distanceMin2 = 1, distanceMax2 = Infinity, theta2 = 0.81;
+  function force(_2) {
+    var i, n = nodes.length, tree = quadtree(nodes, x2, y2).visitAfter(accumulate);
+    for (alpha = _2, i = 0; i < n; ++i) node = nodes[i], tree.visit(apply);
+  }
+  function initialize() {
+    if (!nodes) return;
+    var i, n = nodes.length, node2;
+    strengths = new Array(n);
+    for (i = 0; i < n; ++i) node2 = nodes[i], strengths[node2.index] = +strength(node2, i, nodes);
+  }
+  function accumulate(quad) {
+    var strength2 = 0, q, c2, weight = 0, x3, y3, i;
+    if (quad.length) {
+      for (x3 = y3 = i = 0; i < 4; ++i) {
+        if ((q = quad[i]) && (c2 = Math.abs(q.value))) {
+          strength2 += q.value, weight += c2, x3 += c2 * q.x, y3 += c2 * q.y;
+        }
+      }
+      quad.x = x3 / weight;
+      quad.y = y3 / weight;
+    } else {
+      q = quad;
+      q.x = q.data.x;
+      q.y = q.data.y;
+      do
+        strength2 += strengths[q.data.index];
+      while (q = q.next);
+    }
+    quad.value = strength2;
+  }
+  function apply(quad, x1, _2, x22) {
+    if (!quad.value) return true;
+    var x3 = quad.x - node.x, y3 = quad.y - node.y, w2 = x22 - x1, l = x3 * x3 + y3 * y3;
+    if (w2 * w2 / theta2 < l) {
+      if (l < distanceMax2) {
+        if (x3 === 0) x3 = jiggle_default(random), l += x3 * x3;
+        if (y3 === 0) y3 = jiggle_default(random), l += y3 * y3;
+        if (l < distanceMin2) l = Math.sqrt(distanceMin2 * l);
+        node.vx += x3 * quad.value * alpha / l;
+        node.vy += y3 * quad.value * alpha / l;
+      }
+      return true;
+    } else if (quad.length || l >= distanceMax2) return;
+    if (quad.data !== node || quad.next) {
+      if (x3 === 0) x3 = jiggle_default(random), l += x3 * x3;
+      if (y3 === 0) y3 = jiggle_default(random), l += y3 * y3;
+      if (l < distanceMin2) l = Math.sqrt(distanceMin2 * l);
+    }
+    do
+      if (quad.data !== node) {
+        w2 = strengths[quad.data.index] * alpha / l;
+        node.vx += x3 * w2;
+        node.vy += y3 * w2;
+      }
+    while (quad = quad.next);
+  }
+  force.initialize = function(_nodes, _random) {
+    nodes = _nodes;
+    random = _random;
+    initialize();
+  };
+  force.strength = function(_2) {
+    return arguments.length ? (strength = typeof _2 === "function" ? _2 : constant_default(+_2), initialize(), force) : strength;
+  };
+  force.distanceMin = function(_2) {
+    return arguments.length ? (distanceMin2 = _2 * _2, force) : Math.sqrt(distanceMin2);
+  };
+  force.distanceMax = function(_2) {
+    return arguments.length ? (distanceMax2 = _2 * _2, force) : Math.sqrt(distanceMax2);
+  };
+  force.theta = function(_2) {
+    return arguments.length ? (theta2 = _2 * _2, force) : Math.sqrt(theta2);
+  };
+  return force;
+}
+
+// packages/layout-engine/src/semantic/macro.ts
+function macroPlace(document2, clusters, bboxes, edges, clusterOf, fixedIds, current, spacing, variant, seed) {
+  const interGap = 2.5 * spacing;
+  const placed = clusters.map((cluster) => {
+    const bbox = bboxes.get(cluster.id) ?? { x: 0, y: 0, width: 0, height: 0 };
+    const localCenter = { x: bbox.x + bbox.width / 2, y: bbox.y + bbox.height / 2 };
+    const fixedMember = cluster.memberIds.filter((id) => fixedIds.has(id)).sort((a2, b) => a2.localeCompare(b))[0];
+    let center = localCenter;
+    let fixed = false;
+    if (fixedMember && current.nodes[fixedMember]) {
+      const local = document2.nodes[fixedMember];
+      const localAnchor = { x: local.x + local.width / 2, y: local.y + local.height / 2 };
+      const orig = current.nodes[fixedMember];
+      const origAnchor = { x: orig.x + orig.width / 2, y: orig.y + orig.height / 2 };
+      center = { x: localCenter.x + (origAnchor.x - localAnchor.x), y: localCenter.y + (origAnchor.y - localAnchor.y) };
+      fixed = true;
+    }
+    return { cluster, bbox, w: bbox.width, h: bbox.height, center, fixed, memberCount: cluster.memberIds.length };
+  });
+  if (variant === "grid") packGrid(placed, interGap, current.config.viewportWidth);
+  else {
+    packForce(placed, edges, clusterOf, interGap, seed);
+    const converged = separate(placed, interGap);
+    if (!converged) packGrid(placed, interGap, current.config.viewportWidth);
+  }
+  document2.groups = {};
+  for (const item of placed) {
+    const dx = item.center.x - (item.bbox.x + item.bbox.width / 2);
+    const dy = item.center.y - (item.bbox.y + item.bbox.height / 2);
+    for (const id of item.cluster.memberIds) {
+      const node = document2.nodes[id];
+      if (node) translateNode(node, dx, dy);
+    }
+    if (!item.cluster.isCenter && item.cluster.memberIds.length >= 2) {
+      const groupId = `cluster:${item.cluster.label}`;
+      document2.groups[groupId] = { groupId, x: item.bbox.x + dx, y: item.bbox.y + dy, width: item.bbox.width, height: item.bbox.height, direction: variant === "grid" ? "vertical" : "radial", padding: 32, collapsed: false };
+      for (const id of item.cluster.memberIds) {
+        if (document2.nodes[id]) document2.nodes[id].groupId = groupId;
+      }
+    } else {
+      for (const id of item.cluster.memberIds) {
+        if (document2.nodes[id]) document2.nodes[id].groupId = void 0;
+      }
+    }
+  }
+}
+function packForce(placed, edges, clusterOf, interGap, seed) {
+  const radius = (item) => Math.hypot(item.w, item.h) / 2 + interGap / 2;
+  const nodes = placed.map((item, index2) => {
+    const angle = index2 * 2.399963229728653;
+    const spiral = 120 * Math.sqrt(index2 + 1);
+    return { id: item.cluster.id, x: item.fixed ? item.center.x : Math.cos(angle) * spiral, y: item.fixed ? item.center.y : Math.sin(angle) * spiral, fx: item.fixed ? item.center.x : void 0, fy: item.fixed ? item.center.y : void 0, item };
+  });
+  const counts = /* @__PURE__ */ new Map();
+  for (const edge of edges) {
+    if (edge.archived) continue;
+    const a2 = clusterOf.get(edge.sourceNodeId);
+    const b = clusterOf.get(edge.targetNodeId);
+    if (!a2 || !b || a2 === b) continue;
+    const key = a2 < b ? `${a2}|${b}` : `${b}|${a2}`;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  const links = [...counts.entries()].sort((x3, y3) => x3[0].localeCompare(y3[0])).map(([key, count]) => {
+    const [a2, b] = key.split("|");
+    return { source: a2, target: b, count };
+  });
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const simulation = simulation_default(nodes).force("link", link_default(links).id((n) => n.id).distance((link) => radius(byId.get(link.source.id).item) + radius(byId.get(link.target.id).item) + interGap).strength((link) => Math.min(0.9, link.count / (link.count + 2)))).force("charge", manyBody_default().strength(-1)).force("center", center_default(0, 0)).force("collide", collide_default((n) => radius(n.item)).strength(1)).stop();
+  for (let tick = 0; tick < 300; tick += 1) simulation.tick();
+  for (const node of nodes) {
+    if (!node.item.fixed) node.item.center = { x: node.x ?? 0, y: node.y ?? 0 };
+  }
+}
+function separate(placed, interGap) {
+  const half = interGap / 2;
+  const box = (item) => ({ x: item.center.x - item.w / 2 - half, y: item.center.y - item.h / 2 - half, width: item.w + interGap, height: item.h + interGap });
+  for (let iter = 0; iter < 400; iter += 1) {
+    let moved = false;
+    for (let i = 0; i < placed.length; i += 1) {
+      for (let j2 = i + 1; j2 < placed.length; j2 += 1) {
+        const a2 = placed[i];
+        const b = placed[j2];
+        const ba = box(a2);
+        const bb = box(b);
+        if (overlapArea(ba, bb) <= 0) continue;
+        const ox = Math.min(ba.x + ba.width, bb.x + bb.width) - Math.max(ba.x, bb.x);
+        const oy = Math.min(ba.y + ba.height, bb.y + bb.height) - Math.max(ba.y, bb.y);
+        const bothMovable = !a2.fixed && !b.fixed;
+        if (ox < oy) {
+          const dir = a2.center.x <= b.center.x ? -1 : 1;
+          const shift = bothMovable ? ox / 2 : ox;
+          if (!a2.fixed) a2.center.x += dir * shift;
+          if (!b.fixed) b.center.x -= dir * shift;
+          if (a2.fixed && b.fixed) continue;
+        } else {
+          const dir = a2.center.y <= b.center.y ? -1 : 1;
+          const shift = bothMovable ? oy / 2 : oy;
+          if (!a2.fixed) a2.center.y += dir * shift;
+          if (!b.fixed) b.center.y -= dir * shift;
+          if (a2.fixed && b.fixed) continue;
+        }
+        moved = true;
+      }
+    }
+    if (!moved) return true;
+  }
+  for (let i = 0; i < placed.length; i += 1) {
+    for (let j2 = i + 1; j2 < placed.length; j2 += 1) {
+      const a2 = placed[i];
+      const b = placed[j2];
+      const ba = box(a2);
+      const bb = box(b);
+      if (overlapArea(ba, bb) > 0) return false;
+    }
+  }
+  return true;
+}
+function packGrid(placed, interGap, viewportWidth) {
+  const target = Math.max(viewportWidth * 1.6, Math.max(...placed.map((p2) => p2.w)) + interGap);
+  const order = [...placed].sort((a2, b) => b.memberCount - a2.memberCount || a2.cluster.id.localeCompare(b.cluster.id));
+  let cursorX = 0;
+  let cursorY = 0;
+  let rowHeight = 0;
+  for (const item of order) {
+    if (cursorX > 0 && cursorX + item.w > target) {
+      cursorX = 0;
+      cursorY += rowHeight + interGap;
+      rowHeight = 0;
+    }
+    item.center = { x: cursorX + item.w / 2, y: cursorY + item.h / 2 };
+    cursorX += item.w + interGap;
+    rowHeight = Math.max(rowHeight, item.h);
+  }
+}
+
+// packages/layout-engine/src/semantic/index.ts
+function semanticClusterLayout(params) {
+  const { nodes, edges, plan, document: document2, current, spacing, seed, micro, macro } = params;
+  const constraints = normalizeConstraints(plan, current);
+  const clusters = detectClusters(nodes, edges, constraints, current);
+  const nodesById = new Map(nodes.map((node) => [node.id, node]));
+  applySizeHierarchy(document2, clusters, nodesById, plan.preserve.nodeSizes, constraints.fixedIds);
+  const bboxes = /* @__PURE__ */ new Map();
+  for (const cluster of clusters) bboxes.set(cluster.id, layoutClusterLocal(cluster, document2, spacing, micro));
+  const clusterOf = /* @__PURE__ */ new Map();
+  for (const cluster of clusters) for (const id of cluster.memberIds) clusterOf.set(id, cluster.id);
+  macroPlace(document2, clusters, bboxes, edges, clusterOf, constraints.fixedIds, current, spacing, macro, seed);
+  return { clusterOf };
+}
+var DEFAULT_FRAME = { x: 0, y: 0, width: 220, height: 112, rotation: 0, zIndex: 0, pinned: false, hidden: false, collapsed: false };
+function seedPlan(document2) {
+  return {
+    projectId: document2.projectId,
+    viewId: document2.viewId,
+    baseGraphRevision: document2.graphRevision,
+    baseLayoutRevision: document2.layoutRevision,
+    scope: { type: "whole-view" },
+    strategy: "cluster",
+    direction: document2.config.direction,
+    constraints: [],
+    preserve: { pinnedNodes: false, manualGroups: false, relativeOrder: false, mentalMapWeight: 0.6, nodeSizes: false },
+    candidateCount: 3,
+    rationale: "initial semantic seed"
+  };
+}
+function routeSeedEdges(document2, edges, clusterOf) {
+  for (const edge of edges) {
+    const source = document2.nodes[edge.sourceNodeId];
+    const target = document2.nodes[edge.targetNodeId];
+    if (!source || !target) continue;
+    const a2 = { x: source.x + source.width / 2, y: source.y + source.height / 2 };
+    const b = { x: target.x + target.width / 2, y: target.y + target.height / 2 };
+    const cross = clusterOf.get(edge.sourceNodeId) !== clusterOf.get(edge.targetNodeId);
+    document2.edges[edge.id] = {
+      edgeId: edge.id,
+      routing: cross ? "orthogonal" : "bezier",
+      waypoints: cross ? [a2, { x: (a2.x + b.x) / 2, y: a2.y }, { x: (a2.x + b.x) / 2, y: b.y }, b] : [a2, b],
+      hidden: false
+    };
+  }
+}
+function updateSeedBounds(document2) {
+  const frames = [
+    ...Object.values(document2.nodes).filter((node) => !node.hidden),
+    ...Object.values(document2.groups)
+  ];
+  if (!frames.length) {
+    document2.bounds = { x: 0, y: 0, width: 0, height: 0 };
+    return;
+  }
+  const minX = Math.min(...frames.map((frame2) => frame2.x));
+  const minY = Math.min(...frames.map((frame2) => frame2.y));
+  const maxX = Math.max(...frames.map((frame2) => frame2.x + frame2.width));
+  const maxY = Math.max(...frames.map((frame2) => frame2.y + frame2.height));
+  document2.bounds = { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+}
+function seedSemanticLayout(params) {
+  const { nodes, edges, document: document2 } = params;
+  const spacing = params.spacing ?? document2.config.nodeSpacing;
+  const micro = params.micro ?? "radial";
+  const macro = params.macro ?? "force";
+  for (const node of nodes) {
+    if (!document2.nodes[node.id]) document2.nodes[node.id] = { nodeId: node.id, ...DEFAULT_FRAME };
+  }
+  const { clusterOf } = semanticClusterLayout({ nodes, edges, plan: seedPlan(document2), document: document2, current: document2, spacing, seed: document2.viewId, micro, macro });
+  routeSeedEdges(document2, edges, clusterOf);
+  updateSeedBounds(document2);
+  return { clusterOf, groupCount: Object.keys(document2.groups).length };
+}
+function previewClusters(params) {
+  const constraints = normalizeConstraints(params.plan, params.current);
+  const clusters = detectClusters(params.nodes, params.edges, constraints, params.current);
+  const center = clusters.find((cluster) => cluster.isCenter);
+  return {
+    clusters: clusters.map((cluster) => ({ id: cluster.id, label: cluster.label, memberCount: cluster.memberIds.length, hubId: cluster.hubId, isCenter: cluster.isCenter, hubProminent: cluster.hubProminent })),
+    centerId: center?.memberIds[0]
+  };
+}
+
 // packages/storage/src/view-catalog.ts
 import { randomUUID as randomUUID3 } from "node:crypto";
 
@@ -123940,10 +125365,25 @@ function applyChangeSet(db, changeSetId) {
       throw new Error("LAYOUT_REVISION_CONFLICT");
     }
   }
+  const starterProject = getProject(db, changeSet.projectId);
+  const starterIds = new Set(starterProject.starterNodeIds);
+  let finalGraph = nextGraph;
+  if (addedNodes.length && starterIds.size) {
+    const touched = new Set(changeSet.graphOperations.flatMap((operation) => "nodeId" in operation ? [operation.nodeId] : []));
+    const timestamp = now();
+    const pristine = (node) => starterIds.has(node.id) && !touched.has(node.id) && !node.archived && node.body === "" && node.content.kind === "document" && node.content.markdown === "";
+    const retiredIds = new Set(nextGraph.nodes.filter(pristine).map((node) => node.id));
+    if (retiredIds.size) finalGraph = {
+      ...nextGraph,
+      nodes: nextGraph.nodes.map((node) => retiredIds.has(node.id) ? { ...node, archived: true, updatedAt: timestamp } : node),
+      edges: nextGraph.edges.map((edge) => retiredIds.has(edge.sourceNodeId) || retiredIds.has(edge.targetNodeId) ? { ...edge, archived: true, updatedAt: timestamp } : edge)
+    };
+  }
   const applied = { ...changeSet, status: "applied", updatedAt: now() };
   const layoutRevisions = {};
   transaction(db, () => {
-    if (changeSet.graphOperations.length) replaceGraph(db, nextGraph, { taskId: task.taskId, canvasSessionId: task.canvasSessionId });
+    if (changeSet.graphOperations.length) replaceGraph(db, finalGraph, { taskId: task.taskId, canvasSessionId: task.canvasSessionId });
+    if (addedNodes.length && starterIds.size) patchProject(db, changeSet.projectId, { starterNodeIds: [] });
     for (const [viewId, operations] of byView) {
       const layout = structuredClone(getLayout(db, changeSet.projectId, viewId));
       for (const operation of operations) {
@@ -123952,7 +125392,7 @@ function applyChangeSet(db, changeSetId) {
         layout.nodes[operation.nodeId] = { nodeId: operation.nodeId, ...operation.frame, rotation: 0, zIndex: 0, pinned: false, hidden: false, collapsed: false };
       }
       const nextLayout = applyLayoutOperations(layout, operations);
-      nextLayout.graphRevision = nextGraph.revision;
+      nextLayout.graphRevision = finalGraph.revision;
       saveLayout(db, nextLayout, true, { taskId: task.taskId, canvasSessionId: task.canvasSessionId, operations });
       layoutRevisions[viewId] = nextLayout.layoutRevision;
     }
@@ -123961,11 +125401,11 @@ function applyChangeSet(db, changeSetId) {
     updateAgentTask(db, changeSet.taskId, {
       status: mixed ? "ready_to_continue" : "completed",
       activeStage: mixed ? "layout" : task.activeStage,
-      expectedGraphRevision: nextGraph.revision,
+      expectedGraphRevision: finalGraph.revision,
       results: { ...task.results, changeSetId }
     });
   });
-  return { ...applied, graphRevision: nextGraph.revision, layoutRevisions, task: getAgentTask(db, changeSet.taskId) };
+  return { ...applied, graphRevision: finalGraph.revision, layoutRevisions, task: getAgentTask(db, changeSet.taskId) };
 }
 
 // packages/storage/src/chat-canvas-binding.ts
@@ -124126,6 +125566,20 @@ function getCanvasContext(db, sessionId) {
 }
 
 // packages/storage/src/agent-tasks.ts
+function reapExpiredCanvasTasks(db, canvasSessionId) {
+  const reaped = [];
+  for (const task of listCanvasTasks(db, canvasSessionId)) {
+    const idleMs = Date.now() - Date.parse(task.updatedAt);
+    if (task.status === "prepared" && idleMs > preparedTaskExpiryMs) {
+      reaped.push(updateAgentTask(db, task.taskId, { status: "failed", error: { code: "PREPARED_TASK_EXPIRED", message: "Prepared task was not dispatched within two minutes" } }));
+    } else if (task.status === "dispatched" && idleMs > dispatchedTaskExpiryMs) {
+      reaped.push(updateAgentTask(db, task.taskId, { status: "failed", error: { code: "AGENT_DISPATCH_TIMEOUT", message: "No agent started this task within three minutes" } }));
+    } else if (task.status === "running" && idleMs > runningTaskExpiryMs) {
+      reaped.push(updateAgentTask(db, task.taskId, { status: "failed", error: { code: "AGENT_TASK_TIMEOUT", message: "Agent reported no progress for ten minutes; task reaped so the canvas is unblocked" } }));
+    }
+  }
+  return reaped;
+}
 function prepareAgentTask(db, input) {
   const context = getCanvasContext(db, input.canvasSessionId);
   if (!context) throw new Error(`CANVAS_SESSION_NOT_FOUND:${input.canvasSessionId}`);
@@ -124137,13 +125591,9 @@ function prepareAgentTask(db, input) {
   const existingTasks = listCanvasTasks(db, context.canvasSessionId, true);
   const duplicate = existingTasks.find((task2) => task2.dispatches.some((dispatch2) => dispatch2.dispatchKey === dispatchKey));
   if (duplicate) return duplicate;
-  for (const task2 of existingTasks.filter((candidate) => !terminalTaskStatuses.has(candidate.status))) {
-    if (task2.status === "prepared" && Date.now() - Date.parse(task2.updatedAt) > 12e4) {
-      updateAgentTask(db, task2.taskId, { status: "failed", error: { code: "PREPARED_TASK_EXPIRED", message: "Prepared task was not dispatched within two minutes" } });
-      continue;
-    }
-    throw new Error(`ACTIVE_CANVAS_TASK_EXISTS:${task2.taskId}`);
-  }
+  reapExpiredCanvasTasks(db, context.canvasSessionId);
+  const [blocking] = listCanvasTasks(db, context.canvasSessionId);
+  if (blocking) throw new Error(`ACTIVE_CANVAS_TASK_EXISTS:${blocking.taskId}`);
   const intent = ["develop_selection", "follow_up_ask", "layout_view", "develop_then_layout"].includes(input.actionKey) ? input.actionKey : "develop_selection";
   const task = agentTaskSchema.parse({
     taskId: randomUUID2(),
@@ -124203,10 +125653,10 @@ function listProjectTasks(db, projectId, includeTerminal = false) {
   const terminal = terminalTaskStatuses;
   return db.prepare("SELECT data FROM agent_task WHERE project_id = ? ORDER BY rowid DESC").all(projectId).map((row) => agentTaskSchema.parse(parse3(row.data))).filter((task) => includeTerminal || !terminal.has(task.status));
 }
-function updateAgentTask(db, taskId, patch) {
+function updateAgentTask(db, taskId, patch, options = {}) {
   const current = getAgentTask(db, taskId);
   if (!current) throw new Error(`AGENT_TASK_NOT_FOUND:${taskId}`);
-  const unchanged = Object.entries(patch).every(([key, value]) => json2(current[key]) === json2(value));
+  const unchanged = !options.force && Object.entries(patch).every(([key, value]) => json2(current[key]) === json2(value));
   if (unchanged) return current;
   if (patch.status && patch.status !== current.status && !taskTransitions[current.status].has(patch.status)) throw new Error(`TASK_TRANSITION_INVALID:${current.status}->${patch.status}`);
   const next = agentTaskSchema.parse({ ...current, ...patch, taskRevision: current.taskRevision + 1, taskId: current.taskId, projectId: current.projectId, updatedAt: now() });
@@ -124244,6 +125694,12 @@ function beginAgentContinuation(db, input) {
   if (task.status !== "ready_to_continue" || task.activeStage !== "layout") throw new Error(`TASK_TRANSITION_INVALID:${task.status}->prepared`);
   const record2 = { dispatchKey: input.dispatchKey, stage: "layout", state: "prepared", attemptedAt: now() };
   return updateAgentTask(db, task.taskId, { status: "prepared", dispatches: [...task.dispatches, record2] });
+}
+function reportTaskProgress(db, taskId, note) {
+  const task = getAgentTask(db, taskId);
+  if (!task) throw new Error(`AGENT_TASK_NOT_FOUND:${taskId}`);
+  if (task.status !== "running") throw new Error(terminalTaskStatuses.has(task.status) ? `TASK_TERMINAL:${task.status}` : `TASK_NOT_RUNNING:${task.status}`);
+  return updateAgentTask(db, taskId, { progressNote: note }, { force: true });
 }
 
 // packages/storage/src/view-catalog.ts
@@ -124462,31 +125918,41 @@ function ensureView(db, input) {
   const graph = getGraph(db, input.projectId);
   const document2 = defaultLayout(project, input.viewId, input.viewType, input.strategy, input.viewName);
   document2.graphRevision = graph.revision;
-  graph.nodes.filter((node) => !node.archived).forEach((node, index2) => {
-    document2.nodes[node.id] = {
-      nodeId: node.id,
-      x: index2 % 4 * 292,
-      y: Math.floor(index2 / 4) * 176,
-      width: 220,
-      height: 112,
-      rotation: 0,
-      zIndex: 0,
-      pinned: false,
-      hidden: false,
-      collapsed: false
+  const activeNodes = graph.nodes.filter((node) => !node.archived);
+  const activeIds = new Set(activeNodes.map((node) => node.id));
+  const activeEdges = graph.edges.filter((edge) => !edge.archived && activeIds.has(edge.sourceNodeId) && activeIds.has(edge.targetNodeId));
+  if (shouldSeedSemantic(input.viewType, activeNodes.length, activeEdges.length)) {
+    seedSemanticLayout({ nodes: activeNodes, edges: activeEdges, document: document2 });
+  } else {
+    activeNodes.forEach((node, index2) => {
+      document2.nodes[node.id] = {
+        nodeId: node.id,
+        x: index2 % 4 * 292,
+        y: Math.floor(index2 / 4) * 176,
+        width: 220,
+        height: 112,
+        rotation: 0,
+        zIndex: 0,
+        pinned: false,
+        hidden: false,
+        collapsed: false
+      };
+    });
+    document2.bounds = {
+      x: 0,
+      y: 0,
+      width: graph.nodes.length ? Math.min(4, graph.nodes.length) * 292 - 72 : 0,
+      height: graph.nodes.length ? Math.ceil(graph.nodes.length / 4) * 176 - 64 : 0
     };
-  });
-  document2.bounds = {
-    x: 0,
-    y: 0,
-    width: graph.nodes.length ? Math.min(4, graph.nodes.length) * 292 - 72 : 0,
-    height: graph.nodes.length ? Math.ceil(graph.nodes.length / 4) * 176 - 64 : 0
-  };
+  }
   transaction(db, () => {
     saveLayout(db, document2, false);
     catalogViewFromLayout(db, document2);
   });
   return document2;
+}
+function shouldSeedSemantic(viewType, activeNodeCount, edgeCount) {
+  return (viewType === "graph" || viewType === "canvas") && activeNodeCount >= 4 && edgeCount >= 1;
 }
 function uniqueViewName(db, projectId, requested) {
   const names = new Set(listLayouts(db, projectId).map((layout) => layout.viewName));
@@ -124600,6 +126066,7 @@ function createProjectFromVisualTemplate(db, dataDir, input) {
     const nodes = input.template.starterBlueprint.nodes.map((item) => nodeSchema.parse({ id: ids.get(item.key), projectId: project.id, type: binding.nodeRoles[item.role] ?? input.scenePack.nodeTypes[0].key, title: item.title, body: "", contentKind: item.contentKind, content: { kind: "document", mode: "note", markdown: "", excerpt: "", embeddedAssetIds: [] }, properties: item.properties, archived: false, createdAt: timestamp, updatedAt: timestamp }));
     const edges = input.template.starterBlueprint.edges.map((item) => edgeSchema.parse({ id: randomUUID4(), projectId: project.id, type: binding.edgeRoles[item.role] ?? input.scenePack.edgeTypes[0]?.key ?? "relation", sourceNodeId: ids.get(item.sourceKey), targetNodeId: ids.get(item.targetKey), directed: true, properties: {}, archived: false, createdAt: timestamp, updatedAt: timestamp }));
     replaceGraph(db, { projectId: project.id, revision: 1, nodes, edges });
+    patchProject(db, project.id, { starterNodeIds: nodes.map((node) => node.id) });
     project = getProject(db, project.id);
     const layout = templateLayout(db, { project, graph: getGraph(db, project.id), template: input.template, viewId: project.defaultViewId, viewName: input.template.name, layoutRevision: 1 });
     saveLayout(db, layout, false);
@@ -124704,7 +126171,7 @@ function graphDelta(db, previous, next) {
   const beforeNodes = new Map(previous.nodes.map((node) => [node.id, node]));
   const beforeEdges = new Map(previous.edges.map((edge) => [edge.id, edge]));
   const summarize = (node) => {
-    const assetIds = node.content.kind === "image" ? [node.content.assetId] : node.content.kind === "document" ? [node.content.coverAssetId, ...node.content.embeddedAssetIds].filter(Boolean) : [node.content.imageAssetId].filter(Boolean);
+    const assetIds = node.content.kind === "image" ? [node.content.assetId] : node.content.kind === "document" ? [node.content.coverAssetId, ...node.content.embeddedAssetIds].filter(Boolean) : node.content.kind === "link" ? [node.content.imageAssetId].filter(Boolean) : [];
     return {
       ...node,
       body: "",
@@ -124808,7 +126275,7 @@ function attachAsset(db, input) {
   return { node: next.nodes.find((node) => node.id === input.nodeId), project: getProject(db, input.projectId) };
 }
 function assertContentAssets(db, projectId, content) {
-  const ids = content.kind === "image" ? [content.assetId] : content.kind === "document" ? [content.coverAssetId, ...content.embeddedAssetIds].filter(Boolean) : [content.imageAssetId].filter(Boolean);
+  const ids = content.kind === "image" ? [content.assetId] : content.kind === "document" ? [content.coverAssetId, ...content.embeddedAssetIds].filter(Boolean) : content.kind === "link" ? [content.imageAssetId].filter(Boolean) : [];
   for (const id of ids) {
     const asset = getAsset(db, id);
     if (!asset || asset.projectId !== projectId) throw new Error(`ASSET_NOT_FOUND_OR_CROSS_PROJECT:${id}`);
@@ -124825,6 +126292,11 @@ function defaultNodeFrame(db, node, x3, y3) {
     width = 300;
     height = 180;
   }
+  if (node.content.kind === "chart") {
+    const metric = node.content.chartType === "metric";
+    width = metric ? 240 : 320;
+    height = metric ? 130 : 220;
+  }
   if (node.content.kind === "image") {
     const asset = getAsset(db, node.content.assetId);
     width = Math.max(180, Math.min(360, asset.width));
@@ -124840,6 +126312,13 @@ function listProjects(db) {
 function getProject(db, projectId) {
   const row = db.prepare("SELECT data FROM project WHERE id = ?").get(projectId);
   return row ? projectSchema.parse(parse3(row.data)) : null;
+}
+function patchProject(db, projectId, patch) {
+  const current = getProject(db, projectId);
+  if (!current) throw new Error(`PROJECT_NOT_FOUND:${projectId}`);
+  const next = projectSchema.parse({ ...current, ...patch, id: current.id, createdAt: current.createdAt, updatedAt: now() });
+  db.prepare("UPDATE project SET data = ? WHERE id = ?").run(json2(next), projectId);
+  return next;
 }
 function createProject(db, dataDir, input) {
   const timestamp = now();
@@ -125244,6 +126723,9 @@ var WorkspaceStore = class {
   listCanvasTasks(canvasSessionId, includeTerminal = false) {
     return listCanvasTasks(this.db, canvasSessionId, includeTerminal);
   }
+  reapExpiredCanvasTasks(canvasSessionId) {
+    return reapExpiredCanvasTasks(this.db, canvasSessionId);
+  }
   listProjectTasks(projectId, includeTerminal = false) {
     return listProjectTasks(this.db, projectId, includeTerminal);
   }
@@ -125258,6 +126740,9 @@ var WorkspaceStore = class {
   }
   beginAgentContinuation(input) {
     return beginAgentContinuation(this.db, input);
+  }
+  reportTaskProgress(taskId, note) {
+    return reportTaskProgress(this.db, taskId, note);
   }
   // --- changesets ---
   submitChangeSet(changeSet) {
@@ -126210,8 +127695,8 @@ Boolean requesting whether a visible border and background is provided by the ho
 - omitted: host decides border`) });
 var BQ = external_exports.object({ method: external_exports.literal("ui/request-display-mode"), params: external_exports.object({ mode: K.describe("The display mode being requested.") }) });
 var R = external_exports.object({ mode: K.describe("The display mode that was actually set. May differ from requested if not supported.") }).passthrough();
-var m = external_exports.union([external_exports.literal("model"), external_exports.literal("app")]).describe("Tool visibility scope - who can access the tool.");
-var GQ = external_exports.object({ resourceUri: external_exports.string().optional(), visibility: external_exports.array(m).optional().describe(`Who can access this tool. Default: ["model", "app"]
+var m2 = external_exports.union([external_exports.literal("model"), external_exports.literal("app")]).describe("Tool visibility scope - who can access the tool.");
+var GQ = external_exports.object({ resourceUri: external_exports.string().optional(), visibility: external_exports.array(m2).optional().describe(`Who can access this tool. Default: ["model", "app"]
 - "model": Tool visible to and callable by the agent
 - "app": Tool callable by the app from this server only`), csp: external_exports.never().optional(), permissions: external_exports.never().optional() });
 var dQ = external_exports.object({ mimeTypes: external_exports.array(external_exports.string()).optional().describe('Array of supported MIME types for UI resources.\nMust include `"text/html;profile=mcp-app"` for MCP Apps support.') });
@@ -126262,13 +127747,14 @@ var commonProperties = {
   "process-design": { step: [{ key: "status", label: "\u72B6\u6001", type: "enum", required: false, options: ["\u5F85\u5904\u7406", "\u8FDB\u884C\u4E2D", "\u5DF2\u5B8C\u6210"] }, { key: "owner", label: "\u8D1F\u8D23\u4EBA", type: "string", required: false }] }
 };
 function pack(input) {
+  const allowedContentKinds = input.category === "research" ? ["document", "image", "link", "chart"] : ["document", "image", "link"];
   return scenePackSchema.parse({
     id: input.id,
     version: "1.0.0",
     name: input.name,
     category: input.category,
     description: input.description,
-    nodeTypes: input.nodeTypes.map(([key, label, color]) => ({ key, label, color, defaultWidth: 220, defaultHeight: 112, requiredProperties: [], properties: commonProperties[input.id]?.[key] ?? [], defaultContentKind: "document", allowedContentKinds: ["document", "image", "link"] })),
+    nodeTypes: input.nodeTypes.map(([key, label, color]) => ({ key, label, color, defaultWidth: 220, defaultHeight: 112, requiredProperties: [], properties: commonProperties[input.id]?.[key] ?? [], defaultContentKind: "document", allowedContentKinds })),
     edgeTypes: input.edgeTypes.map(([key, label, directed = true]) => ({ key, label, directed, sourceTypes: [], targetTypes: [] })),
     recommendedViews: input.views,
     defaultView: input.views[0],
@@ -126620,6 +128106,13 @@ function registerAgentTasksTools(server2, ctx) {
       }));
     }));
   }
+  server2.registerTool("weaver_report_task_progress", { title: "Report Task Progress", description: "Post a one-line progress note on a running task; shown live on the canvas busy indicator and doubles as the liveness heartbeat.", inputSchema: { ...workspaceSchema.shape, taskId: external_exports.string(), note: external_exports.string().min(1).max(280) }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false } }, defineTool(async ({ workspaceDir, taskId, note }, extra) => {
+    const chatSessionKey = chatSessionKeyFromRequest(extra);
+    return result(mutateWithStore(workspaceDir, (store) => {
+      store.assertTaskChat(taskId, chatSessionKey);
+      return store.reportTaskProgress(taskId, note);
+    }));
+  }));
   server2.registerTool("weaver_cancel_agent_task", { title: "Cancel Agent Task", description: "Cooperatively cancel a non-terminal task so later agent writes are rejected.", inputSchema: { ...workspaceSchema.shape, taskId: external_exports.string() }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } } }, defineTool(async ({ workspaceDir, taskId }, extra) => {
     const chatSessionKey = chatSessionKeyFromRequest(extra);
     return result(mutateWithStore(workspaceDir, (store) => {
@@ -126634,7 +128127,10 @@ function registerAgentTasksTools(server2, ctx) {
     workspaceByTask.set(taskId, workspaceDir);
     return result(task);
   }));
-  server2.registerTool("weaver_list_canvas_tasks", { title: "List Canvas Tasks", description: "Widget-only recovery of non-terminal tasks associated with one canvas session.", inputSchema: { ...workspaceSchema.shape, canvasSessionId: external_exports.string() }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } } }, defineTool(async ({ workspaceDir, canvasSessionId }) => result(withStore(workspaceDir, (store) => store.listCanvasTasks(canvasSessionId)))));
+  server2.registerTool("weaver_list_canvas_tasks", { title: "List Canvas Tasks", description: "Widget-only recovery of non-terminal tasks associated with one canvas session. Reaps expired tasks first.", inputSchema: { ...workspaceSchema.shape, canvasSessionId: external_exports.string() }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } } }, defineTool(async ({ workspaceDir, canvasSessionId }) => result(mutateWithStore(workspaceDir, (store) => {
+    store.reapExpiredCanvasTasks(canvasSessionId);
+    return store.listCanvasTasks(canvasSessionId);
+  }))));
   server2.registerTool("weaver_list_project_tasks", { title: "List Project Tasks", description: "Widget-only recovery of non-terminal tasks for a reopened project canvas.", inputSchema: projectSchema2.shape, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } } }, defineTool(async ({ workspaceDir, projectId }) => result(withStore(workspaceDir, (store) => store.listProjectTasks(projectId)))));
 }
 
@@ -126652,6 +128148,7 @@ function registerArtifactsTools(server2) {
 }
 
 // packages/mcp/src/tools/assets.ts
+import sharp2 from "sharp";
 function registerAssetsTools(server2) {
   server2.registerTool("weaver_get_asset_metadata", {
     title: "Get Image Asset Metadata",
@@ -126689,6 +128186,43 @@ function registerAssetsTools(server2) {
       try {
         const output = await store.importImageAsset({ projectId, mimeType, data: Buffer.from(base643, "base64") });
         return result(output, output.deduplicated ? "Reused existing image asset." : "Imported image asset.");
+      } finally {
+        store.close();
+      }
+    } catch (error51) {
+      return failure(error51);
+    }
+  });
+  server2.registerTool("weaver_ingest_image", {
+    title: "Ingest Image (skill)",
+    description: "Import raw image bytes (base64) produced by an imagegen skill into the project's asset store and return an assetId to reference from a ChangeSet add-node image op. Content-addressed and deduplicated; validates that the declared mimeType matches the real bytes; does not change graphRevision.",
+    inputSchema: { ...projectSchema2.shape, mimeType: external_exports.enum(["image/jpeg", "image/png", "image/webp", "image/gif"]), base64: external_exports.string().min(1).max(28 * 1024 * 1024) },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }
+  }, async ({ workspaceDir, projectId, mimeType, base64: base643 }) => {
+    try {
+      const store = new WorkspaceStore(workspaceDir);
+      try {
+        const output = await store.importImageAsset({ projectId, mimeType, data: Buffer.from(base643, "base64") });
+        return result({ assetId: output.asset.id, width: output.asset.width, height: output.asset.height, deduplicated: output.deduplicated }, output.deduplicated ? "Reused existing image asset." : "Imported image asset.");
+      } finally {
+        store.close();
+      }
+    } catch (error51) {
+      return failure(error51);
+    }
+  });
+  server2.registerTool("weaver_render_svg_image", {
+    title: "Render SVG to Image Asset",
+    description: "Rasterize an agent-authored SVG document to a PNG and import it as a project asset (returns assetId). Use for crisp-text infographics/covers and as the image path on hosts without a built-in image model. Deterministic; does not change graphRevision.",
+    inputSchema: { ...projectSchema2.shape, svg: external_exports.string().min(1).max(2 * 1024 * 1024), scale: external_exports.number().min(1).max(3).default(2) },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }
+  }, async ({ workspaceDir, projectId, svg, scale }) => {
+    try {
+      const png = await sharp2(Buffer.from(svg), { density: Math.round(96 * scale) }).png().toBuffer();
+      const store = new WorkspaceStore(workspaceDir);
+      try {
+        const output = await store.importImageAsset({ projectId, mimeType: "image/png", data: png });
+        return result({ assetId: output.asset.id, width: output.asset.width, height: output.asset.height }, "Rendered SVG to image asset.");
       } finally {
         store.close();
       }
@@ -127149,7 +128683,7 @@ function registerContentTools(server2) {
 // packages/mcp/src/tools/graph.ts
 function summarizeNode(store, node) {
   const content = node.content.kind === "document" ? { ...node.content, markdown: void 0 } : node.content;
-  const assetIds = node.content.kind === "image" ? [node.content.assetId] : node.content.kind === "document" ? [node.content.coverAssetId, ...node.content.embeddedAssetIds].filter(Boolean) : [node.content.imageAssetId].filter(Boolean);
+  const assetIds = node.content.kind === "image" ? [node.content.assetId] : node.content.kind === "document" ? [node.content.coverAssetId, ...node.content.embeddedAssetIds].filter(Boolean) : node.content.kind === "link" ? [node.content.imageAssetId].filter(Boolean) : [];
   return { id: node.id, projectId: node.projectId, type: node.type, title: node.title, contentKind: node.contentKind, content, properties: node.properties, archived: node.archived, createdAt: node.createdAt, updatedAt: node.updatedAt, assets: assetIds.map((id) => store.getAsset(id)).filter(Boolean) };
 }
 function registerGraphTools(server2) {
@@ -127214,868 +128748,6 @@ import { randomUUID as randomUUID10 } from "node:crypto";
 
 // packages/layout-engine/src/engine.ts
 import { createHash as createHash6 } from "node:crypto";
-
-// node_modules/d3-force/src/center.js
-function center_default(x3, y3) {
-  var nodes, strength = 1;
-  if (x3 == null) x3 = 0;
-  if (y3 == null) y3 = 0;
-  function force() {
-    var i, n = nodes.length, node, sx = 0, sy = 0;
-    for (i = 0; i < n; ++i) {
-      node = nodes[i], sx += node.x, sy += node.y;
-    }
-    for (sx = (sx / n - x3) * strength, sy = (sy / n - y3) * strength, i = 0; i < n; ++i) {
-      node = nodes[i], node.x -= sx, node.y -= sy;
-    }
-  }
-  force.initialize = function(_2) {
-    nodes = _2;
-  };
-  force.x = function(_2) {
-    return arguments.length ? (x3 = +_2, force) : x3;
-  };
-  force.y = function(_2) {
-    return arguments.length ? (y3 = +_2, force) : y3;
-  };
-  force.strength = function(_2) {
-    return arguments.length ? (strength = +_2, force) : strength;
-  };
-  return force;
-}
-
-// node_modules/d3-quadtree/src/add.js
-function add_default(d2) {
-  const x3 = +this._x.call(null, d2), y3 = +this._y.call(null, d2);
-  return add(this.cover(x3, y3), x3, y3, d2);
-}
-function add(tree, x3, y3, d2) {
-  if (isNaN(x3) || isNaN(y3)) return tree;
-  var parent, node = tree._root, leaf = { data: d2 }, x0 = tree._x0, y0 = tree._y0, x1 = tree._x1, y1 = tree._y1, xm, ym, xp, yp, right, bottom, i, j2;
-  if (!node) return tree._root = leaf, tree;
-  while (node.length) {
-    if (right = x3 >= (xm = (x0 + x1) / 2)) x0 = xm;
-    else x1 = xm;
-    if (bottom = y3 >= (ym = (y0 + y1) / 2)) y0 = ym;
-    else y1 = ym;
-    if (parent = node, !(node = node[i = bottom << 1 | right])) return parent[i] = leaf, tree;
-  }
-  xp = +tree._x.call(null, node.data);
-  yp = +tree._y.call(null, node.data);
-  if (x3 === xp && y3 === yp) return leaf.next = node, parent ? parent[i] = leaf : tree._root = leaf, tree;
-  do {
-    parent = parent ? parent[i] = new Array(4) : tree._root = new Array(4);
-    if (right = x3 >= (xm = (x0 + x1) / 2)) x0 = xm;
-    else x1 = xm;
-    if (bottom = y3 >= (ym = (y0 + y1) / 2)) y0 = ym;
-    else y1 = ym;
-  } while ((i = bottom << 1 | right) === (j2 = (yp >= ym) << 1 | xp >= xm));
-  return parent[j2] = node, parent[i] = leaf, tree;
-}
-function addAll(data) {
-  var d2, i, n = data.length, x3, y3, xz = new Array(n), yz = new Array(n), x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-  for (i = 0; i < n; ++i) {
-    if (isNaN(x3 = +this._x.call(null, d2 = data[i])) || isNaN(y3 = +this._y.call(null, d2))) continue;
-    xz[i] = x3;
-    yz[i] = y3;
-    if (x3 < x0) x0 = x3;
-    if (x3 > x1) x1 = x3;
-    if (y3 < y0) y0 = y3;
-    if (y3 > y1) y1 = y3;
-  }
-  if (x0 > x1 || y0 > y1) return this;
-  this.cover(x0, y0).cover(x1, y1);
-  for (i = 0; i < n; ++i) {
-    add(this, xz[i], yz[i], data[i]);
-  }
-  return this;
-}
-
-// node_modules/d3-quadtree/src/cover.js
-function cover_default(x3, y3) {
-  if (isNaN(x3 = +x3) || isNaN(y3 = +y3)) return this;
-  var x0 = this._x0, y0 = this._y0, x1 = this._x1, y1 = this._y1;
-  if (isNaN(x0)) {
-    x1 = (x0 = Math.floor(x3)) + 1;
-    y1 = (y0 = Math.floor(y3)) + 1;
-  } else {
-    var z2 = x1 - x0 || 1, node = this._root, parent, i;
-    while (x0 > x3 || x3 >= x1 || y0 > y3 || y3 >= y1) {
-      i = (y3 < y0) << 1 | x3 < x0;
-      parent = new Array(4), parent[i] = node, node = parent, z2 *= 2;
-      switch (i) {
-        case 0:
-          x1 = x0 + z2, y1 = y0 + z2;
-          break;
-        case 1:
-          x0 = x1 - z2, y1 = y0 + z2;
-          break;
-        case 2:
-          x1 = x0 + z2, y0 = y1 - z2;
-          break;
-        case 3:
-          x0 = x1 - z2, y0 = y1 - z2;
-          break;
-      }
-    }
-    if (this._root && this._root.length) this._root = node;
-  }
-  this._x0 = x0;
-  this._y0 = y0;
-  this._x1 = x1;
-  this._y1 = y1;
-  return this;
-}
-
-// node_modules/d3-quadtree/src/data.js
-function data_default() {
-  var data = [];
-  this.visit(function(node) {
-    if (!node.length) do
-      data.push(node.data);
-    while (node = node.next);
-  });
-  return data;
-}
-
-// node_modules/d3-quadtree/src/extent.js
-function extent_default(_2) {
-  return arguments.length ? this.cover(+_2[0][0], +_2[0][1]).cover(+_2[1][0], +_2[1][1]) : isNaN(this._x0) ? void 0 : [[this._x0, this._y0], [this._x1, this._y1]];
-}
-
-// node_modules/d3-quadtree/src/quad.js
-function quad_default(node, x0, y0, x1, y1) {
-  this.node = node;
-  this.x0 = x0;
-  this.y0 = y0;
-  this.x1 = x1;
-  this.y1 = y1;
-}
-
-// node_modules/d3-quadtree/src/find.js
-function find_default(x3, y3, radius) {
-  var data, x0 = this._x0, y0 = this._y0, x1, y1, x22, y22, x32 = this._x1, y32 = this._y1, quads = [], node = this._root, q, i;
-  if (node) quads.push(new quad_default(node, x0, y0, x32, y32));
-  if (radius == null) radius = Infinity;
-  else {
-    x0 = x3 - radius, y0 = y3 - radius;
-    x32 = x3 + radius, y32 = y3 + radius;
-    radius *= radius;
-  }
-  while (q = quads.pop()) {
-    if (!(node = q.node) || (x1 = q.x0) > x32 || (y1 = q.y0) > y32 || (x22 = q.x1) < x0 || (y22 = q.y1) < y0) continue;
-    if (node.length) {
-      var xm = (x1 + x22) / 2, ym = (y1 + y22) / 2;
-      quads.push(
-        new quad_default(node[3], xm, ym, x22, y22),
-        new quad_default(node[2], x1, ym, xm, y22),
-        new quad_default(node[1], xm, y1, x22, ym),
-        new quad_default(node[0], x1, y1, xm, ym)
-      );
-      if (i = (y3 >= ym) << 1 | x3 >= xm) {
-        q = quads[quads.length - 1];
-        quads[quads.length - 1] = quads[quads.length - 1 - i];
-        quads[quads.length - 1 - i] = q;
-      }
-    } else {
-      var dx = x3 - +this._x.call(null, node.data), dy = y3 - +this._y.call(null, node.data), d2 = dx * dx + dy * dy;
-      if (d2 < radius) {
-        var d3 = Math.sqrt(radius = d2);
-        x0 = x3 - d3, y0 = y3 - d3;
-        x32 = x3 + d3, y32 = y3 + d3;
-        data = node.data;
-      }
-    }
-  }
-  return data;
-}
-
-// node_modules/d3-quadtree/src/remove.js
-function remove_default(d2) {
-  if (isNaN(x3 = +this._x.call(null, d2)) || isNaN(y3 = +this._y.call(null, d2))) return this;
-  var parent, node = this._root, retainer, previous, next, x0 = this._x0, y0 = this._y0, x1 = this._x1, y1 = this._y1, x3, y3, xm, ym, right, bottom, i, j2;
-  if (!node) return this;
-  if (node.length) while (true) {
-    if (right = x3 >= (xm = (x0 + x1) / 2)) x0 = xm;
-    else x1 = xm;
-    if (bottom = y3 >= (ym = (y0 + y1) / 2)) y0 = ym;
-    else y1 = ym;
-    if (!(parent = node, node = node[i = bottom << 1 | right])) return this;
-    if (!node.length) break;
-    if (parent[i + 1 & 3] || parent[i + 2 & 3] || parent[i + 3 & 3]) retainer = parent, j2 = i;
-  }
-  while (node.data !== d2) if (!(previous = node, node = node.next)) return this;
-  if (next = node.next) delete node.next;
-  if (previous) return next ? previous.next = next : delete previous.next, this;
-  if (!parent) return this._root = next, this;
-  next ? parent[i] = next : delete parent[i];
-  if ((node = parent[0] || parent[1] || parent[2] || parent[3]) && node === (parent[3] || parent[2] || parent[1] || parent[0]) && !node.length) {
-    if (retainer) retainer[j2] = node;
-    else this._root = node;
-  }
-  return this;
-}
-function removeAll(data) {
-  for (var i = 0, n = data.length; i < n; ++i) this.remove(data[i]);
-  return this;
-}
-
-// node_modules/d3-quadtree/src/root.js
-function root_default() {
-  return this._root;
-}
-
-// node_modules/d3-quadtree/src/size.js
-function size_default() {
-  var size = 0;
-  this.visit(function(node) {
-    if (!node.length) do
-      ++size;
-    while (node = node.next);
-  });
-  return size;
-}
-
-// node_modules/d3-quadtree/src/visit.js
-function visit_default(callback) {
-  var quads = [], q, node = this._root, child, x0, y0, x1, y1;
-  if (node) quads.push(new quad_default(node, this._x0, this._y0, this._x1, this._y1));
-  while (q = quads.pop()) {
-    if (!callback(node = q.node, x0 = q.x0, y0 = q.y0, x1 = q.x1, y1 = q.y1) && node.length) {
-      var xm = (x0 + x1) / 2, ym = (y0 + y1) / 2;
-      if (child = node[3]) quads.push(new quad_default(child, xm, ym, x1, y1));
-      if (child = node[2]) quads.push(new quad_default(child, x0, ym, xm, y1));
-      if (child = node[1]) quads.push(new quad_default(child, xm, y0, x1, ym));
-      if (child = node[0]) quads.push(new quad_default(child, x0, y0, xm, ym));
-    }
-  }
-  return this;
-}
-
-// node_modules/d3-quadtree/src/visitAfter.js
-function visitAfter_default(callback) {
-  var quads = [], next = [], q;
-  if (this._root) quads.push(new quad_default(this._root, this._x0, this._y0, this._x1, this._y1));
-  while (q = quads.pop()) {
-    var node = q.node;
-    if (node.length) {
-      var child, x0 = q.x0, y0 = q.y0, x1 = q.x1, y1 = q.y1, xm = (x0 + x1) / 2, ym = (y0 + y1) / 2;
-      if (child = node[0]) quads.push(new quad_default(child, x0, y0, xm, ym));
-      if (child = node[1]) quads.push(new quad_default(child, xm, y0, x1, ym));
-      if (child = node[2]) quads.push(new quad_default(child, x0, ym, xm, y1));
-      if (child = node[3]) quads.push(new quad_default(child, xm, ym, x1, y1));
-    }
-    next.push(q);
-  }
-  while (q = next.pop()) {
-    callback(q.node, q.x0, q.y0, q.x1, q.y1);
-  }
-  return this;
-}
-
-// node_modules/d3-quadtree/src/x.js
-function defaultX(d2) {
-  return d2[0];
-}
-function x_default(_2) {
-  return arguments.length ? (this._x = _2, this) : this._x;
-}
-
-// node_modules/d3-quadtree/src/y.js
-function defaultY(d2) {
-  return d2[1];
-}
-function y_default(_2) {
-  return arguments.length ? (this._y = _2, this) : this._y;
-}
-
-// node_modules/d3-quadtree/src/quadtree.js
-function quadtree(nodes, x3, y3) {
-  var tree = new Quadtree(x3 == null ? defaultX : x3, y3 == null ? defaultY : y3, NaN, NaN, NaN, NaN);
-  return nodes == null ? tree : tree.addAll(nodes);
-}
-function Quadtree(x3, y3, x0, y0, x1, y1) {
-  this._x = x3;
-  this._y = y3;
-  this._x0 = x0;
-  this._y0 = y0;
-  this._x1 = x1;
-  this._y1 = y1;
-  this._root = void 0;
-}
-function leaf_copy(leaf) {
-  var copy = { data: leaf.data }, next = copy;
-  while (leaf = leaf.next) next = next.next = { data: leaf.data };
-  return copy;
-}
-var treeProto = quadtree.prototype = Quadtree.prototype;
-treeProto.copy = function() {
-  var copy = new Quadtree(this._x, this._y, this._x0, this._y0, this._x1, this._y1), node = this._root, nodes, child;
-  if (!node) return copy;
-  if (!node.length) return copy._root = leaf_copy(node), copy;
-  nodes = [{ source: node, target: copy._root = new Array(4) }];
-  while (node = nodes.pop()) {
-    for (var i = 0; i < 4; ++i) {
-      if (child = node.source[i]) {
-        if (child.length) nodes.push({ source: child, target: node.target[i] = new Array(4) });
-        else node.target[i] = leaf_copy(child);
-      }
-    }
-  }
-  return copy;
-};
-treeProto.add = add_default;
-treeProto.addAll = addAll;
-treeProto.cover = cover_default;
-treeProto.data = data_default;
-treeProto.extent = extent_default;
-treeProto.find = find_default;
-treeProto.remove = remove_default;
-treeProto.removeAll = removeAll;
-treeProto.root = root_default;
-treeProto.size = size_default;
-treeProto.visit = visit_default;
-treeProto.visitAfter = visitAfter_default;
-treeProto.x = x_default;
-treeProto.y = y_default;
-
-// node_modules/d3-force/src/constant.js
-function constant_default(x3) {
-  return function() {
-    return x3;
-  };
-}
-
-// node_modules/d3-force/src/jiggle.js
-function jiggle_default(random) {
-  return (random() - 0.5) * 1e-6;
-}
-
-// node_modules/d3-force/src/collide.js
-function x(d2) {
-  return d2.x + d2.vx;
-}
-function y(d2) {
-  return d2.y + d2.vy;
-}
-function collide_default(radius) {
-  var nodes, radii, random, strength = 1, iterations = 1;
-  if (typeof radius !== "function") radius = constant_default(radius == null ? 1 : +radius);
-  function force() {
-    var i, n = nodes.length, tree, node, xi, yi, ri, ri2;
-    for (var k2 = 0; k2 < iterations; ++k2) {
-      tree = quadtree(nodes, x, y).visitAfter(prepare);
-      for (i = 0; i < n; ++i) {
-        node = nodes[i];
-        ri = radii[node.index], ri2 = ri * ri;
-        xi = node.x + node.vx;
-        yi = node.y + node.vy;
-        tree.visit(apply);
-      }
-    }
-    function apply(quad, x0, y0, x1, y1) {
-      var data = quad.data, rj = quad.r, r2 = ri + rj;
-      if (data) {
-        if (data.index > node.index) {
-          var x3 = xi - data.x - data.vx, y3 = yi - data.y - data.vy, l = x3 * x3 + y3 * y3;
-          if (l < r2 * r2) {
-            if (x3 === 0) x3 = jiggle_default(random), l += x3 * x3;
-            if (y3 === 0) y3 = jiggle_default(random), l += y3 * y3;
-            l = (r2 - (l = Math.sqrt(l))) / l * strength;
-            node.vx += (x3 *= l) * (r2 = (rj *= rj) / (ri2 + rj));
-            node.vy += (y3 *= l) * r2;
-            data.vx -= x3 * (r2 = 1 - r2);
-            data.vy -= y3 * r2;
-          }
-        }
-        return;
-      }
-      return x0 > xi + r2 || x1 < xi - r2 || y0 > yi + r2 || y1 < yi - r2;
-    }
-  }
-  function prepare(quad) {
-    if (quad.data) return quad.r = radii[quad.data.index];
-    for (var i = quad.r = 0; i < 4; ++i) {
-      if (quad[i] && quad[i].r > quad.r) {
-        quad.r = quad[i].r;
-      }
-    }
-  }
-  function initialize() {
-    if (!nodes) return;
-    var i, n = nodes.length, node;
-    radii = new Array(n);
-    for (i = 0; i < n; ++i) node = nodes[i], radii[node.index] = +radius(node, i, nodes);
-  }
-  force.initialize = function(_nodes, _random) {
-    nodes = _nodes;
-    random = _random;
-    initialize();
-  };
-  force.iterations = function(_2) {
-    return arguments.length ? (iterations = +_2, force) : iterations;
-  };
-  force.strength = function(_2) {
-    return arguments.length ? (strength = +_2, force) : strength;
-  };
-  force.radius = function(_2) {
-    return arguments.length ? (radius = typeof _2 === "function" ? _2 : constant_default(+_2), initialize(), force) : radius;
-  };
-  return force;
-}
-
-// node_modules/d3-force/src/link.js
-function index(d2) {
-  return d2.index;
-}
-function find(nodeById, nodeId) {
-  var node = nodeById.get(nodeId);
-  if (!node) throw new Error("node not found: " + nodeId);
-  return node;
-}
-function link_default(links) {
-  var id = index, strength = defaultStrength, strengths, distance = constant_default(30), distances, nodes, count, bias, random, iterations = 1;
-  if (links == null) links = [];
-  function defaultStrength(link) {
-    return 1 / Math.min(count[link.source.index], count[link.target.index]);
-  }
-  function force(alpha) {
-    for (var k2 = 0, n = links.length; k2 < iterations; ++k2) {
-      for (var i = 0, link, source, target, x3, y3, l, b; i < n; ++i) {
-        link = links[i], source = link.source, target = link.target;
-        x3 = target.x + target.vx - source.x - source.vx || jiggle_default(random);
-        y3 = target.y + target.vy - source.y - source.vy || jiggle_default(random);
-        l = Math.sqrt(x3 * x3 + y3 * y3);
-        l = (l - distances[i]) / l * alpha * strengths[i];
-        x3 *= l, y3 *= l;
-        target.vx -= x3 * (b = bias[i]);
-        target.vy -= y3 * b;
-        source.vx += x3 * (b = 1 - b);
-        source.vy += y3 * b;
-      }
-    }
-  }
-  function initialize() {
-    if (!nodes) return;
-    var i, n = nodes.length, m3 = links.length, nodeById = new Map(nodes.map((d2, i2) => [id(d2, i2, nodes), d2])), link;
-    for (i = 0, count = new Array(n); i < m3; ++i) {
-      link = links[i], link.index = i;
-      if (typeof link.source !== "object") link.source = find(nodeById, link.source);
-      if (typeof link.target !== "object") link.target = find(nodeById, link.target);
-      count[link.source.index] = (count[link.source.index] || 0) + 1;
-      count[link.target.index] = (count[link.target.index] || 0) + 1;
-    }
-    for (i = 0, bias = new Array(m3); i < m3; ++i) {
-      link = links[i], bias[i] = count[link.source.index] / (count[link.source.index] + count[link.target.index]);
-    }
-    strengths = new Array(m3), initializeStrength();
-    distances = new Array(m3), initializeDistance();
-  }
-  function initializeStrength() {
-    if (!nodes) return;
-    for (var i = 0, n = links.length; i < n; ++i) {
-      strengths[i] = +strength(links[i], i, links);
-    }
-  }
-  function initializeDistance() {
-    if (!nodes) return;
-    for (var i = 0, n = links.length; i < n; ++i) {
-      distances[i] = +distance(links[i], i, links);
-    }
-  }
-  force.initialize = function(_nodes, _random) {
-    nodes = _nodes;
-    random = _random;
-    initialize();
-  };
-  force.links = function(_2) {
-    return arguments.length ? (links = _2, initialize(), force) : links;
-  };
-  force.id = function(_2) {
-    return arguments.length ? (id = _2, force) : id;
-  };
-  force.iterations = function(_2) {
-    return arguments.length ? (iterations = +_2, force) : iterations;
-  };
-  force.strength = function(_2) {
-    return arguments.length ? (strength = typeof _2 === "function" ? _2 : constant_default(+_2), initializeStrength(), force) : strength;
-  };
-  force.distance = function(_2) {
-    return arguments.length ? (distance = typeof _2 === "function" ? _2 : constant_default(+_2), initializeDistance(), force) : distance;
-  };
-  return force;
-}
-
-// node_modules/d3-dispatch/src/dispatch.js
-var noop = { value: () => {
-} };
-function dispatch() {
-  for (var i = 0, n = arguments.length, _2 = {}, t; i < n; ++i) {
-    if (!(t = arguments[i] + "") || t in _2 || /[\s.]/.test(t)) throw new Error("illegal type: " + t);
-    _2[t] = [];
-  }
-  return new Dispatch(_2);
-}
-function Dispatch(_2) {
-  this._ = _2;
-}
-function parseTypenames(typenames, types) {
-  return typenames.trim().split(/^|\s+/).map(function(t) {
-    var name = "", i = t.indexOf(".");
-    if (i >= 0) name = t.slice(i + 1), t = t.slice(0, i);
-    if (t && !types.hasOwnProperty(t)) throw new Error("unknown type: " + t);
-    return { type: t, name };
-  });
-}
-Dispatch.prototype = dispatch.prototype = {
-  constructor: Dispatch,
-  on: function(typename, callback) {
-    var _2 = this._, T2 = parseTypenames(typename + "", _2), t, i = -1, n = T2.length;
-    if (arguments.length < 2) {
-      while (++i < n) if ((t = (typename = T2[i]).type) && (t = get(_2[t], typename.name))) return t;
-      return;
-    }
-    if (callback != null && typeof callback !== "function") throw new Error("invalid callback: " + callback);
-    while (++i < n) {
-      if (t = (typename = T2[i]).type) _2[t] = set2(_2[t], typename.name, callback);
-      else if (callback == null) for (t in _2) _2[t] = set2(_2[t], typename.name, null);
-    }
-    return this;
-  },
-  copy: function() {
-    var copy = {}, _2 = this._;
-    for (var t in _2) copy[t] = _2[t].slice();
-    return new Dispatch(copy);
-  },
-  call: function(type, that) {
-    if ((n = arguments.length - 2) > 0) for (var args = new Array(n), i = 0, n, t; i < n; ++i) args[i] = arguments[i + 2];
-    if (!this._.hasOwnProperty(type)) throw new Error("unknown type: " + type);
-    for (t = this._[type], i = 0, n = t.length; i < n; ++i) t[i].value.apply(that, args);
-  },
-  apply: function(type, that, args) {
-    if (!this._.hasOwnProperty(type)) throw new Error("unknown type: " + type);
-    for (var t = this._[type], i = 0, n = t.length; i < n; ++i) t[i].value.apply(that, args);
-  }
-};
-function get(type, name) {
-  for (var i = 0, n = type.length, c2; i < n; ++i) {
-    if ((c2 = type[i]).name === name) {
-      return c2.value;
-    }
-  }
-}
-function set2(type, name, callback) {
-  for (var i = 0, n = type.length; i < n; ++i) {
-    if (type[i].name === name) {
-      type[i] = noop, type = type.slice(0, i).concat(type.slice(i + 1));
-      break;
-    }
-  }
-  if (callback != null) type.push({ name, value: callback });
-  return type;
-}
-var dispatch_default = dispatch;
-
-// node_modules/d3-timer/src/timer.js
-var frame = 0;
-var timeout = 0;
-var interval = 0;
-var pokeDelay = 1e3;
-var taskHead;
-var taskTail;
-var clockLast = 0;
-var clockNow = 0;
-var clockSkew = 0;
-var clock = typeof performance === "object" && performance.now ? performance : Date;
-var setFrame = typeof window === "object" && window.requestAnimationFrame ? window.requestAnimationFrame.bind(window) : function(f2) {
-  setTimeout(f2, 17);
-};
-function now2() {
-  return clockNow || (setFrame(clearNow), clockNow = clock.now() + clockSkew);
-}
-function clearNow() {
-  clockNow = 0;
-}
-function Timer() {
-  this._call = this._time = this._next = null;
-}
-Timer.prototype = timer.prototype = {
-  constructor: Timer,
-  restart: function(callback, delay, time3) {
-    if (typeof callback !== "function") throw new TypeError("callback is not a function");
-    time3 = (time3 == null ? now2() : +time3) + (delay == null ? 0 : +delay);
-    if (!this._next && taskTail !== this) {
-      if (taskTail) taskTail._next = this;
-      else taskHead = this;
-      taskTail = this;
-    }
-    this._call = callback;
-    this._time = time3;
-    sleep();
-  },
-  stop: function() {
-    if (this._call) {
-      this._call = null;
-      this._time = Infinity;
-      sleep();
-    }
-  }
-};
-function timer(callback, delay, time3) {
-  var t = new Timer();
-  t.restart(callback, delay, time3);
-  return t;
-}
-function timerFlush() {
-  now2();
-  ++frame;
-  var t = taskHead, e;
-  while (t) {
-    if ((e = clockNow - t._time) >= 0) t._call.call(void 0, e);
-    t = t._next;
-  }
-  --frame;
-}
-function wake() {
-  clockNow = (clockLast = clock.now()) + clockSkew;
-  frame = timeout = 0;
-  try {
-    timerFlush();
-  } finally {
-    frame = 0;
-    nap();
-    clockNow = 0;
-  }
-}
-function poke() {
-  var now3 = clock.now(), delay = now3 - clockLast;
-  if (delay > pokeDelay) clockSkew -= delay, clockLast = now3;
-}
-function nap() {
-  var t0, t1 = taskHead, t2, time3 = Infinity;
-  while (t1) {
-    if (t1._call) {
-      if (time3 > t1._time) time3 = t1._time;
-      t0 = t1, t1 = t1._next;
-    } else {
-      t2 = t1._next, t1._next = null;
-      t1 = t0 ? t0._next = t2 : taskHead = t2;
-    }
-  }
-  taskTail = t0;
-  sleep(time3);
-}
-function sleep(time3) {
-  if (frame) return;
-  if (timeout) timeout = clearTimeout(timeout);
-  var delay = time3 - clockNow;
-  if (delay > 24) {
-    if (time3 < Infinity) timeout = setTimeout(wake, time3 - clock.now() - clockSkew);
-    if (interval) interval = clearInterval(interval);
-  } else {
-    if (!interval) clockLast = clock.now(), interval = setInterval(poke, pokeDelay);
-    frame = 1, setFrame(wake);
-  }
-}
-
-// node_modules/d3-force/src/lcg.js
-var a = 1664525;
-var c = 1013904223;
-var m2 = 4294967296;
-function lcg_default() {
-  let s = 1;
-  return () => (s = (a * s + c) % m2) / m2;
-}
-
-// node_modules/d3-force/src/simulation.js
-function x2(d2) {
-  return d2.x;
-}
-function y2(d2) {
-  return d2.y;
-}
-var initialRadius = 10;
-var initialAngle = Math.PI * (3 - Math.sqrt(5));
-function simulation_default(nodes) {
-  var simulation, alpha = 1, alphaMin = 1e-3, alphaDecay = 1 - Math.pow(alphaMin, 1 / 300), alphaTarget = 0, velocityDecay = 0.6, forces = /* @__PURE__ */ new Map(), stepper = timer(step), event = dispatch_default("tick", "end"), random = lcg_default();
-  if (nodes == null) nodes = [];
-  function step() {
-    tick();
-    event.call("tick", simulation);
-    if (alpha < alphaMin) {
-      stepper.stop();
-      event.call("end", simulation);
-    }
-  }
-  function tick(iterations) {
-    var i, n = nodes.length, node;
-    if (iterations === void 0) iterations = 1;
-    for (var k2 = 0; k2 < iterations; ++k2) {
-      alpha += (alphaTarget - alpha) * alphaDecay;
-      forces.forEach(function(force) {
-        force(alpha);
-      });
-      for (i = 0; i < n; ++i) {
-        node = nodes[i];
-        if (node.fx == null) node.x += node.vx *= velocityDecay;
-        else node.x = node.fx, node.vx = 0;
-        if (node.fy == null) node.y += node.vy *= velocityDecay;
-        else node.y = node.fy, node.vy = 0;
-      }
-    }
-    return simulation;
-  }
-  function initializeNodes() {
-    for (var i = 0, n = nodes.length, node; i < n; ++i) {
-      node = nodes[i], node.index = i;
-      if (node.fx != null) node.x = node.fx;
-      if (node.fy != null) node.y = node.fy;
-      if (isNaN(node.x) || isNaN(node.y)) {
-        var radius = initialRadius * Math.sqrt(0.5 + i), angle = i * initialAngle;
-        node.x = radius * Math.cos(angle);
-        node.y = radius * Math.sin(angle);
-      }
-      if (isNaN(node.vx) || isNaN(node.vy)) {
-        node.vx = node.vy = 0;
-      }
-    }
-  }
-  function initializeForce(force) {
-    if (force.initialize) force.initialize(nodes, random);
-    return force;
-  }
-  initializeNodes();
-  return simulation = {
-    tick,
-    restart: function() {
-      return stepper.restart(step), simulation;
-    },
-    stop: function() {
-      return stepper.stop(), simulation;
-    },
-    nodes: function(_2) {
-      return arguments.length ? (nodes = _2, initializeNodes(), forces.forEach(initializeForce), simulation) : nodes;
-    },
-    alpha: function(_2) {
-      return arguments.length ? (alpha = +_2, simulation) : alpha;
-    },
-    alphaMin: function(_2) {
-      return arguments.length ? (alphaMin = +_2, simulation) : alphaMin;
-    },
-    alphaDecay: function(_2) {
-      return arguments.length ? (alphaDecay = +_2, simulation) : +alphaDecay;
-    },
-    alphaTarget: function(_2) {
-      return arguments.length ? (alphaTarget = +_2, simulation) : alphaTarget;
-    },
-    velocityDecay: function(_2) {
-      return arguments.length ? (velocityDecay = 1 - _2, simulation) : 1 - velocityDecay;
-    },
-    randomSource: function(_2) {
-      return arguments.length ? (random = _2, forces.forEach(initializeForce), simulation) : random;
-    },
-    force: function(name, _2) {
-      return arguments.length > 1 ? (_2 == null ? forces.delete(name) : forces.set(name, initializeForce(_2)), simulation) : forces.get(name);
-    },
-    find: function(x3, y3, radius) {
-      var i = 0, n = nodes.length, dx, dy, d2, node, closest;
-      if (radius == null) radius = Infinity;
-      else radius *= radius;
-      for (i = 0; i < n; ++i) {
-        node = nodes[i];
-        dx = x3 - node.x;
-        dy = y3 - node.y;
-        d2 = dx * dx + dy * dy;
-        if (d2 < radius) closest = node, radius = d2;
-      }
-      return closest;
-    },
-    on: function(name, _2) {
-      return arguments.length > 1 ? (event.on(name, _2), simulation) : event.on(name);
-    }
-  };
-}
-
-// node_modules/d3-force/src/manyBody.js
-function manyBody_default() {
-  var nodes, node, random, alpha, strength = constant_default(-30), strengths, distanceMin2 = 1, distanceMax2 = Infinity, theta2 = 0.81;
-  function force(_2) {
-    var i, n = nodes.length, tree = quadtree(nodes, x2, y2).visitAfter(accumulate);
-    for (alpha = _2, i = 0; i < n; ++i) node = nodes[i], tree.visit(apply);
-  }
-  function initialize() {
-    if (!nodes) return;
-    var i, n = nodes.length, node2;
-    strengths = new Array(n);
-    for (i = 0; i < n; ++i) node2 = nodes[i], strengths[node2.index] = +strength(node2, i, nodes);
-  }
-  function accumulate(quad) {
-    var strength2 = 0, q, c2, weight = 0, x3, y3, i;
-    if (quad.length) {
-      for (x3 = y3 = i = 0; i < 4; ++i) {
-        if ((q = quad[i]) && (c2 = Math.abs(q.value))) {
-          strength2 += q.value, weight += c2, x3 += c2 * q.x, y3 += c2 * q.y;
-        }
-      }
-      quad.x = x3 / weight;
-      quad.y = y3 / weight;
-    } else {
-      q = quad;
-      q.x = q.data.x;
-      q.y = q.data.y;
-      do
-        strength2 += strengths[q.data.index];
-      while (q = q.next);
-    }
-    quad.value = strength2;
-  }
-  function apply(quad, x1, _2, x22) {
-    if (!quad.value) return true;
-    var x3 = quad.x - node.x, y3 = quad.y - node.y, w2 = x22 - x1, l = x3 * x3 + y3 * y3;
-    if (w2 * w2 / theta2 < l) {
-      if (l < distanceMax2) {
-        if (x3 === 0) x3 = jiggle_default(random), l += x3 * x3;
-        if (y3 === 0) y3 = jiggle_default(random), l += y3 * y3;
-        if (l < distanceMin2) l = Math.sqrt(distanceMin2 * l);
-        node.vx += x3 * quad.value * alpha / l;
-        node.vy += y3 * quad.value * alpha / l;
-      }
-      return true;
-    } else if (quad.length || l >= distanceMax2) return;
-    if (quad.data !== node || quad.next) {
-      if (x3 === 0) x3 = jiggle_default(random), l += x3 * x3;
-      if (y3 === 0) y3 = jiggle_default(random), l += y3 * y3;
-      if (l < distanceMin2) l = Math.sqrt(distanceMin2 * l);
-    }
-    do
-      if (quad.data !== node) {
-        w2 = strengths[quad.data.index] * alpha / l;
-        node.vx += x3 * w2;
-        node.vy += y3 * w2;
-      }
-    while (quad = quad.next);
-  }
-  force.initialize = function(_nodes, _random) {
-    nodes = _nodes;
-    random = _random;
-    initialize();
-  };
-  force.strength = function(_2) {
-    return arguments.length ? (strength = typeof _2 === "function" ? _2 : constant_default(+_2), initialize(), force) : strength;
-  };
-  force.distanceMin = function(_2) {
-    return arguments.length ? (distanceMin2 = _2 * _2, force) : Math.sqrt(distanceMin2);
-  };
-  force.distanceMax = function(_2) {
-    return arguments.length ? (distanceMax2 = _2 * _2, force) : Math.sqrt(distanceMax2);
-  };
-  force.theta = function(_2) {
-    return arguments.length ? (theta2 = _2 * _2, force) : Math.sqrt(theta2);
-  };
-  return force;
-}
-
-// packages/layout-engine/src/engine.ts
 var import_elk_bundled = __toESM(require_elk_bundled(), 1);
 
 // packages/layout-engine/src/score.ts
@@ -128191,471 +128863,6 @@ function scoreLayout(document2, edges, previous, options = {}) {
   if (pinnedNodeMoves) hardViolations.push(`PINNED_NODE_MOVED:${pinnedNodeMoves}`);
   const score = 1e3 - overlapCount * (OVERLAP_MULT * weights.overlap) - edgeCrossings * (CROSSINGS_MULT * weights.crossings) - edgeLength * EDGE_LENGTH_MULT - displacement * (DISPLACEMENT_MULT * weights.displacement) + compactness * (COMPACTNESS_MULT * weights.compactness) + separation * (CLUSTER_SEP_MULT * (weights.clusterSeparation ?? 1)) + flow * (DIRECTION_MULT * (weights.direction ?? 0));
   return { overlapCount, overlapArea: overlapArea2, edgeCrossings, edgeLength, pinnedNodeMoves, displacement, compactness, clusterSeparation: separation, directionFlow: flow, hardViolations, score };
-}
-
-// packages/layout-engine/src/semantic/constraints.ts
-function normalizeConstraints(plan, current) {
-  const emphasisIds = [];
-  const groups = [];
-  const separations = [];
-  const fixedIds = /* @__PURE__ */ new Set();
-  let spacingMultiplier = 1;
-  for (const constraint of plan.constraints) {
-    switch (constraint.type) {
-      case "emphasis":
-        for (const id of constraint.nodeIds) if (!emphasisIds.includes(id)) emphasisIds.push(id);
-        break;
-      case "group":
-        if (constraint.nodeIds.length) groups.push({ label: typeof constraint.value === "string" ? constraint.value : "", nodeIds: [...constraint.nodeIds] });
-        break;
-      case "separation":
-        for (let i = 0; i < constraint.nodeIds.length; i += 1) {
-          for (let j2 = i + 1; j2 < constraint.nodeIds.length; j2 += 1) separations.push([constraint.nodeIds[i], constraint.nodeIds[j2]]);
-        }
-        break;
-      case "spacing":
-        if (typeof constraint.value === "number" && constraint.value > 0) spacingMultiplier = constraint.value;
-        break;
-      case "pin":
-      case "preserve-position":
-        for (const id of constraint.nodeIds) fixedIds.add(id);
-        break;
-      default:
-        break;
-    }
-  }
-  if (plan.preserve.pinnedNodes) {
-    for (const [nodeId, node] of Object.entries(current.nodes)) {
-      if (node.pinned) fixedIds.add(nodeId);
-    }
-  }
-  return {
-    emphasisIds,
-    groups: groups.sort((a2, b) => a2.label.localeCompare(b.label)),
-    separations,
-    direction: plan.direction ?? current.config.direction,
-    spacingMultiplier,
-    fixedIds,
-    preserveManualGroups: plan.preserve.manualGroups
-  };
-}
-
-// packages/layout-engine/src/semantic/detect.ts
-var LAYER_KEY = "layer";
-var MISC_LABEL = "\u5206\u6790\u8981\u70B9";
-function buildTopology(nodes, edges) {
-  const inScope = new Set(nodes.map((n) => n.id));
-  const degree = /* @__PURE__ */ new Map();
-  const adjacency = /* @__PURE__ */ new Map();
-  for (const node of nodes) {
-    degree.set(node.id, 0);
-    adjacency.set(node.id, /* @__PURE__ */ new Map());
-  }
-  for (const edge of edges) {
-    if (edge.archived || !inScope.has(edge.sourceNodeId) || !inScope.has(edge.targetNodeId) || edge.sourceNodeId === edge.targetNodeId) continue;
-    degree.set(edge.sourceNodeId, (degree.get(edge.sourceNodeId) ?? 0) + 1);
-    degree.set(edge.targetNodeId, (degree.get(edge.targetNodeId) ?? 0) + 1);
-    const a2 = adjacency.get(edge.sourceNodeId);
-    a2.set(edge.targetNodeId, (a2.get(edge.targetNodeId) ?? 0) + 1);
-    const b = adjacency.get(edge.targetNodeId);
-    b.set(edge.sourceNodeId, (b.get(edge.sourceNodeId) ?? 0) + 1);
-  }
-  return { degree, adjacency };
-}
-function layerOf(node) {
-  const raw = node.properties?.[LAYER_KEY];
-  return typeof raw === "string" ? raw.trim() : "";
-}
-function median(values) {
-  if (!values.length) return 0;
-  const sorted = [...values].sort((a2, b) => a2 - b);
-  const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
-}
-function edgesInto(nodeId, members, adjacency) {
-  let total = 0;
-  for (const [other, count] of adjacency.get(nodeId) ?? []) if (members.has(other)) total += count;
-  return total;
-}
-function detectClusters(nodes, edges, constraints, current) {
-  const sorted = [...nodes].sort((a2, b) => a2.id.localeCompare(b.id));
-  const { degree, adjacency } = buildTopology(sorted, edges);
-  const assigned = /* @__PURE__ */ new Map();
-  const clusters = [];
-  const push = (cluster) => {
-    clusters.push(cluster);
-    for (const id of cluster.memberIds) assigned.set(id, cluster.id);
-  };
-  const unassigned = () => sorted.filter((n) => !assigned.has(n.id));
-  constraints.groups.forEach((group, index2) => {
-    const members = group.nodeIds.filter((id) => degree.has(id) && !assigned.has(id));
-    if (members.length) push({ id: `group-${index2}`, label: group.label || `\u5206\u7EC4 ${index2 + 1}`, memberIds: members });
-  });
-  if (constraints.preserveManualGroups) {
-    const byGroup = /* @__PURE__ */ new Map();
-    for (const node of unassigned()) {
-      const gid = current.nodes[node.id]?.groupId;
-      if (gid) (byGroup.get(gid) ?? byGroup.set(gid, []).get(gid)).push(node.id);
-    }
-    for (const gid of [...byGroup.keys()].sort()) {
-      const members = byGroup.get(gid);
-      if (members.length) push({ id: `manual-${gid}`, label: gid.includes(":") ? gid.split(":").slice(1).join(":") : gid, memberIds: members });
-    }
-  }
-  const degrees = sorted.map((n) => degree.get(n.id) ?? 0);
-  const hubThreshold = Math.max(2, 2 * median(degrees.filter((d2) => d2 > 0)));
-  const centerCandidate = [...sorted].sort((a2, b) => degree.get(b.id) - degree.get(a2.id) || a2.id.localeCompare(b.id))[0];
-  const centerId = centerCandidate && !assigned.has(centerCandidate.id) && (degree.get(centerCandidate.id) ?? 0) >= hubThreshold ? centerCandidate.id : void 0;
-  const rest = unassigned().filter((n) => n.id !== centerId);
-  const byLayer = /* @__PURE__ */ new Map();
-  const noLayer = [];
-  for (const node of rest) {
-    const layer = layerOf(node);
-    if (layer) (byLayer.get(layer) ?? byLayer.set(layer, []).get(layer)).push(node.id);
-    else noLayer.push(node.id);
-  }
-  const bigLayers = [...byLayer.entries()].filter(([, m3]) => m3.length >= 2).sort((a2, b) => a2[0].localeCompare(b[0]));
-  for (const [layer, members] of bigLayers) push({ id: `layer-${layer}`, label: layer, memberIds: members });
-  const singletonLayerIds = [...byLayer.entries()].filter(([, m3]) => m3.length < 2).flatMap(([, m3]) => m3);
-  const orphans = [...singletonLayerIds, ...noLayer].filter((id) => !assigned.has(id)).sort((a2, b) => a2.localeCompare(b));
-  if (clusters.length === 0 && !centerId && orphans.length) {
-    return hubStar(sorted, degree, adjacency, constraints);
-  }
-  if (orphans.length >= 2) {
-    push({ id: "misc", label: MISC_LABEL, memberIds: orphans });
-  } else if (orphans.length === 1) {
-    const largest = [...clusters].filter((c2) => !c2.isCenter).sort((a2, b) => b.memberIds.length - a2.memberIds.length || a2.id.localeCompare(b.id))[0];
-    if (largest) {
-      largest.memberIds.push(orphans[0]);
-      assigned.set(orphans[0], largest.id);
-    } else push({ id: "misc", label: MISC_LABEL, memberIds: orphans });
-  }
-  if (centerId) {
-    const centerNode = sorted.find((n) => n.id === centerId);
-    clusters.unshift({ id: "center", label: layerOf(centerNode) || centerNode.title || "\u6838\u5FC3", memberIds: [centerId], isCenter: true });
-    assigned.set(centerId, "center");
-  }
-  applySeparations(clusters, constraints, degree, adjacency);
-  assignHubs(clusters, constraints, degree);
-  return clusters.filter((c2) => c2.memberIds.length > 0);
-}
-function hubStar(nodes, degree, adjacency, constraints) {
-  const degrees = nodes.map((n) => degree.get(n.id) ?? 0);
-  const med = median(degrees.filter((d2) => d2 > 0));
-  const anchorFloor = Math.max(3, 2 * med);
-  const anchorCap = Math.max(1, Math.ceil(nodes.length / 6));
-  const anchors = [...nodes].filter((n) => (degree.get(n.id) ?? 0) >= anchorFloor || constraints.emphasisIds.includes(n.id)).sort((a2, b) => degree.get(b.id) - degree.get(a2.id) || a2.id.localeCompare(b.id)).slice(0, anchorCap);
-  if (!anchors.length) return [{ id: "all", label: "\u5168\u90E8", memberIds: nodes.map((n) => n.id).sort((a2, b) => a2.localeCompare(b)) }];
-  const anchorIds = new Set(anchors.map((a2) => a2.id));
-  const clusters = anchors.map((a2) => ({ id: `hub-${a2.id}`, label: a2.title || a2.id, memberIds: [a2.id], hubId: a2.id }));
-  const clusterByAnchor = new Map(clusters.map((c2) => [c2.hubId, c2]));
-  const leftover = [];
-  for (const node of nodes) {
-    if (anchorIds.has(node.id)) continue;
-    let best;
-    let bestScore = 0;
-    for (const anchor of anchors) {
-      const score = adjacency.get(node.id)?.get(anchor.id) ?? 0;
-      if (score > bestScore) {
-        bestScore = score;
-        best = clusterByAnchor.get(anchor.id);
-      }
-    }
-    if (best) best.memberIds.push(node.id);
-    else leftover.push(node.id);
-  }
-  if (leftover.length) clusters.push({ id: "misc", label: MISC_LABEL, memberIds: leftover.sort((a2, b) => a2.localeCompare(b)) });
-  applySeparations(clusters, constraints, degree, adjacency);
-  assignHubs(clusters, constraints, degree);
-  return clusters;
-}
-function applySeparations(clusters, constraints, degree, adjacency) {
-  if (!constraints.separations.length) return;
-  const clusterOf = /* @__PURE__ */ new Map();
-  for (const cluster of clusters) for (const id of cluster.memberIds) clusterOf.set(id, cluster);
-  for (const [a2, b] of constraints.separations) {
-    const ca = clusterOf.get(a2);
-    const cb = clusterOf.get(b);
-    if (!ca || !cb || ca !== cb) continue;
-    const mover = (degree.get(a2) ?? 0) <= (degree.get(b) ?? 0) ? a2 : b;
-    ca.memberIds = ca.memberIds.filter((id) => id !== mover);
-    const target = clusters.filter((c2) => c2 !== ca && !c2.isCenter).map((c2) => ({ c: c2, score: edgesInto(mover, new Set(c2.memberIds), adjacency) })).sort((x3, y3) => y3.score - x3.score || x3.c.id.localeCompare(y3.c.id))[0];
-    if (target) {
-      target.c.memberIds.push(mover);
-      clusterOf.set(mover, target.c);
-    } else {
-      const spill = { id: `split-${mover}`, label: MISC_LABEL, memberIds: [mover] };
-      clusters.push(spill);
-      clusterOf.set(mover, spill);
-    }
-  }
-}
-function assignHubs(clusters, constraints, degree) {
-  for (const cluster of clusters) {
-    if (!cluster.hubId || !cluster.memberIds.includes(cluster.hubId)) {
-      const emphasis = cluster.memberIds.filter((id) => constraints.emphasisIds.includes(id)).sort((a2, b) => a2.localeCompare(b))[0];
-      cluster.hubId = emphasis ?? [...cluster.memberIds].sort((a2, b) => (degree.get(b) ?? 0) - (degree.get(a2) ?? 0) || a2.localeCompare(b))[0];
-    }
-    const hubId = cluster.hubId;
-    const others = cluster.memberIds.filter((id) => id !== hubId);
-    const maxOther = others.length ? Math.max(...others.map((id) => degree.get(id) ?? 0)) : -1;
-    cluster.hubProminent = Boolean(cluster.isCenter || constraints.emphasisIds.includes(hubId) || (degree.get(hubId) ?? 0) > maxOther);
-  }
-}
-
-// packages/layout-engine/src/semantic/size.ts
-var ENGINE_SIZES = /* @__PURE__ */ new Set(["220x112", "280x160", "300x180", "340x190", "260x140"]);
-var HUB_SIZE = { width: 340, height: 190 };
-var LEAF_SIZE = { width: 220, height: 112 };
-var BODY_SIZE = { width: 260, height: 140 };
-var DOC_MIN = { width: 180, height: 100 };
-function isManuallyResized(width, height) {
-  return !ENGINE_SIZES.has(`${Math.round(width)}x${Math.round(height)}`);
-}
-function applySizeHierarchy(document2, clusters, nodesById, preserveNodeSizes, fixedIds) {
-  if (preserveNodeSizes) return;
-  const hubIds = new Set(clusters.filter((c2) => c2.hubProminent).map((c2) => c2.hubId).filter((id) => Boolean(id)));
-  for (const cluster of clusters) {
-    for (const id of cluster.memberIds) {
-      const frame2 = document2.nodes[id];
-      const node = nodesById.get(id);
-      if (!frame2 || !node || fixedIds.has(id)) continue;
-      if (node.contentKind !== "document") continue;
-      if (isManuallyResized(frame2.width, frame2.height)) continue;
-      const target = hubIds.has(id) ? HUB_SIZE : node.type === "attribute" || node.type === "source" ? LEAF_SIZE : BODY_SIZE;
-      frame2.width = Math.max(DOC_MIN.width, target.width);
-      frame2.height = Math.max(DOC_MIN.height, target.height);
-    }
-  }
-}
-
-// packages/layout-engine/src/semantic/geometry.ts
-function bboxOf(frames, padding = 0) {
-  if (!frames.length) return { x: 0, y: 0, width: 0, height: 0 };
-  const minX = Math.min(...frames.map((f2) => f2.x));
-  const minY = Math.min(...frames.map((f2) => f2.y));
-  const maxX = Math.max(...frames.map((f2) => f2.x + f2.width));
-  const maxY = Math.max(...frames.map((f2) => f2.y + f2.height));
-  return { x: minX - padding, y: minY - padding, width: maxX - minX + padding * 2, height: maxY - minY + padding * 2 };
-}
-function overlapArea(a2, b) {
-  const w2 = Math.max(0, Math.min(a2.x + a2.width, b.x + b.width) - Math.max(a2.x, b.x));
-  const h2 = Math.max(0, Math.min(a2.y + a2.height, b.y + b.height) - Math.max(a2.y, b.y));
-  return w2 * h2;
-}
-function translateNode(node, dx, dy) {
-  node.x += dx;
-  node.y += dy;
-}
-function circleRadius(node) {
-  return Math.hypot(node.width, node.height) / 2;
-}
-
-// packages/layout-engine/src/semantic/micro.ts
-var GROUP_PADDING = 32;
-function layoutClusterLocal(cluster, document2, spacing, variant) {
-  const memberFrames = cluster.memberIds.map((id) => document2.nodes[id]).filter(Boolean);
-  if (!memberFrames.length) return { x: 0, y: 0, width: 0, height: 0 };
-  const hubId = cluster.hubId && document2.nodes[cluster.hubId] ? cluster.hubId : cluster.memberIds[0];
-  const hub = document2.nodes[hubId];
-  const satellites = cluster.memberIds.filter((id) => id !== hubId && document2.nodes[id]).sort((a2, b) => a2.localeCompare(b));
-  hub.x = -hub.width / 2;
-  hub.y = -hub.height / 2;
-  if (satellites.length) {
-    if (variant === "rows") placeRows(hub, satellites, document2, spacing);
-    else placeRadial(hub, satellites, document2, spacing);
-  }
-  return bboxOf(memberFrames, GROUP_PADDING);
-}
-function placeRadial(hub, satellites, document2, spacing) {
-  const hubR = circleRadius(hub);
-  const maxSatR = Math.max(...satellites.map((id) => circleRadius(document2.nodes[id])));
-  const baseR = hubR + spacing + maxSatR;
-  let index2 = 0;
-  let ring2 = 0;
-  while (index2 < satellites.length) {
-    const r2 = baseR + ring2 * (2 * maxSatR + spacing);
-    const ratio = Math.min(0.999, (maxSatR + spacing / 2) / r2);
-    const capacity = Math.max(1, Math.floor(Math.PI / Math.asin(ratio)));
-    const count = Math.min(capacity, satellites.length - index2);
-    for (let k2 = 0; k2 < count; k2 += 1) {
-      const angle = Math.PI * 2 * k2 / count - Math.PI / 2;
-      const cx = Math.cos(angle) * r2;
-      const cy = Math.sin(angle) * r2;
-      const node = document2.nodes[satellites[index2 + k2]];
-      node.x = cx - node.width / 2;
-      node.y = cy - node.height / 2;
-    }
-    index2 += count;
-    ring2 += 1;
-  }
-}
-function placeRows(hub, satellites, document2, spacing) {
-  const cols = Math.max(1, Math.ceil(Math.sqrt(satellites.length)));
-  const cellWidth = Math.max(...satellites.map((id) => document2.nodes[id].width)) + spacing;
-  const cellHeight = Math.max(...satellites.map((id) => document2.nodes[id].height)) + spacing;
-  const gridWidth = cols * cellWidth;
-  const startX = -gridWidth / 2 + cellWidth / 2;
-  const gridTop = hub.height / 2 + spacing;
-  satellites.forEach((id, index2) => {
-    const col = index2 % cols;
-    const row = Math.floor(index2 / cols);
-    const cx = startX + col * cellWidth;
-    const cy = gridTop + cellHeight / 2 + row * cellHeight;
-    const node = document2.nodes[id];
-    node.x = cx - node.width / 2;
-    node.y = cy - node.height / 2;
-  });
-}
-
-// packages/layout-engine/src/semantic/macro.ts
-function macroPlace(document2, clusters, bboxes, edges, clusterOf, fixedIds, current, spacing, variant, seed) {
-  const interGap = 2.5 * spacing;
-  const placed = clusters.map((cluster) => {
-    const bbox = bboxes.get(cluster.id) ?? { x: 0, y: 0, width: 0, height: 0 };
-    const localCenter = { x: bbox.x + bbox.width / 2, y: bbox.y + bbox.height / 2 };
-    const fixedMember = cluster.memberIds.filter((id) => fixedIds.has(id)).sort((a2, b) => a2.localeCompare(b))[0];
-    let center = localCenter;
-    let fixed = false;
-    if (fixedMember && current.nodes[fixedMember]) {
-      const local = document2.nodes[fixedMember];
-      const localAnchor = { x: local.x + local.width / 2, y: local.y + local.height / 2 };
-      const orig = current.nodes[fixedMember];
-      const origAnchor = { x: orig.x + orig.width / 2, y: orig.y + orig.height / 2 };
-      center = { x: localCenter.x + (origAnchor.x - localAnchor.x), y: localCenter.y + (origAnchor.y - localAnchor.y) };
-      fixed = true;
-    }
-    return { cluster, bbox, w: bbox.width, h: bbox.height, center, fixed, memberCount: cluster.memberIds.length };
-  });
-  if (variant === "grid") packGrid(placed, interGap, current.config.viewportWidth);
-  else {
-    packForce(placed, edges, clusterOf, interGap, seed);
-    const converged = separate(placed, interGap);
-    if (!converged) packGrid(placed, interGap, current.config.viewportWidth);
-  }
-  document2.groups = {};
-  for (const item of placed) {
-    const dx = item.center.x - (item.bbox.x + item.bbox.width / 2);
-    const dy = item.center.y - (item.bbox.y + item.bbox.height / 2);
-    for (const id of item.cluster.memberIds) {
-      const node = document2.nodes[id];
-      if (node) translateNode(node, dx, dy);
-    }
-    if (!item.cluster.isCenter && item.cluster.memberIds.length >= 2) {
-      const groupId = `cluster:${item.cluster.label}`;
-      document2.groups[groupId] = { groupId, x: item.bbox.x + dx, y: item.bbox.y + dy, width: item.bbox.width, height: item.bbox.height, direction: variant === "grid" ? "vertical" : "radial", padding: 32, collapsed: false };
-      for (const id of item.cluster.memberIds) {
-        if (document2.nodes[id]) document2.nodes[id].groupId = groupId;
-      }
-    } else {
-      for (const id of item.cluster.memberIds) {
-        if (document2.nodes[id]) document2.nodes[id].groupId = void 0;
-      }
-    }
-  }
-}
-function packForce(placed, edges, clusterOf, interGap, seed) {
-  const radius = (item) => Math.hypot(item.w, item.h) / 2 + interGap / 2;
-  const nodes = placed.map((item, index2) => {
-    const angle = index2 * 2.399963229728653;
-    const spiral = 120 * Math.sqrt(index2 + 1);
-    return { id: item.cluster.id, x: item.fixed ? item.center.x : Math.cos(angle) * spiral, y: item.fixed ? item.center.y : Math.sin(angle) * spiral, fx: item.fixed ? item.center.x : void 0, fy: item.fixed ? item.center.y : void 0, item };
-  });
-  const counts = /* @__PURE__ */ new Map();
-  for (const edge of edges) {
-    if (edge.archived) continue;
-    const a2 = clusterOf.get(edge.sourceNodeId);
-    const b = clusterOf.get(edge.targetNodeId);
-    if (!a2 || !b || a2 === b) continue;
-    const key = a2 < b ? `${a2}|${b}` : `${b}|${a2}`;
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-  }
-  const links = [...counts.entries()].sort((x3, y3) => x3[0].localeCompare(y3[0])).map(([key, count]) => {
-    const [a2, b] = key.split("|");
-    return { source: a2, target: b, count };
-  });
-  const byId = new Map(nodes.map((n) => [n.id, n]));
-  const simulation = simulation_default(nodes).force("link", link_default(links).id((n) => n.id).distance((link) => radius(byId.get(link.source.id).item) + radius(byId.get(link.target.id).item) + interGap).strength((link) => Math.min(0.9, link.count / (link.count + 2)))).force("charge", manyBody_default().strength(-1)).force("center", center_default(0, 0)).force("collide", collide_default((n) => radius(n.item)).strength(1)).stop();
-  for (let tick = 0; tick < 300; tick += 1) simulation.tick();
-  for (const node of nodes) {
-    if (!node.item.fixed) node.item.center = { x: node.x ?? 0, y: node.y ?? 0 };
-  }
-}
-function separate(placed, interGap) {
-  const half = interGap / 2;
-  const box = (item) => ({ x: item.center.x - item.w / 2 - half, y: item.center.y - item.h / 2 - half, width: item.w + interGap, height: item.h + interGap });
-  for (let iter = 0; iter < 400; iter += 1) {
-    let moved = false;
-    for (let i = 0; i < placed.length; i += 1) {
-      for (let j2 = i + 1; j2 < placed.length; j2 += 1) {
-        const a2 = placed[i];
-        const b = placed[j2];
-        const ba = box(a2);
-        const bb = box(b);
-        if (overlapArea(ba, bb) <= 0) continue;
-        const ox = Math.min(ba.x + ba.width, bb.x + bb.width) - Math.max(ba.x, bb.x);
-        const oy = Math.min(ba.y + ba.height, bb.y + bb.height) - Math.max(ba.y, bb.y);
-        const bothMovable = !a2.fixed && !b.fixed;
-        if (ox < oy) {
-          const dir = a2.center.x <= b.center.x ? -1 : 1;
-          const shift = bothMovable ? ox / 2 : ox;
-          if (!a2.fixed) a2.center.x += dir * shift;
-          if (!b.fixed) b.center.x -= dir * shift;
-          if (a2.fixed && b.fixed) continue;
-        } else {
-          const dir = a2.center.y <= b.center.y ? -1 : 1;
-          const shift = bothMovable ? oy / 2 : oy;
-          if (!a2.fixed) a2.center.y += dir * shift;
-          if (!b.fixed) b.center.y -= dir * shift;
-          if (a2.fixed && b.fixed) continue;
-        }
-        moved = true;
-      }
-    }
-    if (!moved) return true;
-  }
-  for (let i = 0; i < placed.length; i += 1) {
-    for (let j2 = i + 1; j2 < placed.length; j2 += 1) {
-      const a2 = placed[i];
-      const b = placed[j2];
-      const ba = box(a2);
-      const bb = box(b);
-      if (overlapArea(ba, bb) > 0) return false;
-    }
-  }
-  return true;
-}
-function packGrid(placed, interGap, viewportWidth) {
-  const target = Math.max(viewportWidth * 1.6, Math.max(...placed.map((p2) => p2.w)) + interGap);
-  const order = [...placed].sort((a2, b) => b.memberCount - a2.memberCount || a2.cluster.id.localeCompare(b.cluster.id));
-  let cursorX = 0;
-  let cursorY = 0;
-  let rowHeight = 0;
-  for (const item of order) {
-    if (cursorX > 0 && cursorX + item.w > target) {
-      cursorX = 0;
-      cursorY += rowHeight + interGap;
-      rowHeight = 0;
-    }
-    item.center = { x: cursorX + item.w / 2, y: cursorY + item.h / 2 };
-    cursorX += item.w + interGap;
-    rowHeight = Math.max(rowHeight, item.h);
-  }
-}
-
-// packages/layout-engine/src/semantic/index.ts
-function semanticClusterLayout(params) {
-  const { nodes, edges, plan, document: document2, current, spacing, seed, micro, macro } = params;
-  const constraints = normalizeConstraints(plan, current);
-  const clusters = detectClusters(nodes, edges, constraints, current);
-  const nodesById = new Map(nodes.map((node) => [node.id, node]));
-  applySizeHierarchy(document2, clusters, nodesById, plan.preserve.nodeSizes, constraints.fixedIds);
-  const bboxes = /* @__PURE__ */ new Map();
-  for (const cluster of clusters) bboxes.set(cluster.id, layoutClusterLocal(cluster, document2, spacing, micro));
-  const clusterOf = /* @__PURE__ */ new Map();
-  for (const cluster of clusters) for (const id of cluster.memberIds) clusterOf.set(id, cluster.id);
-  macroPlace(document2, clusters, bboxes, edges, clusterOf, constraints.fixedIds, current, spacing, macro, seed);
-  return { clusterOf };
 }
 
 // packages/layout-engine/src/engine.ts
@@ -128838,6 +129045,46 @@ async function generateLayoutCandidates(input) {
 }
 
 // packages/mcp/src/tools/layout.ts
+function layerOf2(node) {
+  const raw = node.properties?.layer;
+  return typeof raw === "string" ? raw.trim() : "";
+}
+function graphSignals(nodes, edges) {
+  const degree = /* @__PURE__ */ new Map();
+  for (const node of nodes) degree.set(node.id, 0);
+  for (const edge of edges) {
+    if (edge.sourceNodeId === edge.targetNodeId) continue;
+    degree.set(edge.sourceNodeId, (degree.get(edge.sourceNodeId) ?? 0) + 1);
+    degree.set(edge.targetNodeId, (degree.get(edge.targetNodeId) ?? 0) + 1);
+  }
+  const degrees = [...degree.values()];
+  const maxDegree = degrees.length ? Math.max(...degrees) : 0;
+  const topHubId = [...degree.entries()].sort((a2, b) => b[1] - a2[1] || a2[0].localeCompare(b[0]))[0]?.[0];
+  const positive = degrees.filter((d2) => d2 > 0).sort((a2, b) => a2 - b);
+  const medianDegree = positive.length ? positive.length % 2 ? positive[(positive.length - 1) / 2] : (positive[positive.length / 2 - 1] + positive[positive.length / 2]) / 2 : 0;
+  const isStar = maxDegree >= 3 && maxDegree >= 2 * Math.max(1, medianDegree);
+  const withLayer = nodes.filter((node) => layerOf2(node));
+  const layerCounts = /* @__PURE__ */ new Map();
+  for (const node of withLayer) {
+    const layer = layerOf2(node);
+    layerCounts.set(layer, (layerCounts.get(layer) ?? 0) + 1);
+  }
+  const distinctLayers = [...layerCounts.values()].filter((count) => count >= 2).length;
+  const kinds = /* @__PURE__ */ new Map();
+  for (const node of nodes) kinds.set(node.contentKind, (kinds.get(node.contentKind) ?? 0) + 1);
+  const dominantContentKind = [...kinds.entries()].sort((a2, b) => b[1] - a2[1])[0]?.[0];
+  return {
+    nodeCount: nodes.length,
+    edgeCount: edges.length,
+    layerCoverage: nodes.length ? Math.round(withLayer.length / nodes.length * 100) / 100 : 0,
+    distinctLayers,
+    maxDegree,
+    medianDegree,
+    isStar,
+    dominantContentKind,
+    topHubId
+  };
+}
 function registerLayoutTools(server2, ctx) {
   const { eventHub: eventHub2, mutateWithStore } = ctx;
   server2.registerTool("weaver_generate_layout_candidates", {
@@ -128934,7 +129181,10 @@ function registerLayoutTools(server2, ctx) {
     // constraints, or graph topology), enlarges hub nodes, and separates regions
     // with wide whitespace — the best choice for a knowledge/industry map an
     // analyst must read at a glance. It emits three structurally distinct
-    // candidates (语义聚类 / 分区矩阵 / 紧凑网格) and honors these constraints:
+    // candidates (语义聚类 / 分区矩阵 / 紧凑网格) and honors these constraints.
+    // New graph/canvas views are already seeded with this semantic arrangement on
+    // first open (no layout pass needed). To pick a strategy for a specific graph,
+    // call weaver_recommend_layout first — it returns a ready-to-run LayoutPlan draft.
     recommendedStrategy: "cluster",
     honoredConstraints: {
       cluster: ["emphasis", "group", "direction", "separation", "spacing", "pin", "preserve-position"],
@@ -128948,6 +129198,78 @@ function registerLayoutTools(server2, ctx) {
     candidateCount: { min: 1, max: 5, default: 3 }
   }));
   server2.registerTool("weaver_validate_layout_plan", { title: "Validate LayoutPlan", description: "Validate semantic layout constraints without calculating or applying coordinates.", inputSchema: { plan: external_exports.any() }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } }, defineTool(async ({ plan }) => result({ valid: true, plan: layoutPlanSchema.parse(plan) })));
+  server2.registerTool("weaver_recommend_layout", {
+    title: "Recommend Layout",
+    description: "Analyze the project graph and recommend a layout strategy, a ready-to-run LayoutPlan draft, and a preview of the clusters that would form. Read-only planning aid \u2014 call this before weaver_generate_layout_candidates so the first layout is well-chosen.",
+    inputSchema: { ...projectSchema2.shape, viewId: external_exports.string().optional(), goal: external_exports.string().optional() },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
+  }, defineTool(async ({ workspaceDir, projectId, viewId, goal }) => {
+    const payload = withStore(workspaceDir, (store) => {
+      const project = store.getProject(projectId);
+      if (!project) throw new Error("PROJECT_NOT_FOUND");
+      const scene = getScenePack(project.scenePackId, project.scenePackVersion);
+      const graph = store.getGraph(projectId);
+      const nodes = graph.nodes.filter((node) => !node.archived);
+      const nodeIds = new Set(nodes.map((node) => node.id));
+      const edges = graph.edges.filter((edge) => !edge.archived && nodeIds.has(edge.sourceNodeId) && nodeIds.has(edge.targetNodeId));
+      const targetViewId = viewId ?? `${scene?.defaultView ?? "graph"}-default`;
+      const current = store.getLayout(projectId, targetViewId);
+      const titleById = new Map(nodes.map((node) => [node.id, node.title]));
+      const signals = graphSignals(nodes, edges);
+      const g = (goal ?? "").toLowerCase();
+      const direction = current?.config.direction ?? "left-right";
+      const previewPlan = layoutPlanSchema.parse({ projectId, viewId: targetViewId, baseGraphRevision: graph.revision, baseLayoutRevision: current?.layoutRevision ?? 0, scope: { type: "whole-view" }, strategy: "cluster", direction, constraints: [], preserve: { pinnedNodes: false, manualGroups: false }, candidateCount: 3 });
+      const stubCurrent = { config: { direction }, nodes: {} };
+      const { clusters } = previewClusters({ nodes, edges, plan: previewPlan, current: current ?? stubCurrent });
+      const labeledClusters = clusters.filter((cluster) => !cluster.isCenter && cluster.memberCount >= 2).length;
+      let strategy = "grid";
+      let planDirection;
+      let rationale;
+      if (/timeline|时间线|时间轴|历史|chronolog/.test(g)) {
+        strategy = "timeline";
+        rationale = "\u76EE\u6807\u504F\u65F6\u95F4\u7EBF,\u6309\u65F6\u95F4\u5B57\u6BB5\u6A2A\u5411\u6392\u5E03\u3002";
+      } else if (/flow|流程|pipeline|因果|cause|工作流|工序/.test(g)) {
+        strategy = "layered";
+        planDirection = "left-right";
+        rationale = "\u76EE\u6807\u504F\u6D41\u7A0B/\u56E0\u679C,\u7528\u5206\u5C42\u6709\u5411\u5E03\u5C40\u5448\u73B0\u5DE6\u2192\u53F3\u6D41\u5411\u3002";
+      } else if (signals.edgeCount === 0) {
+        strategy = "grid";
+        rationale = "\u56FE\u4E2D\u6CA1\u6709\u8FB9,\u7F3A\u4E4F\u53EF\u5229\u7528\u7684\u7ED3\u6784,\u5148\u7528\u89C4\u6574\u7F51\u683C\u3002";
+      } else if (signals.distinctLayers >= 2 || labeledClusters >= 2) {
+        strategy = "cluster";
+        rationale = `\u5185\u5BB9\u53EF\u5206\u6210 ${Math.max(signals.distinctLayers, labeledClusters)} \u4E2A\u5E26\u6807\u7B7E\u5206\u533A(\u6309 layer/\u4E3B\u9898),\u8BED\u4E49\u805A\u7C7B\u80FD\u5448\u73B0\u4FE1\u606F\u5206\u5C42\u4E0E\u7C07\u95F4\u7559\u767D\u3002`;
+      } else if (signals.isStar) {
+        strategy = "cluster";
+        rationale = "\u56FE\u5448\u5F3A\u5355\u67A2\u7EBD\u661F\u578B,\u8BED\u4E49\u805A\u7C7B\u4EE5\u67A2\u7EBD\u4E3A\u4E2D\u5FC3\u3001\u536B\u661F\u73AF\u7ED5,\u5C42\u6B21\u6700\u6E05\u6670\u3002";
+      } else {
+        strategy = "grid";
+        rationale = "\u7ED3\u6784\u8F83\u6241\u5E73\u3001\u65E0\u660E\u663E\u5206\u5C42\u6216\u67A2\u7EBD,\u89C4\u6574\u7F51\u683C\u5DF2\u8DB3\u591F\u3002";
+      }
+      const constraints = [];
+      if (strategy === "cluster" && signals.isStar && signals.topHubId) constraints.push({ type: "emphasis", nodeIds: [signals.topHubId] });
+      const suggestedPlan = layoutPlanSchema.parse({
+        projectId,
+        viewId: targetViewId,
+        baseGraphRevision: graph.revision,
+        baseLayoutRevision: current?.layoutRevision ?? 0,
+        scope: { type: "whole-view" },
+        strategy,
+        ...planDirection ? { direction: planDirection } : {},
+        constraints,
+        preserve: {},
+        candidateCount: 3,
+        rationale
+      });
+      const alternatives = [
+        { strategy: "cluster", rationale: "\u8BED\u4E49\u5206\u533A,\u4FE1\u606F\u5206\u5C42 + \u5BC6\u5EA6\u5206\u6563\u3002" },
+        { strategy: "layered", rationale: "\u6709\u5411\u6D41\u7A0B/\u4F9D\u8D56,\u5206\u5C42\u5C55\u73B0\u6D41\u5411\u3002" },
+        { strategy: "grid", rationale: "\u65E0\u7ED3\u6784\u65F6\u7684\u89C4\u6574\u515C\u5E95\u3002" }
+      ].filter((alt) => alt.strategy !== strategy);
+      const clusterPreview = clusters.map((cluster) => ({ label: cluster.label, memberCount: cluster.memberCount, hub: cluster.hubId ? titleById.get(cluster.hubId) ?? cluster.hubId : void 0, isCenter: Boolean(cluster.isCenter) }));
+      return { recommendedStrategy: strategy, rationale, signals, clusterPreview, suggestedPlan, alternatives, viewExists: Boolean(current) };
+    });
+    return result(payload, `Recommended ${payload.recommendedStrategy} layout.`);
+  }));
 }
 
 // packages/mcp/src/tools/projects.ts
@@ -129389,7 +129711,7 @@ async function createWeaverServer(options = {}) {
   initLog(options.previewWorkspaceDir ?? process.cwd(), options.logOptions);
   const manifest = JSON.parse(readFileSync4(resolve4(process.cwd(), ".codex-plugin", "plugin.json"), "utf8"));
   const serverVersion = manifest.version;
-  const server2 = new McpServer({ name: "weaver-mcp-server", version: serverVersion }, { instructions: "Use Weaver tools to create semantic spaces, recommend immutable VisualTemplates, project one content graph into independent views, read concise graph summaries, propose LayoutPlan constraints, and submit auditable ChangeSets. Never invent template ids, final coordinates, or direct asset paths. Applying a template to an existing project must not mutate graph content." });
+  const server2 = new McpServer({ name: "weaver-mcp-server", version: serverVersion }, { instructions: "Use Weaver tools to create semantic spaces, recommend immutable VisualTemplates, project one content graph into independent views, read concise graph summaries, propose LayoutPlan constraints, and submit auditable ChangeSets. For quantitative or trend data (market size over time, share breakdowns, growth rates, KPIs), author a `chart` content node instead of prose \u2014 set content.kind='chart' with chartType line/bar/area (series of {label,value} points), pie (share breakdown), or metric (a single KPI with delta), and always fill sourceNote + asOf so figures stay auditable. Submit these via weaver_submit_changeset like any other content. Never invent template ids, final coordinates, or direct asset paths. Applying a template to an existing project must not mutate graph content." });
   const eventHub2 = new SseEventHub();
   await eventHub2.start();
   const widgetUri = widgetResourceUri(eventHub2.buildId);
