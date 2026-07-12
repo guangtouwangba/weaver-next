@@ -10,10 +10,12 @@
   },
   "dependencies": {
     "@modelcontextprotocol/ext-apps": "^1.7.4",
+    "@tiptap/extension-drag-handle-react": "^3.27.3",
     "@tiptap/extension-placeholder": "^3.27.3",
     "@tiptap/pm": "^3.27.3",
     "@tiptap/react": "^3.27.3",
     "@tiptap/starter-kit": "^3.27.3",
+    "@tiptap/suggestion": "^3.27.3",
     "@weaver/contracts": "0.1.0",
     "@xyflow/react": "^12.9.3",
     "lucide-react": "^0.468.0",

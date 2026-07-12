@@ -1,9 +1,13 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
+import type { Editor, Range } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
+import { DragHandle } from "@tiptap/extension-drag-handle-react";
 import { Markdown } from "tiptap-markdown";
-import type { Editor } from "@tiptap/react";
+import { GripVertical } from "lucide-react";
+import { createSlashCommand, type SlashItem } from "./slash-command";
+import { useI18n } from "../../lib/i18n";
 
 // tiptap-markdown augments editor.storage at runtime but its type augmentation
 // does not always resolve through the monorepo, so read it through a narrow cast.
@@ -16,9 +20,25 @@ const toMarkdown = (editor: Editor): string => (editor.storage as unknown as { m
 // stolen by React Flow's pan/zoom/drag gestures.
 export function NodeBlockEditor(props: { markdown: string; editable: boolean; placeholder: string; onSave?: (markdown: string) => void }) {
   const { markdown, editable, placeholder, onSave } = props;
+  const { t } = useI18n();
+  const slashItems = useMemo<SlashItem[]>(() => {
+    type Chain = ReturnType<Editor["chain"]>;
+    const apply = (run: (chain: Chain) => Chain) => (editor: Editor, range: Range) => run(editor.chain().focus().deleteRange(range)).run();
+    return [
+      { title: t("blockH1"), run: apply((chain) => chain.toggleHeading({ level: 1 })) },
+      { title: t("blockH2"), run: apply((chain) => chain.toggleHeading({ level: 2 })) },
+      { title: t("blockH3"), run: apply((chain) => chain.toggleHeading({ level: 3 })) },
+      { title: t("blockBullet"), run: apply((chain) => chain.toggleBulletList()) },
+      { title: t("blockOrdered"), run: apply((chain) => chain.toggleOrderedList()) },
+      { title: t("blockQuote"), run: apply((chain) => chain.toggleBlockquote()) },
+      { title: t("blockCode"), run: apply((chain) => chain.toggleCodeBlock()) },
+      { title: t("blockDivider"), run: apply((chain) => chain.setHorizontalRule()) },
+    ];
+  }, [t]);
+
   const editor = useEditor({
     editable,
-    extensions: [StarterKit, Markdown.configure({ html: false, transformPastedText: true, transformCopiedText: true }), Placeholder.configure({ placeholder })],
+    extensions: [StarterKit, Markdown.configure({ html: false, transformPastedText: true, transformCopiedText: true }), Placeholder.configure({ placeholder }), createSlashCommand(slashItems)],
     content: markdown,
     editorProps: { attributes: { class: "node-doc-editor nodrag nowheel" } },
   });
@@ -41,5 +61,8 @@ export function NodeBlockEditor(props: { markdown: string; editable: boolean; pl
     return () => { editor.off("blur", handler); };
   }, [editor, onSave]);
 
-  return <EditorContent editor={editor} />;
+  return <div className="node-doc-shell">
+    {editable && editor ? <DragHandle editor={editor}><span className="node-drag-handle nodrag" aria-hidden><GripVertical size={13} /></span></DragHandle> : null}
+    <EditorContent editor={editor} />
+  </div>;
 }

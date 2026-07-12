@@ -253,6 +253,15 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .node-doc-editor p.is-editor-empty:first-child::before { content: attr(data-placeholder); float: left; height: 0; color: var(--muted); pointer-events: none; }
 .canvas-wrap[data-lod="compact"] .node-doc { display: none; }
 .canvas-wrap[data-lod="thumbnail"] .content-card:not([data-selected="true"]) .node-doc, .canvas-wrap[data-lod="overview"] .content-card:not([data-selected="true"]) .node-doc { display: none; }
+.node-doc-shell { position: relative; }
+.node-drag-handle { display: grid; place-items: center; width: 18px; height: 20px; color: var(--muted); border-radius: 4px; cursor: grab; opacity: .7; }
+.node-drag-handle:hover { color: var(--fg-strong); background: var(--surface-muted); opacity: 1; }
+/* `/` command menu — one coherent floating island, positioned at the caret. */
+.slash-menu-anchor { position: fixed; z-index: 120; }
+.slash-menu { min-width: 190px; max-height: 280px; padding: 5px; overflow-y: auto; }
+.slash-menu button { width: 100%; min-height: 30px; padding: 5px 9px; display: flex; align-items: baseline; justify-content: space-between; gap: 10px; color: var(--fg); text-align: left; background: transparent; border: 0; border-radius: 7px; font-size: 12px; }
+.slash-menu button[data-active="true"] { color: var(--fg-strong); background: var(--surface-muted); }
+.slash-menu button small { color: var(--muted); font-size: 10px; font-family: var(--font-metadata); }
 
 .image-card { display: grid; grid-template-rows: minmax(0, 1fr) auto; background: #141414; border: 5px solid #141414; }
 .image-stage { min-height: 0; display: grid; place-items: center; overflow: hidden; color: var(--muted); background: #0d0d0d; }
