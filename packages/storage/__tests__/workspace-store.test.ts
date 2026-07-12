@@ -308,6 +308,41 @@ describe("WorkspaceStore", () => {
     db.close();
   });
 
+  it("reaps a silent running task so the canvas is unblocked", () => {
+    const db = store(); const scene = getScenePack("free-brainstorming")!;
+    const project = db.createProject({ title: "Reap", goal: "", scenePack: scene });
+    const chatSessionKey = bindCanvas(db, project, scene, "reap-session");
+    const zombie = db.prepareAgentTask({ canvasSessionId: "reap-session", actionKey: "develop_selection", dispatchKey: "zombie", chatSessionKey });
+    dispatchAndStart(db, zombie);
+    db.db.prepare("UPDATE agent_task SET data = json_set(data, '$.updatedAt', ?) WHERE id = ?").run(new Date(Date.now() - 601_000).toISOString(), zombie.taskId);
+    const reaped = db.reapExpiredCanvasTasks("reap-session");
+    expect(reaped).toHaveLength(1);
+    expect(db.getAgentTask(zombie.taskId)).toMatchObject({ status: "failed", error: { code: "AGENT_TASK_TIMEOUT" } });
+    expect(db.listCanvasTasks("reap-session")).toHaveLength(0);
+    const replacement = db.prepareAgentTask({ canvasSessionId: "reap-session", actionKey: "develop_selection", dispatchKey: "fresh", chatSessionKey });
+    expect(replacement.taskId).not.toBe(zombie.taskId);
+    db.close();
+  });
+
+  it("reaps a dispatched task no agent ever started, but never review states", () => {
+    const db = store(); const scene = getScenePack("free-brainstorming")!;
+    const project = db.createProject({ title: "ReapDispatch", goal: "", scenePack: scene });
+    const chatSessionKey = bindCanvas(db, project, scene, "reap-dispatch-session");
+    const task = db.prepareAgentTask({ canvasSessionId: "reap-dispatch-session", actionKey: "develop_selection", dispatchKey: "d1", chatSessionKey });
+    db.confirmAgentDispatch(task.taskId, "d1");
+    db.db.prepare("UPDATE agent_task SET data = json_set(data, '$.updatedAt', ?) WHERE id = ?").run(new Date(Date.now() - 181_000).toISOString(), task.taskId);
+    db.reapExpiredCanvasTasks("reap-dispatch-session");
+    expect(db.getAgentTask(task.taskId)).toMatchObject({ status: "failed", error: { code: "AGENT_DISPATCH_TIMEOUT" } });
+
+    const second = db.prepareAgentTask({ canvasSessionId: "reap-dispatch-session", actionKey: "develop_selection", dispatchKey: "d2", chatSessionKey });
+    dispatchAndStart(db, second);
+    db.updateAgentTask(second.taskId, { status: "pending_review" });
+    db.db.prepare("UPDATE agent_task SET data = json_set(data, '$.updatedAt', ?) WHERE id = ?").run(new Date(Date.now() - 3_600_000).toISOString(), second.taskId);
+    expect(db.reapExpiredCanvasTasks("reap-dispatch-session")).toHaveLength(0);
+    expect(db.getAgentTask(second.taskId)?.status).toBe("pending_review");
+    db.close();
+  });
+
   it("claims a mixed-task continuation once", () => {
     const db = store(); const scene = getScenePack("free-brainstorming")!;
     const project = db.createProject({ title: "Continuation", goal: "", scenePack: scene });

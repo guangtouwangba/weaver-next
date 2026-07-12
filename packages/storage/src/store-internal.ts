@@ -7,6 +7,9 @@ export function friendlyViewName(layout: Pick<LayoutDocument, "viewName" | "view
 
 export const terminalTaskStatuses = new Set<AgentTask["status"]>(["completed", "stale", "failed", "cancelled"]);
 export const canvasOfflineAfterMs = 30_000;
+export const preparedTaskExpiryMs = 120_000;
+export const dispatchedTaskExpiryMs = 180_000;
+export const runningTaskExpiryMs = 600_000;
 export const taskTransitions: Record<AgentTask["status"], Set<AgentTask["status"]>> = {
   prepared: new Set(["dispatched", "failed", "cancelled"]),
   dispatched: new Set(["running", "failed", "cancelled"]),

@@ -1,11 +1,29 @@
 import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { agentTaskSchema, type AgentTask } from "@weaver/contracts";
-import { json, now, parse, taskTransitions, terminalTaskStatuses } from "./store-internal.js";
+import { dispatchedTaskExpiryMs, json, now, parse, preparedTaskExpiryMs, runningTaskExpiryMs, taskTransitions, terminalTaskStatuses } from "./store-internal.js";
 import { transaction } from "./migrations.js";
 import { appendProjectEvent } from "./project-events.js";
 import { getBoundCanvas, getCanvasContext } from "./chat-canvas-binding.js";
 import { getLayout } from "./layout-templates.js";
+
+/** Lazily fail tasks whose owner went silent: prepared never dispatched, dispatched
+ * never started, running with no heartbeat (any updateAgentTask bumps updatedAt).
+ * pending_review / ready_to_continue wait on the USER and are never reaped. */
+export function reapExpiredCanvasTasks(db: DatabaseSync, canvasSessionId: string) {
+  const reaped: AgentTask[] = [];
+  for (const task of listCanvasTasks(db, canvasSessionId)) {
+    const idleMs = Date.now() - Date.parse(task.updatedAt);
+    if (task.status === "prepared" && idleMs > preparedTaskExpiryMs) {
+      reaped.push(updateAgentTask(db, task.taskId, { status: "failed", error: { code: "PREPARED_TASK_EXPIRED", message: "Prepared task was not dispatched within two minutes" } }));
+    } else if (task.status === "dispatched" && idleMs > dispatchedTaskExpiryMs) {
+      reaped.push(updateAgentTask(db, task.taskId, { status: "failed", error: { code: "AGENT_DISPATCH_TIMEOUT", message: "No agent started this task within three minutes" } }));
+    } else if (task.status === "running" && idleMs > runningTaskExpiryMs) {
+      reaped.push(updateAgentTask(db, task.taskId, { status: "failed", error: { code: "AGENT_TASK_TIMEOUT", message: "Agent reported no progress for ten minutes; task reaped so the canvas is unblocked" } }));
+    }
+  }
+  return reaped;
+}
 
 export function prepareAgentTask(db: DatabaseSync, input: { canvasSessionId: string; actionKey: string; userInstruction?: string; dispatchKey?: string; chatSessionKey?: string }) {
   const context = getCanvasContext(db, input.canvasSessionId);
@@ -18,13 +36,9 @@ export function prepareAgentTask(db: DatabaseSync, input: { canvasSessionId: str
   const existingTasks = listCanvasTasks(db, context.canvasSessionId, true);
   const duplicate = existingTasks.find((task) => task.dispatches.some((dispatch) => dispatch.dispatchKey === dispatchKey));
   if (duplicate) return duplicate;
-  for (const task of existingTasks.filter((candidate) => !terminalTaskStatuses.has(candidate.status))) {
-    if (task.status === "prepared" && Date.now() - Date.parse(task.updatedAt) > 120_000) {
-      updateAgentTask(db, task.taskId, { status: "failed", error: { code: "PREPARED_TASK_EXPIRED", message: "Prepared task was not dispatched within two minutes" } });
-      continue;
-    }
-    throw new Error(`ACTIVE_CANVAS_TASK_EXISTS:${task.taskId}`);
-  }
+  reapExpiredCanvasTasks(db, context.canvasSessionId);
+  const [blocking] = listCanvasTasks(db, context.canvasSessionId);
+  if (blocking) throw new Error(`ACTIVE_CANVAS_TASK_EXISTS:${blocking.taskId}`);
   const intent = ["develop_selection", "follow_up_ask", "layout_view", "develop_then_layout"].includes(input.actionKey) ? input.actionKey : "develop_selection";
   const task = agentTaskSchema.parse({
     taskId: randomUUID(), canvasSessionId: context.canvasSessionId, workspaceDir: context.workspaceDir, projectId: context.projectId, viewId: context.viewId,
