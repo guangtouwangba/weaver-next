@@ -14,6 +14,7 @@ import { registerCanvasPromptsTools } from "./tools/canvas-prompts.js";
 import { registerChangesetsTools } from "./tools/changesets.js";
 import { registerContentTools } from "./tools/content.js";
 import { registerGraphTools } from "./tools/graph.js";
+import { registerImportAssetTool } from "./tools/import-asset.js";
 import { registerLayoutTools } from "./tools/layout.js";
 import { registerManageViewTool } from "./tools/manage-view.js";
 import { registerProjectsTools } from "./tools/projects.js";
@@ -155,6 +156,7 @@ export async function createWeaverServer(options: { previewWorkspaceDir?: string
   registerReadCatalogTool(server);
   registerReadReviewTool(server);
   registerAssetsTools(server);
+  registerImportAssetTool(server);
   registerContentTools(server);
   registerCanvasBindingTools(server, { mutateWithStore });
   registerReadSessionTool(server);

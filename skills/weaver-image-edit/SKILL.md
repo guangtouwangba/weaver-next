@@ -18,7 +18,7 @@ Native Weaver widget open. Requires a host image model (Codex, or a configured i
 3. Choose the source image: use the clean underlying image content in the screenshot; if too cropped/low-res, ask the user for a cleaner export.
 4. Build the generation prompt: apply the annotations as edit instructions; preserve the original subject, composition, aspect ratio, and style unless an annotation says otherwise; remove ALL annotation artifacts (red arrows, labels, selection outlines, handles); output only the revised clean image.
 5. Generate; resolve the exact bytes for THIS request; base64-encode.
-6. `weaver_ingest_image` → `assetId`.
+6. `weaver_import_asset(source:"bytes")` → `assetId`.
 7. Place via ChangeSet: `add-node` image in a clear area BESIDE the original node. Never replace/move/hide the original.
 8. Confirm the new node id and pending-review state.
 

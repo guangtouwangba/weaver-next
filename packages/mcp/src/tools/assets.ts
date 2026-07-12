@@ -1,13 +1,15 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import sharp from "sharp";
 import { z } from "zod";
 import { WorkspaceStore } from "@weaver/storage";
 import { projectSchema } from "../shared/schemas.js";
 import { defineTool, failure, result, withStore } from "../shared/tool-runtime.js";
 
 /**
- * Asset handling: read a preview thumbnail of an imported image, and import new
- * image bytes. `weaver_get_asset_metadata` was model-only and is now folded into
+ * Asset handling: read a preview thumbnail of an imported image, and the widget's
+ * own image import (`weaver_import_image_asset`, app-only). The agent/skill-side
+ * image-import writes (`weaver_ingest_image`, `weaver_render_svg_image`) were
+ * merged into the model-facing `weaver_import_asset` (see tools/import-asset.ts).
+ * `weaver_get_asset_metadata` was model-only and is now folded into
  * weaver_read_catalog(resource:"asset.metadata").
  */
 export function registerAssetsTools(server: McpServer) {
@@ -22,18 +24,4 @@ export function registerAssetsTools(server: McpServer) {
     title: "Import Image Asset", description: "Widget-only import of one JPEG, PNG, WebP or GIF up to 20MB. Validates bytes, deduplicates by SHA-256 and generates a bounded WebP thumbnail without changing graphRevision.",
     inputSchema: { ...projectSchema.shape, mimeType: z.enum(["image/jpeg", "image/png", "image/webp", "image/gif"]), base64: z.string().min(1).max(28 * 1024 * 1024) }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }, _meta: { ui: { visibility: ["app"] } },
   }, async ({ workspaceDir, projectId, mimeType, base64 }) => { try { const store = new WorkspaceStore(workspaceDir); try { const output = await store.importImageAsset({ projectId, mimeType, data: Buffer.from(base64, "base64") }); return result(output, output.deduplicated ? "Reused existing image asset." : "Imported image asset."); } finally { store.close(); } } catch (error) { return failure(error); } });
-
-  server.registerTool("weaver_ingest_image", {
-    title: "Ingest Image (skill)", description: "Import raw image bytes (base64) produced by an imagegen skill into the project's asset store and return an assetId to reference from a ChangeSet add-node image op. Content-addressed and deduplicated; validates that the declared mimeType matches the real bytes; does not change graphRevision.",
-    inputSchema: { ...projectSchema.shape, mimeType: z.enum(["image/jpeg", "image/png", "image/webp", "image/gif"]), base64: z.string().min(1).max(28 * 1024 * 1024) }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-  }, async ({ workspaceDir, projectId, mimeType, base64 }) => { try { const store = new WorkspaceStore(workspaceDir); try { const output = await store.importImageAsset({ projectId, mimeType, data: Buffer.from(base64, "base64") }); return result({ assetId: output.asset.id, width: output.asset.width, height: output.asset.height, deduplicated: output.deduplicated }, output.deduplicated ? "Reused existing image asset." : "Imported image asset."); } finally { store.close(); } } catch (error) { return failure(error); } });
-
-  server.registerTool("weaver_render_svg_image", {
-    title: "Render SVG to Image Asset", description: "Rasterize an agent-authored SVG document to a PNG and import it as a project asset (returns assetId). Use for crisp-text infographics/covers and as the image path on hosts without a built-in image model. Deterministic; does not change graphRevision.",
-    inputSchema: { ...projectSchema.shape, svg: z.string().min(1).max(2 * 1024 * 1024), scale: z.number().min(1).max(3).default(2) }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-  }, async ({ workspaceDir, projectId, svg, scale }) => { try {
-    const png = await sharp(Buffer.from(svg), { density: Math.round(96 * scale) }).png().toBuffer();
-    const store = new WorkspaceStore(workspaceDir);
-    try { const output = await store.importImageAsset({ projectId, mimeType: "image/png", data: png }); return result({ assetId: output.asset.id, width: output.asset.width, height: output.asset.height }, "Rendered SVG to image asset."); } finally { store.close(); }
-  } catch (error) { return failure(error); } });
 }

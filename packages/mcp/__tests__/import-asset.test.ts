@@ -1,0 +1,87 @@
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { afterEach, describe, expect, it } from "vitest";
+import { getScenePack } from "@weaver/scene-packs";
+import { WorkspaceStore } from "@weaver/storage";
+import { createWeaverServer, type WeaverServer } from "../src/create-server.js";
+
+// 1x1 opaque PNG (same fixture as imagegen-tools.test.ts).
+const PNG_1x1 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+const SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="200"><rect width="320" height="200" fill="#0f1f33"/><text x="20" y="60" font-size="28" fill="#fff">机器人产业</text></svg>`;
+
+const roots: string[] = [];
+const servers: WeaverServer[] = [];
+afterEach(async () => {
+  await Promise.all(servers.splice(0).map((server) => server.close()));
+  roots.splice(0).forEach((root) => rmSync(root, { recursive: true, force: true }));
+});
+
+async function setup() {
+  const root = mkdtempSync(join(tmpdir(), "weaver-import-asset-")); roots.push(root); mkdirSync(root, { recursive: true });
+  const scene = getScenePack("entity-relationship")!;
+  const store = new WorkspaceStore(root);
+  const project = store.createProject({ title: "Import", goal: "", scenePack: scene });
+  store.close();
+  const server = await createWeaverServer({ previewWorkspaceDir: root }); servers.push(server);
+  return { root, server, project };
+}
+
+describe("weaver_import_asset", () => {
+  it("source:'bytes' imports base64 image bytes and returns the same payload as weaver_ingest_image", async () => {
+    const { root, server, project } = await setup();
+    const res = await server.dispatch("weaver_import_asset", { workspaceDir: root, projectId: project.id, source: "bytes", mimeType: "image/png", base64: PNG_1x1 }) as any;
+    expect(res.structuredContent.assetId).toMatch(/.+/);
+    expect(res.structuredContent).toMatchObject({ width: 1, height: 1, deduplicated: false });
+  });
+
+  it("source:'bytes' deduplicates identical bytes (idempotent by content hash)", async () => {
+    const { root, server, project } = await setup();
+    const a = await server.dispatch("weaver_import_asset", { workspaceDir: root, projectId: project.id, source: "bytes", mimeType: "image/png", base64: PNG_1x1 }) as any;
+    const b = await server.dispatch("weaver_import_asset", { workspaceDir: root, projectId: project.id, source: "bytes", mimeType: "image/png", base64: PNG_1x1 }) as any;
+    expect(b.structuredContent.assetId).toBe(a.structuredContent.assetId);
+    expect(b.structuredContent.deduplicated).toBe(true);
+  });
+
+  it("source:'bytes' rejects bytes whose real format contradicts the declared mimeType", async () => {
+    const { root, server, project } = await setup();
+    const res = await server.dispatch("weaver_import_asset", { workspaceDir: root, projectId: project.id, source: "bytes", mimeType: "image/jpeg", base64: PNG_1x1 }) as any;
+    expect(res.isError).toBe(true);
+  });
+
+  it("source:'svg' rasterizes an SVG (with text) to a PNG asset like weaver_render_svg_image", async () => {
+    const { root, server, project } = await setup();
+    const res = await server.dispatch("weaver_import_asset", { workspaceDir: root, projectId: project.id, source: "svg", svg: SVG, scale: 2 }) as any;
+    expect(res.structuredContent.assetId).toMatch(/.+/);
+    expect(res.structuredContent.width).toBeGreaterThanOrEqual(320);
+  });
+
+  it("source:'svg' errors on non-SVG input", async () => {
+    const { root, server, project } = await setup();
+    const res = await server.dispatch("weaver_import_asset", { workspaceDir: root, projectId: project.id, source: "svg", svg: "not svg at all", scale: 2 }) as any;
+    expect(res.isError).toBe(true);
+  });
+
+  it("source:'bytes' without base64 fails with a typed per-source error", async () => {
+    const { root, server, project } = await setup();
+    const res = await server.dispatch("weaver_import_asset", { workspaceDir: root, projectId: project.id, source: "bytes", mimeType: "image/png" }) as any;
+    expect(res.isError).toBe(true);
+    expect(res.structuredContent.code).toBe("IMPORT_ASSET_REQUIRES_base64");
+  });
+
+  it("source:'svg' without svg fails with a typed per-source error", async () => {
+    const { root, server, project } = await setup();
+    const res = await server.dispatch("weaver_import_asset", { workspaceDir: root, projectId: project.id, source: "svg", scale: 2 }) as any;
+    expect(res.isError).toBe(true);
+    expect(res.structuredContent.code).toBe("IMPORT_ASSET_REQUIRES_svg");
+  });
+
+  it("is model-facing, and the two old imagegen tools are removed from the model surface", async () => {
+    const { root, server } = await setup();
+    const d = await server.dispatch("weaver_get_diagnostics", { workspaceDir: root }) as any;
+    const names: string[] = d.structuredContent.toolSurface.modelFacingNames;
+    expect(names).toContain("weaver_import_asset");
+    expect(names).not.toContain("weaver_ingest_image");
+    expect(names).not.toContain("weaver_render_svg_image");
+  });
+});
