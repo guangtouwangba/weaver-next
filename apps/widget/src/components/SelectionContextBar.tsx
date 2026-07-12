@@ -11,7 +11,7 @@ export function activeTaskBusyLabel(task: AgentTask | null): string | undefined 
   if (!task) return undefined;
   switch (task.status) {
     case "dispatched": return "等待接单…";
-    case "running": return task.activeStage === "layout" ? "排版中…" : "生成中…";
+    case "running": return task.progressNote ?? (task.activeStage === "layout" ? "排版中…" : "生成中…");
     case "pending_review": return "待确认…";
     case "ready_to_continue": return "继续中…";
     default: return "处理中…";
