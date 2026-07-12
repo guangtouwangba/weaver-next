@@ -6,7 +6,7 @@ import { seedSemanticLayout } from "@weaver/layout-engine/semantic";
 import { defaultLayout, json, now, parse } from "./store-internal.js";
 import { transaction } from "./migrations.js";
 import { appendProjectEvent } from "./project-events.js";
-import { createProject, getProject, writeProjectSnapshots } from "./projects.js";
+import { createProject, getProject, patchProject, writeProjectSnapshots } from "./projects.js";
 import { defaultNodeFrame, getGraph, replaceGraph } from "./graph.js";
 import { catalogViewFromLayout, getProjectView } from "./view-catalog.js";
 import { getChatCanvasBinding, openChatCanvasBinding, switchChatCanvasBinding } from "./chat-canvas-binding.js";
@@ -145,6 +145,7 @@ export function createProjectFromVisualTemplate(db: DatabaseSync, dataDir: strin
     const nodes = input.template.starterBlueprint.nodes.map((item) => nodeSchema.parse({ id: ids.get(item.key), projectId: project.id, type: binding.nodeRoles[item.role] ?? input.scenePack.nodeTypes[0].key, title: item.title, body: "", contentKind: item.contentKind, content: { kind: "document", mode: "note", markdown: "", excerpt: "", embeddedAssetIds: [] }, properties: item.properties, archived: false, createdAt: timestamp, updatedAt: timestamp }));
     const edges = input.template.starterBlueprint.edges.map((item) => edgeSchema.parse({ id: randomUUID(), projectId: project.id, type: binding.edgeRoles[item.role] ?? input.scenePack.edgeTypes[0]?.key ?? "relation", sourceNodeId: ids.get(item.sourceKey), targetNodeId: ids.get(item.targetKey), directed: true, properties: {}, archived: false, createdAt: timestamp, updatedAt: timestamp }));
     replaceGraph(db, { projectId: project.id, revision: 1, nodes, edges });
+    patchProject(db, project.id, { starterNodeIds: nodes.map((node) => node.id) });
     project = getProject(db, project.id)!;
     const layout = templateLayout(db, { project, graph: getGraph(db, project.id), template: input.template, viewId: project.defaultViewId, viewName: input.template.name, layoutRevision: 1 });
     saveLayout(db, layout, false);

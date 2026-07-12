@@ -103,6 +103,7 @@ export const projectSchema = z.object({
   graphRevision: z.number().int().nonnegative().default(0),
   viewCatalogRevision: z.number().int().nonnegative().default(0),
   createdFromTemplate: z.object({ id: z.string(), version: z.string() }).optional(),
+  starterNodeIds: z.array(z.string()).default([]),
   createdAt: z.string(),
   updatedAt: z.string(),
 });

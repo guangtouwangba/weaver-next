@@ -586,4 +586,12 @@ describe("WorkspaceStore", () => {
     reopened.close();
   });
 
+  it("records template starter node ids on the project", () => {
+    const db = store(); const scene = getScenePack("problem-decomposition")!; const template = getVisualTemplate("logic-tree")!;
+    const created = db.createProjectFromVisualTemplate({ title: "Seeded", goal: "", scenePack: scene, template });
+    expect(created.project.starterNodeIds).toHaveLength(template.starterBlueprint.nodes.length);
+    expect(new Set(created.graph.nodes.map((node) => node.id))).toEqual(new Set(created.project.starterNodeIds));
+    db.close();
+  });
+
 });

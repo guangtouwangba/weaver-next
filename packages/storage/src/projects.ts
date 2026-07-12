@@ -19,6 +19,14 @@ export function getProject(db: DatabaseSync, projectId: string) {
   return row ? projectSchema.parse(parse(row.data)) : null;
 }
 
+export function patchProject(db: DatabaseSync, projectId: string, patch: Partial<SpaceProject>) {
+  const current = getProject(db, projectId);
+  if (!current) throw new Error(`PROJECT_NOT_FOUND:${projectId}`);
+  const next = projectSchema.parse({ ...current, ...patch, id: current.id, createdAt: current.createdAt, updatedAt: now() });
+  db.prepare("UPDATE project SET data = ? WHERE id = ?").run(json(next), projectId);
+  return next;
+}
+
 export function createProject(db: DatabaseSync, dataDir: string, input: { title: string; goal: string; scenePack: ScenePack; automationLevel?: SpaceProject["automationLevel"]; createdFromTemplate?: { id: string; version: string }; writeSnapshots?: boolean }) {
   const timestamp = now();
   const project = projectSchema.parse({
