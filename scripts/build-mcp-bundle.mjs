@@ -6,6 +6,7 @@ const internalPackages = new Map([
   ["@weaver/contracts", "packages/contracts/src/index.ts"],
   ["@weaver/core", "packages/core/src/index.ts"],
   ["@weaver/layout-engine", "packages/layout-engine/src/index.ts"],
+  ["@weaver/layout-engine/semantic", "packages/layout-engine/src/semantic/index.ts"],
   ["@weaver/scene-packs", "packages/scene-packs/src/index.ts"],
   ["@weaver/storage", "packages/storage/src/index.ts"],
   ["@weaver/visual-templates", "packages/visual-templates/src/index.ts"],

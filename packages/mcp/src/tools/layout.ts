@@ -1,9 +1,10 @@
 import { randomUUID } from "node:crypto";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { layoutOperationSchema, layoutPlanSchema } from "@weaver/contracts";
+import { layoutPlanSchema, layoutOperationSchema, type LayoutDirection, type LayoutDocument, type LayoutStrategy, type SpaceNode } from "@weaver/contracts";
 import { applyLayoutOperations } from "@weaver/core";
 import { generateLayoutCandidates } from "@weaver/layout-engine";
+import { previewClusters } from "@weaver/layout-engine/semantic";
 import { getScenePack } from "@weaver/scene-packs";
 import { WorkspaceStore } from "@weaver/storage";
 import { projectSchema, workspaceSchema } from "../shared/schemas.js";
@@ -12,6 +13,50 @@ import { chatSessionKeyFromRequest } from "../thread-context.js";
 import type { SseEventHub } from "../event-hub.js";
 
 export type LayoutToolsCtx = { eventHub: SseEventHub; mutateWithStore: MutateWithStore };
+
+function layerOf(node: SpaceNode): string {
+  const raw = node.properties?.layer;
+  return typeof raw === "string" ? raw.trim() : "";
+}
+
+/** Cheap structural signals used to recommend a layout strategy — degree
+ * distribution, the analyst's `properties.layer` coverage, and star-ness. */
+function graphSignals(nodes: SpaceNode[], edges: Array<{ sourceNodeId: string; targetNodeId: string }>) {
+  const degree = new Map<string, number>();
+  for (const node of nodes) degree.set(node.id, 0);
+  for (const edge of edges) {
+    if (edge.sourceNodeId === edge.targetNodeId) continue;
+    degree.set(edge.sourceNodeId, (degree.get(edge.sourceNodeId) ?? 0) + 1);
+    degree.set(edge.targetNodeId, (degree.get(edge.targetNodeId) ?? 0) + 1);
+  }
+  const degrees = [...degree.values()];
+  const maxDegree = degrees.length ? Math.max(...degrees) : 0;
+  const topHubId = [...degree.entries()].sort((a, b) => (b[1] - a[1]) || a[0].localeCompare(b[0]))[0]?.[0];
+  const positive = degrees.filter((d) => d > 0).sort((a, b) => a - b);
+  const medianDegree = positive.length ? (positive.length % 2 ? positive[(positive.length - 1) / 2] : (positive[positive.length / 2 - 1] + positive[positive.length / 2]) / 2) : 0;
+  const isStar = maxDegree >= 3 && maxDegree >= 2 * Math.max(1, medianDegree);
+
+  const withLayer = nodes.filter((node) => layerOf(node));
+  const layerCounts = new Map<string, number>();
+  for (const node of withLayer) { const layer = layerOf(node); layerCounts.set(layer, (layerCounts.get(layer) ?? 0) + 1); }
+  const distinctLayers = [...layerCounts.values()].filter((count) => count >= 2).length;
+
+  const kinds = new Map<string, number>();
+  for (const node of nodes) kinds.set(node.contentKind, (kinds.get(node.contentKind) ?? 0) + 1);
+  const dominantContentKind = [...kinds.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+
+  return {
+    nodeCount: nodes.length,
+    edgeCount: edges.length,
+    layerCoverage: nodes.length ? Math.round((withLayer.length / nodes.length) * 100) / 100 : 0,
+    distinctLayers,
+    maxDegree,
+    medianDegree,
+    isStar,
+    dominantContentKind,
+    topHubId,
+  };
+}
 
 /** Layout candidate generation/apply/revert, plus layout metadata reads and semantic LayoutPlan validation. */
 export function registerLayoutTools(server: McpServer, ctx: LayoutToolsCtx) {
@@ -69,7 +114,10 @@ export function registerLayoutTools(server: McpServer, ctx: LayoutToolsCtx) {
     // constraints, or graph topology), enlarges hub nodes, and separates regions
     // with wide whitespace — the best choice for a knowledge/industry map an
     // analyst must read at a glance. It emits three structurally distinct
-    // candidates (语义聚类 / 分区矩阵 / 紧凑网格) and honors these constraints:
+    // candidates (语义聚类 / 分区矩阵 / 紧凑网格) and honors these constraints.
+    // New graph/canvas views are already seeded with this semantic arrangement on
+    // first open (no layout pass needed). To pick a strategy for a specific graph,
+    // call weaver_recommend_layout first — it returns a ready-to-run LayoutPlan draft.
     recommendedStrategy: "cluster",
     honoredConstraints: {
       cluster: ["emphasis", "group", "direction", "separation", "spacing", "pin", "preserve-position"],
@@ -79,4 +127,76 @@ export function registerLayoutTools(server: McpServer, ctx: LayoutToolsCtx) {
     candidateCount: { min: 1, max: 5, default: 3 },
   }));
   server.registerTool("weaver_validate_layout_plan", { title: "Validate LayoutPlan", description: "Validate semantic layout constraints without calculating or applying coordinates.", inputSchema: { plan: z.any() }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } }, defineTool(async ({ plan }) => result({ valid: true, plan: layoutPlanSchema.parse(plan) })));
+
+  // Advisory planner: analyze the current graph and recommend which layout best
+  // fits it, returning a ready-to-run LayoutPlan draft plus a preview of the
+  // clusters that would form — so the agent's first weaver_generate_layout_candidates
+  // call already produces a good layout instead of guessing a strategy blind.
+  server.registerTool("weaver_recommend_layout", {
+    title: "Recommend Layout",
+    description: "Analyze the project graph and recommend a layout strategy, a ready-to-run LayoutPlan draft, and a preview of the clusters that would form. Read-only planning aid — call this before weaver_generate_layout_candidates so the first layout is well-chosen.",
+    inputSchema: { ...projectSchema.shape, viewId: z.string().optional(), goal: z.string().optional() },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  }, defineTool(async ({ workspaceDir, projectId, viewId, goal }) => {
+    const payload = withStore(workspaceDir, (store) => {
+      const project = store.getProject(projectId); if (!project) throw new Error("PROJECT_NOT_FOUND");
+      const scene = getScenePack(project.scenePackId, project.scenePackVersion);
+      const graph = store.getGraph(projectId);
+      const nodes = graph.nodes.filter((node) => !node.archived);
+      const nodeIds = new Set(nodes.map((node) => node.id));
+      const edges = graph.edges.filter((edge) => !edge.archived && nodeIds.has(edge.sourceNodeId) && nodeIds.has(edge.targetNodeId));
+      const targetViewId = viewId ?? `${scene?.defaultView ?? "graph"}-default`;
+      const current = store.getLayout(projectId, targetViewId);
+      const titleById = new Map(nodes.map((node) => [node.id, node.title] as const));
+
+      const signals = graphSignals(nodes, edges);
+      const g = (goal ?? "").toLowerCase();
+
+      // Preview the clusters the semantic layout would form (no coordinates). We
+      // set direction + disable pin/manualGroups so `current` is unused — safe
+      // even when the target view does not exist yet.
+      const direction: LayoutDirection = current?.config.direction ?? "left-right";
+      const previewPlan = layoutPlanSchema.parse({ projectId, viewId: targetViewId, baseGraphRevision: graph.revision, baseLayoutRevision: current?.layoutRevision ?? 0, scope: { type: "whole-view" }, strategy: "cluster", direction, constraints: [], preserve: { pinnedNodes: false, manualGroups: false }, candidateCount: 3 });
+      const stubCurrent = { config: { direction }, nodes: {} } as unknown as LayoutDocument;
+      const { clusters } = previewClusters({ nodes, edges, plan: previewPlan, current: current ?? stubCurrent });
+      const labeledClusters = clusters.filter((cluster) => !cluster.isCenter && cluster.memberCount >= 2).length;
+
+      let strategy: LayoutStrategy = "grid";
+      let planDirection: LayoutDirection | undefined;
+      let rationale: string;
+      if (/timeline|时间线|时间轴|历史|chronolog/.test(g)) { strategy = "timeline"; rationale = "目标偏时间线,按时间字段横向排布。"; }
+      else if (/flow|流程|pipeline|因果|cause|工作流|工序/.test(g)) { strategy = "layered"; planDirection = "left-right"; rationale = "目标偏流程/因果,用分层有向布局呈现左→右流向。"; }
+      else if (signals.edgeCount === 0) { strategy = "grid"; rationale = "图中没有边,缺乏可利用的结构,先用规整网格。"; }
+      else if (signals.distinctLayers >= 2 || labeledClusters >= 2) { strategy = "cluster"; rationale = `内容可分成 ${Math.max(signals.distinctLayers, labeledClusters)} 个带标签分区(按 layer/主题),语义聚类能呈现信息分层与簇间留白。`; }
+      else if (signals.isStar) { strategy = "cluster"; rationale = "图呈强单枢纽星型,语义聚类以枢纽为中心、卫星环绕,层次最清晰。"; }
+      else { strategy = "grid"; rationale = "结构较扁平、无明显分层或枢纽,规整网格已足够。"; }
+
+      const constraints: Array<{ type: "emphasis"; nodeIds: string[] }> = [];
+      if (strategy === "cluster" && signals.isStar && signals.topHubId) constraints.push({ type: "emphasis", nodeIds: [signals.topHubId] });
+
+      const suggestedPlan = layoutPlanSchema.parse({
+        projectId, viewId: targetViewId,
+        baseGraphRevision: graph.revision,
+        baseLayoutRevision: current?.layoutRevision ?? 0,
+        scope: { type: "whole-view" },
+        strategy,
+        ...(planDirection ? { direction: planDirection } : {}),
+        constraints,
+        preserve: {},
+        candidateCount: 3,
+        rationale,
+      });
+
+      const alternatives = ([
+        { strategy: "cluster" as LayoutStrategy, rationale: "语义分区,信息分层 + 密度分散。" },
+        { strategy: "layered" as LayoutStrategy, rationale: "有向流程/依赖,分层展现流向。" },
+        { strategy: "grid" as LayoutStrategy, rationale: "无结构时的规整兜底。" },
+      ]).filter((alt) => alt.strategy !== strategy);
+
+      const clusterPreview = clusters.map((cluster) => ({ label: cluster.label, memberCount: cluster.memberCount, hub: cluster.hubId ? titleById.get(cluster.hubId) ?? cluster.hubId : undefined, isCenter: Boolean(cluster.isCenter) }));
+
+      return { recommendedStrategy: strategy, rationale, signals, clusterPreview, suggestedPlan, alternatives, viewExists: Boolean(current) };
+    });
+    return result(payload, `Recommended ${payload.recommendedStrategy} layout.`);
+  }));
 }

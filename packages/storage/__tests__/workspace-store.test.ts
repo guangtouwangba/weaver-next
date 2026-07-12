@@ -97,6 +97,41 @@ describe("WorkspaceStore", () => {
     db.close();
   });
 
+  it("seeds a connected graph view semantically instead of a flat grid", () => {
+    const db = store();
+    const scene = getScenePack("free-brainstorming")!;
+    const project = db.createProject({ title: "Robot", goal: "", scenePack: scene });
+    const ts = new Date().toISOString();
+    const node = (id: string, layer: string) => ({ id, projectId: project.id, type: "idea", title: id, body: "", contentKind: "document" as const, content: { kind: "document" as const, mode: "note" as const, markdown: "", excerpt: "", embeddedAssetIds: [] }, properties: { layer }, archived: false, createdAt: ts, updatedAt: ts });
+    const edge = (id: string, s: string, t: string) => ({ id, projectId: project.id, type: "relates-to", sourceNodeId: s, targetNodeId: t, directed: true, properties: {}, archived: false, createdAt: ts, updatedAt: ts });
+    db.replaceGraph({ projectId: project.id, revision: 1, nodes: [node("hub", "总览"), node("a1", "赛道"), node("a2", "赛道"), node("b1", "产业链"), node("b2", "产业链")], edges: [edge("e1", "hub", "a1"), edge("e2", "hub", "a2"), edge("e3", "hub", "b1"), edge("e4", "hub", "b2")] });
+
+    const view = db.ensureView({ projectId: project.id, viewId: "graph-fresh", viewType: "graph", strategy: "cluster" });
+    // Semantic seed: labeled group boxes, not the plain 4-col grid.
+    expect(Object.keys(view.groups).length).toBeGreaterThan(0);
+    expect(view.nodes.hub.width).toBe(340); // hub enlarged
+    const frames = Object.values(view.nodes);
+    let overlaps = 0;
+    for (let i = 0; i < frames.length; i += 1) for (let j = i + 1; j < frames.length; j += 1) { const a = frames[i]; const b = frames[j]; const w = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x); const h = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y); if (w > 0.001 && h > 0.001) overlaps += 1; }
+    expect(overlaps).toBe(0);
+    db.close();
+  });
+
+  it("keeps an edgeless graph view on the flat grid", () => {
+    const db = store();
+    const scene = getScenePack("free-brainstorming")!;
+    const project = db.createProject({ title: "Sparse", goal: "", scenePack: scene });
+    const ts = new Date().toISOString();
+    const node = (id: string) => ({ id, projectId: project.id, type: "idea", title: id, body: "", contentKind: "document" as const, content: { kind: "document" as const, mode: "note" as const, markdown: "", excerpt: "", embeddedAssetIds: [] }, properties: {}, archived: false, createdAt: ts, updatedAt: ts });
+    db.replaceGraph({ projectId: project.id, revision: 1, nodes: [node("n1"), node("n2"), node("n3"), node("n4"), node("n5")], edges: [] });
+
+    const view = db.ensureView({ projectId: project.id, viewId: "graph-grid", viewType: "graph", strategy: "cluster" });
+    expect(Object.keys(view.groups)).toHaveLength(0);
+    expect(view.nodes.n2).toMatchObject({ x: 292, y: 0 });
+    expect(view.nodes.n5).toMatchObject({ x: 0, y: 176 });
+    db.close();
+  });
+
   it("creates a project atomically from a visual template", () => {
     const db = store(); const scene = getScenePack("problem-decomposition")!; const template = getVisualTemplate("logic-tree")!;
     const chatSessionKey = createHash("sha256").update("template-chat").digest("hex");

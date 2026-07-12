@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { edgeSchema, layoutDocumentSchema, nodeSchema, type LayoutCandidate, type LayoutDocument, type ScenePack, type SpaceProject, type VisualTemplate } from "@weaver/contracts";
 import type { GraphSnapshot } from "@weaver/core";
+import { seedSemanticLayout } from "@weaver/layout-engine/semantic";
 import { defaultLayout, json, now, parse } from "./store-internal.js";
 import { transaction } from "./migrations.js";
 import { appendProjectEvent } from "./project-events.js";
@@ -34,28 +35,45 @@ export function ensureView(db: DatabaseSync, input: { projectId: string; viewId:
   const graph = getGraph(db, input.projectId);
   const document = defaultLayout(project, input.viewId, input.viewType, input.strategy, input.viewName);
   document.graphRevision = graph.revision;
-  graph.nodes.filter((node) => !node.archived).forEach((node, index) => {
-    document.nodes[node.id] = {
-      nodeId: node.id,
-      x: (index % 4) * 292,
-      y: Math.floor(index / 4) * 176,
-      width: 220,
-      height: 112,
-      rotation: 0,
-      zIndex: 0,
-      pinned: false,
-      hidden: false,
-      collapsed: false,
+  const activeNodes = graph.nodes.filter((node) => !node.archived);
+  const activeIds = new Set(activeNodes.map((node) => node.id));
+  const activeEdges = graph.edges.filter((edge) => !edge.archived && activeIds.has(edge.sourceNodeId) && activeIds.has(edge.targetNodeId));
+  if (shouldSeedSemantic(input.viewType, activeNodes.length, activeEdges.length)) {
+    // A connected graph/canvas view opens straight into the semantic cluster
+    // arrangement (labeled regions, enlarged hubs, whitespace) — no need to run
+    // a layout pass first. Sparse/edgeless/other views keep the cheap grid.
+    seedSemanticLayout({ nodes: activeNodes, edges: activeEdges, document });
+  } else {
+    activeNodes.forEach((node, index) => {
+      document.nodes[node.id] = {
+        nodeId: node.id,
+        x: (index % 4) * 292,
+        y: Math.floor(index / 4) * 176,
+        width: 220,
+        height: 112,
+        rotation: 0,
+        zIndex: 0,
+        pinned: false,
+        hidden: false,
+        collapsed: false,
+      };
+    });
+    document.bounds = {
+      x: 0,
+      y: 0,
+      width: graph.nodes.length ? Math.min(4, graph.nodes.length) * 292 - 72 : 0,
+      height: graph.nodes.length ? Math.ceil(graph.nodes.length / 4) * 176 - 64 : 0,
     };
-  });
-  document.bounds = {
-    x: 0,
-    y: 0,
-    width: graph.nodes.length ? Math.min(4, graph.nodes.length) * 292 - 72 : 0,
-    height: graph.nodes.length ? Math.ceil(graph.nodes.length / 4) * 176 - 64 : 0,
-  };
+  }
   transaction(db, () => { saveLayout(db, document, false); catalogViewFromLayout(db, document); });
   return document;
+}
+
+/** Initial layout uses semantic clustering only when there is real structure to
+ * read — a graph/canvas projection with enough connected nodes. Empty, tiny, or
+ * edgeless views (and non-canvas projections) fall back to the fast flat grid. */
+function shouldSeedSemantic(viewType: LayoutDocument["viewType"], activeNodeCount: number, edgeCount: number): boolean {
+  return (viewType === "graph" || viewType === "canvas") && activeNodeCount >= 4 && edgeCount >= 1;
 }
 
 export function uniqueViewName(db: DatabaseSync, projectId: string, requested: string) {

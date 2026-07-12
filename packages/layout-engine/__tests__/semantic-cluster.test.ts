@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { LayoutDocument, LayoutPlan, SpaceEdge, SpaceNode } from "@weaver/contracts";
 import { generateLayoutCandidates } from "../src/engine.js";
+import { previewClusters, seedSemanticLayout } from "../src/semantic/index.js";
 
 const timestamp = "2026-07-10T00:00:00.000Z";
 
@@ -50,6 +51,14 @@ function makePlan(overrides: Partial<LayoutPlan> = {}): LayoutPlan {
     projectId: "p", viewId: "v", baseGraphRevision: 2, baseLayoutRevision: 3, scope: { type: "whole-view" }, strategy: "cluster",
     constraints: [], preserve: { pinnedNodes: true, manualGroups: true, relativeOrder: true, mentalMapWeight: 0.6, nodeSizes: false },
     candidateCount: 3, rationale: "", ...overrides,
+  };
+}
+
+function makeEmptyDoc(viewId = "seed"): LayoutDocument {
+  return {
+    projectId: "p", viewId, viewType: "graph", graphRevision: 2, layoutRevision: 0, strategy: "cluster",
+    config: { direction: "left-right", nodeSpacing: 72, rankSpacing: 120, density: 1, viewportWidth: 1280, viewportHeight: 800 },
+    nodes: {}, edges: {}, groups: {}, bounds: { x: 0, y: 0, width: 0, height: 0 }, createdBy: "layout-engine", updatedAt: timestamp,
   };
 }
 
@@ -167,5 +176,65 @@ describe("semantic cluster layout", () => {
     expect(candidate.document.nodes["track-1"].y).toBe(-400);
     expect(candidate.metrics.pinnedNodeMoves).toBe(0);
     expect(candidate.metrics.overlapCount).toBe(0);
+  });
+});
+
+describe("seedSemanticLayout (initial layout)", () => {
+  it("seeds a fresh view into labeled, overlap-free, hub-sized clusters", () => {
+    const document = makeEmptyDoc();
+    const { groupCount } = seedSemanticLayout({ nodes, edges, document });
+
+    // Every active node placed, no overlaps, labeled group boxes emitted.
+    expect(Object.keys(document.nodes)).toHaveLength(nodes.length);
+    expect(pairsOverlap(document)).toBe(0);
+    expect(groupCount).toBeGreaterThan(0);
+    for (const layer of ["核心技术", "赛道", "产业链", "应用", "来源"]) expect(Object.keys(document.groups)).toContain(`cluster:${layer}`);
+
+    // Size hierarchy applied: the global hub is enlarged, flat-cluster leaves stay small.
+    expect(document.nodes.hub.width).toBe(340);
+    expect(document.nodes["tech-1"].width).toBe(220);
+
+    // Edges are routed and bounds frame every node + group box.
+    expect(Object.keys(document.edges)).toHaveLength(edges.length);
+    const frames = [...Object.values(document.nodes), ...Object.values(document.groups)];
+    for (const frame of frames) {
+      expect(frame.x).toBeGreaterThanOrEqual(document.bounds.x - 0.001);
+      expect(frame.y).toBeGreaterThanOrEqual(document.bounds.y - 0.001);
+      expect(frame.x + frame.width).toBeLessThanOrEqual(document.bounds.x + document.bounds.width + 0.001);
+      expect(frame.y + frame.height).toBeLessThanOrEqual(document.bounds.y + document.bounds.height + 0.001);
+    }
+  });
+
+  it("is deterministic for the same viewId", () => {
+    const a = makeEmptyDoc("view-1");
+    const b = makeEmptyDoc("view-1");
+    seedSemanticLayout({ nodes, edges, document: a });
+    seedSemanticLayout({ nodes, edges, document: b });
+    const frames = (doc: LayoutDocument) => Object.fromEntries(Object.entries(doc.nodes).map(([id, n]) => [id, [n.x, n.y, n.width, n.height]]));
+    expect(frames(a)).toEqual(frames(b));
+    expect(Object.keys(a.groups)).toEqual(Object.keys(b.groups));
+    expect(a.bounds).toEqual(b.bounds);
+  });
+});
+
+describe("previewClusters (layout advisor)", () => {
+  it("previews cluster labels and member counts without mutating inputs", () => {
+    const nodesBefore = JSON.stringify(nodes);
+    const edgesBefore = JSON.stringify(edges);
+    const current = makeCurrent();
+    const currentBefore = JSON.stringify(current);
+
+    const { clusters, centerId } = previewClusters({ nodes, edges, plan: makePlan(), current });
+
+    const byLabel = new Map(clusters.map((c) => [c.label, c]));
+    expect(byLabel.get("核心技术")?.memberCount).toBe(4);
+    expect(byLabel.get("赛道")?.memberCount).toBe(3);
+    expect(centerId).toBe("hub");
+    expect(byLabel.get("总览")?.isCenter).toBe(true);
+
+    // Pure: no coordinates, no input mutation.
+    expect(JSON.stringify(nodes)).toBe(nodesBefore);
+    expect(JSON.stringify(edges)).toBe(edgesBefore);
+    expect(JSON.stringify(current)).toBe(currentBefore);
   });
 });
