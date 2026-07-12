@@ -141,6 +141,6 @@ export function beginAgentContinuation(db: DatabaseSync, input: { taskId: string
 export function reportTaskProgress(db: DatabaseSync, taskId: string, note: string) {
   const task = getAgentTask(db, taskId);
   if (!task) throw new Error(`AGENT_TASK_NOT_FOUND:${taskId}`);
-  if (task.status !== "running") throw new Error(`TASK_NOT_RUNNING:${task.status}`);
+  if (task.status !== "running") throw new Error(terminalTaskStatuses.has(task.status) ? `TASK_TERMINAL:${task.status}` : `TASK_NOT_RUNNING:${task.status}`);
   return updateAgentTask(db, taskId, { progressNote: note }, { force: true });
 }
