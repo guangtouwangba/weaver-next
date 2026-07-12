@@ -30,8 +30,22 @@ export function applyLayoutOperations(document: LayoutDocument, operations: Layo
       case "assign-node-to-group":
         next.nodes[operation.nodeId].groupId = operation.groupId ?? undefined;
         break;
+      case "create-group":
+        next.groups[operation.groupId] = { groupId: operation.groupId, x: operation.frame.x, y: operation.frame.y, width: operation.frame.width, height: operation.frame.height, padding: 32, collapsed: false, kind: operation.kind ?? "interaction", ...(operation.label !== undefined ? { label: operation.label } : {}), ...(operation.direction ? { direction: operation.direction } : {}) };
+        break;
+      case "rename-group":
+        if (!next.groups[operation.groupId]) throw new Error(`LAYOUT_GROUP_NOT_FOUND:${operation.groupId}`);
+        next.groups[operation.groupId].label = operation.label;
+        break;
+      case "delete-group":
+        // Dissolving a frame removes the box only; member nodes stay put and
+        // simply lose their groupId (DESIGN.md: resizing/removing a region must
+        // not delete or reclassify nodes).
+        delete next.groups[operation.groupId];
+        for (const node of Object.values(next.nodes)) if (node.groupId === operation.groupId) node.groupId = undefined;
+        break;
       case "set-group-frame":
-        next.groups[operation.groupId] = { ...(next.groups[operation.groupId] ?? { groupId: operation.groupId, padding: 32, collapsed: false }), ...operation.frame };
+        next.groups[operation.groupId] = { ...(next.groups[operation.groupId] ?? { groupId: operation.groupId, padding: 32, collapsed: false, kind: "interaction" }), ...operation.frame };
         break;
       case "set-group-direction":
         if (!next.groups[operation.groupId]) throw new Error(`LAYOUT_GROUP_NOT_FOUND:${operation.groupId}`);
@@ -81,15 +95,23 @@ export function diffLayoutDocuments(before: LayoutDocument, after: LayoutDocumen
       operations.push({ type: "assign-node-to-group", viewId: after.viewId, nodeId, groupId: node.groupId ?? null });
     }
   }
-  // Group boxes. Deletions are not representable as an operation (there is no
-  // remove-group in the union) — acceptable because applyLayoutCandidate persists
-  // the whole document, so the group set is authoritative; these ops only enrich
-  // the audit/event stream.
+  // Group boxes: create/rename/delete are now first-class operations, so a diff
+  // is fully reversible for the event stream and optimistic clients.
   for (const [groupId, group] of Object.entries(after.groups)) {
     const previous = before.groups[groupId];
-    if (!previous || previous.x !== group.x || previous.y !== group.y || previous.width !== group.width || previous.height !== group.height) {
+    if (!previous) {
+      operations.push({ type: "create-group", viewId: after.viewId, groupId, frame: { x: group.x, y: group.y, width: group.width, height: group.height }, label: group.label, kind: group.kind, direction: group.direction });
+      continue;
+    }
+    if (previous.x !== group.x || previous.y !== group.y || previous.width !== group.width || previous.height !== group.height) {
       operations.push({ type: "set-group-frame", viewId: after.viewId, groupId, frame: { x: group.x, y: group.y, width: group.width, height: group.height } });
     }
+    if ((previous.label ?? undefined) !== (group.label ?? undefined) && group.label !== undefined) {
+      operations.push({ type: "rename-group", viewId: after.viewId, groupId, label: group.label });
+    }
+  }
+  for (const groupId of Object.keys(before.groups)) {
+    if (!after.groups[groupId]) operations.push({ type: "delete-group", viewId: after.viewId, groupId });
   }
   for (const [edgeId, edge] of Object.entries(after.edges)) {
     const previous = before.edges[edgeId];

@@ -58,7 +58,9 @@ export function macroPlace(
     for (const id of item.cluster.memberIds) { const node = document.nodes[id]; if (node) translateNode(node, dx, dy); }
     if (!item.cluster.isCenter && item.cluster.memberIds.length >= 2) {
       const groupId = `cluster:${item.cluster.label}`;
-      document.groups[groupId] = { groupId, x: item.bbox.x + dx, y: item.bbox.y + dy, width: item.bbox.width, height: item.bbox.height, direction: variant === "grid" ? "vertical" : "radial", padding: 32, collapsed: false };
+      // Cluster boxes are layout-derived, not explicit Graph membership, so they
+      // are operable interaction groups (DESIGN.md § Plane), not semantic regions.
+      document.groups[groupId] = { groupId, label: item.cluster.label, kind: "interaction", x: item.bbox.x + dx, y: item.bbox.y + dy, width: item.bbox.width, height: item.bbox.height, direction: variant === "grid" ? "vertical" : "radial", padding: 32, collapsed: false };
       for (const id of item.cluster.memberIds) { if (document.nodes[id]) document.nodes[id].groupId = groupId; }
     } else {
       for (const id of item.cluster.memberIds) { if (document.nodes[id]) document.nodes[id].groupId = undefined; }

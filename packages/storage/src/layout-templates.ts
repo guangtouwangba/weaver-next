@@ -105,10 +105,10 @@ export function templateLayout(db: DatabaseSync, input: { project: SpaceProject;
   });
   if (projection.kind === "board") {
     const columns = projection.columnOrder.length ? projection.columnOrder : [...new Set(nodes.map((node) => String(node.properties[projection.columnField] ?? "未分组")))];
-    columns.forEach((label, index) => { document.groups[`column:${label}`] = { groupId: `column:${label}`, x: index * 320 - 24, y: -58, width: 292, height: Math.max(520, document.bounds.height + 120), direction: "vertical", padding: 24, collapsed: false }; });
+    columns.forEach((label, index) => { document.groups[`column:${label}`] = { groupId: `column:${label}`, label, kind: "projection", x: index * 320 - 24, y: -58, width: 292, height: Math.max(520, document.bounds.height + 120), direction: "vertical", padding: 24, collapsed: false }; });
   }
   if (projection.kind === "matrix") {
-    projection.quadrantLabels.forEach((label, index) => { document.groups[`quadrant:${label}`] = { groupId: `quadrant:${label}`, x: index % 2 * 440 - 22, y: Math.floor(index / 2) * 330 - 42, width: 420, height: 310, padding: 22, collapsed: false }; });
+    projection.quadrantLabels.forEach((label, index) => { document.groups[`quadrant:${label}`] = { groupId: `quadrant:${label}`, label, kind: "projection", x: index % 2 * 440 - 22, y: Math.floor(index / 2) * 330 - 42, width: 420, height: 310, padding: 22, collapsed: false }; });
   }
   for (const edge of graph.edges.filter((edge) => !edge.archived)) document.edges[edge.id] = { edgeId: edge.id, routing: template.theme.edgeStyles.default?.routing ?? "bezier", waypoints: [], hidden: false };
   const frames = Object.values(document.nodes);

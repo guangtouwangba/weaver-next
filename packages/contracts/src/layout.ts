@@ -39,8 +39,17 @@ export const edgeLayoutSchema = z.object({
 });
 export type EdgeLayout = z.infer<typeof edgeLayoutSchema>;
 
+// DESIGN.md § Plane distinguishes four kinds of region. `interaction` is the
+// default operable group (marquee/joint move); `frame` is a titled composition
+// boundary; `semantic` is backed by explicit Graph membership; `projection` is
+// derived by a View projection (read-only lane/column/band).
+export const groupKindSchema = z.enum(["frame", "interaction", "semantic", "projection"]);
+export type GroupKind = z.infer<typeof groupKindSchema>;
+
 export const groupLayoutSchema = rectSchema.extend({
   groupId: z.string(),
+  label: z.string().optional(),
+  kind: groupKindSchema.default("interaction"),
   direction: z.enum(["horizontal", "vertical", "radial"]).optional(),
   padding: z.number().nonnegative().default(32),
   collapsed: z.boolean().default(false),
@@ -127,6 +136,9 @@ export const layoutOperationSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("set-node-collapsed"), viewId: z.string(), nodeId: z.string(), collapsed: z.boolean() }),
   z.object({ type: z.literal("set-node-z-index"), viewId: z.string(), nodeId: z.string(), zIndex: z.number().int() }),
   z.object({ type: z.literal("assign-node-to-group"), viewId: z.string(), nodeId: z.string(), groupId: z.string().nullable() }),
+  z.object({ type: z.literal("create-group"), viewId: z.string(), groupId: z.string(), frame: rectSchema, label: z.string().optional(), kind: groupKindSchema.optional(), direction: z.enum(["horizontal", "vertical", "radial"]).optional() }),
+  z.object({ type: z.literal("rename-group"), viewId: z.string(), groupId: z.string(), label: z.string() }),
+  z.object({ type: z.literal("delete-group"), viewId: z.string(), groupId: z.string() }),
   z.object({ type: z.literal("set-group-frame"), viewId: z.string(), groupId: z.string(), frame: rectSchema }),
   z.object({ type: z.literal("set-group-direction"), viewId: z.string(), groupId: z.string(), direction: z.enum(["horizontal", "vertical", "radial"]) }),
   z.object({ type: z.literal("set-node-rank"), viewId: z.string(), nodeId: z.string(), rank: z.number().int() }),
