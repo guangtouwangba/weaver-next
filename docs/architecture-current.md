@@ -9,10 +9,10 @@ authoritative in `AGENTS.md` and execution rules in `WORKFLOW.md`.
 ## Product surface
 
 Weaver is a Codex plugin. Its formal UI is an Apps-SDK Widget served as a `ui://`
-resource by the local MCP server. An inline card is the entry point; editing and
-review happen in Codex fullscreen display mode. Natural-language intent stays in
-Codex Chat. The Widget owns visual selection, editing, preview, apply/reject, undo,
-and live status.
+resource by the local MCP server. Opening a space requests Codex fullscreen display
+mode immediately and mounts the complete Canvas without an intermediate inline
+snapshot. Natural-language intent stays in Codex Chat. The Widget owns visual
+selection, editing, preview, apply/reject, undo, and live status.
 
 `apps/web` and `apps/api` are retired. There is no standalone product frontend or
 Python domain core.
@@ -25,7 +25,7 @@ Python domain core.
 - `packages/layout-engine`: deterministic candidate generation, routing, and scoring.
 - `packages/storage`: project-local SQLite authority under `<workspace>/.weaver/`.
 - `packages/mcp`: stdio tools, Chat identity, loopback assets/RPC, and SSE.
-- `apps/widget`: inline entry card and fullscreen Codex Canvas.
+- `apps/widget`: fullscreen-first Codex Canvas and browser preview.
 
 ## State authority
 

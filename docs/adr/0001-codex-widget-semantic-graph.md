@@ -13,7 +13,7 @@ Graph, Layout, View Catalog, and Chat Binding revisions remain independent.
 
 TypeScript/Zod contracts are the only structure authority. SQLite is the only storage
 adapter. Agents submit semantic ChangeSets and LayoutPlans; deterministic modules
-calculate and persist validated results. The Widget provides an inline entry card and
+calculate and persist validated results. The Widget requests fullscreen immediately and
 a fullscreen Canvas while natural-language input remains in Codex Chat.
 
 ## Consequences

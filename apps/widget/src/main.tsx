@@ -22,7 +22,6 @@ import { TemplateGalleryModal } from "./components/TemplateGalleryModal";
 import { ProjectPickerModal } from "./components/ProjectPickerModal";
 import { NodeViewerModal } from "./components/NodeViewerModal";
 import { DocumentEditorPanel } from "./components/DocumentEditorPanel";
-import { InlineEntryCard } from "./components/InlineEntryCard";
 import { loadCanvasSessionId } from "./lib/canvas-session";
 import { I18nProvider, useI18n } from "./lib/i18n";
 
@@ -103,8 +102,6 @@ function WeaverWidget() {
     if (!selection.length) { setAnchorNodeId(undefined); return; }
     if (!anchorNodeId || !selection.includes(anchorNodeId)) setAnchorNodeId(selection[0]);
   }, [anchorNodeId, selection]);
-
-  if (displayMode === "inline") return <InlineEntryCard project={project} layout={layout} nodes={graphNodes} edges={graphEdges} selectionCount={selection.length} streamState={streamState} onOpen={() => requestDisplayMode("fullscreen")} />;
 
   return <main className="weaver-shell" data-editor-open={Boolean(activeDocument)} data-display-mode={displayMode} data-schema-reset={Boolean(bootstrap.schemaReset)}>
     <TopBar

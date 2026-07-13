@@ -24,6 +24,16 @@ function workspaceWithProject() {
 }
 
 describe("weaver_open_space under the Claude host", () => {
+  it("requests fullscreen when callers omit the display mode", async () => {
+    process.env.WEAVER_HOST_KIND = "codex";
+    const { root, projectId } = workspaceWithProject();
+    const srv = await createWeaverServer(); servers.push(srv);
+    const output = await srv.dispatch("weaver_open_space", { workspaceDir: root, projectId }) as any;
+
+    expect(output.isError).toBeFalsy();
+    expect(output.structuredContent.preferredDisplayMode).toBe("fullscreen");
+  });
+
   it("does not persist preview capability metadata before a workspace is explicitly opened", async () => {
     process.env.WEAVER_HOST_KIND = "codex";
     const cacheDir = mkdtempSync(join(tmpdir(), "weaver-cache-")); roots.push(cacheDir);

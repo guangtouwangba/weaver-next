@@ -58,7 +58,7 @@ export function registerWorkspaceTools(server: McpServer, ctx: WorkspaceToolsCtx
   registerAppTool(server, "weaver_open_space", {
     title: "Open Weaver Workspace",
     description: "Open the Weaver semantic canvas for an explicit local workspace and optional project. Codex renders it as an embedded panel; Claude Code opens it as a tokenized loopback browser preview.",
-    inputSchema: { workspaceDir: z.string().min(1), projectId: z.string().optional(), displayMode: z.enum(["fullscreen", "inline"]).default("inline") },
+    inputSchema: { workspaceDir: z.string().min(1), projectId: z.string().optional(), displayMode: z.enum(["fullscreen", "inline"]).default("fullscreen") },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     _meta: { ui: { resourceUri: LEGACY_WIDGET_URI, visibility: ["model", "app"] }, "ui/resourceUri": LEGACY_WIDGET_URI, "openai/outputTemplate": LEGACY_WIDGET_URI, "openai/widgetAccessible": true },
   }, defineTool(async (input, extra) => {

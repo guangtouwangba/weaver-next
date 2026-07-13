@@ -26,7 +26,7 @@ try {
   const graph = await call("weaver_read_graph", { workspaceDir, resource: "full", projectId: project.id, viewId: project.defaultViewId });
   if (graph.nodes.length !== 5) throw new Error("Robot research graph was not created");
 
-  const opened = await call("weaver_open_space", { workspaceDir, projectId: project.id, displayMode: "inline" });
+  const opened = await call("weaver_open_space", { workspaceDir, projectId: project.id, displayMode: "fullscreen" });
   const timestamp = new Date().toISOString();
   await call("weaver_canvas_action", { workspaceDir, action: "claim", snapshot: { version: 2, syncPurpose: "claim", canvasSessionId: "probe-session", workspaceDir, projectId: project.id, scenePackId: project.scenePackId, scenePackVersion: project.scenePackVersion, graphRevision: graph.project.graphRevision, viewId: project.defaultViewId, viewType: graph.layout.viewType, selectedNodeIds: graph.nodes.map((node) => node.id), selectedEdgeIds: [], selectedGroupIds: [], pinnedContextNodeIds: [], viewport: { x: 0, y: 0, zoom: 1 }, presence: { visible: true, focused: true, lastSeenAt: timestamp }, chatBinding: opened.chatBinding, agentEligible: true, sequence: 1, updatedAt: timestamp } });
   const task = await call("weaver_prepare_task", { workspaceDir, actionKey: "layout_view", userInstruction: "按技术栈从左到右排列" });

@@ -88,29 +88,6 @@ try {
 
   if (errors.length) throw new Error(`Browser console errors: ${errors.join(" | ")}`);
 
-  const inline = await browser.newPage({ viewport: { width: 920, height: 430 }, deviceScaleFactor: 1 });
-  const inlineErrors = [];
-  inline.on("console", (message) => { if (message.type() === "error") inlineErrors.push(message.text()); });
-  const separator = opened.previewUrl.includes("?") ? "&" : "?";
-  await inline.goto(`${opened.previewUrl}${separator}demo=1&displayMode=inline`, { waitUntil: "domcontentloaded", timeout: 15_000 });
-  const entry = inline.locator(".inline-entry");
-  await entry.waitFor({ state: "visible", timeout: 5_000 });
-  await inline.screenshot({ path: resolve(output, "weaver-inline-entry.png"), fullPage: false });
-  await entry.getByRole("button", { name: /Open fullscreen|全屏打开/ }).click();
-  await inline.locator(".weaver-shell[data-display-mode='fullscreen']").waitFor({ state: "visible", timeout: 5_000 });
-  await inline.getByRole("button", { name: "EN" }).click();
-  await inline.getByRole("button", { name: "Back to chat" }).waitFor({ state: "visible", timeout: 5_000 });
-  await inline.reload({ waitUntil: "domcontentloaded" });
-  await inline.getByRole("button", { name: "Open fullscreen" }).waitFor({ state: "visible", timeout: 5_000 });
-  const overflow = await inline.locator(".inline-entry").evaluate((element) => element.scrollWidth - element.clientWidth);
-  if (overflow > 1) throw new Error(`Inline card overflows by ${overflow}px`);
-  if (inlineErrors.length) throw new Error(`Inline browser console errors: ${inlineErrors.join(" | ")}`);
-
-  const narrow = await browser.newPage({ viewport: { width: 480, height: 430 }, deviceScaleFactor: 1 });
-  await narrow.goto(`${opened.previewUrl}${separator}demo=1&displayMode=inline`, { waitUntil: "domcontentloaded", timeout: 15_000 });
-  await narrow.locator(".inline-entry").waitFor({ state: "visible", timeout: 5_000 });
-  const narrowOverflow = await narrow.locator(".inline-entry").evaluate((element) => element.scrollWidth - element.clientWidth);
-  if (narrowOverflow > 1) throw new Error(`Narrow inline card overflows by ${narrowOverflow}px`);
   console.log(`Captured README assets in ${output}`);
 } finally {
   await browser?.close().catch(() => {});
