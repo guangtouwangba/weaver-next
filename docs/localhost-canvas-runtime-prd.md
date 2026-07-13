@@ -671,16 +671,21 @@ Deprecated `docs/rebuild-plan.md` and `docs/architecture/` remain historical and
 
 ## 17. Implementation readiness checklist
 
-- [ ] User approves this PRD as the shared implementation source.
-- [ ] Phase 0 documentation precedence is resolved.
-- [ ] Dirty working-tree changes are preserved and rebased intentionally; no unrelated generated plugin snapshot is overwritten.
-- [ ] Current localhost E2E baseline is recorded before refactoring.
-- [ ] Supported schema versions and migration fixtures are enumerated.
-- [ ] Temporary native Widget fallback has an owner and deletion date.
-- [ ] Runtime cache size/retention defaults are fixed in contracts/tests.
-- [ ] Idle timeout and Browser Session expiry defaults are fixed in contracts/tests.
-- [ ] Required PR E2E budget is measured and accepted.
-- [ ] Codex in-app Browser capability is available in the target installation, with fallback documented.
+- [x] User approves this PRD as the shared implementation source.
+- [x] Phase 0 documentation precedence is resolved.
+- [x] Dirty working-tree changes are preserved and rebased intentionally; no unrelated generated plugin snapshot is overwritten.
+- [x] Current localhost E2E baseline is recorded before refactoring.
+- [x] Supported schema versions and migration fixtures are enumerated.
+- [x] Temporary native Widget fallback has an owner and deletion date.
+- [x] Runtime cache size/retention defaults are fixed in contracts/tests.
+- [x] Idle timeout and Browser Session expiry defaults are fixed in contracts/tests.
+- [x] Required PR E2E budget is measured and accepted.
+- [x] Codex in-app Browser capability is available in the target installation, with fallback documented.
+
+These implementation-start conditions are now evidenced by the authoritative documents,
+contract/storage/runtime tests, release runbook, and dated acceptance results in
+[`localhost-canvas-runtime-status.md`](localhost-canvas-runtime-status.md). They are not
+the Phase 7 exit gate; the elapsed observation requirements remain independently binding.
 
 ## 18. Recommended first implementation slice
 
