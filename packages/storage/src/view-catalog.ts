@@ -185,3 +185,44 @@ export function purgeExpiredProjectViews(db: DatabaseSync) {
     purgeProjectView(db, { projectId: view.projectId, viewId: view.id, baseCatalogRevision: project.viewCatalogRevision });
   }
 }
+
+export function restoreProjectCatalogSnapshot(db: DatabaseSync, input: {
+  projectId: string;
+  defaultViewId: string;
+  views: ProjectView[];
+  layouts: LayoutDocument[];
+}) {
+  return transaction(db, () => {
+    const current = getProject(db, input.projectId);
+    if (!current) throw new Error("PROJECT_NOT_FOUND");
+    const previousViews = listProjectViews(db, input.projectId);
+    db.prepare("DELETE FROM project_view WHERE project_id = ?").run(input.projectId);
+    db.prepare("DELETE FROM layout WHERE project_id = ?").run(input.projectId);
+    for (const view of input.views) putProjectView(db, view);
+    const layoutInsert = db.prepare("INSERT INTO layout(project_id, view_id, revision, data) VALUES (?, ?, ?, ?)");
+    for (const layout of input.layouts) {
+      const validated = layoutDocumentSchema.parse(layout);
+      layoutInsert.run(validated.projectId, validated.viewId, validated.layoutRevision, json(validated));
+    }
+    const project = projectSchema.parse({
+      ...current,
+      defaultViewId: input.defaultViewId,
+      viewCatalogRevision: current.viewCatalogRevision + 1,
+      updatedAt: now(),
+    });
+    db.prepare("UPDATE project SET data = ? WHERE id = ?").run(json(project), input.projectId);
+    appendProjectEvent(db, {
+      projectId: input.projectId,
+      kind: "view.catalog.changed",
+      payload: {
+        projectId: input.projectId,
+        fromRevision: current.viewCatalogRevision,
+        toRevision: project.viewCatalogRevision,
+        upsertedViews: input.views,
+        removedViewIds: previousViews.filter((view) => !input.views.some((candidate) => candidate.id === view.id)).map((view) => view.id),
+        defaultViewId: project.defaultViewId,
+      },
+    });
+    return { project, views: input.views, layouts: input.layouts };
+  });
+}

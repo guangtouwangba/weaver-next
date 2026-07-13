@@ -4,7 +4,7 @@ import { getProjectWriteLease } from "./browser-sessions.js";
 import { transaction } from "./migrations.js";
 import { json, parse } from "./store-internal.js";
 
-type MutationResult = Pick<CanvasMutationRecord, "kind" | "resultGraphRevision" | "resultLayoutRevision" | "forwardOperations" | "inverseOperations">;
+type MutationResult = Pick<CanvasMutationRecord, "kind" | "resultGraphRevision" | "resultLayoutRevision" | "resultViewCatalogRevision" | "forwardOperations" | "inverseOperations">;
 
 export function getCanvasMutation(db: DatabaseSync, id: string): CanvasMutationRecord | null {
   const row = db.prepare("SELECT data FROM canvas_mutation WHERE id = ?").get(id) as { data: string } | undefined;
@@ -52,6 +52,8 @@ export function applyCanvasMutation(
       resultGraphRevision: result.resultGraphRevision,
       baseLayoutRevision: request.baseLayoutRevision,
       resultLayoutRevision: result.resultLayoutRevision,
+      baseViewCatalogRevision: request.baseViewCatalogRevision,
+      resultViewCatalogRevision: result.resultViewCatalogRevision,
       forwardOperations: result.forwardOperations,
       inverseOperations: result.inverseOperations,
       status: "applied",
@@ -62,7 +64,7 @@ export function applyCanvasMutation(
 
 export function revertCanvasMutation(
   db: DatabaseSync,
-  input: { id: string; browserSessionId: string; currentGraphRevision?: number; currentLayoutRevision?: number; revertedAt: string },
+  input: { id: string; browserSessionId: string; currentGraphRevision?: number; currentLayoutRevision?: number; currentViewCatalogRevision?: number; revertedAt: string },
   applyInverse: (record: CanvasMutationRecord) => void,
 ) {
   return transaction(db, () => {
@@ -71,7 +73,8 @@ export function revertCanvasMutation(
     if (record.status === "reverted") return record;
     assertWriter(db, record.projectId, input.browserSessionId);
     if ((record.resultGraphRevision !== undefined && record.resultGraphRevision !== input.currentGraphRevision)
-      || (record.resultLayoutRevision !== undefined && record.resultLayoutRevision !== input.currentLayoutRevision)) throw new Error("UNDO_REVISION_CONFLICT");
+      || (record.resultLayoutRevision !== undefined && record.resultLayoutRevision !== input.currentLayoutRevision)
+      || (record.resultViewCatalogRevision !== undefined && record.resultViewCatalogRevision !== input.currentViewCatalogRevision)) throw new Error("UNDO_REVISION_CONFLICT");
     applyInverse(record);
     return saveCanvasMutation(db, { ...record, status: "reverted", revertedAt: input.revertedAt });
   });

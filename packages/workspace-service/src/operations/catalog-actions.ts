@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { catalogActionSchema } from "@weaver/contracts";
 import { getScenePack } from "@weaver/scene-packs";
 import type { WorkspaceStore } from "@weaver/storage";
@@ -30,6 +31,34 @@ export function applyCatalogAction(store: WorkspaceStore, principal: WorkspacePr
     return store.catalog.createProjectFromTemplate({ title: required(args.title, "title"), goal: args.goal ?? "", scenePack: scene, template, chatBinding: chatSessionKey ? { chatSessionKey } : undefined });
   }
   const projectId = required(args.projectId, "projectId");
+  if (principal.kind === "browser") {
+    const lease = store.browserSessions.writer(projectId);
+    if (!lease || lease.status !== "active" || lease.browserSessionId !== principal.browserSessionId) throw new Error("PROJECT_WRITER_LEASE_STALE");
+    let result: unknown;
+    const request = {
+      mutationId: typeof input.mutationId === "string" ? input.mutationId : randomUUID(),
+      projectId,
+      viewId: "viewId" in args && typeof args.viewId === "string" ? args.viewId : undefined,
+      writerLeaseRevision: lease.revision,
+      baseViewCatalogRevision: store.catalog.getProject(projectId)?.viewCatalogRevision,
+      operation: { action: args.action, ...input, workspaceDir: undefined, mutationId: undefined },
+    };
+    const beforeProject = store.catalog.getProject(projectId);
+    if (!beforeProject) throw new Error("PROJECT_NOT_FOUND");
+    const beforeViews = store.catalog.listViews(projectId);
+    const beforeLayouts = store.layoutReviews.list(projectId);
+    const record = store.canvasMutations.apply({ request, browserSessionId: principal.browserSessionId, createdAt: new Date().toISOString() }, () => {
+      result = applyCatalogAction(store, { kind: "local-read" }, input);
+      return {
+        kind: "view" as const,
+        resultViewCatalogRevision: store.catalog.getProject(projectId)?.viewCatalogRevision,
+        forwardOperations: [request.operation],
+        inverseOperations: [{ action: "restore_view_catalog", defaultViewId: beforeProject.defaultViewId, views: beforeViews, layouts: beforeLayouts }],
+      };
+    });
+    if (result !== undefined) return result;
+    return { mutation: record, project: store.catalog.getProject(projectId), views: store.catalog.listViews(projectId, "active") };
+  }
   if (args.action === "create_view_from_template") {
     const template = getVisualTemplate(required(args.templateId, "templateId"), args.version);
     if (!template) throw new Error("VISUAL_TEMPLATE_NOT_FOUND");

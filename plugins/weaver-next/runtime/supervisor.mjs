@@ -91171,7 +91171,7 @@ import { resolve as resolve5 } from "node:path";
 
 // packages/workspace-supervisor/src/supervisor.ts
 import { createHash as createHash5 } from "node:crypto";
-import { chmodSync as chmodSync2, closeSync, existsSync as existsSync4, mkdirSync as mkdirSync4, openSync, readFileSync as readFileSync4, realpathSync as realpathSync2, renameSync as renameSync3, rmSync as rmSync2, writeFileSync as writeFileSync3 } from "node:fs";
+import { chmodSync as chmodSync2, closeSync, existsSync as existsSync5, mkdirSync as mkdirSync4, openSync, readFileSync as readFileSync4, realpathSync as realpathSync2, renameSync as renameSync3, rmSync as rmSync2, writeFileSync as writeFileSync3 } from "node:fs";
 import { createServer as createServer2, request as httpRequest } from "node:http";
 import { createServer as createNetServer } from "node:net";
 import { fork } from "node:child_process";
@@ -106413,6 +106413,8 @@ var browserSessionSchema = external_exports.object({
   status: external_exports.enum(["active", "detached", "expired"]),
   pairedChatSessionKey: identifierSchema.optional(),
   pairedBindingRevision: external_exports.number().int().positive().optional(),
+  projectId: identifierSchema.optional(),
+  viewId: identifierSchema.optional(),
   createdAt: timestampSchema,
   lastSeenAt: timestampSchema,
   expiresAt: timestampSchema
@@ -106461,6 +106463,7 @@ var canvasMutationRequestSchema = external_exports.object({
   writerLeaseRevision: external_exports.number().int().positive(),
   baseGraphRevision: external_exports.number().int().nonnegative().optional(),
   baseLayoutRevision: external_exports.number().int().nonnegative().optional(),
+  baseViewCatalogRevision: external_exports.number().int().nonnegative().optional(),
   operation: external_exports.record(external_exports.string(), external_exports.unknown())
 }).strict();
 var canvasMutationRecordSchema = external_exports.object({
@@ -106473,6 +106476,8 @@ var canvasMutationRecordSchema = external_exports.object({
   resultGraphRevision: external_exports.number().int().nonnegative().optional(),
   baseLayoutRevision: external_exports.number().int().nonnegative().optional(),
   resultLayoutRevision: external_exports.number().int().nonnegative().optional(),
+  baseViewCatalogRevision: external_exports.number().int().nonnegative().optional(),
+  resultViewCatalogRevision: external_exports.number().int().nonnegative().optional(),
   forwardOperations: external_exports.array(external_exports.unknown()),
   inverseOperations: external_exports.array(external_exports.unknown()),
   status: external_exports.enum(["applied", "reverted"]),
@@ -106564,13 +106569,13 @@ var reviewActionSchema = external_exports.discriminatedUnion("resource", [
 
 // packages/workspace-service/src/worker.ts
 import { createHash as createHash4, timingSafeEqual as timingSafeEqual2 } from "node:crypto";
-import { createReadStream, existsSync as existsSync3, readFileSync as readFileSync3, statSync as statSync2 } from "node:fs";
+import { createReadStream, existsSync as existsSync4, readFileSync as readFileSync3, statSync as statSync2 } from "node:fs";
 import { extname, resolve as resolve3, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createServer } from "node:http";
 
 // packages/storage/src/workspace-store.ts
-import { cpSync, existsSync, mkdirSync as mkdirSync2, realpathSync, renameSync } from "node:fs";
+import { cpSync, existsSync as existsSync2, mkdirSync as mkdirSync2, realpathSync, renameSync } from "node:fs";
 import { basename, join as join3, resolve as resolve2 } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
@@ -107093,7 +107098,7 @@ function resolveSceneContext(args) {
 
 // packages/storage/src/assets.ts
 import { createHash, randomUUID } from "node:crypto";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import sharp from "sharp";
 function getAsset(db, assetId) {
@@ -107156,6 +107161,25 @@ function saveTaskAsset(dataDir, taskId, fileName, data) {
   if (!resolve(target).startsWith(resolve(dataDir))) throw new Error("UNSAFE_ASSET_PATH");
   writeFileSync(target, data);
   return { assetId: randomUUID(), path: target, resourceUri: `weaver://task-assets/${taskId}/${safeName}` };
+}
+function deleteUnreferencedAsset(db, dataDir, assetId) {
+  const asset = getAsset(db, assetId);
+  if (!asset) return { deleted: false };
+  const nodeRows = db.prepare("SELECT data FROM node WHERE project_id = ?").all(asset.projectId);
+  if (nodeRows.some((row) => row.data.includes(assetId))) throw new Error("ASSET_IN_USE");
+  db.prepare("DELETE FROM asset WHERE id = ?").run(assetId);
+  const shared = db.prepare("SELECT COUNT(*) AS count FROM asset WHERE sha256 = ?").get(asset.sha256);
+  if (Number(shared.count) === 0) {
+    for (const uri of [asset.storageUri, asset.thumbnailUri]) {
+      const relative = uri.split("/files/")[1];
+      if (!relative) continue;
+      const target = resolve(dataDir, "assets", relative);
+      const root = `${resolve(dataDir, "assets")}/`;
+      if (!target.startsWith(root)) throw new Error("UNSAFE_ASSET_PATH");
+      if (existsSync(target)) unlinkSync(target);
+    }
+  }
+  return { deleted: true, asset };
 }
 
 // packages/storage/src/layout-templates.ts
@@ -109393,6 +109417,41 @@ function purgeExpiredProjectViews(db) {
     purgeProjectView(db, { projectId: view.projectId, viewId: view.id, baseCatalogRevision: project.viewCatalogRevision });
   }
 }
+function restoreProjectCatalogSnapshot(db, input) {
+  return transaction(db, () => {
+    const current = getProject(db, input.projectId);
+    if (!current) throw new Error("PROJECT_NOT_FOUND");
+    const previousViews = listProjectViews(db, input.projectId);
+    db.prepare("DELETE FROM project_view WHERE project_id = ?").run(input.projectId);
+    db.prepare("DELETE FROM layout WHERE project_id = ?").run(input.projectId);
+    for (const view of input.views) putProjectView(db, view);
+    const layoutInsert = db.prepare("INSERT INTO layout(project_id, view_id, revision, data) VALUES (?, ?, ?, ?)");
+    for (const layout of input.layouts) {
+      const validated = layoutDocumentSchema.parse(layout);
+      layoutInsert.run(validated.projectId, validated.viewId, validated.layoutRevision, json2(validated));
+    }
+    const project = projectSchema.parse({
+      ...current,
+      defaultViewId: input.defaultViewId,
+      viewCatalogRevision: current.viewCatalogRevision + 1,
+      updatedAt: now()
+    });
+    db.prepare("UPDATE project SET data = ? WHERE id = ?").run(json2(project), input.projectId);
+    appendProjectEvent(db, {
+      projectId: input.projectId,
+      kind: "view.catalog.changed",
+      payload: {
+        projectId: input.projectId,
+        fromRevision: current.viewCatalogRevision,
+        toRevision: project.viewCatalogRevision,
+        upsertedViews: input.views,
+        removedViewIds: previousViews.filter((view) => !input.views.some((candidate) => candidate.id === view.id)).map((view) => view.id),
+        defaultViewId: project.defaultViewId
+      }
+    });
+    return { project, views: input.views, layouts: input.layouts };
+  });
+}
 
 // packages/storage/src/changesets.ts
 function submitChangeSet(db, changeSet) {
@@ -109748,8 +109807,16 @@ function createBrowserSession(db, input) {
       status: "active",
       createdAt: input.now,
       lastSeenAt: input.now,
-      expiresAt: input.expiresAt
+      expiresAt: input.expiresAt,
+      projectId: input.projectId,
+      viewId: input.viewId
     }));
+  });
+}
+function setBrowserSessionTarget(db, input) {
+  return transaction(db, () => {
+    const session = requireActiveBrowserSession(db, input.id, input.now);
+    return saveBrowserSession(db, { ...session, projectId: input.projectId, viewId: input.viewId, lastSeenAt: input.now });
   });
 }
 function requireActiveBrowserSession(db, id, at) {
@@ -109804,6 +109871,14 @@ function claimProjectWriter(db, input) {
     if (current?.status === "active" && !input.takeover) throw new Error("PROJECT_WRITER_EXISTS");
     if (current?.status === "active" && input.takeover) {
       const previousBrowser = getBrowserSession(db, current.browserSessionId);
+      if (previousBrowser) {
+        saveBrowserSession(db, { ...previousBrowser, status: "detached", lastSeenAt: input.now });
+        const otherRows = db.prepare("SELECT data FROM project_write_lease WHERE browser_session_id = ? AND status = 'active'").all(previousBrowser.id);
+        for (const row of otherRows) {
+          const lease = projectWriteLeaseSchema.parse(parse3(row.data));
+          if (lease.projectId !== input.projectId) saveProjectWriteLease(db, { ...lease, revision: lease.revision + 1, status: "released", lastSeenAt: input.now });
+        }
+      }
       const previousBinding = previousBrowser?.pairedChatSessionKey ? getChatCanvasBinding(db, previousBrowser.pairedChatSessionKey) : null;
       if (previousBinding?.projectId === input.projectId) {
         rejectBindingWork(db, previousBinding);
@@ -109886,6 +109961,8 @@ function applyCanvasMutation(db, input, applyState) {
       resultGraphRevision: result.resultGraphRevision,
       baseLayoutRevision: request.baseLayoutRevision,
       resultLayoutRevision: result.resultLayoutRevision,
+      baseViewCatalogRevision: request.baseViewCatalogRevision,
+      resultViewCatalogRevision: result.resultViewCatalogRevision,
       forwardOperations: result.forwardOperations,
       inverseOperations: result.inverseOperations,
       status: "applied",
@@ -109899,7 +109976,7 @@ function revertCanvasMutation(db, input, applyInverse) {
     if (!record2) throw new Error("CANVAS_MUTATION_NOT_FOUND");
     if (record2.status === "reverted") return record2;
     assertWriter(db, record2.projectId, input.browserSessionId);
-    if (record2.resultGraphRevision !== void 0 && record2.resultGraphRevision !== input.currentGraphRevision || record2.resultLayoutRevision !== void 0 && record2.resultLayoutRevision !== input.currentLayoutRevision) throw new Error("UNDO_REVISION_CONFLICT");
+    if (record2.resultGraphRevision !== void 0 && record2.resultGraphRevision !== input.currentGraphRevision || record2.resultLayoutRevision !== void 0 && record2.resultLayoutRevision !== input.currentLayoutRevision || record2.resultViewCatalogRevision !== void 0 && record2.resultViewCatalogRevision !== input.currentViewCatalogRevision) throw new Error("UNDO_REVISION_CONFLICT");
     applyInverse(record2);
     return saveCanvasMutation(db, { ...record2, status: "reverted", revertedAt: input.revertedAt });
   });
@@ -109914,7 +109991,7 @@ function backupName(workspaceDir2, timestamp) {
   const stem = `.weaver-backup-${timestamp.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z")}`;
   let candidate = join3(workspaceDir2, stem);
   let suffix = 2;
-  while (existsSync(candidate)) candidate = join3(workspaceDir2, `${stem}-${suffix++}`);
+  while (existsSync2(candidate)) candidate = join3(workspaceDir2, `${stem}-${suffix++}`);
   return candidate;
 }
 function prepareWorkspaceData(workspaceDir2, timestamp = /* @__PURE__ */ new Date()) {
@@ -109923,7 +110000,7 @@ function prepareWorkspaceData(workspaceDir2, timestamp = /* @__PURE__ */ new Dat
   let schemaResetBackupName;
   let schemaMigrationBackupName;
   let schemaVersion;
-  if (existsSync(dbPath)) {
+  if (existsSync2(dbPath)) {
     const existing = new DatabaseSync(dbPath);
     const row = existing.prepare("PRAGMA user_version").get();
     schemaVersion = Number(row.user_version);
@@ -110015,6 +110092,7 @@ var WorkspaceStore = class {
     restoreView: (input) => restoreProjectView(this.db, input),
     purgeView: (input) => purgeProjectView(this.db, input),
     duplicateView: (input) => duplicateProjectView(this.db, input),
+    restoreSnapshot: (input) => restoreProjectCatalogSnapshot(this.db, input),
     saveCanvasState: (input) => saveCanvasViewState(this.db, input),
     canvasState: (canvasSessionId, viewId) => getCanvasViewState(this.db, canvasSessionId, viewId),
     previewTemplate: (input) => previewVisualTemplate(this.db, input),
@@ -110047,12 +110125,13 @@ var WorkspaceStore = class {
     rejectRun: (runId) => rejectLayoutRun(this.db, runId),
     revert: (projectId, viewId) => revertLayout(this.db, projectId, viewId)
   };
-  assets = { get: (assetId) => getAsset(this.db, assetId), byHash: (projectId, sha256) => getAssetByHash(this.db, projectId, sha256), read: (assetId, thumbnail = false) => readAsset(this.db, this.dataDir, assetId, thumbnail), importImage: (input) => importImageAsset(this.db, this.dataDir, input), saveTaskFile: (taskId, fileName, data) => saveTaskAsset(this.dataDir, taskId, fileName, data) };
+  assets = { get: (assetId) => getAsset(this.db, assetId), byHash: (projectId, sha256) => getAssetByHash(this.db, projectId, sha256), read: (assetId, thumbnail = false) => readAsset(this.db, this.dataDir, assetId, thumbnail), importImage: (input) => importImageAsset(this.db, this.dataDir, input), deleteUnreferenced: (assetId) => deleteUnreferencedAsset(this.db, this.dataDir, assetId), saveTaskFile: (taskId, fileName, data) => saveTaskAsset(this.dataDir, taskId, fileName, data) };
   tasks = { prepare: (input) => prepareAgentTask(this.db, input), prepareBound: (input) => prepareAgentTaskFromBoundCanvas(this.db, input), assertChat: (taskId, chatSessionKey, requireOnline = true) => assertTaskChat(this.db, taskId, chatSessionKey, requireOnline), assertCanvas: (taskId, chatSessionKey, requireOnline = false) => assertTaskCanvas(this.db, taskId, chatSessionKey, requireOnline), get: (taskId) => getAgentTask(this.db, taskId), listCanvas: (canvasSessionId, includeTerminal = false) => listCanvasTasks(this.db, canvasSessionId, includeTerminal), reapCanvas: (canvasSessionId) => reapExpiredCanvasTasks(this.db, canvasSessionId), listProject: (projectId, includeTerminal = false) => listProjectTasks(this.db, projectId, includeTerminal), update: (taskId, patch) => updateAgentTask(this.db, taskId, patch), confirmDispatch: (taskId, dispatchKey) => confirmAgentDispatch(this.db, taskId, dispatchKey), failDispatch: (taskId, dispatchKey, input) => failAgentDispatch(this.db, taskId, dispatchKey, input), continue: (input) => beginAgentContinuation(this.db, input), progress: (taskId, note) => reportTaskProgress(this.db, taskId, note) };
   artifacts = { publish: (input) => publishArtifact(this.db, input), get: (artifactId) => getArtifact(this.db, artifactId) };
   browserSessions = {
     get: (id) => getBrowserSession(this.db, id),
     create: (input) => createBrowserSession(this.db, input),
+    setTarget: (input) => setBrowserSessionTarget(this.db, input),
     rotateCredential: (input) => rotateBrowserCredential(this.db, input),
     pairChat: (input) => pairBrowserChat(this.db, input),
     writer: (projectId) => getProjectWriteLease(this.db, projectId),
@@ -110171,23 +110250,76 @@ function undoManualCanvasMutation(store, principal, raw) {
   if (!existing) throw new Error("CANVAS_MUTATION_NOT_FOUND");
   const graph = store.graphChanges.read(existing.projectId);
   const layout = existing.viewId ? store.layoutReviews.get(existing.projectId, existing.viewId) : null;
+  const project = store.catalog.getProject(existing.projectId);
+  if (!project) throw new Error("PROJECT_NOT_FOUND");
   const reverted = store.canvasMutations.revert({
     id: mutationId,
     browserSessionId,
     currentGraphRevision: graph.revision,
     currentLayoutRevision: layout?.layoutRevision,
+    currentViewCatalogRevision: project.viewCatalogRevision,
     revertedAt: (/* @__PURE__ */ new Date()).toISOString()
   }, (record2) => {
-    const inverse = record2.inverseOperations[0];
-    if (inverse?.action !== "archive_node" || !inverse.nodeId) throw new Error("UNDO_OPERATION_UNSUPPORTED");
-    const archived = store.graphChanges.archiveNode({ projectId: record2.projectId, nodeId: inverse.nodeId, baseGraphRevision: graph.revision });
-    if (layout && inverse.removeFrame) {
-      const next = structuredClone(layout);
-      delete next.nodes[inverse.nodeId];
-      next.graphRevision = archived.project.graphRevision;
-      next.layoutRevision += 1;
-      next.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
-      store.layoutReviews.save(next, true, { operations: [{ type: "remove-node-frame", nodeId: inverse.nodeId }] });
+    for (const rawInverse of record2.inverseOperations) {
+      if (!rawInverse || typeof rawInverse !== "object" || Array.isArray(rawInverse)) throw new Error("UNDO_OPERATION_UNSUPPORTED");
+      const inverse = rawInverse;
+      const action = inverse.action;
+      if (action === "archive_node" && typeof inverse.nodeId === "string") {
+        const current = store.graphChanges.read(record2.projectId);
+        const archived = store.graphChanges.archiveNode({ projectId: record2.projectId, nodeId: inverse.nodeId, baseGraphRevision: current.revision });
+        const currentLayout = record2.viewId ? store.layoutReviews.get(record2.projectId, record2.viewId) : null;
+        if (currentLayout && inverse.removeFrame === true) {
+          const next = structuredClone(currentLayout);
+          delete next.nodes[inverse.nodeId];
+          next.graphRevision = archived.project.graphRevision;
+          next.layoutRevision += 1;
+          next.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
+          store.layoutReviews.save(next, true, { operations: [{ type: "remove-node-frame", nodeId: inverse.nodeId }] });
+        }
+        continue;
+      }
+      if (action === "restore_node") {
+        const node = nodeSchema.parse(inverse.node);
+        const current = store.graphChanges.read(record2.projectId);
+        if (!current.nodes.some((candidate) => candidate.id === node.id)) throw new Error("UNDO_TARGET_MISSING");
+        store.graphChanges.replace({ ...current, revision: current.revision + 1, nodes: current.nodes.map((candidate) => candidate.id === node.id ? node : candidate) });
+        continue;
+      }
+      if (action === "archive_edge" && typeof inverse.edgeId === "string") {
+        const current = store.graphChanges.read(record2.projectId);
+        const edge = current.edges.find((candidate) => candidate.id === inverse.edgeId);
+        if (!edge) throw new Error("UNDO_TARGET_MISSING");
+        store.graphChanges.replace({ ...current, revision: current.revision + 1, edges: current.edges.map((candidate) => candidate.id === inverse.edgeId ? edgeSchema.parse({ ...candidate, archived: true, updatedAt: (/* @__PURE__ */ new Date()).toISOString() }) : candidate) });
+        continue;
+      }
+      if (action === "restore_graph") {
+        const snapshot = inverse.graph;
+        if (!snapshot || snapshot.projectId !== record2.projectId || !Array.isArray(snapshot.nodes) || !Array.isArray(snapshot.edges)) throw new Error("UNDO_OPERATION_INVALID");
+        const current = store.graphChanges.read(record2.projectId);
+        store.graphChanges.replace({ projectId: record2.projectId, revision: current.revision + 1, nodes: snapshot.nodes.map((node) => nodeSchema.parse(node)), edges: snapshot.edges.map((edge) => edgeSchema.parse(edge)) });
+        continue;
+      }
+      if (action === "restore_layout") {
+        const previous = layoutDocumentSchema.parse(inverse.layout);
+        const current = store.layoutReviews.get(record2.projectId, previous.viewId);
+        if (!current) throw new Error("LAYOUT_NOT_FOUND");
+        store.layoutReviews.save({ ...previous, graphRevision: store.graphChanges.read(record2.projectId).revision, layoutRevision: current.layoutRevision + 1, updatedAt: (/* @__PURE__ */ new Date()).toISOString() }, true, { operations: [{ type: "restore-layout" }] });
+        continue;
+      }
+      if (action === "restore_view_catalog" && typeof inverse.defaultViewId === "string" && Array.isArray(inverse.views) && Array.isArray(inverse.layouts)) {
+        store.catalog.restoreSnapshot({
+          projectId: record2.projectId,
+          defaultViewId: inverse.defaultViewId,
+          views: inverse.views.map((view) => projectViewSchema.parse(view)),
+          layouts: inverse.layouts.map((candidate) => layoutDocumentSchema.parse(candidate))
+        });
+        continue;
+      }
+      if (action === "delete_asset" && typeof inverse.assetId === "string") {
+        store.assets.deleteUnreferenced(inverse.assetId);
+        continue;
+      }
+      throw new Error("UNDO_OPERATION_UNSUPPORTED");
     }
   });
   return { mutation: reverted, graph: store.graphChanges.read(existing.projectId), layout: existing.viewId ? store.layoutReviews.get(existing.projectId, existing.viewId) : void 0 };
@@ -110746,7 +110878,6 @@ async function compatCanvasAction(store, principal, args) {
   }
   const session = browser(store, principal);
   if (action === "claim" || action === "sync") {
-    if (!session.pairedChatSessionKey) throw new Error("AGENT_DISCONNECTED");
     const requested = args.snapshot;
     const projectId2 = required2(requested, "projectId");
     const lease = store.browserSessions.writer(projectId2);
@@ -110755,14 +110886,21 @@ async function compatCanvasAction(store, principal, args) {
       ...requested,
       workspaceDir: store.workspaceDir,
       syncPurpose: action === "claim" ? "claim" : "state",
-      agentEligible: ownsWriter,
-      chatBinding: ownsWriter ? requested.chatBinding : void 0
+      agentEligible: ownsWriter && Boolean(session.pairedChatSessionKey),
+      chatBinding: ownsWriter && session.pairedChatSessionKey ? requested.chatBinding : void 0
     });
     const context = store.sessions.syncCanvas(snapshot, session.pairedChatSessionKey);
     return { context, manualWrite: lease?.status === "active" && lease.browserSessionId === session.id, writerLeaseRevision: lease?.revision };
   }
   if (action === "switch") {
-    if (!session.pairedChatSessionKey) throw new Error("AGENT_DISCONNECTED");
+    if (!session.pairedChatSessionKey) {
+      const projectId2 = required2(args, "projectId");
+      const viewId = required2(args, "viewId");
+      const target = store.browserSessions.setTarget({ id: session.id, projectId: projectId2, viewId, now: (/* @__PURE__ */ new Date()).toISOString() });
+      const lease2 = store.browserSessions.writer(projectId2);
+      if (!lease2 || lease2.status !== "active") store.browserSessions.claimWriter({ projectId: projectId2, browserSessionId: session.id, now: (/* @__PURE__ */ new Date()).toISOString() });
+      return { projectId: target.projectId, viewId: target.viewId };
+    }
     const switched = store.sessions.switchBinding({
       chatSessionKey: session.pairedChatSessionKey,
       leaseId: required2(args, "leaseId"),
@@ -110868,6 +111006,7 @@ async function compatCanvasAction(store, principal, args) {
 }
 
 // packages/workspace-service/src/operations/catalog-actions.ts
+import { randomUUID as randomUUID9 } from "node:crypto";
 function required3(value, name) {
   if (value === void 0 || value === "") throw new Error(`INVALID_ARGS:${name} required`);
   return value;
@@ -110892,6 +111031,34 @@ function applyCatalogAction(store, principal, input) {
     return store.catalog.createProjectFromTemplate({ title: required3(args.title, "title"), goal: args.goal ?? "", scenePack: scene, template, chatBinding: chatSessionKey ? { chatSessionKey } : void 0 });
   }
   const projectId = required3(args.projectId, "projectId");
+  if (principal.kind === "browser") {
+    const lease = store.browserSessions.writer(projectId);
+    if (!lease || lease.status !== "active" || lease.browserSessionId !== principal.browserSessionId) throw new Error("PROJECT_WRITER_LEASE_STALE");
+    let result;
+    const request = {
+      mutationId: typeof input.mutationId === "string" ? input.mutationId : randomUUID9(),
+      projectId,
+      viewId: "viewId" in args && typeof args.viewId === "string" ? args.viewId : void 0,
+      writerLeaseRevision: lease.revision,
+      baseViewCatalogRevision: store.catalog.getProject(projectId)?.viewCatalogRevision,
+      operation: { action: args.action, ...input, workspaceDir: void 0, mutationId: void 0 }
+    };
+    const beforeProject = store.catalog.getProject(projectId);
+    if (!beforeProject) throw new Error("PROJECT_NOT_FOUND");
+    const beforeViews = store.catalog.listViews(projectId);
+    const beforeLayouts = store.layoutReviews.list(projectId);
+    const record2 = store.canvasMutations.apply({ request, browserSessionId: principal.browserSessionId, createdAt: (/* @__PURE__ */ new Date()).toISOString() }, () => {
+      result = applyCatalogAction(store, { kind: "local-read" }, input);
+      return {
+        kind: "view",
+        resultViewCatalogRevision: store.catalog.getProject(projectId)?.viewCatalogRevision,
+        forwardOperations: [request.operation],
+        inverseOperations: [{ action: "restore_view_catalog", defaultViewId: beforeProject.defaultViewId, views: beforeViews, layouts: beforeLayouts }]
+      };
+    });
+    if (result !== void 0) return result;
+    return { mutation: record2, project: store.catalog.getProject(projectId), views: store.catalog.listViews(projectId, "active") };
+  }
   if (args.action === "create_view_from_template") {
     const template = getVisualTemplate(required3(args.templateId, "templateId"), args.version);
     if (!template) throw new Error("VISUAL_TEMPLATE_NOT_FOUND");
@@ -110921,7 +111088,7 @@ function applyCatalogAction(store, principal, input) {
 }
 
 // packages/workspace-service/src/operations/agent-actions.ts
-import { randomUUID as randomUUID9 } from "node:crypto";
+import { randomUUID as randomUUID10 } from "node:crypto";
 function chatKey(store, principal) {
   if (principal.kind === "chat") return principal.chatSessionKey;
   if (principal.kind === "local-read") throw new Error("CHAT_PRINCIPAL_REQUIRED");
@@ -110932,7 +111099,7 @@ function chatKey(store, principal) {
 function prepareAgentTask2(store, principal, args) {
   const actionKey = typeof args.actionKey === "string" ? args.actionKey : "";
   if (!actionKey) throw new Error("INVALID_ARGS:actionKey required");
-  const dispatchKey = typeof args.dispatchKey === "string" ? args.dispatchKey : randomUUID9();
+  const dispatchKey = typeof args.dispatchKey === "string" ? args.dispatchKey : randomUUID10();
   const prepared = store.tasks.prepareBound({ chatSessionKey: chatKey(store, principal), actionKey, userInstruction: typeof args.userInstruction === "string" ? args.userInstruction : void 0, dispatchKey });
   return store.tasks.confirmDispatch(prepared.taskId, dispatchKey);
 }
@@ -110963,7 +111130,7 @@ function submitChangeSet2(store, principal, args) {
 }
 
 // packages/workspace-service/src/operations/content-actions.ts
-import { randomUUID as randomUUID10 } from "node:crypto";
+import { randomUUID as randomUUID11 } from "node:crypto";
 import sharp2 from "sharp";
 
 // packages/layout-engine/src/engine.ts
@@ -111290,7 +111457,7 @@ async function recommendLayout(store, principal, args) {
   if (current.layoutRevision !== plan.baseLayoutRevision) throw new Error("LAYOUT_REVISION_CONFLICT");
   const project = store.catalog.getProject(plan.projectId);
   const weights = project ? getScenePack(project.scenePackId, project.scenePackVersion)?.scoringWeights : void 0;
-  const layoutRunId = randomUUID10();
+  const layoutRunId = randomUUID11();
   const candidates = await generateLayoutCandidates({ nodes: graph.nodes, edges: graph.edges, current, plan, layoutRunId, weights });
   const run = store.layoutReviews.saveRun({ id: layoutRunId, projectId: plan.projectId, viewId: plan.viewId, taskId, plan, candidates });
   store.tasks.update(taskId, { status: "pending_review", activeStage: "layout", results: { ...task2.results, layoutRunId } });
@@ -111335,15 +111502,35 @@ function applyReviewAction(store, principal, args) {
 }
 async function importAsset(store, _principal, args) {
   const projectId = required4(args, "projectId");
+  const browserSessionId = _principal.kind === "browser" ? _principal.browserSessionId : void 0;
+  const writerLease = browserSessionId ? store.browserSessions.writer(projectId) : void 0;
+  if (browserSessionId && (!writerLease || writerLease.status !== "active" || writerLease.browserSessionId !== browserSessionId)) throw new Error("PROJECT_WRITER_LEASE_STALE");
+  let output;
   if (args.source === "bytes") {
     const mimeType = required4(args, "mimeType");
-    const output2 = await store.assets.importImage({ projectId, mimeType, data: Buffer.from(required4(args, "base64"), "base64") });
-    return { assetId: output2.asset.id, width: output2.asset.width, height: output2.asset.height, deduplicated: output2.deduplicated };
+    output = await store.assets.importImage({ projectId, mimeType, data: Buffer.from(required4(args, "base64"), "base64") });
+  } else {
+    if (args.source !== "svg") throw new Error("INVALID_ARGS:source required");
+    const scale = typeof args.scale === "number" ? args.scale : 2;
+    const png = await sharp2(Buffer.from(required4(args, "svg")), { density: Math.round(96 * scale) }).png().toBuffer();
+    output = await store.assets.importImage({ projectId, mimeType: "image/png", data: png });
   }
-  if (args.source !== "svg") throw new Error("INVALID_ARGS:source required");
-  const scale = typeof args.scale === "number" ? args.scale : 2;
-  const png = await sharp2(Buffer.from(required4(args, "svg")), { density: Math.round(96 * scale) }).png().toBuffer();
-  const output = await store.assets.importImage({ projectId, mimeType: "image/png", data: png });
+  if (browserSessionId && writerLease) {
+    store.canvasMutations.apply({
+      request: {
+        mutationId: typeof args.mutationId === "string" ? args.mutationId : randomUUID11(),
+        projectId,
+        writerLeaseRevision: writerLease.revision,
+        operation: { action: "import_asset", assetId: output.asset.id, mimeType: output.asset.mimeType, sha256: output.asset.sha256 }
+      },
+      browserSessionId,
+      createdAt: (/* @__PURE__ */ new Date()).toISOString()
+    }, () => ({
+      kind: "graph",
+      forwardOperations: [{ action: "import_asset", assetId: output.asset.id }],
+      inverseOperations: output.deduplicated ? [] : [{ action: "delete_asset", assetId: output.asset.id }]
+    }));
+  }
   return { assetId: output.asset.id, width: output.asset.width, height: output.asset.height, deduplicated: output.deduplicated };
 }
 function publishArtifact2(store, _principal, args) {
@@ -111389,6 +111576,13 @@ function readWorkspaceResource(store, args) {
 
 // packages/workspace-service/src/operations/index.ts
 function dispatchApplicationOperation(store, principal, request) {
+  if (principal.kind === "browser" && (/* @__PURE__ */ new Set([
+    "weaver_prepare_task",
+    "weaver_task_action",
+    "weaver_submit_changeset",
+    "weaver_recommend_layout",
+    "weaver_publish_artifact"
+  ])).has(request.operation)) throw new Error("CHAT_PRINCIPAL_REQUIRED");
   switch (request.operation) {
     case "bridge.openNativeBinding": {
       if (principal.kind !== "chat") throw new Error("CHAT_PRINCIPAL_REQUIRED");
@@ -111440,7 +111634,7 @@ function dispatchApplicationOperation(store, principal, request) {
 }
 
 // packages/workspace-service/src/runtime-diagnostics.ts
-import { appendFileSync, chmodSync, existsSync as existsSync2, mkdirSync as mkdirSync3, readFileSync as readFileSync2, readdirSync, renameSync as renameSync2, rmSync, statSync } from "node:fs";
+import { appendFileSync, chmodSync, existsSync as existsSync3, mkdirSync as mkdirSync3, readFileSync as readFileSync2, readdirSync, renameSync as renameSync2, rmSync, statSync } from "node:fs";
 import { join as join4 } from "node:path";
 var SECRET_KEY = /(token|cookie|nonce|lease|credential|secret|password|authorization|thread|chatSessionKey|prompt|content|markdown|title)/i;
 var PATH_KEY = /(path|dir|directory|workspace)/i;
@@ -111476,7 +111670,7 @@ var RuntimeDiagnostics = class {
     const entry = redact({ at: (/* @__PURE__ */ new Date()).toISOString(), component: this.component, event, ...fields });
     const line = `${JSON.stringify(entry)}
 `;
-    if (existsSync2(this.path) && statSync(this.path).size + Buffer.byteLength(line) > this.#maxBytes) this.#rotate();
+    if (existsSync3(this.path) && statSync(this.path).size + Buffer.byteLength(line) > this.#maxBytes) this.#rotate();
     appendFileSync(this.path, line, { mode: 384 });
     chmodSync(this.path, 384);
     return entry;
@@ -111485,7 +111679,7 @@ var RuntimeDiagnostics = class {
     const entries = [];
     const files = Array.from({ length: this.#maxFiles - 1 }, (_, index2) => join4(this.directory, `runtime.${this.#maxFiles - index2 - 1}.jsonl`)).concat(this.path);
     for (const file2 of files) {
-      if (!existsSync2(file2)) continue;
+      if (!existsSync3(file2)) continue;
       for (const line of readFileSync2(file2, "utf8").split("\n")) {
         if (!line) continue;
         try {
@@ -111507,9 +111701,9 @@ var RuntimeDiagnostics = class {
     rmSync(join4(this.directory, `runtime.${this.#maxFiles - 1}.jsonl`), { force: true });
     for (let index2 = this.#maxFiles - 2; index2 >= 1; index2 -= 1) {
       const source = join4(this.directory, `runtime.${index2}.jsonl`);
-      if (existsSync2(source)) renameSync2(source, join4(this.directory, `runtime.${index2 + 1}.jsonl`));
+      if (existsSync3(source)) renameSync2(source, join4(this.directory, `runtime.${index2 + 1}.jsonl`));
     }
-    if (existsSync2(this.path)) renameSync2(this.path, join4(this.directory, "runtime.1.jsonl"));
+    if (existsSync3(this.path)) renameSync2(this.path, join4(this.directory, "runtime.1.jsonl"));
   }
   #removeExpired() {
     const cutoff = Date.now() - this.#retentionMs;
@@ -111547,6 +111741,7 @@ var WorkspaceWorker = class {
   #diagnostics;
   #eventStreams = /* @__PURE__ */ new Set();
   #closed = false;
+  #quiesced = false;
   #publicOrigin;
   #bridgeHeartbeats = /* @__PURE__ */ new Map();
   constructor(options) {
@@ -111559,7 +111754,7 @@ var WorkspaceWorker = class {
       fileURLToPath(new URL("../apps/widget/dist", import.meta.url)),
       fileURLToPath(new URL("../../../apps/widget/dist", import.meta.url))
     ].filter((value) => Boolean(value));
-    this.canvasRoot = resolve3(options.canvasRoot ?? canvasCandidates.find(existsSync3) ?? canvasCandidates.at(-1));
+    this.canvasRoot = resolve3(options.canvasRoot ?? canvasCandidates.find(existsSync4) ?? canvasCandidates.at(-1));
     this.#server = createServer((request, response) => void this.#handle(request, response));
   }
   async listen(port = 0) {
@@ -111582,10 +111777,27 @@ var WorkspaceWorker = class {
     if (parsed.protocol !== "http:" || parsed.hostname !== "127.0.0.1" || parsed.pathname !== "/") throw new Error("INVALID_PUBLIC_ORIGIN");
     this.#publicOrigin = parsed.origin;
   }
+  quiesce() {
+    this.#quiesced = true;
+    return { quiesced: true };
+  }
+  resume() {
+    this.#quiesced = false;
+    return { quiesced: false };
+  }
   createLaunch(input) {
+    if (this.#quiesced) throw new Error("WORKER_QUIESCED");
     if (!this.#origin) throw new Error("WORKER_NOT_LISTENING");
     if (!/^[a-f0-9]{64}$/.test(input.chatSessionKey)) throw new Error("INVALID_CHAT_SESSION_KEY");
     this.heartbeatBridge(input.chatSessionKey);
+    return this.#createLaunch(input);
+  }
+  createLocalLaunch(input = {}) {
+    if (input.requestedViewId && !input.projectId) throw new Error("INVALID_LOCAL_LAUNCH_TARGET");
+    return this.#createLaunch(input);
+  }
+  #createLaunch(input) {
+    if (!this.#origin) throw new Error("WORKER_NOT_LISTENING");
     const nonce = randomToken();
     const expiresAt = new Date(Date.now() + 3e4).toISOString();
     this.#launches.set(hashLaunchNonce(nonce), { hash: hashLaunchNonce(nonce), ...input, expiresAt });
@@ -111615,6 +111827,7 @@ var WorkspaceWorker = class {
     return { online: true, seenAt: (/* @__PURE__ */ new Date()).toISOString() };
   }
   dispatchChatOperation(chatSessionKey, operation, arguments_) {
+    if (this.#quiesced) throw new Error("WORKER_QUIESCED");
     if (!/^[a-f0-9]{64}$/.test(chatSessionKey)) throw new Error("INVALID_CHAT_SESSION_KEY");
     this.heartbeatBridge(chatSessionKey);
     return dispatchApplicationOperation(this.store, { kind: "chat", chatSessionKey }, { operation, arguments: arguments_ });
@@ -111638,7 +111851,11 @@ var WorkspaceWorker = class {
       return;
     }
     if (request.method === "GET" && url2.pathname === "/healthz") {
-      sendJson(response, 200, { ok: true, state: "ready", buildId: this.buildId, protocolVersion: CANVAS_RUNTIME_PROTOCOL_VERSION });
+      sendJson(response, 200, { ok: true, state: this.#quiesced ? "quiesced" : "ready", buildId: this.buildId, protocolVersion: CANVAS_RUNTIME_PROTOCOL_VERSION });
+      return;
+    }
+    if (this.#quiesced) {
+      sendJson(response, 503, { ok: false, error: { code: "RUNTIME_UPGRADING" } });
       return;
     }
     if (request.method === "GET" && url2.pathname.startsWith("/launch/")) {
@@ -111659,10 +111876,14 @@ var WorkspaceWorker = class {
             id: sessionId,
             credentialHash: hashBrowserCredential(credential),
             now: now3,
-            expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1e3).toISOString()
+            expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1e3).toISOString(),
+            projectId: launch.projectId,
+            viewId: launch.requestedViewId
           });
-          const binding = this.store.sessions.openBinding({ chatSessionKey: launch.chatSessionKey, projectId: launch.projectId, viewId: launch.requestedViewId });
-          this.store.browserSessions.pairChat({ id: session.id, chatSessionKey: launch.chatSessionKey, bindingRevision: binding.bindingRevision, now: now3 });
+          if (launch.chatSessionKey) {
+            const binding = this.store.sessions.openBinding({ chatSessionKey: launch.chatSessionKey, projectId: launch.projectId, viewId: launch.requestedViewId });
+            this.store.browserSessions.pairChat({ id: session.id, chatSessionKey: launch.chatSessionKey, bindingRevision: binding.bindingRevision, now: now3 });
+          }
           if (launch.projectId) {
             try {
               this.store.browserSessions.claimWriter({ projectId: launch.projectId, browserSessionId: session.id, now: now3 });
@@ -111687,15 +111908,17 @@ var WorkspaceWorker = class {
       return;
     }
     if (request.method === "GET" && url2.pathname === "/api/bootstrap") {
-      const auth = this.#authenticateBrowser(request);
+      const auth = this.#authenticateBrowser(request, true);
       if (!auth) {
         sendJson(response, 401, { ok: false, error: { code: "BROWSER_SESSION_INVALID" } });
         return;
       }
       const session = auth.session;
       const binding = session.pairedChatSessionKey ? this.store.sessions.getBinding(session.pairedChatSessionKey) : null;
-      const writerLease = binding?.projectId ? this.store.browserSessions.writer(binding.projectId) : void 0;
-      const ownsWriter = writerLease?.status === "active" && writerLease.browserSessionId === session.id;
+      const projectId = binding?.projectId ?? session.projectId;
+      const viewId = binding?.viewId ?? session.viewId;
+      const writerLease = projectId ? this.store.browserSessions.writer(projectId) : void 0;
+      const ownsWriter = session.status === "active" && writerLease?.status === "active" && writerLease.browserSessionId === session.id;
       const pairedBindingCurrent = Boolean(binding && session.pairedBindingRevision === binding.bindingRevision && binding.status !== "detached");
       const bridge = session.pairedChatSessionKey ? this.#bridgeHeartbeats.get(session.pairedChatSessionKey) : void 0;
       const bridgeOnline = Boolean(bridge && Date.now() - bridge.seenAt <= Math.max(50, Number(process.env.WEAVER_BRIDGE_GRACE_MS ?? 3e4)));
@@ -111709,21 +111932,21 @@ var WorkspaceWorker = class {
           manualWrite: Boolean(ownsWriter),
           agentConnected: Boolean(pairedBindingCurrent && bridgeOnline),
           agentWrite: Boolean(pairedBindingCurrent && bridgeOnline && ownsWriter),
-          canTakeOver: Boolean(binding?.projectId && writerLease?.status === "active" && !ownsWriter),
+          canTakeOver: Boolean(session.status === "active" && projectId && writerLease?.status === "active" && !ownsWriter),
           hostLabel: bridgeOnline ? bridge?.hostLabel : void 0,
-          disconnectReason: pairedBindingCurrent && !bridgeOnline ? "AGENT_DISCONNECTED" : void 0
+          disconnectReason: session.status === "detached" ? "SESSION_TAKEN_OVER" : pairedBindingCurrent && !bridgeOnline ? "AGENT_DISCONNECTED" : void 0
         },
-        projectId: binding?.projectId,
-        viewId: binding?.viewId,
+        projectId,
+        viewId,
         writerLease: ownsWriter ? writerLease : void 0,
-        chatBinding: binding ? { leaseId: binding.leaseId, bindingRevision: binding.bindingRevision, projectId: binding.projectId, viewId: binding.viewId } : void 0
+        chatBinding: binding && session.status === "active" ? { leaseId: binding.leaseId, bindingRevision: binding.bindingRevision, projectId: binding.projectId, viewId: binding.viewId } : void 0
       });
       sendJson(response, 200, bootstrap);
       this.#diagnostics.record("bootstrap.ready", { buildId: this.buildId, manualWrite: bootstrap.capabilities.manualWrite, agentConnected: bootstrap.capabilities.agentConnected });
       return;
     }
     if (request.method === "GET" && url2.pathname === "/events") {
-      const auth = this.#authenticateBrowser(request);
+      const auth = this.#authenticateBrowser(request, true);
       if (!auth) {
         sendJson(response, 401, { ok: false, error: { code: "BROWSER_SESSION_INVALID" } });
         return;
@@ -111732,7 +111955,9 @@ var WorkspaceWorker = class {
       const canvasSessionId = url2.searchParams.get("canvasSessionId");
       const context = canvasSessionId ? this.store.sessions.canvasContext(canvasSessionId) : null;
       const binding = auth.session.pairedChatSessionKey ? this.store.sessions.getBinding(auth.session.pairedChatSessionKey) : null;
-      if (!projectId || !canvasSessionId || !context || context.projectId !== projectId || binding?.canvasSessionId !== canvasSessionId) {
+      const sessionProjectId = binding?.projectId ?? auth.session.projectId;
+      const sessionCanvasId = binding?.canvasSessionId ?? context?.canvasSessionId;
+      if (!projectId || !canvasSessionId || !context || context.projectId !== projectId || sessionProjectId !== projectId || sessionCanvasId !== canvasSessionId) {
         sendJson(response, 403, { ok: false, error: { code: "EVENT_STREAM_FORBIDDEN" } });
         return;
       }
@@ -111764,7 +111989,7 @@ data: ${JSON.stringify(event)}
       return;
     }
     if (request.method === "GET" && (url2.pathname === "/app" || url2.pathname === "/app/")) {
-      const auth = this.#authenticateBrowser(request);
+      const auth = this.#authenticateBrowser(request, true);
       if (!auth) {
         sendJson(response, 401, { ok: false, error: { code: "BROWSER_SESSION_INVALID" } });
         return;
@@ -111772,7 +111997,7 @@ data: ${JSON.stringify(event)}
       try {
         const html = readFileSync3(resolve3(this.canvasRoot, "index.html"), "utf8");
         const nonce = randomToken(18);
-        const injected = html.replace("<head>", `<head><script nonce="${nonce}">window.__weaverRuntime={rpcPath:"/api/rpc",bootstrapPath:"/api/bootstrap"};</script>`);
+        const injected = html.replace("<head>", `<head><script nonce="${nonce}">window.__weaverRuntime={rpcPath:"/api/rpc",bootstrapPath:"/api/bootstrap",buildId:${JSON.stringify(this.buildId)},protocolVersion:${CANVAS_RUNTIME_PROTOCOL_VERSION}};</script>`);
         response.writeHead(200, {
           "content-type": "text/html; charset=utf-8",
           "cache-control": "no-store",
@@ -111787,7 +112012,7 @@ data: ${JSON.stringify(event)}
       return;
     }
     if (request.method === "GET" && url2.pathname.startsWith("/app/")) {
-      const auth = this.#authenticateBrowser(request);
+      const auth = this.#authenticateBrowser(request, true);
       if (!auth) {
         sendJson(response, 401, { ok: false, error: { code: "BROWSER_SESSION_INVALID" } });
         return;
@@ -111878,11 +112103,11 @@ data: ${JSON.stringify(event)}
     }
     sendJson(response, 404, { ok: false, error: { code: "ROUTE_NOT_FOUND" } });
   }
-  #authenticateBrowser(request) {
+  #authenticateBrowser(request, allowDetached = false) {
     const parsed = parseSessionCookie(request.headers.cookie);
     if (!parsed) return null;
     const session = this.store.browserSessions.get(parsed.id);
-    if (!session || session.status !== "active") return null;
+    if (!session || session.status === "expired" || session.status === "detached" && !allowDetached) return null;
     if (Date.parse(session.expiresAt) <= Date.now()) {
       this.store.browserSessions.expire(session.id, (/* @__PURE__ */ new Date()).toISOString());
       return null;
@@ -111921,9 +112146,9 @@ function runtimeControlSocketPath(runtimeRoot2, key) {
   if (Buffer.byteLength(preferred) < 96) return preferred;
   return join5(tmpdir(), `weaver-${typeof process.getuid === "function" ? process.getuid() : "user"}`, name);
 }
-function sendUnavailable(response) {
+function sendUnavailable(response, code = "WORKER_RESTARTING") {
   response.writeHead(503, { "content-type": "application/json; charset=utf-8", "retry-after": "1", "cache-control": "no-store" });
-  response.end(JSON.stringify({ ok: false, error: { code: "WORKER_RESTARTING" } }));
+  response.end(JSON.stringify({ ok: false, error: { code } }));
 }
 var ChildWorkerHandle = class _ChildWorkerHandle {
   constructor(child, onExit) {
@@ -112008,6 +112233,12 @@ var ChildWorkerHandle = class _ChildWorkerHandle {
   async setPublicOrigin(origin) {
     await this.#call("set_public_origin", { origin });
   }
+  async quiesce() {
+    await this.#call("quiesce");
+  }
+  async resume() {
+    await this.#call("resume");
+  }
   async close() {
     this.#intentional = true;
     if (!this.#child.connected) return;
@@ -112031,6 +112262,12 @@ async function inProcessWorker(options) {
     diagnostics: async () => worker.getDiagnostics(),
     setPublicOrigin: async (value) => {
       worker.setPublicOrigin(value);
+    },
+    quiesce: async () => {
+      worker.quiesce();
+    },
+    resume: async () => {
+      worker.resume();
     },
     close: () => worker.close(),
     kill: () => {
@@ -112057,6 +112294,7 @@ var WorkspaceSupervisor = class _WorkspaceSupervisor {
   #idleMs = Math.max(1e3, Number(process.env.WEAVER_RUNTIME_IDLE_MS ?? 6e5));
   #workerEntry;
   #crashes = [];
+  #failureCode;
   #diagnostics;
   constructor(options, registryKey) {
     this.workspaceDir = realpathSync2(resolve4(options.workspaceDir));
@@ -112145,6 +112383,7 @@ var WorkspaceSupervisor = class _WorkspaceSupervisor {
       this.#workerOrigin = worker.origin;
       if (this.origin) await worker.setPublicOrigin(this.origin);
       this.#worker = worker;
+      this.#failureCode = void 0;
       this.#diagnostics.record("worker.ready", { buildId: this.buildId, workerPid: worker.pid, durationMs: Date.now() - startedAt });
     } catch (error51) {
       await worker.close().catch(() => void 0);
@@ -112160,43 +112399,55 @@ var WorkspaceSupervisor = class _WorkspaceSupervisor {
     this.#crashes = this.#crashes.filter((time3) => now3 - time3 < 6e4);
     this.#crashes.push(now3);
     this.#diagnostics.record("worker.crashed", { buildId: this.buildId, workerPid: worker.pid, crashCount: this.#crashes.length });
-    if (this.#crashes.length >= 5) return;
+    if (this.#crashes.length >= 5) {
+      this.#failureCode = "SERVICE_START_FAILED";
+      this.#diagnostics.record("worker.circuitOpened", { buildId: this.buildId, code: this.#failureCode, crashCount: this.#crashes.length });
+      return;
+    }
     const delays = [250, 1e3, 3e3, 5e3];
     const delay = delays[Math.min(this.#crashes.length - 1, delays.length - 1)];
     this.#diagnostics.record("worker.restartScheduled", { buildId: this.buildId, delayMs: delay, crashCount: this.#crashes.length });
     setTimeout(() => {
-      if (!this.#closed && !this.#worker) void this.#restartWorker();
+      if (!this.#closed && !this.#worker) void this.#restartWorker().catch(() => {
+        this.#failureCode = "SERVICE_START_FAILED";
+      });
     }, delay).unref();
   }
   async #upgradeWorker(requestedBuildId) {
     if (requestedBuildId === this.buildId) {
       if (!this.#worker) {
         this.#crashes = [];
+        this.#failureCode = void 0;
         await this.#startWorker();
       }
       return;
     }
     const candidateEntry = join5(this.runtimeRoot, "runtimes", requestedBuildId, "runtime", "supervisor.mjs");
-    if (!existsSync4(candidateEntry)) throw new Error("BUILD_MISMATCH");
+    if (!existsSync5(candidateEntry)) throw new Error("BUILD_MISMATCH");
     const previousBuildId = this.buildId;
-    const previousEntry = this.#workerEntry;
     const previous = this.#worker;
-    this.#worker = void 0;
-    this.#workerOrigin = void 0;
-    if (previous) await previous.close();
     this.#diagnostics.record("runtime.upgradeStarted", { fromBuildId: previousBuildId, toBuildId: requestedBuildId });
+    let candidate;
     try {
+      if (previous) await previous.quiesce();
+      candidate = await ChildWorkerHandle.start({ entry: candidateEntry, workspaceDir: this.workspaceDir, buildId: requestedBuildId }, (exited) => this.#workerExited(exited));
+      const response = await fetch(`${candidate.origin}/healthz`);
+      const health = await response.json();
+      if (!response.ok || health.ok !== true || health.state !== "ready" || health.buildId !== requestedBuildId || health.protocolVersion !== CANVAS_RUNTIME_PROTOCOL_VERSION) throw new Error("WORKER_HEALTH_MISMATCH");
+      await candidate.setPublicOrigin(this.origin);
       this.buildId = requestedBuildId;
       this.#workerEntry = candidateEntry;
-      await this.#startWorker();
+      this.#worker = candidate;
+      this.#workerOrigin = candidate.origin;
       this.#crashes = [];
+      this.#failureCode = void 0;
       const port = Number(new URL(this.origin).port);
       this.#writeDescriptor(port, "ready");
       this.#diagnostics.record("runtime.upgradeCompleted", { fromBuildId: previousBuildId, toBuildId: requestedBuildId });
+      if (previous) await previous.close();
     } catch (error51) {
-      this.buildId = previousBuildId;
-      this.#workerEntry = previousEntry;
-      await this.#startWorker().catch(() => void 0);
+      if (candidate) await candidate.close().catch(() => void 0);
+      if (previous) await previous.resume().catch(() => void 0);
       this.#diagnostics.record("runtime.upgradeRolledBack", { fromBuildId: previousBuildId, toBuildId: requestedBuildId, code: error51 instanceof Error ? error51.message : "UNKNOWN" });
       throw new Error(`BUILD_UPGRADE_FAILED:${error51 instanceof Error ? error51.message : "UNKNOWN"}`);
     }
@@ -112217,7 +112468,7 @@ var WorkspaceSupervisor = class _WorkspaceSupervisor {
   #proxy(request, response) {
     this.#touch();
     if (!this.#workerOrigin) {
-      sendUnavailable(response);
+      sendUnavailable(response, this.#failureCode);
       return;
     }
     const target = new URL(request.url ?? "/", this.#workerOrigin);
@@ -112397,7 +112648,9 @@ async function runWorkspaceWorkerProcess(options) {
       else if (message.kind === "set_public_origin") {
         worker.setPublicOrigin(String(payload.origin));
         result = { ok: true };
-      } else if (message.kind === "close") {
+      } else if (message.kind === "quiesce") result = worker.quiesce();
+      else if (message.kind === "resume") result = worker.resume();
+      else if (message.kind === "close") {
         process.send?.({ id: message.id, ok: true, result: { closed: true } });
         await close();
         return;

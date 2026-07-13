@@ -3,8 +3,16 @@ import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { expect, test } from "@playwright/test";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
 const nativeImport = new Function("specifier", "return import(specifier)") as (specifier: string) => Promise<any>;
+
+function unwrapMcp(result: { isError?: boolean; structuredContent?: any }) {
+  if (result.isError) throw new Error(result.structuredContent?.code ?? result.structuredContent?.message ?? "MCP_TOOL_FAILED");
+  const value = result.structuredContent;
+  return value && Object.keys(value).length === 1 && Array.isArray(value.items) ? value.items : value;
+}
 
 test("canonical localhost Canvas loads, edits, persists and explicitly transfers one Project writer", async ({ page, browser }, testInfo) => {
   const { WorkspaceWorker } = await nativeImport(pathToFileURL(resolve(process.cwd(), "packages/workspace-service/dist/index.js")).href);
@@ -103,11 +111,13 @@ test("canonical localhost Canvas loads, edits, persists and explicitly transfers
     await secondPage.getByRole("button", { name: "Take over" }).click();
     await expect(secondPage.locator(".canvas-access-blocker")).toHaveCount(0);
     await expect(page.getByRole("alert")).toContainText("no longer bound", { timeout: 7_000 });
-    await secondContext.close();
+    await secondPage.reload({ waitUntil: "domcontentloaded" });
+    await expect(secondPage.getByRole("toolbar", { name: "Canvas tools" })).toBeVisible();
+    await expect(secondPage.locator(".weaver-dom-node")).toHaveCount(3);
 
     await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("toolbar", { name: "Canvas tools" })).toBeVisible();
-    await expect(page.locator(".weaver-dom-node")).toHaveCount(3);
+    await expect(page.getByRole("alert")).toContainText("no longer bound");
+    await expect(page.locator(".weaver-dom-node")).toHaveCount(0);
     expect(worker.store.canvasMutations.get("missing")).toBeNull();
     const auditCount = worker.store.db.prepare("SELECT count(*) AS count FROM canvas_mutation").get() as { count: number };
     expect(auditCount.count).toBeGreaterThanOrEqual(4);
@@ -116,6 +126,7 @@ test("canonical localhost Canvas loads, edits, persists and explicitly transfers
     expect(JSON.stringify(diagnostics)).not.toContain(workspace);
     expect(JSON.stringify(diagnostics)).not.toContain("a".repeat(64));
     expect(errors).toEqual([]);
+    await secondContext.close();
   } finally {
     await worker.close();
     rmSync(workspace, { recursive: true, force: true });
@@ -238,3 +249,70 @@ test("supervisor keeps the Canvas origin alive across worker replacement", async
     rmSync(runtimeRoot, { recursive: true, force: true });
   }
 });
+
+for (const host of ["Codex", "Claude"] as const) {
+  test(`${host} release-style MCP, supervisor and Browser converge on one bound Canvas`, async ({ page }) => {
+    const workspace = mkdtempSync(resolve(tmpdir(), `weaver-${host.toLowerCase()}-bridge-e2e-`));
+    const runtimeRoot = mkdtempSync(resolve(tmpdir(), `weaver-${host.toLowerCase()}-runtime-e2e-`));
+    const script = host === "Codex" ? "scripts/start-mcp-dev.mjs" : "scripts/start-mcp-claude.mjs";
+    const transport = new StdioClientTransport({
+      command: process.execPath,
+      args: [script],
+      cwd: process.cwd(),
+      stderr: "pipe",
+      env: {
+        ...process.env,
+        VITEST: "1",
+        WEAVER_CANVAS_SURFACE: "localhost",
+        WEAVER_DISABLE_AUTO_OPEN: "1",
+        WEAVER_NO_AUTO_OPEN: "1",
+        WEAVER_RUNTIME_ROOT: runtimeRoot,
+        WEAVER_RUNTIME_IDLE_MS: "60000",
+      },
+    });
+    const client = new Client({ name: `weaver-${host.toLowerCase()}-e2e`, version: "0.1.0" });
+    const threadId = `weaver-${host.toLowerCase()}-e2e-${process.pid}`;
+    const _meta = { threadId, "x-codex-turn-metadata": { thread_id: threadId } };
+    const call = (name: string, args: Record<string, unknown>) => client.callTool({ name, arguments: args, _meta }).then(unwrapMcp);
+    const errors: string[] = [];
+    page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
+    page.on("pageerror", (error) => errors.push(error.message));
+    try {
+      await client.connect(transport);
+      const created = await call("weaver_catalog_action", { workspaceDir: workspace, action: "create_project", title: `${host} bridge`, goal: "Prove the formal runtime route", scenePackId: "free-brainstorming" });
+      const project = created.project as { id: string; defaultViewId: string };
+      const opened = await call("weaver_open_space", { workspaceDir: workspace, projectId: project.id }) as { launchUrl: string };
+      await page.goto(opened.launchUrl, { waitUntil: "domcontentloaded" });
+      await expect(page.getByRole("toolbar", { name: "Canvas tools" })).toBeVisible();
+      await expect(page.getByText(`Connected to this ${host} session`, { exact: true })).toBeVisible({ timeout: 7_000 });
+      await expect(page.locator(".weaver-dom-node")).toHaveCount(1);
+
+      await page.getByRole("button", { name: "Note" }).click();
+      const pane = page.locator(".hybrid-canvas");
+      const box = await pane.boundingBox();
+      if (!box) throw new Error("Canvas has no bounds through formal runtime route");
+      await page.mouse.click(box.x + box.width - 140, box.y + box.height - 140);
+      await expect(page.locator(".weaver-dom-node")).toHaveCount(2);
+
+      await call("weaver_canvas_action", {
+        workspaceDir: workspace,
+        action: "create_node",
+        projectId: project.id,
+        viewId: project.defaultViewId,
+        semanticType: "idea",
+        title: `${host} Agent bridge write`,
+        content: { kind: "document", mode: "note", markdown: "Written through MCP and supervisor.", excerpt: "Formal bridge", embeddedAssetIds: [] },
+        x: 360,
+        y: 80,
+      });
+      await expect(page.locator(".weaver-dom-node").filter({ hasText: `${host} Agent bridge write` })).toHaveCount(1);
+      const graph = await call("weaver_read_graph", { workspaceDir: workspace, resource: "full", projectId: project.id, viewId: project.defaultViewId });
+      expect(graph.nodes).toHaveLength(3);
+      expect(errors).toEqual([]);
+    } finally {
+      await client.close().catch(() => undefined);
+      rmSync(workspace, { recursive: true, force: true });
+      rmSync(runtimeRoot, { recursive: true, force: true });
+    }
+  });
+}

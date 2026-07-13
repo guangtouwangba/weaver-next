@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import type { CanvasEdge as Edge, CanvasNode as Node, CanvasViewport as Viewport } from "../lib/canvas-model";
-import { callTool, connectMcpApp, hostMode, mcp, setCodexLoopback, setRuntimeCsrfToken, weaverPreview, weaverRuntime } from "../mcp-client";
+import { callTool, connectMcpApp, hostMode, mcp, setCodexLoopback, setRuntimeCsrfToken, verifyRuntimeBootstrap, weaverPreview, weaverRuntime } from "../mcp-client";
 import { shouldPromptForProject } from "../lib/graph-view";
 import { buildWidgetBenchmarkScene } from "../lib/benchmark-scene";
 import type { Bootstrap, ChatBindingBootstrap, GraphEdge, GraphNode, Layout, Manifest, Project, ProjectView, ToolResult, VisualTemplate } from "../types";
@@ -82,7 +82,8 @@ export function useProjectBootstrap(params: {
     if (hostMode === "runtime" && weaverRuntime) {
       void fetch(weaverRuntime.bootstrapPath)
         .then((response) => response.json())
-        .then((value: { projectId?: string; viewId?: string; chatBinding?: ChatBindingBootstrap; capabilities?: Bootstrap["capabilities"]; buildId?: string; serverVersion?: string; csrfToken?: string }) => {
+        .then((value: { projectId?: string; viewId?: string; chatBinding?: ChatBindingBootstrap; capabilities?: Bootstrap["capabilities"]; buildId?: string; protocolVersion?: number; serverVersion?: string; csrfToken?: string }) => {
+          verifyRuntimeBootstrap(value);
           setRuntimeCsrfToken(value.csrfToken);
           setBootstrap({ workspaceDir: "runtime", projectId: value.projectId, chatBinding: value.chatBinding, capabilities: value.capabilities, runtimeMode: "installed", widgetBuildId: value.buildId, serverVersion: value.serverVersion, csrfToken: value.csrfToken });
         })
@@ -109,8 +110,9 @@ export function useProjectBootstrap(params: {
     const refreshCapabilities = () => {
       void fetch(runtime.bootstrapPath)
         .then((response) => { if (!response.ok) throw new Error(`BOOTSTRAP_REFRESH_FAILED:${response.status}`); return response.json(); })
-        .then((value: { projectId?: string; chatBinding?: ChatBindingBootstrap; capabilities?: Bootstrap["capabilities"]; buildId?: string; serverVersion?: string; csrfToken?: string }) => {
+        .then((value: { projectId?: string; chatBinding?: ChatBindingBootstrap; capabilities?: Bootstrap["capabilities"]; buildId?: string; protocolVersion?: number; serverVersion?: string; csrfToken?: string }) => {
           if (cancelled) return;
+          verifyRuntimeBootstrap(value);
           setRuntimeCsrfToken(value.csrfToken);
           setBootstrap((current) => ({ ...current, projectId: value.projectId ?? current.projectId, chatBinding: value.chatBinding, capabilities: value.capabilities, widgetBuildId: value.buildId ?? current.widgetBuildId, serverVersion: value.serverVersion ?? current.serverVersion, csrfToken: value.csrfToken ?? current.csrfToken }));
           const connected = value.capabilities?.agentConnected;
@@ -119,7 +121,14 @@ export function useProjectBootstrap(params: {
             setStatus(connected ? `Connected to this ${value.capabilities?.hostLabel ?? "Agent"} session` : "Local editing · Agent disconnected");
           }
         })
-        .catch(() => { /* worker reconnect is surfaced by the existing RPC/SSE state */ });
+        .catch((error) => {
+          if (cancelled) return;
+          const message = error instanceof Error ? error.message : String(error);
+          if (message === "BUILD_MISMATCH" || message === "PROTOCOL_MISMATCH") {
+            setBootstrap((current) => ({ ...current, capabilities: { manualWrite: false, agentConnected: false, agentWrite: false, canTakeOver: false, disconnectReason: message }, buildMismatch: true }));
+            setStatus(message);
+          }
+        });
     };
     const timer = window.setInterval(refreshCapabilities, 5_000);
     return () => { cancelled = true; window.clearInterval(timer); };
@@ -181,6 +190,11 @@ export function useProjectBootstrap(params: {
       setStatus(benchmark ? "Performance benchmark · 500 nodes · 1000 edges" : "Development preview · three content kinds"); return;
     }
     if (!bootstrap.workspaceDir) { setStatus("Open this widget from the Weaver Codex plugin, or provide ?workspaceDir=/path."); return; }
+    if (hostMode === "runtime" && bootstrap.capabilities?.disconnectReason === "SESSION_TAKEN_OVER") {
+      setProject(null); setManifest(null); setLayout(null); setGraphNodes([]); setGraphEdges([]); setNodes([]); setEdges([]);
+      setStatus("Detached. This Project is now active in another Canvas");
+      return;
+    }
     setBusy(true);
     try {
       const projects = await callTool<Project[]>("weaver_read_catalog", { workspaceDir: bootstrap.workspaceDir, resource: "project.list" });
@@ -215,7 +229,7 @@ export function useProjectBootstrap(params: {
       setStatus(`${liveNodes.length} nodes · graph r${graph.project.graphRevision} · layout r${graph.layout.layoutRevision}${runtime}`);
     } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); }
     finally { setBusy(false); }
-  }, [activeViewId, benchmarkMode, bootstrap.projectId, bootstrap.runtimeMode, bootstrap.widgetBuildId, bootstrap.workspaceDir, demoImage, ensureBindingTarget, fitView, hydratePreviews, setEdges, setViewport, standaloneDemo, startFromTemplateGallery]);
+  }, [activeViewId, benchmarkMode, bootstrap.capabilities?.disconnectReason, bootstrap.projectId, bootstrap.runtimeMode, bootstrap.widgetBuildId, bootstrap.workspaceDir, demoImage, ensureBindingTarget, fitView, hydratePreviews, setEdges, setNodes, setViewport, standaloneDemo, startFromTemplateGallery]);
 
   useEffect(() => { void load(); }, [load]);
 

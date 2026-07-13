@@ -24,9 +24,9 @@ export function runtimeControlSocketPath(runtimeRoot: string, key: string) {
   return join(tmpdir(), `weaver-${typeof process.getuid === "function" ? process.getuid() : "user"}`, name);
 }
 
-function sendUnavailable(response: ServerResponse) {
+function sendUnavailable(response: ServerResponse, code = "WORKER_RESTARTING") {
   response.writeHead(503, { "content-type": "application/json; charset=utf-8", "retry-after": "1", "cache-control": "no-store" });
-  response.end(JSON.stringify({ ok: false, error: { code: "WORKER_RESTARTING" } }));
+  response.end(JSON.stringify({ ok: false, error: { code } }));
 }
 
 type WorkerHandle = {
@@ -38,6 +38,8 @@ type WorkerHandle = {
   heartbeat(chatSessionKey: string, hostLabel?: "Codex" | "Claude"): Promise<unknown>;
   diagnostics(): Promise<RuntimeDiagnostic[]>;
   setPublicOrigin(origin: string): Promise<void>;
+  quiesce(): Promise<void>;
+  resume(): Promise<void>;
   close(): Promise<void>;
   kill(): void;
 };
@@ -93,6 +95,8 @@ class ChildWorkerHandle implements WorkerHandle {
   heartbeat(chatSessionKey: string, hostLabel?: "Codex" | "Claude") { return this.#call("heartbeat", { chatSessionKey, hostLabel }); }
   diagnostics() { return this.#call("diagnostics") as Promise<RuntimeDiagnostic[]>; }
   async setPublicOrigin(origin: string) { await this.#call("set_public_origin", { origin }); }
+  async quiesce() { await this.#call("quiesce"); }
+  async resume() { await this.#call("resume"); }
   async close() { this.#intentional = true; if (!this.#child.connected) return; await this.#call("close").catch(() => undefined); }
   kill() { this.#intentional = false; this.#child.kill("SIGKILL"); }
 }
@@ -108,6 +112,8 @@ async function inProcessWorker(options: { workspaceDir: string; buildId: string 
     heartbeat: async (key, hostLabel) => worker.heartbeatBridge(key, hostLabel),
     diagnostics: async () => worker.getDiagnostics(),
     setPublicOrigin: async (value) => { worker.setPublicOrigin(value); },
+    quiesce: async () => { worker.quiesce(); },
+    resume: async () => { worker.resume(); },
     close: () => worker.close(),
     kill: () => { void worker.close(); },
   };
@@ -132,6 +138,7 @@ export class WorkspaceSupervisor {
   #idleMs = Math.max(1_000, Number(process.env.WEAVER_RUNTIME_IDLE_MS ?? 600_000));
   #workerEntry?: string;
   #crashes: number[] = [];
+  #failureCode?: "SERVICE_START_FAILED";
   #diagnostics: RuntimeDiagnostics;
 
   private constructor(options: SupervisorOptions, registryKey: string) {
@@ -219,6 +226,7 @@ export class WorkspaceSupervisor {
       this.#workerOrigin = worker.origin;
       if (this.origin) await worker.setPublicOrigin(this.origin);
       this.#worker = worker;
+      this.#failureCode = undefined;
       this.#diagnostics.record("worker.ready", { buildId: this.buildId, workerPid: worker.pid, durationMs: Date.now() - startedAt });
     } catch (error) {
       await worker.close().catch(() => undefined);
@@ -235,39 +243,48 @@ export class WorkspaceSupervisor {
     this.#crashes = this.#crashes.filter((time) => now - time < 60_000);
     this.#crashes.push(now);
     this.#diagnostics.record("worker.crashed", { buildId: this.buildId, workerPid: worker.pid, crashCount: this.#crashes.length });
-    if (this.#crashes.length >= 5) return;
+    if (this.#crashes.length >= 5) {
+      this.#failureCode = "SERVICE_START_FAILED";
+      this.#diagnostics.record("worker.circuitOpened", { buildId: this.buildId, code: this.#failureCode, crashCount: this.#crashes.length });
+      return;
+    }
     const delays = [250, 1_000, 3_000, 5_000];
     const delay = delays[Math.min(this.#crashes.length - 1, delays.length - 1)];
     this.#diagnostics.record("worker.restartScheduled", { buildId: this.buildId, delayMs: delay, crashCount: this.#crashes.length });
-    setTimeout(() => { if (!this.#closed && !this.#worker) void this.#restartWorker(); }, delay).unref();
+    setTimeout(() => { if (!this.#closed && !this.#worker) void this.#restartWorker().catch(() => { this.#failureCode = "SERVICE_START_FAILED"; }); }, delay).unref();
   }
 
   async #upgradeWorker(requestedBuildId: string) {
     if (requestedBuildId === this.buildId) {
-      if (!this.#worker) { this.#crashes = []; await this.#startWorker(); }
+      if (!this.#worker) { this.#crashes = []; this.#failureCode = undefined; await this.#startWorker(); }
       return;
     }
     const candidateEntry = join(this.runtimeRoot, "runtimes", requestedBuildId, "runtime", "supervisor.mjs");
     if (!existsSync(candidateEntry)) throw new Error("BUILD_MISMATCH");
     const previousBuildId = this.buildId;
-    const previousEntry = this.#workerEntry;
     const previous = this.#worker;
-    this.#worker = undefined;
-    this.#workerOrigin = undefined;
-    if (previous) await previous.close();
     this.#diagnostics.record("runtime.upgradeStarted", { fromBuildId: previousBuildId, toBuildId: requestedBuildId });
+    let candidate: WorkerHandle | undefined;
     try {
+      if (previous) await previous.quiesce();
+      candidate = await ChildWorkerHandle.start({ entry: candidateEntry, workspaceDir: this.workspaceDir, buildId: requestedBuildId }, (exited) => this.#workerExited(exited));
+      const response = await fetch(`${candidate.origin}/healthz`);
+      const health = await response.json() as { ok?: boolean; state?: string; buildId?: string; protocolVersion?: number };
+      if (!response.ok || health.ok !== true || health.state !== "ready" || health.buildId !== requestedBuildId || health.protocolVersion !== CANVAS_RUNTIME_PROTOCOL_VERSION) throw new Error("WORKER_HEALTH_MISMATCH");
+      await candidate.setPublicOrigin(this.origin);
       this.buildId = requestedBuildId;
       this.#workerEntry = candidateEntry;
-      await this.#startWorker();
+      this.#worker = candidate;
+      this.#workerOrigin = candidate.origin;
       this.#crashes = [];
+      this.#failureCode = undefined;
       const port = Number(new URL(this.origin).port);
       this.#writeDescriptor(port, "ready");
       this.#diagnostics.record("runtime.upgradeCompleted", { fromBuildId: previousBuildId, toBuildId: requestedBuildId });
+      if (previous) await previous.close();
     } catch (error) {
-      this.buildId = previousBuildId;
-      this.#workerEntry = previousEntry;
-      await this.#startWorker().catch(() => undefined);
+      if (candidate) await candidate.close().catch(() => undefined);
+      if (previous) await previous.resume().catch(() => undefined);
       this.#diagnostics.record("runtime.upgradeRolledBack", { fromBuildId: previousBuildId, toBuildId: requestedBuildId, code: error instanceof Error ? error.message : "UNKNOWN" });
       throw new Error(`BUILD_UPGRADE_FAILED:${error instanceof Error ? error.message : "UNKNOWN"}`);
     }
@@ -287,7 +304,7 @@ export class WorkspaceSupervisor {
 
   #proxy(request: IncomingMessage, response: ServerResponse) {
     this.#touch();
-    if (!this.#workerOrigin) { sendUnavailable(response); return; }
+    if (!this.#workerOrigin) { sendUnavailable(response, this.#failureCode); return; }
     const target = new URL(request.url ?? "/", this.#workerOrigin);
     const upstream = httpRequest(target, {
       method: request.method,

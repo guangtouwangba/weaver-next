@@ -11,6 +11,13 @@ import { readWorkspaceResource } from "./resources.js";
 export type ApplicationRequest = { operation: string; arguments: Record<string, unknown> };
 
 export function dispatchApplicationOperation(store: WorkspaceStore, principal: WorkspacePrincipal, request: ApplicationRequest) {
+  if (principal.kind === "browser" && new Set([
+    "weaver_prepare_task",
+    "weaver_task_action",
+    "weaver_submit_changeset",
+    "weaver_recommend_layout",
+    "weaver_publish_artifact",
+  ]).has(request.operation)) throw new Error("CHAT_PRINCIPAL_REQUIRED");
   switch (request.operation) {
     case "bridge.openNativeBinding": {
       if (principal.kind !== "chat") throw new Error("CHAT_PRINCIPAL_REQUIRED");

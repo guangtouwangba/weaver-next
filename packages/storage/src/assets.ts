@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import sharp from "sharp";
@@ -65,4 +65,24 @@ export function saveTaskAsset(dataDir: string, taskId: string, fileName: string,
   if (!resolve(target).startsWith(resolve(dataDir))) throw new Error("UNSAFE_ASSET_PATH");
   writeFileSync(target, data);
   return { assetId: randomUUID(), path: target, resourceUri: `weaver://task-assets/${taskId}/${safeName}` };
+}
+
+export function deleteUnreferencedAsset(db: DatabaseSync, dataDir: string, assetId: string) {
+  const asset = getAsset(db, assetId);
+  if (!asset) return { deleted: false };
+  const nodeRows = db.prepare("SELECT data FROM node WHERE project_id = ?").all(asset.projectId) as Array<{ data: string }>;
+  if (nodeRows.some((row) => row.data.includes(assetId))) throw new Error("ASSET_IN_USE");
+  db.prepare("DELETE FROM asset WHERE id = ?").run(assetId);
+  const shared = db.prepare("SELECT COUNT(*) AS count FROM asset WHERE sha256 = ?").get(asset.sha256) as { count: number };
+  if (Number(shared.count) === 0) {
+    for (const uri of [asset.storageUri, asset.thumbnailUri]) {
+      const relative = uri.split("/files/")[1];
+      if (!relative) continue;
+      const target = resolve(dataDir, "assets", relative);
+      const root = `${resolve(dataDir, "assets")}/`;
+      if (!target.startsWith(root)) throw new Error("UNSAFE_ASSET_PATH");
+      if (existsSync(target)) unlinkSync(target);
+    }
+  }
+  return { deleted: true, asset };
 }

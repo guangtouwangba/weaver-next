@@ -11,7 +11,7 @@ import { dispatchApplicationOperation } from "./operations/index.js";
 import { RuntimeDiagnostics } from "./runtime-diagnostics.js";
 
 export type WorkspaceWorkerOptions = { workspaceDir: string; buildId: string; canvasRoot?: string };
-type PendingLaunch = { hash: string; chatSessionKey: string; projectId?: string; requestedViewId?: string; expiresAt: string };
+type PendingLaunch = { hash: string; chatSessionKey?: string; projectId?: string; requestedViewId?: string; expiresAt: string };
 
 function sendJson(response: ServerResponse, status: number, body: unknown) {
   response.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff", "referrer-policy": "no-referrer" });
@@ -40,6 +40,7 @@ export class WorkspaceWorker {
   #diagnostics: RuntimeDiagnostics;
   #eventStreams = new Set<{ response: ServerResponse; timer: NodeJS.Timeout }>();
   #closed = false;
+  #quiesced = false;
   #publicOrigin?: string;
   #bridgeHeartbeats = new Map<string, { seenAt: number; hostLabel?: "Codex" | "Claude" }>();
 
@@ -76,10 +77,24 @@ export class WorkspaceWorker {
     this.#publicOrigin = parsed.origin;
   }
 
+  quiesce() { this.#quiesced = true; return { quiesced: true }; }
+  resume() { this.#quiesced = false; return { quiesced: false }; }
+
   createLaunch(input: { chatSessionKey: string; projectId?: string; requestedViewId?: string }): WorkspaceLaunchResult {
+    if (this.#quiesced) throw new Error("WORKER_QUIESCED");
     if (!this.#origin) throw new Error("WORKER_NOT_LISTENING");
     if (!/^[a-f0-9]{64}$/.test(input.chatSessionKey)) throw new Error("INVALID_CHAT_SESSION_KEY");
     this.heartbeatBridge(input.chatSessionKey);
+    return this.#createLaunch(input);
+  }
+
+  createLocalLaunch(input: { projectId?: string; requestedViewId?: string } = {}): WorkspaceLaunchResult {
+    if (input.requestedViewId && !input.projectId) throw new Error("INVALID_LOCAL_LAUNCH_TARGET");
+    return this.#createLaunch(input);
+  }
+
+  #createLaunch(input: { chatSessionKey?: string; projectId?: string; requestedViewId?: string }): WorkspaceLaunchResult {
+    if (!this.#origin) throw new Error("WORKER_NOT_LISTENING");
     const nonce = randomToken();
     const expiresAt = new Date(Date.now() + 30_000).toISOString();
     this.#launches.set(hashLaunchNonce(nonce), { hash: hashLaunchNonce(nonce), ...input, expiresAt });
@@ -103,6 +118,7 @@ export class WorkspaceWorker {
     return { online: true, seenAt: new Date().toISOString() };
   }
   dispatchChatOperation(chatSessionKey: string, operation: string, arguments_: Record<string, unknown>) {
+    if (this.#quiesced) throw new Error("WORKER_QUIESCED");
     if (!/^[a-f0-9]{64}$/.test(chatSessionKey)) throw new Error("INVALID_CHAT_SESSION_KEY");
     this.heartbeatBridge(chatSessionKey);
     return dispatchApplicationOperation(this.store, { kind: "chat", chatSessionKey }, { operation, arguments: arguments_ });
@@ -122,7 +138,11 @@ export class WorkspaceWorker {
     const url = new URL(request.url ?? "/", "http://127.0.0.1");
     if (!this.#validHost(request)) { sendJson(response, 421, { ok: false, error: { code: "INVALID_HOST" } }); return; }
     if (request.method === "GET" && url.pathname === "/healthz") {
-      sendJson(response, 200, { ok: true, state: "ready", buildId: this.buildId, protocolVersion: CANVAS_RUNTIME_PROTOCOL_VERSION });
+      sendJson(response, 200, { ok: true, state: this.#quiesced ? "quiesced" : "ready", buildId: this.buildId, protocolVersion: CANVAS_RUNTIME_PROTOCOL_VERSION });
+      return;
+    }
+    if (this.#quiesced) {
+      sendJson(response, 503, { ok: false, error: { code: "RUNTIME_UPGRADING" } });
       return;
     }
     if (request.method === "GET" && url.pathname.startsWith("/launch/")) {
@@ -144,9 +164,13 @@ export class WorkspaceWorker {
             credentialHash: hashBrowserCredential(credential),
             now,
             expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1_000).toISOString(),
+            projectId: launch.projectId,
+            viewId: launch.requestedViewId,
           });
-          const binding = this.store.sessions.openBinding({ chatSessionKey: launch.chatSessionKey, projectId: launch.projectId, viewId: launch.requestedViewId });
-          this.store.browserSessions.pairChat({ id: session.id, chatSessionKey: launch.chatSessionKey, bindingRevision: binding.bindingRevision, now });
+          if (launch.chatSessionKey) {
+            const binding = this.store.sessions.openBinding({ chatSessionKey: launch.chatSessionKey, projectId: launch.projectId, viewId: launch.requestedViewId });
+            this.store.browserSessions.pairChat({ id: session.id, chatSessionKey: launch.chatSessionKey, bindingRevision: binding.bindingRevision, now });
+          }
           if (launch.projectId) {
             try { this.store.browserSessions.claimWriter({ projectId: launch.projectId, browserSessionId: session.id, now }); }
             catch (error) { if (!(error instanceof Error) || error.message !== "PROJECT_WRITER_EXISTS") throw error; }
@@ -168,12 +192,14 @@ export class WorkspaceWorker {
       return;
     }
     if (request.method === "GET" && url.pathname === "/api/bootstrap") {
-      const auth = this.#authenticateBrowser(request);
+      const auth = this.#authenticateBrowser(request, true);
       if (!auth) { sendJson(response, 401, { ok: false, error: { code: "BROWSER_SESSION_INVALID" } }); return; }
       const session = auth.session;
       const binding = session.pairedChatSessionKey ? this.store.sessions.getBinding(session.pairedChatSessionKey) : null;
-      const writerLease = binding?.projectId ? this.store.browserSessions.writer(binding.projectId) : undefined;
-      const ownsWriter = writerLease?.status === "active" && writerLease.browserSessionId === session.id;
+      const projectId = binding?.projectId ?? session.projectId;
+      const viewId = binding?.viewId ?? session.viewId;
+      const writerLease = projectId ? this.store.browserSessions.writer(projectId) : undefined;
+      const ownsWriter = session.status === "active" && writerLease?.status === "active" && writerLease.browserSessionId === session.id;
       const pairedBindingCurrent = Boolean(binding && session.pairedBindingRevision === binding.bindingRevision && binding.status !== "detached");
       const bridge = session.pairedChatSessionKey ? this.#bridgeHeartbeats.get(session.pairedChatSessionKey) : undefined;
       const bridgeOnline = Boolean(bridge && Date.now() - bridge.seenAt <= Math.max(50, Number(process.env.WEAVER_BRIDGE_GRACE_MS ?? 30_000)));
@@ -187,27 +213,29 @@ export class WorkspaceWorker {
           manualWrite: Boolean(ownsWriter),
           agentConnected: Boolean(pairedBindingCurrent && bridgeOnline),
           agentWrite: Boolean(pairedBindingCurrent && bridgeOnline && ownsWriter),
-          canTakeOver: Boolean(binding?.projectId && writerLease?.status === "active" && !ownsWriter),
+          canTakeOver: Boolean(session.status === "active" && projectId && writerLease?.status === "active" && !ownsWriter),
           hostLabel: bridgeOnline ? bridge?.hostLabel : undefined,
-          disconnectReason: pairedBindingCurrent && !bridgeOnline ? "AGENT_DISCONNECTED" : undefined,
+          disconnectReason: session.status === "detached" ? "SESSION_TAKEN_OVER" : pairedBindingCurrent && !bridgeOnline ? "AGENT_DISCONNECTED" : undefined,
         },
-        projectId: binding?.projectId,
-        viewId: binding?.viewId,
+        projectId,
+        viewId,
         writerLease: ownsWriter ? writerLease : undefined,
-        chatBinding: binding ? { leaseId: binding.leaseId, bindingRevision: binding.bindingRevision, projectId: binding.projectId, viewId: binding.viewId } : undefined,
+        chatBinding: binding && session.status === "active" ? { leaseId: binding.leaseId, bindingRevision: binding.bindingRevision, projectId: binding.projectId, viewId: binding.viewId } : undefined,
       });
       sendJson(response, 200, bootstrap);
       this.#diagnostics.record("bootstrap.ready", { buildId: this.buildId, manualWrite: bootstrap.capabilities.manualWrite, agentConnected: bootstrap.capabilities.agentConnected });
       return;
     }
     if (request.method === "GET" && url.pathname === "/events") {
-      const auth = this.#authenticateBrowser(request);
+      const auth = this.#authenticateBrowser(request, true);
       if (!auth) { sendJson(response, 401, { ok: false, error: { code: "BROWSER_SESSION_INVALID" } }); return; }
       const projectId = url.searchParams.get("projectId");
       const canvasSessionId = url.searchParams.get("canvasSessionId");
       const context = canvasSessionId ? this.store.sessions.canvasContext(canvasSessionId) : null;
       const binding = auth.session.pairedChatSessionKey ? this.store.sessions.getBinding(auth.session.pairedChatSessionKey) : null;
-      if (!projectId || !canvasSessionId || !context || context.projectId !== projectId || binding?.canvasSessionId !== canvasSessionId) {
+      const sessionProjectId = binding?.projectId ?? auth.session.projectId;
+      const sessionCanvasId = binding?.canvasSessionId ?? context?.canvasSessionId;
+      if (!projectId || !canvasSessionId || !context || context.projectId !== projectId || sessionProjectId !== projectId || sessionCanvasId !== canvasSessionId) {
         sendJson(response, 403, { ok: false, error: { code: "EVENT_STREAM_FORBIDDEN" } }); return;
       }
       let sequence = Math.max(Number(url.searchParams.get("after") ?? 0) || 0, Number(request.headers["last-event-id"] ?? 0) || 0);
@@ -229,12 +257,12 @@ export class WorkspaceWorker {
       return;
     }
     if (request.method === "GET" && (url.pathname === "/app" || url.pathname === "/app/")) {
-      const auth = this.#authenticateBrowser(request);
+      const auth = this.#authenticateBrowser(request, true);
       if (!auth) { sendJson(response, 401, { ok: false, error: { code: "BROWSER_SESSION_INVALID" } }); return; }
       try {
         const html = readFileSync(resolve(this.canvasRoot, "index.html"), "utf8");
         const nonce = randomToken(18);
-        const injected = html.replace("<head>", `<head><script nonce="${nonce}">window.__weaverRuntime={rpcPath:"/api/rpc",bootstrapPath:"/api/bootstrap"};</script>`);
+        const injected = html.replace("<head>", `<head><script nonce="${nonce}">window.__weaverRuntime={rpcPath:"/api/rpc",bootstrapPath:"/api/bootstrap",buildId:${JSON.stringify(this.buildId)},protocolVersion:${CANVAS_RUNTIME_PROTOCOL_VERSION}};</script>`);
         response.writeHead(200, {
           "content-type": "text/html; charset=utf-8",
           "cache-control": "no-store",
@@ -247,7 +275,7 @@ export class WorkspaceWorker {
       return;
     }
     if (request.method === "GET" && url.pathname.startsWith("/app/")) {
-      const auth = this.#authenticateBrowser(request);
+      const auth = this.#authenticateBrowser(request, true);
       if (!auth) { sendJson(response, 401, { ok: false, error: { code: "BROWSER_SESSION_INVALID" } }); return; }
       const relative = decodeURIComponent(url.pathname.slice("/app/".length));
       const path = resolve(this.canvasRoot, relative);
@@ -313,11 +341,11 @@ export class WorkspaceWorker {
     sendJson(response, 404, { ok: false, error: { code: "ROUTE_NOT_FOUND" } });
   }
 
-  #authenticateBrowser(request: IncomingMessage) {
+  #authenticateBrowser(request: IncomingMessage, allowDetached = false) {
     const parsed = parseSessionCookie(request.headers.cookie);
     if (!parsed) return null;
     const session = this.store.browserSessions.get(parsed.id);
-    if (!session || session.status !== "active") return null;
+    if (!session || session.status === "expired" || (session.status === "detached" && !allowDetached)) return null;
     if (Date.parse(session.expiresAt) <= Date.now()) {
       this.store.browserSessions.expire(session.id, new Date().toISOString());
       return null;

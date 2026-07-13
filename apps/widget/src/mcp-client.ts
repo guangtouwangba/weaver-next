@@ -3,6 +3,7 @@ import { isDevHost, resolveHostMode, type WeaverPreview, type WeaverRuntime } fr
 import { createMcpAppConnection } from "./mcp-app-connection";
 import type { ToolResult } from "./types";
 import { toolErrorMessage } from "./canvas-access";
+import { assertRuntimeCompatibility } from "./lib/runtime-compat";
 
 export type { HostMode, WeaverPreview } from "./lib/host-mode";
 
@@ -27,7 +28,18 @@ export const weaverRuntime = browserWindow?.__weaverRuntime;
 export const isLocalDevelopment = isDevHost(browserLocation?.hostname ?? "localhost", weaverPreview, weaverRuntime);
 export const hostMode = resolveHostMode(browserLocation?.hostname ?? "localhost", weaverPreview, weaverRuntime);
 let runtimeCsrfToken: string | undefined;
+let runtimeCompatibilityError: string | undefined;
 export function setRuntimeCsrfToken(value?: string) { runtimeCsrfToken = value; }
+export function verifyRuntimeBootstrap(value: { buildId?: string; protocolVersion?: number }) {
+  if (!weaverRuntime) return;
+  try {
+    assertRuntimeCompatibility(weaverRuntime, value);
+    runtimeCompatibilityError = undefined;
+  } catch (error) {
+    runtimeCompatibilityError = error instanceof Error ? error.message : "BUILD_MISMATCH";
+    throw error;
+  }
+}
 
 // Codex loopback bypass. Codex's tools/call proxy rejects some widget calls in the
 // renderer before they ever reach the MCP server ("-32000 MCP proxy request failed" —
@@ -84,6 +96,7 @@ async function callCodexTool<T>(name: string, args: Record<string, unknown>): Pr
 export async function callTool<T>(name: string, args: Record<string, unknown>): Promise<T> {
   let result: ToolResult<T>;
   if (hostMode === "runtime" && weaverRuntime) {
+    if (runtimeCompatibilityError) throw new Error(runtimeCompatibilityError);
     const response = await fetch(weaverRuntime.rpcPath, { method: "POST", headers: { "content-type": "application/json", "x-weaver-csrf": runtimeCsrfToken ?? "" }, body: JSON.stringify({ operation: name, arguments: args }) });
     const value = await response.json() as { ok: boolean; result?: T; error?: { code?: string } };
     result = value.ok ? { structuredContent: value.result } : { isError: true, content: [{ type: "text", text: value.error?.code ?? `${name} failed` }] };

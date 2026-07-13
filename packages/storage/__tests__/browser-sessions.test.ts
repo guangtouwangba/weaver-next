@@ -45,6 +45,7 @@ describe("browser sessions and project writer leases", () => {
     const taken = db.browserSessions.claimWriter({ projectId: "project-1", browserSessionId: "browser-b", now: later, takeover: true });
     expect(taken).toMatchObject({ revision: 2, browserSessionId: "browser-b", status: "active" });
     expect(db.browserSessions.writer("project-1")).toEqual(taken);
+    expect(db.browserSessions.get("browser-a")).toMatchObject({ status: "detached" });
     expect(db.sessions.getBinding(chatSessionKey)).toMatchObject({ bindingRevision: binding.bindingRevision + 1, status: "detached" });
     expect(db.sessions.listEvents("project-1").at(-1)).toMatchObject({ kind: "chat.binding.changed", payload: { reason: "PROJECT_WRITER_TAKEN_OVER" } });
     db.close();

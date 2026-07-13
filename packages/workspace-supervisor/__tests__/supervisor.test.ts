@@ -110,8 +110,27 @@ describe("workspace supervisor", () => {
     mkdirSync(candidateDir, { recursive: true });
     writeFileSync(join(candidateDir, "supervisor.mjs"), "throw new Error('corrupt candidate')\n");
     process.env.WEAVER_WORKER_START_TIMEOUT_MS = "250";
+    const originalPid = supervisor.workerPidForTest();
     await expect(sendRuntimeControl(supervisor.controlSocketPath, { kind: "ensure_runtime", workspaceKey: workspaceKey(options.workspaceDir), requestedBuildId: "build-b", protocolVersion: CANVAS_RUNTIME_PROTOCOL_VERSION })).rejects.toThrow("BUILD_UPGRADE_FAILED");
+    expect(supervisor.workerPidForTest()).toBe(originalPid);
     expect(await fetch(`${supervisor.origin}/healthz`).then((response) => response.json())).toMatchObject({ ok: true, buildId: "build-a" });
+  });
+
+  it("opens a visible service-failed circuit after five worker crashes and retries only on explicit ensure", { timeout: 20_000 }, async () => {
+    const options = { ...fixture(), buildId: "build-a", workerEntry: join(process.cwd(), "packages/workspace-supervisor/dist/server.js") };
+    const supervisor = await ensureWorkspaceSupervisor(options); supervisors.push(supervisor);
+    for (let crash = 1; crash <= 5; crash += 1) {
+      const pid = supervisor.workerPidForTest();
+      supervisor.killWorkerForTest();
+      if (crash < 5) await waitFor(() => supervisor.workerPidForTest() !== undefined && supervisor.workerPidForTest() !== pid, 8_000);
+    }
+    await waitFor(() => supervisor.workerPidForTest() === undefined);
+    const failed = await fetch(`${supervisor.origin}/healthz`);
+    expect(failed.status).toBe(503);
+    expect(await failed.json()).toEqual({ ok: false, error: { code: "SERVICE_START_FAILED" } });
+
+    await sendRuntimeControl(supervisor.controlSocketPath, { kind: "ensure_runtime", workspaceKey: workspaceKey(options.workspaceDir), requestedBuildId: "build-a", protocolVersion: CANVAS_RUNTIME_PROTOCOL_VERSION });
+    expect(await fetch(`${supervisor.origin}/healthz`).then((response) => response.json())).toMatchObject({ ok: true, state: "ready", buildId: "build-a" });
   });
 
   it("keeps the public origin stable across repeated healthy runtime upgrades", async () => {

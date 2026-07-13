@@ -134,7 +134,7 @@ function WeaverWidget() {
     />
     {bootstrap.schemaReset ? <div className="schema-reset-notice" role="status">{t("schemaResetNotice")} <code>{t("backupLabel")}: {bootstrap.schemaReset.backupName}</code></div> : null}
     <section className="workspace-stage">
-      {!standaloneDemo && (accessState === "build-mismatch" || (project && accessState !== "active")) ? <div className="canvas-access-blocker" role="alert">
+      {!standaloneDemo && (accessState === "build-mismatch" || accessState === "detached" || (project && accessState !== "active")) ? <div className="canvas-access-blocker" role="alert">
         <strong>{accessState === "claiming" ? t("canvasConnecting") : accessState === "claim-failed" ? t("canvasConnectFailed") : accessState === "duplicate" ? t("canvasDuplicate") : accessState === "build-mismatch" ? t("buildMismatch") : t("canvasDetached")}</strong>
         <p>{accessState === "claiming" ? t("claimingHelp") : accessState === "claim-failed" ? `${t("errorCode")}: ${claimError ?? "CANVAS_CLAIM_FAILED"}. ${t("retryHelp")}` : accessState === "duplicate" ? t("duplicateHelp") : accessState === "build-mismatch" ? `${window.__weaverEmbeddedBuildId ?? "unknown"} / ${bootstrap.widgetBuildId ?? "unknown"} / ${bootstrap.workspaceWidgetBuildId ?? "unknown"}. ${t("buildMismatchHelp")}` : t("detachedHelp")}</p>
         {accessState === "claim-failed" ? <button type="button" onClick={retryClaim}>{t("reconnect")}</button> : null}

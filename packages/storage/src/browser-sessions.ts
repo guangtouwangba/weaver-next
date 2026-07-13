@@ -19,7 +19,7 @@ function saveBrowserSession(db: DatabaseSync, session: BrowserSession): BrowserS
   return validated;
 }
 
-export function createBrowserSession(db: DatabaseSync, input: { id: string; credentialHash: string; now: string; expiresAt: string }) {
+export function createBrowserSession(db: DatabaseSync, input: { id: string; credentialHash: string; now: string; expiresAt: string; projectId?: string; viewId?: string }) {
   return transaction(db, () => {
     if (getBrowserSession(db, input.id)) throw new Error("BROWSER_SESSION_EXISTS");
     return saveBrowserSession(db, browserSessionSchema.parse({
@@ -30,7 +30,16 @@ export function createBrowserSession(db: DatabaseSync, input: { id: string; cred
       createdAt: input.now,
       lastSeenAt: input.now,
       expiresAt: input.expiresAt,
+      projectId: input.projectId,
+      viewId: input.viewId,
     }));
+  });
+}
+
+export function setBrowserSessionTarget(db: DatabaseSync, input: { id: string; projectId?: string; viewId?: string; now: string }) {
+  return transaction(db, () => {
+    const session = requireActiveBrowserSession(db, input.id, input.now);
+    return saveBrowserSession(db, { ...session, projectId: input.projectId, viewId: input.viewId, lastSeenAt: input.now });
   });
 }
 
@@ -91,6 +100,14 @@ export function claimProjectWriter(db: DatabaseSync, input: { projectId: string;
     if (current?.status === "active" && !input.takeover) throw new Error("PROJECT_WRITER_EXISTS");
     if (current?.status === "active" && input.takeover) {
       const previousBrowser = getBrowserSession(db, current.browserSessionId);
+      if (previousBrowser) {
+        saveBrowserSession(db, { ...previousBrowser, status: "detached", lastSeenAt: input.now });
+        const otherRows = db.prepare("SELECT data FROM project_write_lease WHERE browser_session_id = ? AND status = 'active'").all(previousBrowser.id) as Array<{ data: string }>;
+        for (const row of otherRows) {
+          const lease = projectWriteLeaseSchema.parse(parse(row.data));
+          if (lease.projectId !== input.projectId) saveProjectWriteLease(db, { ...lease, revision: lease.revision + 1, status: "released", lastSeenAt: input.now });
+        }
+      }
       const previousBinding = previousBrowser?.pairedChatSessionKey ? getChatCanvasBinding(db, previousBrowser.pairedChatSessionKey) : null;
       if (previousBinding?.projectId === input.projectId) {
         rejectBindingWork(db, previousBinding);

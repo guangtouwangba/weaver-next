@@ -5,7 +5,7 @@
 
 export type HostMode = "codex" | "claude" | "runtime" | "dev";
 export type WeaverPreview = { host: "claude"; origin: string; rpcPath: string; bootstrapPath: string; token: string; buildId: string };
-export type WeaverRuntime = { rpcPath: string; bootstrapPath: string };
+export type WeaverRuntime = { rpcPath: string; bootstrapPath: string; buildId: string; protocolVersion: number };
 
 /** True only for the Vite dev proxy — the Claude preview is also on 127.0.0.1 but is not dev. */
 export function isDevHost(hostname: string, preview?: WeaverPreview, runtime?: WeaverRuntime): boolean {

@@ -97,6 +97,8 @@ export const browserSessionSchema = z.object({
   status: z.enum(["active", "detached", "expired"]),
   pairedChatSessionKey: identifierSchema.optional(),
   pairedBindingRevision: z.number().int().positive().optional(),
+  projectId: identifierSchema.optional(),
+  viewId: identifierSchema.optional(),
   createdAt: timestampSchema,
   lastSeenAt: timestampSchema,
   expiresAt: timestampSchema,
@@ -151,6 +153,7 @@ export const canvasMutationRequestSchema = z.object({
   writerLeaseRevision: z.number().int().positive(),
   baseGraphRevision: z.number().int().nonnegative().optional(),
   baseLayoutRevision: z.number().int().nonnegative().optional(),
+  baseViewCatalogRevision: z.number().int().nonnegative().optional(),
   operation: z.record(z.string(), z.unknown()),
 }).strict();
 
@@ -164,6 +167,8 @@ export const canvasMutationRecordSchema = z.object({
   resultGraphRevision: z.number().int().nonnegative().optional(),
   baseLayoutRevision: z.number().int().nonnegative().optional(),
   resultLayoutRevision: z.number().int().nonnegative().optional(),
+  baseViewCatalogRevision: z.number().int().nonnegative().optional(),
+  resultViewCatalogRevision: z.number().int().nonnegative().optional(),
   forwardOperations: z.array(z.unknown()),
   inverseOperations: z.array(z.unknown()),
   status: z.enum(["applied", "reverted"]),

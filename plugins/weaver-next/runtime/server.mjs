@@ -123684,6 +123684,8 @@ var browserSessionSchema = external_exports.object({
   status: external_exports.enum(["active", "detached", "expired"]),
   pairedChatSessionKey: identifierSchema.optional(),
   pairedBindingRevision: external_exports.number().int().positive().optional(),
+  projectId: identifierSchema.optional(),
+  viewId: identifierSchema.optional(),
   createdAt: timestampSchema,
   lastSeenAt: timestampSchema,
   expiresAt: timestampSchema
@@ -123732,6 +123734,7 @@ var canvasMutationRequestSchema = external_exports.object({
   writerLeaseRevision: external_exports.number().int().positive(),
   baseGraphRevision: external_exports.number().int().nonnegative().optional(),
   baseLayoutRevision: external_exports.number().int().nonnegative().optional(),
+  baseViewCatalogRevision: external_exports.number().int().nonnegative().optional(),
   operation: external_exports.record(external_exports.string(), external_exports.unknown())
 }).strict();
 var canvasMutationRecordSchema = external_exports.object({
@@ -123744,6 +123747,8 @@ var canvasMutationRecordSchema = external_exports.object({
   resultGraphRevision: external_exports.number().int().nonnegative().optional(),
   baseLayoutRevision: external_exports.number().int().nonnegative().optional(),
   resultLayoutRevision: external_exports.number().int().nonnegative().optional(),
+  baseViewCatalogRevision: external_exports.number().int().nonnegative().optional(),
+  resultViewCatalogRevision: external_exports.number().int().nonnegative().optional(),
   forwardOperations: external_exports.array(external_exports.unknown()),
   inverseOperations: external_exports.array(external_exports.unknown()),
   status: external_exports.enum(["applied", "reverted"]),
@@ -123834,7 +123839,7 @@ var reviewActionSchema = external_exports.discriminatedUnion("resource", [
 });
 
 // packages/storage/src/workspace-store.ts
-import { cpSync, existsSync, mkdirSync as mkdirSync2, realpathSync, renameSync } from "node:fs";
+import { cpSync, existsSync as existsSync2, mkdirSync as mkdirSync2, realpathSync, renameSync } from "node:fs";
 import { basename, join as join3, resolve as resolve2 } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
@@ -124257,7 +124262,7 @@ function applyLayoutOperations(document2, operations, nextRevision = document2.l
 
 // packages/storage/src/assets.ts
 import { createHash, randomUUID } from "node:crypto";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import sharp from "sharp";
 function getAsset(db, assetId) {
@@ -124320,6 +124325,25 @@ function saveTaskAsset(dataDir, taskId, fileName, data) {
   if (!resolve(target).startsWith(resolve(dataDir))) throw new Error("UNSAFE_ASSET_PATH");
   writeFileSync(target, data);
   return { assetId: randomUUID(), path: target, resourceUri: `weaver://task-assets/${taskId}/${safeName}` };
+}
+function deleteUnreferencedAsset(db, dataDir, assetId) {
+  const asset = getAsset(db, assetId);
+  if (!asset) return { deleted: false };
+  const nodeRows = db.prepare("SELECT data FROM node WHERE project_id = ?").all(asset.projectId);
+  if (nodeRows.some((row) => row.data.includes(assetId))) throw new Error("ASSET_IN_USE");
+  db.prepare("DELETE FROM asset WHERE id = ?").run(assetId);
+  const shared = db.prepare("SELECT COUNT(*) AS count FROM asset WHERE sha256 = ?").get(asset.sha256);
+  if (Number(shared.count) === 0) {
+    for (const uri of [asset.storageUri, asset.thumbnailUri]) {
+      const relative = uri.split("/files/")[1];
+      if (!relative) continue;
+      const target = resolve(dataDir, "assets", relative);
+      const root = `${resolve(dataDir, "assets")}/`;
+      if (!target.startsWith(root)) throw new Error("UNSAFE_ASSET_PATH");
+      if (existsSync(target)) unlinkSync(target);
+    }
+  }
+  return { deleted: true, asset };
 }
 
 // packages/storage/src/layout-templates.ts
@@ -126557,6 +126581,41 @@ function purgeExpiredProjectViews(db) {
     purgeProjectView(db, { projectId: view.projectId, viewId: view.id, baseCatalogRevision: project.viewCatalogRevision });
   }
 }
+function restoreProjectCatalogSnapshot(db, input) {
+  return transaction(db, () => {
+    const current = getProject(db, input.projectId);
+    if (!current) throw new Error("PROJECT_NOT_FOUND");
+    const previousViews = listProjectViews(db, input.projectId);
+    db.prepare("DELETE FROM project_view WHERE project_id = ?").run(input.projectId);
+    db.prepare("DELETE FROM layout WHERE project_id = ?").run(input.projectId);
+    for (const view of input.views) putProjectView(db, view);
+    const layoutInsert = db.prepare("INSERT INTO layout(project_id, view_id, revision, data) VALUES (?, ?, ?, ?)");
+    for (const layout of input.layouts) {
+      const validated = layoutDocumentSchema.parse(layout);
+      layoutInsert.run(validated.projectId, validated.viewId, validated.layoutRevision, json2(validated));
+    }
+    const project = projectSchema.parse({
+      ...current,
+      defaultViewId: input.defaultViewId,
+      viewCatalogRevision: current.viewCatalogRevision + 1,
+      updatedAt: now()
+    });
+    db.prepare("UPDATE project SET data = ? WHERE id = ?").run(json2(project), input.projectId);
+    appendProjectEvent(db, {
+      projectId: input.projectId,
+      kind: "view.catalog.changed",
+      payload: {
+        projectId: input.projectId,
+        fromRevision: current.viewCatalogRevision,
+        toRevision: project.viewCatalogRevision,
+        upsertedViews: input.views,
+        removedViewIds: previousViews.filter((view) => !input.views.some((candidate) => candidate.id === view.id)).map((view) => view.id),
+        defaultViewId: project.defaultViewId
+      }
+    });
+    return { project, views: input.views, layouts: input.layouts };
+  });
+}
 
 // packages/storage/src/changesets.ts
 function submitChangeSet(db, changeSet) {
@@ -126912,8 +126971,16 @@ function createBrowserSession(db, input) {
       status: "active",
       createdAt: input.now,
       lastSeenAt: input.now,
-      expiresAt: input.expiresAt
+      expiresAt: input.expiresAt,
+      projectId: input.projectId,
+      viewId: input.viewId
     }));
+  });
+}
+function setBrowserSessionTarget(db, input) {
+  return transaction(db, () => {
+    const session = requireActiveBrowserSession(db, input.id, input.now);
+    return saveBrowserSession(db, { ...session, projectId: input.projectId, viewId: input.viewId, lastSeenAt: input.now });
   });
 }
 function requireActiveBrowserSession(db, id, at) {
@@ -126968,6 +127035,14 @@ function claimProjectWriter(db, input) {
     if (current?.status === "active" && !input.takeover) throw new Error("PROJECT_WRITER_EXISTS");
     if (current?.status === "active" && input.takeover) {
       const previousBrowser = getBrowserSession(db, current.browserSessionId);
+      if (previousBrowser) {
+        saveBrowserSession(db, { ...previousBrowser, status: "detached", lastSeenAt: input.now });
+        const otherRows = db.prepare("SELECT data FROM project_write_lease WHERE browser_session_id = ? AND status = 'active'").all(previousBrowser.id);
+        for (const row of otherRows) {
+          const lease = projectWriteLeaseSchema.parse(parse3(row.data));
+          if (lease.projectId !== input.projectId) saveProjectWriteLease(db, { ...lease, revision: lease.revision + 1, status: "released", lastSeenAt: input.now });
+        }
+      }
       const previousBinding = previousBrowser?.pairedChatSessionKey ? getChatCanvasBinding(db, previousBrowser.pairedChatSessionKey) : null;
       if (previousBinding?.projectId === input.projectId) {
         rejectBindingWork(db, previousBinding);
@@ -127050,6 +127125,8 @@ function applyCanvasMutation(db, input, applyState) {
       resultGraphRevision: result2.resultGraphRevision,
       baseLayoutRevision: request.baseLayoutRevision,
       resultLayoutRevision: result2.resultLayoutRevision,
+      baseViewCatalogRevision: request.baseViewCatalogRevision,
+      resultViewCatalogRevision: result2.resultViewCatalogRevision,
       forwardOperations: result2.forwardOperations,
       inverseOperations: result2.inverseOperations,
       status: "applied",
@@ -127063,7 +127140,7 @@ function revertCanvasMutation(db, input, applyInverse) {
     if (!record2) throw new Error("CANVAS_MUTATION_NOT_FOUND");
     if (record2.status === "reverted") return record2;
     assertWriter(db, record2.projectId, input.browserSessionId);
-    if (record2.resultGraphRevision !== void 0 && record2.resultGraphRevision !== input.currentGraphRevision || record2.resultLayoutRevision !== void 0 && record2.resultLayoutRevision !== input.currentLayoutRevision) throw new Error("UNDO_REVISION_CONFLICT");
+    if (record2.resultGraphRevision !== void 0 && record2.resultGraphRevision !== input.currentGraphRevision || record2.resultLayoutRevision !== void 0 && record2.resultLayoutRevision !== input.currentLayoutRevision || record2.resultViewCatalogRevision !== void 0 && record2.resultViewCatalogRevision !== input.currentViewCatalogRevision) throw new Error("UNDO_REVISION_CONFLICT");
     applyInverse(record2);
     return saveCanvasMutation(db, { ...record2, status: "reverted", revertedAt: input.revertedAt });
   });
@@ -127078,7 +127155,7 @@ function backupName(workspaceDir, timestamp) {
   const stem = `.weaver-backup-${timestamp.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z")}`;
   let candidate = join3(workspaceDir, stem);
   let suffix = 2;
-  while (existsSync(candidate)) candidate = join3(workspaceDir, `${stem}-${suffix++}`);
+  while (existsSync2(candidate)) candidate = join3(workspaceDir, `${stem}-${suffix++}`);
   return candidate;
 }
 function prepareWorkspaceData(workspaceDir, timestamp = /* @__PURE__ */ new Date()) {
@@ -127087,7 +127164,7 @@ function prepareWorkspaceData(workspaceDir, timestamp = /* @__PURE__ */ new Date
   let schemaResetBackupName;
   let schemaMigrationBackupName;
   let schemaVersion;
-  if (existsSync(dbPath)) {
+  if (existsSync2(dbPath)) {
     const existing = new DatabaseSync(dbPath);
     const row = existing.prepare("PRAGMA user_version").get();
     schemaVersion = Number(row.user_version);
@@ -127179,6 +127256,7 @@ var WorkspaceStore = class {
     restoreView: (input) => restoreProjectView(this.db, input),
     purgeView: (input) => purgeProjectView(this.db, input),
     duplicateView: (input) => duplicateProjectView(this.db, input),
+    restoreSnapshot: (input) => restoreProjectCatalogSnapshot(this.db, input),
     saveCanvasState: (input) => saveCanvasViewState(this.db, input),
     canvasState: (canvasSessionId, viewId) => getCanvasViewState(this.db, canvasSessionId, viewId),
     previewTemplate: (input) => previewVisualTemplate(this.db, input),
@@ -127211,12 +127289,13 @@ var WorkspaceStore = class {
     rejectRun: (runId) => rejectLayoutRun(this.db, runId),
     revert: (projectId, viewId) => revertLayout(this.db, projectId, viewId)
   };
-  assets = { get: (assetId) => getAsset(this.db, assetId), byHash: (projectId, sha2562) => getAssetByHash(this.db, projectId, sha2562), read: (assetId, thumbnail = false) => readAsset(this.db, this.dataDir, assetId, thumbnail), importImage: (input) => importImageAsset(this.db, this.dataDir, input), saveTaskFile: (taskId, fileName, data) => saveTaskAsset(this.dataDir, taskId, fileName, data) };
+  assets = { get: (assetId) => getAsset(this.db, assetId), byHash: (projectId, sha2562) => getAssetByHash(this.db, projectId, sha2562), read: (assetId, thumbnail = false) => readAsset(this.db, this.dataDir, assetId, thumbnail), importImage: (input) => importImageAsset(this.db, this.dataDir, input), deleteUnreferenced: (assetId) => deleteUnreferencedAsset(this.db, this.dataDir, assetId), saveTaskFile: (taskId, fileName, data) => saveTaskAsset(this.dataDir, taskId, fileName, data) };
   tasks = { prepare: (input) => prepareAgentTask(this.db, input), prepareBound: (input) => prepareAgentTaskFromBoundCanvas(this.db, input), assertChat: (taskId, chatSessionKey, requireOnline = true) => assertTaskChat(this.db, taskId, chatSessionKey, requireOnline), assertCanvas: (taskId, chatSessionKey, requireOnline = false) => assertTaskCanvas(this.db, taskId, chatSessionKey, requireOnline), get: (taskId) => getAgentTask(this.db, taskId), listCanvas: (canvasSessionId, includeTerminal = false) => listCanvasTasks(this.db, canvasSessionId, includeTerminal), reapCanvas: (canvasSessionId) => reapExpiredCanvasTasks(this.db, canvasSessionId), listProject: (projectId, includeTerminal = false) => listProjectTasks(this.db, projectId, includeTerminal), update: (taskId, patch) => updateAgentTask(this.db, taskId, patch), confirmDispatch: (taskId, dispatchKey) => confirmAgentDispatch(this.db, taskId, dispatchKey), failDispatch: (taskId, dispatchKey, input) => failAgentDispatch(this.db, taskId, dispatchKey, input), continue: (input) => beginAgentContinuation(this.db, input), progress: (taskId, note) => reportTaskProgress(this.db, taskId, note) };
   artifacts = { publish: (input) => publishArtifact(this.db, input), get: (artifactId) => getArtifact(this.db, artifactId) };
   browserSessions = {
     get: (id) => getBrowserSession(this.db, id),
     create: (input) => createBrowserSession(this.db, input),
+    setTarget: (input) => setBrowserSessionTarget(this.db, input),
     rotateCredential: (input) => rotateBrowserCredential(this.db, input),
     pairChat: (input) => pairBrowserChat(this.db, input),
     writer: (projectId) => getProjectWriteLease(this.db, projectId),
@@ -127232,7 +127311,7 @@ var WorkspaceStore = class {
 
 // packages/mcp/src/widget.ts
 import { createHash as createHash2 } from "node:crypto";
-import { existsSync as existsSync2, readFileSync as readFileSync2, statSync } from "node:fs";
+import { existsSync as existsSync3, readFileSync as readFileSync2, statSync } from "node:fs";
 import { extname, resolve as resolve3 } from "node:path";
 function widgetRoot() {
   return process.env.WEAVER_DEV_ROOT ? resolve3(process.env.WEAVER_DEV_ROOT) : process.cwd();
@@ -127284,7 +127363,7 @@ function bundledWidgetHtml(assetBaseUrl, bundle) {
 }
 
 // packages/mcp/src/logger.ts
-import { appendFileSync, chmodSync, existsSync as existsSync3, mkdirSync as mkdirSync3, readdirSync, rmSync, rmdirSync, statSync as statSync2, writeFileSync as writeFileSync3 } from "node:fs";
+import { appendFileSync, chmodSync, existsSync as existsSync4, mkdirSync as mkdirSync3, readdirSync, rmSync, rmdirSync, statSync as statSync2, writeFileSync as writeFileSync3 } from "node:fs";
 import { join as join4 } from "node:path";
 
 // packages/mcp/src/session-identity.ts
@@ -127392,7 +127471,7 @@ function boundedEnvInt(name, fallback, minimum, maximum) {
 }
 function removeLegacyLogs(dir) {
   const legacyDir = join4(dir, ".weaver", "logs");
-  if (!existsSync3(legacyDir)) return;
+  if (!existsSync4(legacyDir)) return;
   try {
     for (const name of readdirSync(legacyDir)) {
       if (/^mcp-.*\.jsonl$/.test(name)) rmSync(join4(legacyDir, name), { force: true });
@@ -128375,7 +128454,7 @@ function chatSessionKeyFromRequest(extra, required2 = true) {
 
 // packages/mcp/src/workspace-runtime.ts
 import { spawn } from "node:child_process";
-import { chmodSync as chmodSync4, copyFileSync, existsSync as existsSync6, mkdirSync as mkdirSync6, readFileSync as readFileSync6, renameSync as renameSync3, rmSync as rmSync5 } from "node:fs";
+import { chmodSync as chmodSync4, copyFileSync, existsSync as existsSync7, mkdirSync as mkdirSync6, readFileSync as readFileSync6, renameSync as renameSync3, rmSync as rmSync5 } from "node:fs";
 import { createHash as createHash7, randomBytes as randomBytes3 } from "node:crypto";
 import { homedir as homedir2 } from "node:os";
 import { dirname as dirname2, join as join8, resolve as resolve6 } from "node:path";
@@ -128383,7 +128462,7 @@ import { fileURLToPath } from "node:url";
 
 // packages/workspace-supervisor/src/supervisor.ts
 import { createHash as createHash6 } from "node:crypto";
-import { chmodSync as chmodSync3, closeSync, existsSync as existsSync4, mkdirSync as mkdirSync5, openSync, readFileSync as readFileSync4, realpathSync as realpathSync2, renameSync as renameSync2, rmSync as rmSync3, writeFileSync as writeFileSync5 } from "node:fs";
+import { chmodSync as chmodSync3, closeSync, existsSync as existsSync5, mkdirSync as mkdirSync5, openSync, readFileSync as readFileSync4, realpathSync as realpathSync2, renameSync as renameSync2, rmSync as rmSync3, writeFileSync as writeFileSync5 } from "node:fs";
 import { join as join6, resolve as resolve4 } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -128440,7 +128519,7 @@ function sendRuntimeControl(socketPath, request) {
 }
 
 // packages/mcp/src/runtime-cache.ts
-import { existsSync as existsSync5, lstatSync, readdirSync as readdirSync2, readFileSync as readFileSync5, rmSync as rmSync4, statSync as statSync3, utimesSync } from "node:fs";
+import { existsSync as existsSync6, lstatSync, readdirSync as readdirSync2, readFileSync as readFileSync5, rmSync as rmSync4, statSync as statSync3, utimesSync } from "node:fs";
 import { join as join7, resolve as resolve5 } from "node:path";
 var RUNTIME_CACHE_KEEP_UNREFERENCED = 2;
 var RUNTIME_CACHE_SOFT_CAP_BYTES = 1024 ** 3;
@@ -128457,11 +128536,11 @@ function directoryBytes(directory) {
 function referencedBuilds(root) {
   const referenced = /* @__PURE__ */ new Set();
   const workspaces = join7(root, "workspaces");
-  if (!existsSync5(workspaces)) return referenced;
+  if (!existsSync6(workspaces)) return referenced;
   for (const entry of readdirSync2(workspaces, { withFileTypes: true })) {
     if (!entry.isDirectory() || entry.isSymbolicLink()) continue;
     const descriptor = join7(workspaces, entry.name, "runtime.json");
-    if (!existsSync5(descriptor)) continue;
+    if (!existsSync6(descriptor)) continue;
     try {
       const buildId = JSON.parse(readFileSync5(descriptor, "utf8")).buildId;
       if (typeof buildId === "string" && buildId.length > 0) referenced.add(buildId);
@@ -128472,7 +128551,7 @@ function referencedBuilds(root) {
 }
 function markRuntimeUsed(root, buildId) {
   const directory = join7(resolve5(root), "runtimes", buildId);
-  if (!existsSync5(directory) || !lstatSync(directory).isDirectory() || lstatSync(directory).isSymbolicLink()) return;
+  if (!existsSync6(directory) || !lstatSync(directory).isDirectory() || lstatSync(directory).isSymbolicLink()) return;
   const now3 = /* @__PURE__ */ new Date();
   utimesSync(directory, now3, now3);
 }
@@ -128481,7 +128560,7 @@ function cleanupRuntimeCache(root, options = {}) {
   const runtimes = join7(canonicalRoot, "runtimes");
   const skippedEntries = [];
   const entries = [];
-  if (existsSync5(runtimes)) {
+  if (existsSync6(runtimes)) {
     for (const entry of readdirSync2(runtimes, { withFileTypes: true })) {
       const directory = join7(runtimes, entry.name);
       if (entry.name.startsWith(".") || !entry.isDirectory() || entry.isSymbolicLink()) {
@@ -128539,7 +128618,7 @@ function supervisorScript() {
     fileURLToPath(new URL("../scripts/start-workspace-supervisor.mjs", import.meta.url)),
     fileURLToPath(new URL("../../../scripts/start-workspace-supervisor.mjs", import.meta.url))
   ];
-  const candidate = candidates.find(existsSync6);
+  const candidate = candidates.find(existsSync7);
   if (!candidate) throw new Error("SUPERVISOR_ENTRY_NOT_FOUND");
   return candidate;
 }
@@ -128549,12 +128628,12 @@ function sha256(path) {
 function releaseRoot() {
   const current = dirname2(fileURLToPath(import.meta.url));
   const candidates = [resolve6(current, ".."), resolve6(current, "../../..")];
-  return candidates.find((candidate) => existsSync6(join8(candidate, "runtime", "manifest.json")));
+  return candidates.find((candidate) => existsSync7(join8(candidate, "runtime", "manifest.json")));
 }
 function verifyRuntime(directory, manifest) {
   return Object.entries(manifest.files).every(([relative, digest]) => {
     const path = join8(directory, relative);
-    return existsSync6(path) && sha256(path) === digest;
+    return existsSync7(path) && sha256(path) === digest;
   });
 }
 function installImmutableRuntime(root, buildId) {
@@ -128564,7 +128643,7 @@ function installImmutableRuntime(root, buildId) {
   if (manifest.buildId !== buildId) throw new Error(`BUILD_MISMATCH:${manifest.buildId}:${buildId}`);
   const runtimes = join8(root, "runtimes");
   const target = join8(runtimes, buildId);
-  if (existsSync6(target)) {
+  if (existsSync7(target)) {
     if (!verifyRuntime(target, manifest)) throw new Error("RUNTIME_CACHE_CORRUPT");
     return join8(target, "runtime", "supervisor.mjs");
   }
@@ -128583,7 +128662,7 @@ function installImmutableRuntime(root, buildId) {
     try {
       renameSync3(temporary, target);
     } catch (error51) {
-      if (!existsSync6(target) || !verifyRuntime(target, manifest)) throw error51;
+      if (!existsSync7(target) || !verifyRuntime(target, manifest)) throw error51;
       rmSync5(temporary, { recursive: true, force: true });
     }
   } catch (error51) {

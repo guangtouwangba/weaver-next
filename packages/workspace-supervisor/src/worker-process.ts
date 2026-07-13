@@ -1,6 +1,6 @@
 import { WorkspaceWorker } from "@weaver/workspace-service";
 
-type WorkerCommand = { id: number; kind: "create_launch" | "read_binding" | "dispatch" | "heartbeat" | "diagnostics" | "set_public_origin" | "close"; payload?: Record<string, unknown> };
+type WorkerCommand = { id: number; kind: "create_launch" | "read_binding" | "dispatch" | "heartbeat" | "diagnostics" | "set_public_origin" | "quiesce" | "resume" | "close"; payload?: Record<string, unknown> };
 
 export async function runWorkspaceWorkerProcess(options: { workspaceDir: string; buildId: string }) {
   if (!process.send) throw new Error("WORKER_IPC_REQUIRED");
@@ -25,6 +25,8 @@ export async function runWorkspaceWorkerProcess(options: { workspaceDir: string;
       else if (message.kind === "heartbeat") result = worker.heartbeatBridge(String(payload.chatSessionKey), payload.hostLabel === "Claude" ? "Claude" : payload.hostLabel === "Codex" ? "Codex" : undefined);
       else if (message.kind === "diagnostics") result = worker.getDiagnostics();
       else if (message.kind === "set_public_origin") { worker.setPublicOrigin(String(payload.origin)); result = { ok: true }; }
+      else if (message.kind === "quiesce") result = worker.quiesce();
+      else if (message.kind === "resume") result = worker.resume();
       else if (message.kind === "close") { process.send?.({ id: message.id, ok: true, result: { closed: true } }); await close(); return; }
       else throw new Error("WORKER_OPERATION_NOT_FOUND");
       process.send?.({ id: message.id, ok: true, result });

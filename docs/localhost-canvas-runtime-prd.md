@@ -293,6 +293,7 @@ type CanvasMutationRequest = {
   writerLeaseRevision: number;
   baseGraphRevision?: number;
   baseLayoutRevision?: number;
+  baseViewCatalogRevision?: number;
   operation: unknown; // discriminated and validated by contracts
 };
 ```
@@ -310,6 +311,8 @@ type CanvasMutationRecord = {
   resultGraphRevision?: number;
   baseLayoutRevision?: number;
   resultLayoutRevision?: number;
+  baseViewCatalogRevision?: number;
+  resultViewCatalogRevision?: number;
   forwardOperations: unknown[];
   inverseOperations: unknown[];
   status: "applied" | "reverted";

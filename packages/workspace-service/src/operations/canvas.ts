@@ -1,4 +1,4 @@
-import { canvasMutationRequestSchema, nodeContentSchema, type CanvasMutationRecord } from "@weaver/contracts";
+import { canvasMutationRequestSchema, edgeSchema, layoutDocumentSchema, nodeContentSchema, nodeSchema, projectViewSchema, type CanvasMutationRecord } from "@weaver/contracts";
 import type { WorkspaceStore } from "@weaver/storage";
 import type { WorkspacePrincipal } from "./catalog.js";
 
@@ -66,23 +66,76 @@ export function undoManualCanvasMutation(store: WorkspaceStore, principal: Works
   if (!existing) throw new Error("CANVAS_MUTATION_NOT_FOUND");
   const graph = store.graphChanges.read(existing.projectId);
   const layout = existing.viewId ? store.layoutReviews.get(existing.projectId, existing.viewId) : null;
+  const project = store.catalog.getProject(existing.projectId);
+  if (!project) throw new Error("PROJECT_NOT_FOUND");
   const reverted = store.canvasMutations.revert({
     id: mutationId,
     browserSessionId,
     currentGraphRevision: graph.revision,
     currentLayoutRevision: layout?.layoutRevision,
+    currentViewCatalogRevision: project.viewCatalogRevision,
     revertedAt: new Date().toISOString(),
   }, (record: CanvasMutationRecord) => {
-    const inverse = record.inverseOperations[0] as { action?: string; nodeId?: string; removeFrame?: boolean } | undefined;
-    if (inverse?.action !== "archive_node" || !inverse.nodeId) throw new Error("UNDO_OPERATION_UNSUPPORTED");
-    const archived = store.graphChanges.archiveNode({ projectId: record.projectId, nodeId: inverse.nodeId, baseGraphRevision: graph.revision });
-    if (layout && inverse.removeFrame) {
-      const next = structuredClone(layout);
-      delete next.nodes[inverse.nodeId];
-      next.graphRevision = archived.project!.graphRevision;
-      next.layoutRevision += 1;
-      next.updatedAt = new Date().toISOString();
-      store.layoutReviews.save(next, true, { operations: [{ type: "remove-node-frame", nodeId: inverse.nodeId }] });
+    for (const rawInverse of record.inverseOperations) {
+      if (!rawInverse || typeof rawInverse !== "object" || Array.isArray(rawInverse)) throw new Error("UNDO_OPERATION_UNSUPPORTED");
+      const inverse = rawInverse as Record<string, unknown>;
+      const action = inverse.action;
+      if (action === "archive_node" && typeof inverse.nodeId === "string") {
+        const current = store.graphChanges.read(record.projectId);
+        const archived = store.graphChanges.archiveNode({ projectId: record.projectId, nodeId: inverse.nodeId, baseGraphRevision: current.revision });
+        const currentLayout = record.viewId ? store.layoutReviews.get(record.projectId, record.viewId) : null;
+        if (currentLayout && inverse.removeFrame === true) {
+          const next = structuredClone(currentLayout);
+          delete next.nodes[inverse.nodeId];
+          next.graphRevision = archived.project!.graphRevision;
+          next.layoutRevision += 1;
+          next.updatedAt = new Date().toISOString();
+          store.layoutReviews.save(next, true, { operations: [{ type: "remove-node-frame", nodeId: inverse.nodeId }] });
+        }
+        continue;
+      }
+      if (action === "restore_node") {
+        const node = nodeSchema.parse(inverse.node);
+        const current = store.graphChanges.read(record.projectId);
+        if (!current.nodes.some((candidate) => candidate.id === node.id)) throw new Error("UNDO_TARGET_MISSING");
+        store.graphChanges.replace({ ...current, revision: current.revision + 1, nodes: current.nodes.map((candidate) => candidate.id === node.id ? node : candidate) });
+        continue;
+      }
+      if (action === "archive_edge" && typeof inverse.edgeId === "string") {
+        const current = store.graphChanges.read(record.projectId);
+        const edge = current.edges.find((candidate) => candidate.id === inverse.edgeId);
+        if (!edge) throw new Error("UNDO_TARGET_MISSING");
+        store.graphChanges.replace({ ...current, revision: current.revision + 1, edges: current.edges.map((candidate) => candidate.id === inverse.edgeId ? edgeSchema.parse({ ...candidate, archived: true, updatedAt: new Date().toISOString() }) : candidate) });
+        continue;
+      }
+      if (action === "restore_graph") {
+        const snapshot = inverse.graph as Record<string, unknown> | undefined;
+        if (!snapshot || snapshot.projectId !== record.projectId || !Array.isArray(snapshot.nodes) || !Array.isArray(snapshot.edges)) throw new Error("UNDO_OPERATION_INVALID");
+        const current = store.graphChanges.read(record.projectId);
+        store.graphChanges.replace({ projectId: record.projectId, revision: current.revision + 1, nodes: snapshot.nodes.map((node) => nodeSchema.parse(node)), edges: snapshot.edges.map((edge) => edgeSchema.parse(edge)) });
+        continue;
+      }
+      if (action === "restore_layout") {
+        const previous = layoutDocumentSchema.parse(inverse.layout);
+        const current = store.layoutReviews.get(record.projectId, previous.viewId);
+        if (!current) throw new Error("LAYOUT_NOT_FOUND");
+        store.layoutReviews.save({ ...previous, graphRevision: store.graphChanges.read(record.projectId).revision, layoutRevision: current.layoutRevision + 1, updatedAt: new Date().toISOString() }, true, { operations: [{ type: "restore-layout" }] });
+        continue;
+      }
+      if (action === "restore_view_catalog" && typeof inverse.defaultViewId === "string" && Array.isArray(inverse.views) && Array.isArray(inverse.layouts)) {
+        store.catalog.restoreSnapshot({
+          projectId: record.projectId,
+          defaultViewId: inverse.defaultViewId,
+          views: inverse.views.map((view) => projectViewSchema.parse(view)),
+          layouts: inverse.layouts.map((candidate) => layoutDocumentSchema.parse(candidate)),
+        });
+        continue;
+      }
+      if (action === "delete_asset" && typeof inverse.assetId === "string") {
+        store.assets.deleteUnreferenced(inverse.assetId);
+        continue;
+      }
+      throw new Error("UNDO_OPERATION_UNSUPPORTED");
     }
   });
   return { mutation: reverted, graph: store.graphChanges.read(existing.projectId), layout: existing.viewId ? store.layoutReviews.get(existing.projectId, existing.viewId) : undefined };

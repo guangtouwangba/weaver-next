@@ -103,7 +103,6 @@ export async function compatCanvasAction(store: WorkspaceStore, principal: Works
   }
   const session = browser(store, principal);
   if (action === "claim" || action === "sync") {
-    if (!session.pairedChatSessionKey) throw new Error("AGENT_DISCONNECTED");
     const requested = args.snapshot as Record<string, unknown>;
     const projectId = required(requested, "projectId");
     const lease = store.browserSessions.writer(projectId);
@@ -112,14 +111,21 @@ export async function compatCanvasAction(store: WorkspaceStore, principal: Works
       ...requested,
       workspaceDir: store.workspaceDir,
       syncPurpose: action === "claim" ? "claim" : "state",
-      agentEligible: ownsWriter,
-      chatBinding: ownsWriter ? requested.chatBinding : undefined,
+      agentEligible: ownsWriter && Boolean(session.pairedChatSessionKey),
+      chatBinding: ownsWriter && session.pairedChatSessionKey ? requested.chatBinding : undefined,
     });
     const context = store.sessions.syncCanvas(snapshot, session.pairedChatSessionKey);
     return { context, manualWrite: lease?.status === "active" && lease.browserSessionId === session.id, writerLeaseRevision: lease?.revision };
   }
   if (action === "switch") {
-    if (!session.pairedChatSessionKey) throw new Error("AGENT_DISCONNECTED");
+    if (!session.pairedChatSessionKey) {
+      const projectId = required(args, "projectId");
+      const viewId = required(args, "viewId");
+      const target = store.browserSessions.setTarget({ id: session.id, projectId, viewId, now: new Date().toISOString() });
+      const lease = store.browserSessions.writer(projectId);
+      if (!lease || lease.status !== "active") store.browserSessions.claimWriter({ projectId, browserSessionId: session.id, now: new Date().toISOString() });
+      return { projectId: target.projectId, viewId: target.viewId };
+    }
     const switched = store.sessions.switchBinding({
       chatSessionKey: session.pairedChatSessionKey,
       leaseId: required(args, "leaseId"),

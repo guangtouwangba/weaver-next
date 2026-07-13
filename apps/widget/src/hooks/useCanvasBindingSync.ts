@@ -41,6 +41,9 @@ export function useCanvasBindingSync(params: {
   useEffect(() => {
     if (!buildMismatch && hostMode === "runtime" && bootstrap.capabilities?.manualWrite === false && bootstrap.capabilities.canTakeOver) setAccessState("duplicate");
   }, [bootstrap.capabilities?.canTakeOver, bootstrap.capabilities?.manualWrite, buildMismatch]);
+  useEffect(() => {
+    if (!buildMismatch && bootstrap.capabilities?.disconnectReason === "SESSION_TAKEN_OVER") setAccessState("detached");
+  }, [bootstrap.capabilities?.disconnectReason, buildMismatch]);
 
   const sendContextNow = useCallback(async (syncPurpose: "claim" | "state") => {
     if (standaloneDemo || !project || !layout || !bootstrap.workspaceDir || buildMismatch || ["duplicate", "detached", "build-mismatch"].includes(accessStateRef.current)) return false;
