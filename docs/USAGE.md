@@ -1,21 +1,28 @@
 # Using Weaver — Codex and Claude Code
 
-Weaver is one project with **two front-end hosts**. Both drive the same semantic graph, the
+> Migration notice (2026-07-13): the approved formal UI is one workspace-scoped
+> localhost Canvas. Codex opens it in the right-side in-app Browser; Claude opens the
+> same application in a system browser. Natural language remains in Codex/Claude, while
+> an unpaired Canvas permits audited manual editing only. The host-specific Widget and
+> preview instructions below remain solely as a temporary rollback reference until the
+> localhost cutover is complete.
+
+Weaver is one project with **one Canvas application and two Agent bridges**. Both drive the same semantic graph, the
 same local SQLite (`<workspace>/.weaver/`), the same audited ChangeSet + deterministic layout
 pipeline, and the same MCP tools. They differ only in *where the canvas renders* and *where you
 type natural language*.
 
 | | **Codex** | **Claude Code** |
 |---|---|---|
-| Canvas surface | Embedded widget in Codex's right panel (Apps-SDK iframe) | A real browser window beside the terminal (loopback `/preview`) |
-| Natural language | Codex chat | Terminal **or** the on-canvas composer (Claude-host only) |
+| Canvas surface | Localhost Canvas in Codex's right-side in-app Browser | The same localhost Canvas in a system browser |
+| Natural language | Codex chat | Claude terminal |
 | MCP server | `weaver_mcp` (`scripts/start-mcp.mjs`) | `weaver-preview` (`scripts/start-mcp-claude.mjs`, `WEAVER_HOST_KIND=claude`) |
 | Agent | Codex's model | Your Claude Code terminal session |
 | Launch | Open widget tool / a Weaver skill | `/weaver-open` (open) · `/weaver-watch` (open + watch) |
-| Live update after a widget rebuild | Refresh the plugin cache / new chat | **Auto-reloads** the browser (dev) |
+| Runtime lifecycle | Workspace supervisor/worker, independent of one Chat process | The same workspace supervisor/worker |
 
 Everything else — graph vs layout revisions, the online-heartbeat requirement for agent writes,
-path-confined loopback with tokens, `graphRevision` never changing on layout — is identical.
+path-confined loopback with Browser Session + CSRF protection, `graphRevision` never changing on layout — is identical.
 
 ---
 
@@ -23,8 +30,8 @@ path-confined loopback with tokens, `graphRevision` never changing on layout —
 
 ```bash
 npm install
-npm run build:plugin      # builds packages + the widget bundle
-npm run test              # optional: full TS + Python suite
+npm run build:plugin      # builds packages + the Canvas bundle
+npm run test              # runs the TypeScript unit/integration suite
 ```
 
 Project data lives under `<workspace>/.weaver/` (SQLite is authoritative). Never edit it by hand.
@@ -33,7 +40,7 @@ Project data lives under `<workspace>/.weaver/` (SQLite is authoritative). Never
 
 ## Using with Codex
 
-Weaver is a native Codex plugin. The manifest `/.codex-plugin/plugin.json` wires two things:
+Weaver is a Codex plugin. The manifest `/.codex-plugin/plugin.json` wires two things:
 the agent skills under `skills/` and the MCP server declared in `/.mcp.json`
 (`weaver_mcp` → `node ./scripts/start-mcp.mjs`).
 
@@ -44,17 +51,21 @@ the agent skills under `skills/` and the MCP server declared in `/.mcp.json`
 3. **Open the space** — in a Codex chat, run one of the default prompts:
    - *"Open the Weaver space for this project."*
    - *"Create a mind-map space from a visual template."*
-   The canvas renders **embedded in Codex's right panel**.
-4. **Work the canvas** in the widget: add/select/connect/pin nodes, edit documents in the side
+   `weaver_open_space` creates a 30-second one-time launch. The `weaver-open-space`
+   skill claims/reuses a Codex in-app Browser tab, navigates to it, verifies bootstrap,
+   and leaves the localhost Canvas visible in the right panel.
+4. **Work the canvas**: add/select/connect/pin nodes, edit documents in the side
    editor, switch views. Your selection, viewport, and pinned nodes sync to the agent.
 5. **Ask in the Codex chat** ("develop the selected node", "lay this out as a timeline"). The
-   agent submits a **ChangeSet**; the widget shows a preview you **Apply / Reject / Undo**.
+   agent submits a **ChangeSet**; the Canvas shows a preview you **Apply / Reject / Undo**.
 
 Codex keeps all natural language in the chat by design — there is no on-canvas text input.
 
-**After a rebuild:** the running plugin caches the widget bundle. If you rebuild
-(`npm run build:plugin`), refresh the local plugin cache and start a new Codex chat so the new
-build and any MCP/schema changes are loaded (see [AGENTS.md](../AGENTS.md) §5).
+**After a rebuild:** frontend-only development builds can refresh the page. Service,
+contracts, MCP, or supervisor changes require a new worker/bridge. Installed releases copy
+the verified runtime to `~/.weaver/runtimes/<buildId>/`; do not edit that cache manually.
+Weaver keeps every referenced build plus the two newest unreferenced builds; use
+`npm run runtime:cleanup` for an explicit safe cleanup.
 
 Dev shortcut: `npm run dev:codex-plugin` builds the plugin and starts the MCP dev process.
 

@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from "react";
-import type { Node, NodeProps } from "@xyflow/react";
+import type { CanvasNodeProps } from "../../lib/canvas-model";
 import { TrendingDown, TrendingUp } from "lucide-react";
 import type { CardData, ChartContent } from "../../types";
 import { layoutChart } from "../../lib/chart-svg";
@@ -48,7 +48,7 @@ function ChartSvg({ spec, width, height }: { spec: ChartContent; width: number; 
   </svg>;
 }
 
-export function ChartCard({ data, id, selected }: NodeProps<Node<CardData>>) {
+export function ChartCard({ data, id, selected }: CanvasNodeProps<CardData>) {
   const ref = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 300, height: 170 });
   useLayoutEffect(() => {

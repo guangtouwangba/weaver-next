@@ -9,7 +9,7 @@ import type { GraphNode, Project } from "../types";
 describe("canvas appearance", () => {
   it("keeps the left-positioned minimap from stretching to the right edge", () => {
     const styles = readFileSync(resolve(import.meta.dirname, "../styles.css"), "utf8");
-    expect(styles).toMatch(/\.react-flow__minimap\.react-flow__panel\s*\{[^}]*left:\s*14px;[^}]*right:\s*auto;/s);
+    expect(styles).toMatch(/\.hybrid-minimap\s*\{[^}]*left:\s*14px;[^}]*right:\s*auto;/s);
   });
 
   it("fills new canvas fields when reading a legacy theme", () => {

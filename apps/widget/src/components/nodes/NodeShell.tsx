@@ -1,5 +1,4 @@
 import React from "react";
-import { Handle, NodeResizer, Position } from "@xyflow/react";
 import { Maximize2 } from "lucide-react";
 import type { CardData } from "../../types";
 import { useI18n } from "../../lib/i18n";
@@ -8,13 +7,13 @@ export function NodeShell({ children, data, className, id, selected }: { childre
   const { t } = useI18n();
   const minimum = data.contentKind === "image" ? { width: 160, height: 140 } : data.contentKind === "link" ? { width: 220, height: 120 } : data.contentKind === "chart" ? (data.chart?.chartType === "metric" ? { width: 150, height: 96 } : { width: 220, height: 170 }) : { width: 180, height: 100 };
   return <>
-    <NodeResizer isVisible={selected} minWidth={minimum.width} minHeight={minimum.height} maxWidth={900} maxHeight={700} color="#315cf6" onResizeStart={() => data.onResizeStart?.(id)} onResizeEnd={(_event, frame) => data.onResizeEnd?.(id, frame)} />
-    <article className={`content-card ${className}`} data-pinned={data.pinned} data-selected={selected}>
-      <Handle id="target-left" type="target" position={Position.Left} /><Handle id="source-left" type="source" position={Position.Left} />
-      <Handle id="target-top" type="target" position={Position.Top} /><Handle id="source-top" type="source" position={Position.Top} />
+    {selected ? <button type="button" className="canvas-resize-handle" data-resize-handle data-min-width={minimum.width} data-min-height={minimum.height} aria-label="Resize node" /> : null}
+    <article className={`content-card ${className}`} data-node-card data-node-id={id} data-pinned={data.pinned} data-selected={selected}>
+      <i className="canvas-connect-handle left" data-connect-handle="left" />
+      <i className="canvas-connect-handle top" data-connect-handle="top" />
       {children}<div className="card-open-hint"><Maximize2 size={10} /> {t("doubleClick")}</div>
-      <Handle id="target-right" type="target" position={Position.Right} /><Handle id="source-right" type="source" position={Position.Right} />
-      <Handle id="target-bottom" type="target" position={Position.Bottom} /><Handle id="source-bottom" type="source" position={Position.Bottom} />
+      <i className="canvas-connect-handle right" data-connect-handle="right" />
+      <i className="canvas-connect-handle bottom" data-connect-handle="bottom" />
     </article>
   </>;
 }

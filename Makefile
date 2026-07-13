@@ -1,40 +1,45 @@
-.PHONY: help dev dev-api dev-web test build contracts contracts-emit contracts-ts lint codegen
+.DEFAULT_GOAL := plugin-build
 
-help:
-	@printf "Targets:\n"
-	@printf "  dev-api    Start FastAPI on :8000\n"
-	@printf "  dev-web    Start Next.js on :3000\n"
-	@printf "  dev        Start API and web together\n"
-	@printf "  test       Run backend tests\n"
-	@printf "  build      Build frontend\n"
-	@printf "  contracts  Emit OpenAPI and generated TypeScript contracts\n"
-	@printf "  lint       Run frontend lint\n"
-	@printf "  codegen    Run all generated-code tasks\n"
+.PHONY: plugin-build build install release check-release probe test lint typecheck dev help
 
-dev-api:
-	.venv/bin/python -m uvicorn weaver_api.main:app --app-dir apps/api --reload --port 8000
+# One-command reproducible plugin build from the committed lockfile.
+plugin-build: install
+	npm run build:plugin
 
-dev-web:
-	npm run dev:web
+build: plugin-build
+
+install:
+	npm ci
+
+release: install
+	npm run build:release
+
+check-release:
+	npm run check:release
+
+probe:
+	node scripts/probe-mcp.mjs
+
+test:
+	npm test
+
+lint:
+	npm run lint
+
+typecheck:
+	npm run typecheck:widget
 
 dev:
 	npm run dev
 
-test:
-	.venv/bin/python -m pytest apps/api/tests
-
-build:
-	npm run build:web
-
-contracts: contracts-emit contracts-ts
-
-contracts-emit:
-	.venv/bin/python tooling/codegen/emit.py
-
-contracts-ts:
-	bash tooling/codegen/gen-ts.sh
-
-lint:
-	npm run lint:web
-
-codegen: contracts
+help:
+	@printf "Targets:\n"
+	@printf "  plugin-build  Install dependencies and build packages + Widget (default)\n"
+	@printf "  build         Alias for plugin-build\n"
+	@printf "  release       Build the distributable plugin release\n"
+	@printf "  check-release Validate the distributable plugin release\n"
+	@printf "  probe         Probe the local MCP tool surface\n"
+	@printf "  test          Run the test suite\n"
+	@printf "  lint          Run Biome lint\n"
+	@printf "  typecheck     Type-check the Widget\n"
+	@printf "  dev           Start the Widget development server\n"

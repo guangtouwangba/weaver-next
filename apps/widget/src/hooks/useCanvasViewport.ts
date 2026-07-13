@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type React from "react";
 import type { MutableRefObject } from "react";
-import type { Node, Viewport } from "@xyflow/react";
+import type { CanvasNode as Node, CanvasViewport as Viewport } from "../lib/canvas-model";
 import { canvasLod, clampCanvasZoom, MAX_CANVAS_ZOOM, MIN_CANVAS_ZOOM, PROGRAMMATIC_VIEWPORT_DURATION, zoomViewportAtPoint, type CanvasInteraction, type CanvasViewportState } from "../lib/canvas-viewport";
 
 export function useCanvasViewport(params: {

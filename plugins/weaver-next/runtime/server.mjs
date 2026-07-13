@@ -46,7 +46,7 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/core.js
+// node_modules/zod/v4/core/core.js
 // @__NO_SIDE_EFFECTS__
 function $constructor(name, initializer3, params) {
   function init(inst, def) {
@@ -106,7 +106,7 @@ function config(newConfig) {
 }
 var _a, NEVER, $brand, $ZodAsyncError, $ZodEncodeError, globalConfig;
 var init_core = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/core.js"() {
+  "node_modules/zod/v4/core/core.js"() {
     NEVER = /* @__PURE__ */ Object.freeze({
       status: "aborted"
     });
@@ -127,7 +127,7 @@ var init_core = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/util.js
+// node_modules/zod/v4/core/util.js
 var util_exports = {};
 __export(util_exports, {
   BIGINT_FORMAT_RANGES: () => BIGINT_FORMAT_RANGES,
@@ -738,7 +738,7 @@ function uint8ArrayToHex(bytes) {
 }
 var EVALUATING, captureStackTrace, allowsEval, getParsedType, propertyKeyTypes, primitiveTypes, NUMBER_FORMAT_RANGES, BIGINT_FORMAT_RANGES, Class;
 var init_util = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/util.js"() {
+  "node_modules/zod/v4/core/util.js"() {
     init_core();
     EVALUATING = /* @__PURE__ */ Symbol("evaluating");
     captureStackTrace = "captureStackTrace" in Error ? Error.captureStackTrace : (..._args) => {
@@ -829,7 +829,7 @@ var init_util = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/errors.js
+// node_modules/zod/v4/core/errors.js
 function flattenError(error51, mapper = (issue2) => issue2.message) {
   const fieldErrors = {};
   const formErrors = [];
@@ -951,7 +951,7 @@ function prettifyError(error51) {
 }
 var initializer, $ZodError, $ZodRealError;
 var init_errors = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/errors.js"() {
+  "node_modules/zod/v4/core/errors.js"() {
     init_core();
     init_util();
     initializer = (inst, def) => {
@@ -975,10 +975,10 @@ var init_errors = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/parse.js
+// node_modules/zod/v4/core/parse.js
 var _parse, parse, _parseAsync, parseAsync, _safeParse, safeParse, _safeParseAsync, safeParseAsync, _encode, encode, _decode, decode, _encodeAsync, encodeAsync, _decodeAsync, decodeAsync, _safeEncode, safeEncode, _safeDecode, safeDecode, _safeEncodeAsync, safeEncodeAsync, _safeDecodeAsync, safeDecodeAsync;
 var init_parse = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/parse.js"() {
+  "node_modules/zod/v4/core/parse.js"() {
     init_core();
     init_errors();
     init_util();
@@ -1071,7 +1071,7 @@ var init_parse = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/regexes.js
+// node_modules/zod/v4/core/regexes.js
 var regexes_exports = {};
 __export(regexes_exports, {
   base64: () => base64,
@@ -1163,7 +1163,7 @@ function fixedBase64url(length) {
 }
 var cuid, cuid2, ulid, xid, ksuid, nanoid, duration, extendedDuration, guid, uuid, uuid4, uuid6, uuid7, email, html5Email, rfc5322Email, unicodeEmail, idnEmail, browserEmail, _emoji, ipv4, ipv6, mac, cidrv4, cidrv6, base64, base64url, hostname, domain, httpProtocol, e164, dateSource, date, string, bigint, integer, number, boolean, _null, _undefined, lowercase, uppercase, hex, md5_hex, md5_base64, md5_base64url, sha1_hex, sha1_base64, sha1_base64url, sha256_hex, sha256_base64, sha256_base64url, sha384_hex, sha384_base64, sha384_base64url, sha512_hex, sha512_base64, sha512_base64url;
 var init_regexes = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/regexes.js"() {
+  "node_modules/zod/v4/core/regexes.js"() {
     init_util();
     cuid = /^[cC][0-9a-z]{6,}$/;
     cuid2 = /^[0-9a-z]+$/;
@@ -1236,7 +1236,7 @@ var init_regexes = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/checks.js
+// node_modules/zod/v4/core/checks.js
 function handleCheckPropertyResult(result2, payload, property) {
   if (result2.issues.length) {
     payload.issues.push(...prefixIssues(property, result2.issues));
@@ -1244,7 +1244,7 @@ function handleCheckPropertyResult(result2, payload, property) {
 }
 var $ZodCheck, numericOriginMap, $ZodCheckLessThan, $ZodCheckGreaterThan, $ZodCheckMultipleOf, $ZodCheckNumberFormat, $ZodCheckBigIntFormat, $ZodCheckMaxSize, $ZodCheckMinSize, $ZodCheckSizeEquals, $ZodCheckMaxLength, $ZodCheckMinLength, $ZodCheckLengthEquals, $ZodCheckStringFormat, $ZodCheckRegex, $ZodCheckLowerCase, $ZodCheckUpperCase, $ZodCheckIncludes, $ZodCheckStartsWith, $ZodCheckEndsWith, $ZodCheckProperty, $ZodCheckMimeType, $ZodCheckOverwrite;
 var init_checks = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/checks.js"() {
+  "node_modules/zod/v4/core/checks.js"() {
     init_core();
     init_regexes();
     init_util();
@@ -1792,10 +1792,10 @@ var init_checks = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/doc.js
+// node_modules/zod/v4/core/doc.js
 var Doc;
 var init_doc = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/doc.js"() {
+  "node_modules/zod/v4/core/doc.js"() {
     Doc = class {
       constructor(args = []) {
         this.content = [];
@@ -1833,10 +1833,10 @@ var init_doc = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/versions.js
+// node_modules/zod/v4/core/versions.js
 var version;
 var init_versions = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/versions.js"() {
+  "node_modules/zod/v4/core/versions.js"() {
     version = {
       major: 4,
       minor: 4,
@@ -1845,7 +1845,7 @@ var init_versions = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/schemas.js
+// node_modules/zod/v4/core/schemas.js
 function isValidBase64(data) {
   if (data === "")
     return true;
@@ -2251,7 +2251,7 @@ function handleRefineResult(result2, payload, input, inst) {
 }
 var $ZodType, $ZodString, $ZodStringFormat, $ZodGUID, $ZodUUID, $ZodEmail, $ZodURL, $ZodEmoji, $ZodNanoID, $ZodCUID, $ZodCUID2, $ZodULID, $ZodXID, $ZodKSUID, $ZodISODateTime, $ZodISODate, $ZodISOTime, $ZodISODuration, $ZodIPv4, $ZodIPv6, $ZodMAC, $ZodCIDRv4, $ZodCIDRv6, $ZodBase64, $ZodBase64URL, $ZodE164, $ZodJWT, $ZodCustomStringFormat, $ZodNumber, $ZodNumberFormat, $ZodBoolean, $ZodBigInt, $ZodBigIntFormat, $ZodSymbol, $ZodUndefined, $ZodNull, $ZodAny, $ZodUnknown, $ZodNever, $ZodVoid, $ZodDate, $ZodArray, $ZodObject, $ZodObjectJIT, $ZodUnion, $ZodXor, $ZodDiscriminatedUnion, $ZodIntersection, $ZodTuple, $ZodRecord, $ZodMap, $ZodSet, $ZodEnum, $ZodLiteral, $ZodFile, $ZodTransform, $ZodOptional, $ZodExactOptional, $ZodNullable, $ZodDefault, $ZodPrefault, $ZodNonOptional, $ZodSuccess, $ZodCatch, $ZodNaN, $ZodPipe, $ZodCodec, $ZodPreprocess, $ZodReadonly, $ZodTemplateLiteral, $ZodFunction, $ZodPromise, $ZodLazy, $ZodCustom;
 var init_schemas = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/schemas.js"() {
+  "node_modules/zod/v4/core/schemas.js"() {
     init_checks();
     init_core();
     init_doc();
@@ -3951,7 +3951,7 @@ var init_schemas = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ar.js
+// node_modules/zod/v4/locales/ar.js
 function ar_default() {
   return {
     localeError: error()
@@ -3959,7 +3959,7 @@ function ar_default() {
 }
 var error;
 var init_ar = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ar.js"() {
+  "node_modules/zod/v4/locales/ar.js"() {
     init_util();
     error = () => {
       const Sizable = {
@@ -4064,7 +4064,7 @@ var init_ar = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/az.js
+// node_modules/zod/v4/locales/az.js
 function az_default() {
   return {
     localeError: error2()
@@ -4072,7 +4072,7 @@ function az_default() {
 }
 var error2;
 var init_az = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/az.js"() {
+  "node_modules/zod/v4/locales/az.js"() {
     init_util();
     error2 = () => {
       const Sizable = {
@@ -4176,7 +4176,7 @@ var init_az = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/be.js
+// node_modules/zod/v4/locales/be.js
 function getBelarusianPlural(count, one, few, many) {
   const absCount = Math.abs(count);
   const lastDigit = absCount % 10;
@@ -4199,7 +4199,7 @@ function be_default() {
 }
 var error3;
 var init_be = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/be.js"() {
+  "node_modules/zod/v4/locales/be.js"() {
     init_util();
     error3 = () => {
       const Sizable = {
@@ -4339,7 +4339,7 @@ var init_be = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/bg.js
+// node_modules/zod/v4/locales/bg.js
 function bg_default() {
   return {
     localeError: error4()
@@ -4347,7 +4347,7 @@ function bg_default() {
 }
 var error4;
 var init_bg = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/bg.js"() {
+  "node_modules/zod/v4/locales/bg.js"() {
     init_util();
     error4 = () => {
       const Sizable = {
@@ -4466,7 +4466,7 @@ var init_bg = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ca.js
+// node_modules/zod/v4/locales/ca.js
 function ca_default() {
   return {
     localeError: error5()
@@ -4474,7 +4474,7 @@ function ca_default() {
 }
 var error5;
 var init_ca = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ca.js"() {
+  "node_modules/zod/v4/locales/ca.js"() {
     init_util();
     error5 = () => {
       const Sizable = {
@@ -4581,7 +4581,7 @@ var init_ca = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/cs.js
+// node_modules/zod/v4/locales/cs.js
 function cs_default() {
   return {
     localeError: error6()
@@ -4589,7 +4589,7 @@ function cs_default() {
 }
 var error6;
 var init_cs = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/cs.js"() {
+  "node_modules/zod/v4/locales/cs.js"() {
     init_util();
     error6 = () => {
       const Sizable = {
@@ -4699,7 +4699,7 @@ var init_cs = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/da.js
+// node_modules/zod/v4/locales/da.js
 function da_default() {
   return {
     localeError: error7()
@@ -4707,7 +4707,7 @@ function da_default() {
 }
 var error7;
 var init_da = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/da.js"() {
+  "node_modules/zod/v4/locales/da.js"() {
     init_util();
     error7 = () => {
       const Sizable = {
@@ -4821,7 +4821,7 @@ var init_da = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/de.js
+// node_modules/zod/v4/locales/de.js
 function de_default() {
   return {
     localeError: error8()
@@ -4829,7 +4829,7 @@ function de_default() {
 }
 var error8;
 var init_de = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/de.js"() {
+  "node_modules/zod/v4/locales/de.js"() {
     init_util();
     error8 = () => {
       const Sizable = {
@@ -4936,7 +4936,7 @@ var init_de = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/el.js
+// node_modules/zod/v4/locales/el.js
 function el_default() {
   return {
     localeError: error9()
@@ -4944,7 +4944,7 @@ function el_default() {
 }
 var error9;
 var init_el = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/el.js"() {
+  "node_modules/zod/v4/locales/el.js"() {
     init_util();
     error9 = () => {
       const Sizable = {
@@ -5052,7 +5052,7 @@ var init_el = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/en.js
+// node_modules/zod/v4/locales/en.js
 function en_default() {
   return {
     localeError: error10()
@@ -5060,7 +5060,7 @@ function en_default() {
 }
 var error10;
 var init_en = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/en.js"() {
+  "node_modules/zod/v4/locales/en.js"() {
     init_util();
     error10 = () => {
       const Sizable = {
@@ -5171,7 +5171,7 @@ var init_en = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/eo.js
+// node_modules/zod/v4/locales/eo.js
 function eo_default() {
   return {
     localeError: error11()
@@ -5179,7 +5179,7 @@ function eo_default() {
 }
 var error11;
 var init_eo = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/eo.js"() {
+  "node_modules/zod/v4/locales/eo.js"() {
     init_util();
     error11 = () => {
       const Sizable = {
@@ -5287,7 +5287,7 @@ var init_eo = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/es.js
+// node_modules/zod/v4/locales/es.js
 function es_default() {
   return {
     localeError: error12()
@@ -5295,7 +5295,7 @@ function es_default() {
 }
 var error12;
 var init_es = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/es.js"() {
+  "node_modules/zod/v4/locales/es.js"() {
     init_util();
     error12 = () => {
       const Sizable = {
@@ -5426,7 +5426,7 @@ var init_es = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/fa.js
+// node_modules/zod/v4/locales/fa.js
 function fa_default() {
   return {
     localeError: error13()
@@ -5434,7 +5434,7 @@ function fa_default() {
 }
 var error13;
 var init_fa = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/fa.js"() {
+  "node_modules/zod/v4/locales/fa.js"() {
     init_util();
     error13 = () => {
       const Sizable = {
@@ -5547,7 +5547,7 @@ var init_fa = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/fi.js
+// node_modules/zod/v4/locales/fi.js
 function fi_default() {
   return {
     localeError: error14()
@@ -5555,7 +5555,7 @@ function fi_default() {
 }
 var error14;
 var init_fi = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/fi.js"() {
+  "node_modules/zod/v4/locales/fi.js"() {
     init_util();
     error14 = () => {
       const Sizable = {
@@ -5666,7 +5666,7 @@ var init_fi = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/fr.js
+// node_modules/zod/v4/locales/fr.js
 function fr_default() {
   return {
     localeError: error15()
@@ -5674,7 +5674,7 @@ function fr_default() {
 }
 var error15;
 var init_fr = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/fr.js"() {
+  "node_modules/zod/v4/locales/fr.js"() {
     init_util();
     error15 = () => {
       const Sizable = {
@@ -5798,7 +5798,7 @@ var init_fr = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/fr-CA.js
+// node_modules/zod/v4/locales/fr-CA.js
 function fr_CA_default() {
   return {
     localeError: error16()
@@ -5806,7 +5806,7 @@ function fr_CA_default() {
 }
 var error16;
 var init_fr_CA = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/fr-CA.js"() {
+  "node_modules/zod/v4/locales/fr-CA.js"() {
     init_util();
     error16 = () => {
       const Sizable = {
@@ -5912,7 +5912,7 @@ var init_fr_CA = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/he.js
+// node_modules/zod/v4/locales/he.js
 function he_default() {
   return {
     localeError: error17()
@@ -5920,7 +5920,7 @@ function he_default() {
 }
 var error17;
 var init_he = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/he.js"() {
+  "node_modules/zod/v4/locales/he.js"() {
     init_util();
     error17 = () => {
       const TypeNames = {
@@ -6113,7 +6113,7 @@ var init_he = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/hr.js
+// node_modules/zod/v4/locales/hr.js
 function hr_default() {
   return {
     localeError: error18()
@@ -6121,7 +6121,7 @@ function hr_default() {
 }
 var error18;
 var init_hr = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/hr.js"() {
+  "node_modules/zod/v4/locales/hr.js"() {
     init_util();
     error18 = () => {
       const Sizable = {
@@ -6242,7 +6242,7 @@ var init_hr = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/hu.js
+// node_modules/zod/v4/locales/hu.js
 function hu_default() {
   return {
     localeError: error19()
@@ -6250,7 +6250,7 @@ function hu_default() {
 }
 var error19;
 var init_hu = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/hu.js"() {
+  "node_modules/zod/v4/locales/hu.js"() {
     init_util();
     error19 = () => {
       const Sizable = {
@@ -6357,7 +6357,7 @@ var init_hu = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/hy.js
+// node_modules/zod/v4/locales/hy.js
 function getArmenianPlural(count, one, many) {
   return Math.abs(count) === 1 ? one : many;
 }
@@ -6375,7 +6375,7 @@ function hy_default() {
 }
 var error20;
 var init_hy = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/hy.js"() {
+  "node_modules/zod/v4/locales/hy.js"() {
     init_util();
     error20 = () => {
       const Sizable = {
@@ -6511,7 +6511,7 @@ var init_hy = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/id.js
+// node_modules/zod/v4/locales/id.js
 function id_default() {
   return {
     localeError: error21()
@@ -6519,7 +6519,7 @@ function id_default() {
 }
 var error21;
 var init_id = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/id.js"() {
+  "node_modules/zod/v4/locales/id.js"() {
     init_util();
     error21 = () => {
       const Sizable = {
@@ -6624,7 +6624,7 @@ var init_id = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/is.js
+// node_modules/zod/v4/locales/is.js
 function is_default() {
   return {
     localeError: error22()
@@ -6632,7 +6632,7 @@ function is_default() {
 }
 var error22;
 var init_is = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/is.js"() {
+  "node_modules/zod/v4/locales/is.js"() {
     init_util();
     error22 = () => {
       const Sizable = {
@@ -6740,7 +6740,7 @@ var init_is = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/it.js
+// node_modules/zod/v4/locales/it.js
 function it_default() {
   return {
     localeError: error23()
@@ -6748,7 +6748,7 @@ function it_default() {
 }
 var error23;
 var init_it = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/it.js"() {
+  "node_modules/zod/v4/locales/it.js"() {
     init_util();
     error23 = () => {
       const Sizable = {
@@ -6855,7 +6855,7 @@ var init_it = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ja.js
+// node_modules/zod/v4/locales/ja.js
 function ja_default() {
   return {
     localeError: error24()
@@ -6863,7 +6863,7 @@ function ja_default() {
 }
 var error24;
 var init_ja = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ja.js"() {
+  "node_modules/zod/v4/locales/ja.js"() {
     init_util();
     error24 = () => {
       const Sizable = {
@@ -6969,7 +6969,7 @@ var init_ja = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ka.js
+// node_modules/zod/v4/locales/ka.js
 function ka_default() {
   return {
     localeError: error25()
@@ -6977,7 +6977,7 @@ function ka_default() {
 }
 var error25;
 var init_ka = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ka.js"() {
+  "node_modules/zod/v4/locales/ka.js"() {
     init_util();
     error25 = () => {
       const Sizable = {
@@ -7088,7 +7088,7 @@ var init_ka = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/km.js
+// node_modules/zod/v4/locales/km.js
 function km_default() {
   return {
     localeError: error26()
@@ -7096,7 +7096,7 @@ function km_default() {
 }
 var error26;
 var init_km = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/km.js"() {
+  "node_modules/zod/v4/locales/km.js"() {
     init_util();
     error26 = () => {
       const Sizable = {
@@ -7205,17 +7205,17 @@ var init_km = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/kh.js
+// node_modules/zod/v4/locales/kh.js
 function kh_default() {
   return km_default();
 }
 var init_kh = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/kh.js"() {
+  "node_modules/zod/v4/locales/kh.js"() {
     init_km();
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ko.js
+// node_modules/zod/v4/locales/ko.js
 function ko_default() {
   return {
     localeError: error27()
@@ -7223,7 +7223,7 @@ function ko_default() {
 }
 var error27;
 var init_ko = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ko.js"() {
+  "node_modules/zod/v4/locales/ko.js"() {
     init_util();
     error27 = () => {
       const Sizable = {
@@ -7333,7 +7333,7 @@ var init_ko = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/lt.js
+// node_modules/zod/v4/locales/lt.js
 function getUnitTypeFromNumber(number4) {
   const abs = Math.abs(number4);
   const last = abs % 10;
@@ -7351,7 +7351,7 @@ function lt_default() {
 }
 var capitalizeFirstCharacter, error28;
 var init_lt = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/lt.js"() {
+  "node_modules/zod/v4/locales/lt.js"() {
     init_util();
     capitalizeFirstCharacter = (text) => {
       return text.charAt(0).toUpperCase() + text.slice(1);
@@ -7543,7 +7543,7 @@ var init_lt = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/mk.js
+// node_modules/zod/v4/locales/mk.js
 function mk_default() {
   return {
     localeError: error29()
@@ -7551,7 +7551,7 @@ function mk_default() {
 }
 var error29;
 var init_mk = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/mk.js"() {
+  "node_modules/zod/v4/locales/mk.js"() {
     init_util();
     error29 = () => {
       const Sizable = {
@@ -7659,7 +7659,7 @@ var init_mk = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ms.js
+// node_modules/zod/v4/locales/ms.js
 function ms_default() {
   return {
     localeError: error30()
@@ -7667,7 +7667,7 @@ function ms_default() {
 }
 var error30;
 var init_ms = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ms.js"() {
+  "node_modules/zod/v4/locales/ms.js"() {
     init_util();
     error30 = () => {
       const Sizable = {
@@ -7773,7 +7773,7 @@ var init_ms = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/nl.js
+// node_modules/zod/v4/locales/nl.js
 function nl_default() {
   return {
     localeError: error31()
@@ -7781,7 +7781,7 @@ function nl_default() {
 }
 var error31;
 var init_nl = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/nl.js"() {
+  "node_modules/zod/v4/locales/nl.js"() {
     init_util();
     error31 = () => {
       const Sizable = {
@@ -7890,7 +7890,7 @@ var init_nl = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/no.js
+// node_modules/zod/v4/locales/no.js
 function no_default() {
   return {
     localeError: error32()
@@ -7898,7 +7898,7 @@ function no_default() {
 }
 var error32;
 var init_no = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/no.js"() {
+  "node_modules/zod/v4/locales/no.js"() {
     init_util();
     error32 = () => {
       const Sizable = {
@@ -8005,7 +8005,7 @@ var init_no = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ota.js
+// node_modules/zod/v4/locales/ota.js
 function ota_default() {
   return {
     localeError: error33()
@@ -8013,7 +8013,7 @@ function ota_default() {
 }
 var error33;
 var init_ota = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ota.js"() {
+  "node_modules/zod/v4/locales/ota.js"() {
     init_util();
     error33 = () => {
       const Sizable = {
@@ -8121,7 +8121,7 @@ var init_ota = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ps.js
+// node_modules/zod/v4/locales/ps.js
 function ps_default() {
   return {
     localeError: error34()
@@ -8129,7 +8129,7 @@ function ps_default() {
 }
 var error34;
 var init_ps = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ps.js"() {
+  "node_modules/zod/v4/locales/ps.js"() {
     init_util();
     error34 = () => {
       const Sizable = {
@@ -8242,7 +8242,7 @@ var init_ps = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/pl.js
+// node_modules/zod/v4/locales/pl.js
 function pl_default() {
   return {
     localeError: error35()
@@ -8250,7 +8250,7 @@ function pl_default() {
 }
 var error35;
 var init_pl = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/pl.js"() {
+  "node_modules/zod/v4/locales/pl.js"() {
     init_util();
     error35 = () => {
       const Sizable = {
@@ -8358,7 +8358,7 @@ var init_pl = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/pt.js
+// node_modules/zod/v4/locales/pt.js
 function pt_default() {
   return {
     localeError: error36()
@@ -8366,7 +8366,7 @@ function pt_default() {
 }
 var error36;
 var init_pt = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/pt.js"() {
+  "node_modules/zod/v4/locales/pt.js"() {
     init_util();
     error36 = () => {
       const Sizable = {
@@ -8473,7 +8473,7 @@ var init_pt = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ro.js
+// node_modules/zod/v4/locales/ro.js
 function ro_default() {
   return {
     localeError: error37()
@@ -8481,7 +8481,7 @@ function ro_default() {
 }
 var error37;
 var init_ro = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ro.js"() {
+  "node_modules/zod/v4/locales/ro.js"() {
     init_util();
     error37 = () => {
       const Sizable = {
@@ -8599,7 +8599,7 @@ var init_ro = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ru.js
+// node_modules/zod/v4/locales/ru.js
 function getRussianPlural(count, one, few, many) {
   const absCount = Math.abs(count);
   const lastDigit = absCount % 10;
@@ -8622,7 +8622,7 @@ function ru_default() {
 }
 var error38;
 var init_ru = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ru.js"() {
+  "node_modules/zod/v4/locales/ru.js"() {
     init_util();
     error38 = () => {
       const Sizable = {
@@ -8762,7 +8762,7 @@ var init_ru = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/sl.js
+// node_modules/zod/v4/locales/sl.js
 function sl_default() {
   return {
     localeError: error39()
@@ -8770,7 +8770,7 @@ function sl_default() {
 }
 var error39;
 var init_sl = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/sl.js"() {
+  "node_modules/zod/v4/locales/sl.js"() {
     init_util();
     error39 = () => {
       const Sizable = {
@@ -8878,7 +8878,7 @@ var init_sl = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/sv.js
+// node_modules/zod/v4/locales/sv.js
 function sv_default() {
   return {
     localeError: error40()
@@ -8886,7 +8886,7 @@ function sv_default() {
 }
 var error40;
 var init_sv = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/sv.js"() {
+  "node_modules/zod/v4/locales/sv.js"() {
     init_util();
     error40 = () => {
       const Sizable = {
@@ -8995,7 +8995,7 @@ var init_sv = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ta.js
+// node_modules/zod/v4/locales/ta.js
 function ta_default() {
   return {
     localeError: error41()
@@ -9003,7 +9003,7 @@ function ta_default() {
 }
 var error41;
 var init_ta = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ta.js"() {
+  "node_modules/zod/v4/locales/ta.js"() {
     init_util();
     error41 = () => {
       const Sizable = {
@@ -9112,7 +9112,7 @@ var init_ta = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/th.js
+// node_modules/zod/v4/locales/th.js
 function th_default() {
   return {
     localeError: error42()
@@ -9120,7 +9120,7 @@ function th_default() {
 }
 var error42;
 var init_th = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/th.js"() {
+  "node_modules/zod/v4/locales/th.js"() {
     init_util();
     error42 = () => {
       const Sizable = {
@@ -9229,7 +9229,7 @@ var init_th = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/tr.js
+// node_modules/zod/v4/locales/tr.js
 function tr_default() {
   return {
     localeError: error43()
@@ -9237,7 +9237,7 @@ function tr_default() {
 }
 var error43;
 var init_tr = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/tr.js"() {
+  "node_modules/zod/v4/locales/tr.js"() {
     init_util();
     error43 = () => {
       const Sizable = {
@@ -9341,7 +9341,7 @@ var init_tr = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/uk.js
+// node_modules/zod/v4/locales/uk.js
 function uk_default() {
   return {
     localeError: error44()
@@ -9349,7 +9349,7 @@ function uk_default() {
 }
 var error44;
 var init_uk = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/uk.js"() {
+  "node_modules/zod/v4/locales/uk.js"() {
     init_util();
     error44 = () => {
       const Sizable = {
@@ -9456,17 +9456,17 @@ var init_uk = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ua.js
+// node_modules/zod/v4/locales/ua.js
 function ua_default() {
   return uk_default();
 }
 var init_ua = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ua.js"() {
+  "node_modules/zod/v4/locales/ua.js"() {
     init_uk();
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ur.js
+// node_modules/zod/v4/locales/ur.js
 function ur_default() {
   return {
     localeError: error45()
@@ -9474,7 +9474,7 @@ function ur_default() {
 }
 var error45;
 var init_ur = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ur.js"() {
+  "node_modules/zod/v4/locales/ur.js"() {
     init_util();
     error45 = () => {
       const Sizable = {
@@ -9583,7 +9583,7 @@ var init_ur = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/uz.js
+// node_modules/zod/v4/locales/uz.js
 function uz_default() {
   return {
     localeError: error46()
@@ -9591,7 +9591,7 @@ function uz_default() {
 }
 var error46;
 var init_uz = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/uz.js"() {
+  "node_modules/zod/v4/locales/uz.js"() {
     init_util();
     error46 = () => {
       const Sizable = {
@@ -9700,7 +9700,7 @@ var init_uz = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/vi.js
+// node_modules/zod/v4/locales/vi.js
 function vi_default() {
   return {
     localeError: error47()
@@ -9708,7 +9708,7 @@ function vi_default() {
 }
 var error47;
 var init_vi = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/vi.js"() {
+  "node_modules/zod/v4/locales/vi.js"() {
     init_util();
     error47 = () => {
       const Sizable = {
@@ -9815,7 +9815,7 @@ var init_vi = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/zh-CN.js
+// node_modules/zod/v4/locales/zh-CN.js
 function zh_CN_default() {
   return {
     localeError: error48()
@@ -9823,7 +9823,7 @@ function zh_CN_default() {
 }
 var error48;
 var init_zh_CN = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/zh-CN.js"() {
+  "node_modules/zod/v4/locales/zh-CN.js"() {
     init_util();
     error48 = () => {
       const Sizable = {
@@ -9931,7 +9931,7 @@ var init_zh_CN = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/zh-TW.js
+// node_modules/zod/v4/locales/zh-TW.js
 function zh_TW_default() {
   return {
     localeError: error49()
@@ -9939,7 +9939,7 @@ function zh_TW_default() {
 }
 var error49;
 var init_zh_TW = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/zh-TW.js"() {
+  "node_modules/zod/v4/locales/zh-TW.js"() {
     init_util();
     error49 = () => {
       const Sizable = {
@@ -10045,7 +10045,7 @@ var init_zh_TW = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/yo.js
+// node_modules/zod/v4/locales/yo.js
 function yo_default() {
   return {
     localeError: error50()
@@ -10053,7 +10053,7 @@ function yo_default() {
 }
 var error50;
 var init_yo = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/yo.js"() {
+  "node_modules/zod/v4/locales/yo.js"() {
     init_util();
     error50 = () => {
       const Sizable = {
@@ -10159,7 +10159,7 @@ var init_yo = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/index.js
+// node_modules/zod/v4/locales/index.js
 var locales_exports = {};
 __export(locales_exports, {
   ar: () => ar_default,
@@ -10216,7 +10216,7 @@ __export(locales_exports, {
   zhTW: () => zh_TW_default
 });
 var init_locales = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/index.js"() {
+  "node_modules/zod/v4/locales/index.js"() {
     init_ar();
     init_az();
     init_be();
@@ -10272,13 +10272,13 @@ var init_locales = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/registries.js
+// node_modules/zod/v4/core/registries.js
 function registry() {
   return new $ZodRegistry();
 }
 var _a2, $output, $input, $ZodRegistry, globalRegistry;
 var init_registries = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/registries.js"() {
+  "node_modules/zod/v4/core/registries.js"() {
     $output = /* @__PURE__ */ Symbol("ZodOutput");
     $input = /* @__PURE__ */ Symbol("ZodInput");
     $ZodRegistry = class {
@@ -10287,10 +10287,10 @@ var init_registries = __esm({
         this._idmap = /* @__PURE__ */ new Map();
       }
       add(schema, ..._meta) {
-        const meta4 = _meta[0];
-        this._map.set(schema, meta4);
-        if (meta4 && typeof meta4 === "object" && "id" in meta4) {
-          this._idmap.set(meta4.id, schema);
+        const meta3 = _meta[0];
+        this._map.set(schema, meta3);
+        if (meta3 && typeof meta3 === "object" && "id" in meta3) {
+          this._idmap.set(meta3.id, schema);
         }
         return this;
       }
@@ -10300,9 +10300,9 @@ var init_registries = __esm({
         return this;
       }
       remove(schema) {
-        const meta4 = this._map.get(schema);
-        if (meta4 && typeof meta4 === "object" && "id" in meta4) {
-          this._idmap.delete(meta4.id);
+        const meta3 = this._map.get(schema);
+        if (meta3 && typeof meta3 === "object" && "id" in meta3) {
+          this._idmap.delete(meta3.id);
         }
         this._map.delete(schema);
         return this;
@@ -10326,7 +10326,7 @@ var init_registries = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/api.js
+// node_modules/zod/v4/core/api.js
 // @__NO_SIDE_EFFECTS__
 function _string(Class2, params) {
   return new Class2({
@@ -11359,7 +11359,7 @@ function _stringFormat(Class2, format, fnOrRegex, _params = {}) {
 }
 var TimePrecision;
 var init_api = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/api.js"() {
+  "node_modules/zod/v4/core/api.js"() {
     init_checks();
     init_registries();
     init_schemas();
@@ -11374,7 +11374,7 @@ var init_api = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/to-json-schema.js
+// node_modules/zod/v4/core/to-json-schema.js
 function initializeContext(params) {
   let target = params?.target ?? "draft-2020-12";
   if (target === "draft-4")
@@ -11437,9 +11437,9 @@ function process2(schema, ctx, _params = { path: [], schemaPath: [] }) {
       ctx.seen.get(parent).isParent = true;
     }
   }
-  const meta4 = ctx.metadataRegistry.get(schema);
-  if (meta4)
-    Object.assign(result2.schema, meta4);
+  const meta3 = ctx.metadataRegistry.get(schema);
+  if (meta3)
+    Object.assign(result2.schema, meta3);
   if (ctx.io === "input" && isTransforming(schema)) {
     delete result2.schema.examples;
     delete result2.schema.default;
@@ -11721,7 +11721,7 @@ function isTransforming(_schema, _ctx) {
 }
 var createToJSONSchemaMethod, createStandardJSONSchemaMethod;
 var init_to_json_schema = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/to-json-schema.js"() {
+  "node_modules/zod/v4/core/to-json-schema.js"() {
     init_registries();
     createToJSONSchemaMethod = (schema, processors = {}) => (params) => {
       const ctx = initializeContext({ ...params, processors });
@@ -11739,7 +11739,7 @@ var init_to_json_schema = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/json-schema-processors.js
+// node_modules/zod/v4/core/json-schema-processors.js
 function toJSONSchema(input, params) {
   if ("_idmap" in input) {
     const registry2 = input;
@@ -11776,7 +11776,7 @@ function toJSONSchema(input, params) {
 }
 var formatMap, stringProcessor, numberProcessor, booleanProcessor, bigintProcessor, symbolProcessor, nullProcessor, undefinedProcessor, voidProcessor, neverProcessor, anyProcessor, unknownProcessor, dateProcessor, enumProcessor, literalProcessor, nanProcessor, templateLiteralProcessor, fileProcessor, successProcessor, customProcessor, functionProcessor, transformProcessor, mapProcessor, setProcessor, arrayProcessor, objectProcessor, unionProcessor, intersectionProcessor, tupleProcessor, recordProcessor, nullableProcessor, nonoptionalProcessor, defaultProcessor, prefaultProcessor, catchProcessor, pipeProcessor, readonlyProcessor, promiseProcessor, optionalProcessor, lazyProcessor, allProcessors;
 var init_json_schema_processors = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/json-schema-processors.js"() {
+  "node_modules/zod/v4/core/json-schema-processors.js"() {
     init_to_json_schema();
     init_util();
     formatMap = {
@@ -12290,10 +12290,10 @@ var init_json_schema_processors = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/json-schema-generator.js
+// node_modules/zod/v4/core/json-schema-generator.js
 var JSONSchemaGenerator;
 var init_json_schema_generator = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/json-schema-generator.js"() {
+  "node_modules/zod/v4/core/json-schema-generator.js"() {
     init_json_schema_processors();
     init_to_json_schema();
     JSONSchemaGenerator = class {
@@ -12372,14 +12372,14 @@ var init_json_schema_generator = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/json-schema.js
+// node_modules/zod/v4/core/json-schema.js
 var json_schema_exports = {};
 var init_json_schema = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/json-schema.js"() {
+  "node_modules/zod/v4/core/json-schema.js"() {
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/index.js
+// node_modules/zod/v4/core/index.js
 var core_exports2 = {};
 __export(core_exports2, {
   $ZodAny: () => $ZodAny,
@@ -12658,7 +12658,7 @@ __export(core_exports2, {
   version: () => version
 });
 var init_core2 = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/index.js"() {
+  "node_modules/zod/v4/core/index.js"() {
     init_core();
     init_parse();
     init_errors();
@@ -12678,7 +12678,7 @@ var init_core2 = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/classic/checks.js
+// node_modules/zod/v4/classic/checks.js
 var checks_exports2 = {};
 __export(checks_exports2, {
   endsWith: () => _endsWith,
@@ -12712,12 +12712,12 @@ __export(checks_exports2, {
   uppercase: () => _uppercase
 });
 var init_checks2 = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/classic/checks.js"() {
+  "node_modules/zod/v4/classic/checks.js"() {
     init_core2();
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/classic/iso.js
+// node_modules/zod/v4/classic/iso.js
 var iso_exports = {};
 __export(iso_exports, {
   ZodISODate: () => ZodISODate,
@@ -12743,7 +12743,7 @@ function duration2(params) {
 }
 var ZodISODateTime, ZodISODate, ZodISOTime, ZodISODuration;
 var init_iso = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/classic/iso.js"() {
+  "node_modules/zod/v4/classic/iso.js"() {
     init_core2();
     init_schemas2();
     ZodISODateTime = /* @__PURE__ */ $constructor("ZodISODateTime", (inst, def) => {
@@ -12765,10 +12765,10 @@ var init_iso = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/classic/errors.js
+// node_modules/zod/v4/classic/errors.js
 var initializer2, ZodError, ZodRealError;
 var init_errors2 = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/classic/errors.js"() {
+  "node_modules/zod/v4/classic/errors.js"() {
     init_core2();
     init_core2();
     init_util();
@@ -12813,10 +12813,10 @@ var init_errors2 = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/classic/parse.js
+// node_modules/zod/v4/classic/parse.js
 var parse2, parseAsync2, safeParse2, safeParseAsync2, encode2, decode2, encodeAsync2, decodeAsync2, safeEncode2, safeDecode2, safeEncodeAsync2, safeDecodeAsync2;
 var init_parse2 = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/classic/parse.js"() {
+  "node_modules/zod/v4/classic/parse.js"() {
     init_core2();
     init_errors2();
     parse2 = /* @__PURE__ */ _parse(ZodRealError);
@@ -12834,7 +12834,7 @@ var init_parse2 = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/classic/schemas.js
+// node_modules/zod/v4/classic/schemas.js
 var schemas_exports2 = {};
 __export(schemas_exports2, {
   ZodAny: () => ZodAny,
@@ -13518,7 +13518,7 @@ function preprocess(fn, schema) {
 }
 var _installedGroups, ZodType, _ZodString, ZodString, ZodStringFormat, ZodEmail, ZodGUID, ZodUUID, ZodURL, ZodEmoji, ZodNanoID, ZodCUID, ZodCUID2, ZodULID, ZodXID, ZodKSUID, ZodIPv4, ZodMAC, ZodIPv6, ZodCIDRv4, ZodCIDRv6, ZodBase64, ZodBase64URL, ZodE164, ZodJWT, ZodCustomStringFormat, ZodNumber, ZodNumberFormat, ZodBoolean, ZodBigInt, ZodBigIntFormat, ZodSymbol, ZodUndefined, ZodNull, ZodAny, ZodUnknown, ZodNever, ZodVoid, ZodDate, ZodArray, ZodObject, ZodUnion, ZodXor, ZodDiscriminatedUnion, ZodIntersection, ZodTuple, ZodRecord, ZodMap, ZodSet, ZodEnum, ZodLiteral, ZodFile, ZodTransform, ZodOptional, ZodExactOptional, ZodNullable, ZodDefault, ZodPrefault, ZodNonOptional, ZodSuccess, ZodCatch, ZodNaN, ZodPipe, ZodCodec, ZodPreprocess, ZodReadonly, ZodTemplateLiteral, ZodLazy, ZodPromise, ZodFunction, ZodCustom, describe2, meta2, stringbool;
 var init_schemas2 = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/classic/schemas.js"() {
+  "node_modules/zod/v4/classic/schemas.js"() {
     init_core2();
     init_core2();
     init_json_schema_processors();
@@ -13571,8 +13571,8 @@ var init_schemas2 = __esm({
         brand() {
           return this;
         },
-        register(reg, meta4) {
-          reg.add(this, meta4);
+        register(reg, meta3) {
+          reg.add(this, meta3);
           return this;
         },
         refine(check2, params) {
@@ -14305,7 +14305,7 @@ var init_schemas2 = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/classic/compat.js
+// node_modules/zod/v4/classic/compat.js
 function setErrorMap(map2) {
   config({
     customError: map2
@@ -14316,7 +14316,7 @@ function getErrorMap() {
 }
 var ZodIssueCode, ZodFirstPartyTypeKind;
 var init_compat = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/classic/compat.js"() {
+  "node_modules/zod/v4/classic/compat.js"() {
     init_core2();
     ZodIssueCode = {
       invalid_type: "invalid_type",
@@ -14336,7 +14336,7 @@ var init_compat = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/classic/from-json-schema.js
+// node_modules/zod/v4/classic/from-json-schema.js
 function detectVersion(schema, defaultTarget) {
   const $schema = schema.$schema;
   if ($schema === "https://json-schema.org/draft/2020-12/schema") {
@@ -14741,7 +14741,7 @@ function fromJSONSchema(schema, params) {
 }
 var z, RECOGNIZED_KEYS;
 var init_from_json_schema = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/classic/from-json-schema.js"() {
+  "node_modules/zod/v4/classic/from-json-schema.js"() {
     init_registries();
     init_checks2();
     init_iso();
@@ -14825,7 +14825,7 @@ var init_from_json_schema = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/classic/coerce.js
+// node_modules/zod/v4/classic/coerce.js
 var coerce_exports = {};
 __export(coerce_exports, {
   bigint: () => bigint3,
@@ -14850,13 +14850,13 @@ function date4(params) {
   return _coercedDate(ZodDate, params);
 }
 var init_coerce = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/classic/coerce.js"() {
+  "node_modules/zod/v4/classic/coerce.js"() {
     init_core2();
     init_schemas2();
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/classic/external.js
+// node_modules/zod/v4/classic/external.js
 var external_exports = {};
 __export(external_exports, {
   $brand: () => $brand,
@@ -15099,7 +15099,7 @@ __export(external_exports, {
   xor: () => xor
 });
 var init_external = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/classic/external.js"() {
+  "node_modules/zod/v4/classic/external.js"() {
     init_core2();
     init_schemas2();
     init_checks2();
@@ -15119,24 +15119,24 @@ var init_external = __esm({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/classic/index.js
+// node_modules/zod/v4/classic/index.js
 var init_classic = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/classic/index.js"() {
+  "node_modules/zod/v4/classic/index.js"() {
     init_external();
     init_external();
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/index.js
+// node_modules/zod/v4/index.js
 var init_v4 = __esm({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/index.js"() {
+  "node_modules/zod/v4/index.js"() {
     init_classic();
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/codegen/code.js
+// node_modules/ajv/dist/compile/codegen/code.js
 var require_code = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/codegen/code.js"(exports) {
+  "node_modules/ajv/dist/compile/codegen/code.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.regexpCode = exports.getEsmExportName = exports.getProperty = exports.safeStringify = exports.stringify = exports.strConcat = exports.addCodeArg = exports.str = exports._ = exports.nil = exports._Code = exports.Name = exports.IDENTIFIER = exports._CodeOrName = void 0;
@@ -15288,9 +15288,9 @@ var require_code = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/codegen/scope.js
+// node_modules/ajv/dist/compile/codegen/scope.js
 var require_scope = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/codegen/scope.js"(exports) {
+  "node_modules/ajv/dist/compile/codegen/scope.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.ValueScope = exports.ValueScopeName = exports.Scope = exports.varKinds = exports.UsedValueState = void 0;
@@ -15433,9 +15433,9 @@ var require_scope = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/codegen/index.js
+// node_modules/ajv/dist/compile/codegen/index.js
 var require_codegen = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/codegen/index.js"(exports) {
+  "node_modules/ajv/dist/compile/codegen/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.or = exports.and = exports.not = exports.CodeGen = exports.operators = exports.varKinds = exports.ValueScopeName = exports.ValueScope = exports.Scope = exports.Name = exports.regexpCode = exports.stringify = exports.getProperty = exports.nil = exports.strConcat = exports.str = exports._ = void 0;
@@ -16153,9 +16153,9 @@ var require_codegen = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/util.js
+// node_modules/ajv/dist/compile/util.js
 var require_util = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/util.js"(exports) {
+  "node_modules/ajv/dist/compile/util.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.checkStrictMode = exports.getErrorPath = exports.Type = exports.useFunc = exports.setEvaluated = exports.evaluatedPropsToName = exports.mergeEvaluated = exports.eachItem = exports.unescapeJsonPointer = exports.escapeJsonPointer = exports.escapeFragment = exports.unescapeFragment = exports.schemaRefOrVal = exports.schemaHasRulesButRef = exports.schemaHasRules = exports.checkUnknownRules = exports.alwaysValidSchema = exports.toHash = void 0;
@@ -16320,9 +16320,9 @@ var require_util = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/names.js
+// node_modules/ajv/dist/compile/names.js
 var require_names = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/names.js"(exports) {
+  "node_modules/ajv/dist/compile/names.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -16359,9 +16359,9 @@ var require_names = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/errors.js
+// node_modules/ajv/dist/compile/errors.js
 var require_errors = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/errors.js"(exports) {
+  "node_modules/ajv/dist/compile/errors.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.extendErrors = exports.resetErrorsCount = exports.reportExtraError = exports.reportError = exports.keyword$DataError = exports.keywordError = void 0;
@@ -16481,9 +16481,9 @@ var require_errors = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/validate/boolSchema.js
+// node_modules/ajv/dist/compile/validate/boolSchema.js
 var require_boolSchema = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/validate/boolSchema.js"(exports) {
+  "node_modules/ajv/dist/compile/validate/boolSchema.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.boolOrEmptySchema = exports.topBoolOrEmptySchema = void 0;
@@ -16532,9 +16532,9 @@ var require_boolSchema = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/rules.js
+// node_modules/ajv/dist/compile/rules.js
 var require_rules = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/rules.js"(exports) {
+  "node_modules/ajv/dist/compile/rules.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.getRules = exports.isJSONType = void 0;
@@ -16563,9 +16563,9 @@ var require_rules = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/validate/applicability.js
+// node_modules/ajv/dist/compile/validate/applicability.js
 var require_applicability = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/validate/applicability.js"(exports) {
+  "node_modules/ajv/dist/compile/validate/applicability.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.shouldUseRule = exports.shouldUseGroup = exports.schemaHasRulesForType = void 0;
@@ -16586,9 +16586,9 @@ var require_applicability = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/validate/dataType.js
+// node_modules/ajv/dist/compile/validate/dataType.js
 var require_dataType = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/validate/dataType.js"(exports) {
+  "node_modules/ajv/dist/compile/validate/dataType.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.reportTypeError = exports.checkDataTypes = exports.checkDataType = exports.coerceAndCheckDataType = exports.getJSONTypes = exports.getSchemaTypes = exports.DataType = void 0;
@@ -16770,9 +16770,9 @@ var require_dataType = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/validate/defaults.js
+// node_modules/ajv/dist/compile/validate/defaults.js
 var require_defaults = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/validate/defaults.js"(exports) {
+  "node_modules/ajv/dist/compile/validate/defaults.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.assignDefaults = void 0;
@@ -16807,9 +16807,9 @@ var require_defaults = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/code.js
+// node_modules/ajv/dist/vocabularies/code.js
 var require_code2 = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/code.js"(exports) {
+  "node_modules/ajv/dist/vocabularies/code.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.validateUnion = exports.validateArray = exports.usePattern = exports.callValidateCode = exports.schemaProperties = exports.allSchemaProperties = exports.noPropertyInData = exports.propertyInData = exports.isOwnProperty = exports.hasPropFunc = exports.reportMissingProp = exports.checkMissingProp = exports.checkReportMissingProp = void 0;
@@ -16940,9 +16940,9 @@ var require_code2 = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/validate/keyword.js
+// node_modules/ajv/dist/compile/validate/keyword.js
 var require_keyword = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/validate/keyword.js"(exports) {
+  "node_modules/ajv/dist/compile/validate/keyword.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.validateKeywordUsage = exports.validSchemaType = exports.funcKeywordCode = exports.macroKeywordCode = void 0;
@@ -17058,9 +17058,9 @@ var require_keyword = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/validate/subschema.js
+// node_modules/ajv/dist/compile/validate/subschema.js
 var require_subschema = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/validate/subschema.js"(exports) {
+  "node_modules/ajv/dist/compile/validate/subschema.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.extendSubschemaMode = exports.extendSubschemaData = exports.getSubschema = void 0;
@@ -17141,9 +17141,9 @@ var require_subschema = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/fast-deep-equal/index.js
+// node_modules/fast-deep-equal/index.js
 var require_fast_deep_equal = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/fast-deep-equal/index.js"(exports, module) {
+  "node_modules/fast-deep-equal/index.js"(exports, module) {
     "use strict";
     module.exports = function equal(a2, b) {
       if (a2 === b) return true;
@@ -17176,9 +17176,9 @@ var require_fast_deep_equal = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/json-schema-traverse/index.js
+// node_modules/json-schema-traverse/index.js
 var require_json_schema_traverse = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/json-schema-traverse/index.js"(exports, module) {
+  "node_modules/json-schema-traverse/index.js"(exports, module) {
     "use strict";
     var traverse = module.exports = function(schema, opts, cb) {
       if (typeof opts == "function") {
@@ -17264,9 +17264,9 @@ var require_json_schema_traverse = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/resolve.js
+// node_modules/ajv/dist/compile/resolve.js
 var require_resolve = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/resolve.js"(exports) {
+  "node_modules/ajv/dist/compile/resolve.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.getSchemaRefs = exports.resolveUrl = exports.normalizeId = exports._getFullPath = exports.getFullPath = exports.inlineRef = void 0;
@@ -17420,9 +17420,9 @@ var require_resolve = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/validate/index.js
+// node_modules/ajv/dist/compile/validate/index.js
 var require_validate = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/validate/index.js"(exports) {
+  "node_modules/ajv/dist/compile/validate/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.getData = exports.KeywordCxt = exports.validateFunctionCode = void 0;
@@ -17928,9 +17928,9 @@ var require_validate = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/runtime/validation_error.js
+// node_modules/ajv/dist/runtime/validation_error.js
 var require_validation_error = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/runtime/validation_error.js"(exports) {
+  "node_modules/ajv/dist/runtime/validation_error.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var ValidationError = class extends Error {
@@ -17944,9 +17944,9 @@ var require_validation_error = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/ref_error.js
+// node_modules/ajv/dist/compile/ref_error.js
 var require_ref_error = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/ref_error.js"(exports) {
+  "node_modules/ajv/dist/compile/ref_error.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var resolve_1 = require_resolve();
@@ -17961,9 +17961,9 @@ var require_ref_error = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/index.js
+// node_modules/ajv/dist/compile/index.js
 var require_compile = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/index.js"(exports) {
+  "node_modules/ajv/dist/compile/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.resolveSchema = exports.getCompilingSchema = exports.resolveRef = exports.compileSchema = exports.SchemaEnv = void 0;
@@ -18085,7 +18085,7 @@ var require_compile = __commonJS({
       const schOrFunc = root.refs[ref];
       if (schOrFunc)
         return schOrFunc;
-      let _sch = resolve5.call(this, root, ref);
+      let _sch = resolve8.call(this, root, ref);
       if (_sch === void 0) {
         const schema = (_a3 = root.localRefs) === null || _a3 === void 0 ? void 0 : _a3[ref];
         const { schemaId } = this.opts;
@@ -18112,7 +18112,7 @@ var require_compile = __commonJS({
     function sameSchemaEnv(s1, s2) {
       return s1.schema === s2.schema && s1.root === s2.root && s1.baseId === s2.baseId;
     }
-    function resolve5(root, ref) {
+    function resolve8(root, ref) {
       let sch;
       while (typeof (sch = this.refs[ref]) == "string")
         ref = sch;
@@ -18185,9 +18185,9 @@ var require_compile = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/refs/data.json
+// node_modules/ajv/dist/refs/data.json
 var require_data = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/refs/data.json"(exports, module) {
+  "node_modules/ajv/dist/refs/data.json"(exports, module) {
     module.exports = {
       $id: "https://raw.githubusercontent.com/ajv-validator/ajv/master/lib/refs/data.json#",
       description: "Meta-schema for $data reference (JSON AnySchema extension proposal)",
@@ -18204,9 +18204,9 @@ var require_data = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/fast-uri/lib/utils.js
+// node_modules/fast-uri/lib/utils.js
 var require_utils = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/fast-uri/lib/utils.js"(exports, module) {
+  "node_modules/fast-uri/lib/utils.js"(exports, module) {
     "use strict";
     var isUUID = RegExp.prototype.test.bind(/^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/iu);
     var isIPv4 = RegExp.prototype.test.bind(/^(?:(?:25[0-5]|2[0-4]\d|1\d{2}|[1-9]\d|\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d{2}|[1-9]\d|\d)$/u);
@@ -18408,8 +18408,8 @@ var require_utils = __commonJS({
     var HOST_DELIMS = { "@": "%40", "/": "%2F", "?": "%3F", "#": "%23", ":": "%3A" };
     var HOST_DELIM_RE = /[@/?#:]/g;
     var HOST_DELIM_NO_COLON_RE = /[@/?#]/g;
-    function reescapeHostDelimiters(host, isIP2) {
-      const re = isIP2 ? HOST_DELIM_NO_COLON_RE : HOST_DELIM_RE;
+    function reescapeHostDelimiters(host, isIP) {
+      const re = isIP ? HOST_DELIM_NO_COLON_RE : HOST_DELIM_RE;
       re.lastIndex = 0;
       return host.replace(re, (ch) => HOST_DELIMS[ch]);
     }
@@ -18517,9 +18517,9 @@ var require_utils = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/fast-uri/lib/schemes.js
+// node_modules/fast-uri/lib/schemes.js
 var require_schemes = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/fast-uri/lib/schemes.js"(exports, module) {
+  "node_modules/fast-uri/lib/schemes.js"(exports, module) {
     "use strict";
     var { isUUID } = require_utils();
     var URN_REG = /([\da-z][\d\-a-z]{0,31}):((?:[\w!$'()*+,\-.:;=@]|%[\da-f]{2})+)/iu;
@@ -18727,9 +18727,9 @@ var require_schemes = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/fast-uri/index.js
+// node_modules/fast-uri/index.js
 var require_fast_uri = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/fast-uri/index.js"(exports, module) {
+  "node_modules/fast-uri/index.js"(exports, module) {
     "use strict";
     var { normalizeIPv6, removeDotSegments, recomposeAuthority, normalizePercentEncoding, normalizePathEncoding, escapePreservingEscapes, reescapeHostDelimiters, isIPv4, nonSimpleDomain } = require_utils();
     var { SCHEMES, getSchemeHandler } = require_schemes();
@@ -18743,7 +18743,7 @@ var require_fast_uri = __commonJS({
       }
       return uri;
     }
-    function resolve5(baseURI, relativeURI, options) {
+    function resolve8(baseURI, relativeURI, options) {
       const schemelessOptions = options ? Object.assign({ scheme: "null" }, options) : { scheme: "null" };
       const resolved = resolveComponent(parse4(baseURI, schemelessOptions), parse4(relativeURI, schemelessOptions), schemelessOptions, true);
       schemelessOptions.skipEscape = true;
@@ -18891,7 +18891,7 @@ var require_fast_uri = __commonJS({
         fragment: void 0
       };
       let malformedAuthorityOrPort = false;
-      let isIP2 = false;
+      let isIP = false;
       if (options.reference === "suffix") {
         if (options.scheme) {
           uri = options.scheme + ":" + uri;
@@ -18921,9 +18921,9 @@ var require_fast_uri = __commonJS({
           if (ipv4result === false) {
             const ipv6result = normalizeIPv6(parsed.host);
             parsed.host = ipv6result.host.toLowerCase();
-            isIP2 = ipv6result.isIPV6;
+            isIP = ipv6result.isIPV6;
           } else {
-            isIP2 = true;
+            isIP = true;
           }
         }
         if (parsed.scheme === void 0 && parsed.userinfo === void 0 && parsed.host === void 0 && parsed.port === void 0 && parsed.query === void 0 && !parsed.path) {
@@ -18940,7 +18940,7 @@ var require_fast_uri = __commonJS({
         }
         const schemeHandler = getSchemeHandler(options.scheme || parsed.scheme);
         if (!options.unicodeSupport && (!schemeHandler || !schemeHandler.unicodeSupport)) {
-          if (parsed.host && (options.domainHost || schemeHandler && schemeHandler.domainHost) && isIP2 === false && nonSimpleDomain(parsed.host)) {
+          if (parsed.host && (options.domainHost || schemeHandler && schemeHandler.domainHost) && isIP === false && nonSimpleDomain(parsed.host)) {
             try {
               parsed.host = new URL("http://" + parsed.host).hostname;
             } catch (e) {
@@ -18954,7 +18954,7 @@ var require_fast_uri = __commonJS({
               parsed.scheme = unescape(parsed.scheme);
             }
             if (parsed.host !== void 0) {
-              parsed.host = reescapeHostDelimiters(unescape(parsed.host), isIP2);
+              parsed.host = reescapeHostDelimiters(unescape(parsed.host), isIP);
             }
           }
           if (parsed.path) {
@@ -19001,7 +19001,7 @@ var require_fast_uri = __commonJS({
     var fastUri = {
       SCHEMES,
       normalize,
-      resolve: resolve5,
+      resolve: resolve8,
       resolveComponent,
       equal,
       serialize,
@@ -19013,9 +19013,9 @@ var require_fast_uri = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/runtime/uri.js
+// node_modules/ajv/dist/runtime/uri.js
 var require_uri = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/runtime/uri.js"(exports) {
+  "node_modules/ajv/dist/runtime/uri.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var uri = require_fast_uri();
@@ -19024,9 +19024,9 @@ var require_uri = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/core.js
+// node_modules/ajv/dist/core.js
 var require_core = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/core.js"(exports) {
+  "node_modules/ajv/dist/core.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.CodeGen = exports.Name = exports.nil = exports.stringify = exports.str = exports._ = exports.KeywordCxt = void 0;
@@ -19165,19 +19165,19 @@ var require_core = __commonJS({
         this.addKeyword("$async");
       }
       _addDefaultMetaSchema() {
-        const { $data, meta: meta4, schemaId } = this.opts;
+        const { $data, meta: meta3, schemaId } = this.opts;
         let _dataRefSchema = $dataRefSchema;
         if (schemaId === "id") {
           _dataRefSchema = { ...$dataRefSchema };
           _dataRefSchema.id = _dataRefSchema.$id;
           delete _dataRefSchema.$id;
         }
-        if (meta4 && $data)
+        if (meta3 && $data)
           this.addMetaSchema(_dataRefSchema, _dataRefSchema[schemaId], false);
       }
       defaultMeta() {
-        const { meta: meta4, schemaId } = this.opts;
-        return this.opts.defaultMeta = typeof meta4 == "object" ? meta4[schemaId] || meta4 : void 0;
+        const { meta: meta3, schemaId } = this.opts;
+        return this.opts.defaultMeta = typeof meta3 == "object" ? meta3[schemaId] || meta3 : void 0;
       }
       validate(schemaKeyRef, data) {
         let v2;
@@ -19197,12 +19197,12 @@ var require_core = __commonJS({
         const sch = this._addSchema(schema, _meta);
         return sch.validate || this._compileSchemaEnv(sch);
       }
-      compileAsync(schema, meta4) {
+      compileAsync(schema, meta3) {
         if (typeof this.opts.loadSchema != "function") {
           throw new Error("options.loadSchema should be a function");
         }
         const { loadSchema } = this.opts;
-        return runCompileAsync.call(this, schema, meta4);
+        return runCompileAsync.call(this, schema, meta3);
         async function runCompileAsync(_schema, _meta) {
           await loadMetaSchema.call(this, _schema.$schema);
           const sch = this._addSchema(_schema, _meta);
@@ -19234,7 +19234,7 @@ var require_core = __commonJS({
           if (!this.refs[ref])
             await loadMetaSchema.call(this, _schema.$schema);
           if (!this.refs[ref])
-            this.addSchema(_schema, ref, meta4);
+            this.addSchema(_schema, ref, meta3);
         }
         async function _loadSchema(ref) {
           const p2 = this._loading[ref];
@@ -19451,7 +19451,7 @@ var require_core = __commonJS({
           }
         }
       }
-      _addSchema(schema, meta4, baseId, validateSchema = this.opts.validateSchema, addSchema = this.opts.addUsedSchema) {
+      _addSchema(schema, meta3, baseId, validateSchema = this.opts.validateSchema, addSchema = this.opts.addUsedSchema) {
         let id;
         const { schemaId } = this.opts;
         if (typeof schema == "object") {
@@ -19467,7 +19467,7 @@ var require_core = __commonJS({
           return sch;
         baseId = (0, resolve_1.normalizeId)(id || baseId);
         const localRefs = resolve_1.getSchemaRefs.call(this, schema, baseId);
-        sch = new compile_1.SchemaEnv({ schema, schemaId, meta: meta4, baseId, localRefs });
+        sch = new compile_1.SchemaEnv({ schema, schemaId, meta: meta3, baseId, localRefs });
         this._cache.set(sch.schema, sch);
         if (addSchema && !baseId.startsWith("#")) {
           if (baseId)
@@ -19635,9 +19635,9 @@ var require_core = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/core/id.js
+// node_modules/ajv/dist/vocabularies/core/id.js
 var require_id = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/core/id.js"(exports) {
+  "node_modules/ajv/dist/vocabularies/core/id.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var def = {
@@ -19650,9 +19650,9 @@ var require_id = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/core/ref.js
+// node_modules/ajv/dist/vocabularies/core/ref.js
 var require_ref = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/core/ref.js"(exports) {
+  "node_modules/ajv/dist/vocabularies/core/ref.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.callRef = exports.getValidate = void 0;
@@ -19772,9 +19772,9 @@ var require_ref = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/core/index.js
+// node_modules/ajv/dist/vocabularies/core/index.js
 var require_core2 = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/core/index.js"(exports) {
+  "node_modules/ajv/dist/vocabularies/core/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var id_1 = require_id();
@@ -19793,9 +19793,9 @@ var require_core2 = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/limitNumber.js
+// node_modules/ajv/dist/vocabularies/validation/limitNumber.js
 var require_limitNumber = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/limitNumber.js"(exports) {
+  "node_modules/ajv/dist/vocabularies/validation/limitNumber.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -19825,9 +19825,9 @@ var require_limitNumber = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/multipleOf.js
+// node_modules/ajv/dist/vocabularies/validation/multipleOf.js
 var require_multipleOf = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/multipleOf.js"(exports) {
+  "node_modules/ajv/dist/vocabularies/validation/multipleOf.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -19853,9 +19853,9 @@ var require_multipleOf = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/runtime/ucs2length.js
+// node_modules/ajv/dist/runtime/ucs2length.js
 var require_ucs2length = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/runtime/ucs2length.js"(exports) {
+  "node_modules/ajv/dist/runtime/ucs2length.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     function ucs2length(str) {
@@ -19879,9 +19879,9 @@ var require_ucs2length = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/limitLength.js
+// node_modules/ajv/dist/vocabularies/validation/limitLength.js
 var require_limitLength = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/limitLength.js"(exports) {
+  "node_modules/ajv/dist/vocabularies/validation/limitLength.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -19911,9 +19911,9 @@ var require_limitLength = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/pattern.js
+// node_modules/ajv/dist/vocabularies/validation/pattern.js
 var require_pattern = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/pattern.js"(exports) {
+  "node_modules/ajv/dist/vocabularies/validation/pattern.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var code_1 = require_code2();
@@ -19948,9 +19948,9 @@ var require_pattern = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/limitProperties.js
+// node_modules/ajv/dist/vocabularies/validation/limitProperties.js
 var require_limitProperties = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/limitProperties.js"(exports) {
+  "node_modules/ajv/dist/vocabularies/validation/limitProperties.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -19977,9 +19977,9 @@ var require_limitProperties = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/required.js
+// node_modules/ajv/dist/vocabularies/validation/required.js
 var require_required = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/required.js"(exports) {
+  "node_modules/ajv/dist/vocabularies/validation/required.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var code_1 = require_code2();
@@ -20059,9 +20059,9 @@ var require_required = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/limitItems.js
+// node_modules/ajv/dist/vocabularies/validation/limitItems.js
 var require_limitItems = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/limitItems.js"(exports) {
+  "node_modules/ajv/dist/vocabularies/validation/limitItems.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -20088,9 +20088,9 @@ var require_limitItems = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/runtime/equal.js
+// node_modules/ajv/dist/runtime/equal.js
 var require_equal = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/runtime/equal.js"(exports) {
+  "node_modules/ajv/dist/runtime/equal.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var equal = require_fast_deep_equal();
@@ -20099,9 +20099,9 @@ var require_equal = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/uniqueItems.js
+// node_modules/ajv/dist/vocabularies/validation/uniqueItems.js
 var require_uniqueItems = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/uniqueItems.js"(exports) {
+  "node_modules/ajv/dist/vocabularies/validation/uniqueItems.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var dataType_1 = require_dataType();
@@ -20166,9 +20166,9 @@ var require_uniqueItems = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/const.js
+// node_modules/ajv/dist/vocabularies/validation/const.js
 var require_const = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/const.js"(exports) {
+  "node_modules/ajv/dist/vocabularies/validation/const.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -20195,9 +20195,9 @@ var require_const = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/enum.js
+// node_modules/ajv/dist/vocabularies/validation/enum.js
 var require_enum = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/enum.js"(exports) {
+  "node_modules/ajv/dist/vocabularies/validation/enum.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -20244,9 +20244,9 @@ var require_enum = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/index.js
+// node_modules/ajv/dist/vocabularies/validation/index.js
 var require_validation = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/index.js"(exports) {
+  "node_modules/ajv/dist/vocabularies/validation/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var limitNumber_1 = require_limitNumber();
@@ -20282,9 +20282,9 @@ var require_validation = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/additionalItems.js
+// node_modules/ajv/dist/vocabularies/applicator/additionalItems.js
 var require_additionalItems = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/additionalItems.js"(exports) {
+  "node_modules/ajv/dist/vocabularies/applicator/additionalItems.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.validateAdditionalItems = void 0;
@@ -20335,9 +20335,9 @@ var require_additionalItems = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/items.js
+// node_modules/ajv/dist/vocabularies/applicator/items.js
 var require_items = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/items.js"(exports) {
+  "node_modules/ajv/dist/vocabularies/applicator/items.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.validateTuple = void 0;
@@ -20392,9 +20392,9 @@ var require_items = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/prefixItems.js
+// node_modules/ajv/dist/vocabularies/applicator/prefixItems.js
 var require_prefixItems = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/prefixItems.js"(exports) {
+  "node_modules/ajv/dist/vocabularies/applicator/prefixItems.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var items_1 = require_items();
@@ -20409,9 +20409,9 @@ var require_prefixItems = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/items2020.js
+// node_modules/ajv/dist/vocabularies/applicator/items2020.js
 var require_items2020 = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/items2020.js"(exports) {
+  "node_modules/ajv/dist/vocabularies/applicator/items2020.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -20444,9 +20444,9 @@ var require_items2020 = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/contains.js
+// node_modules/ajv/dist/vocabularies/applicator/contains.js
 var require_contains = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/contains.js"(exports) {
+  "node_modules/ajv/dist/vocabularies/applicator/contains.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -20538,9 +20538,9 @@ var require_contains = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/dependencies.js
+// node_modules/ajv/dist/vocabularies/applicator/dependencies.js
 var require_dependencies = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/dependencies.js"(exports) {
+  "node_modules/ajv/dist/vocabularies/applicator/dependencies.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.validateSchemaDeps = exports.validatePropertyDeps = exports.error = void 0;
@@ -20632,9 +20632,9 @@ var require_dependencies = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/propertyNames.js
+// node_modules/ajv/dist/vocabularies/applicator/propertyNames.js
 var require_propertyNames = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/propertyNames.js"(exports) {
+  "node_modules/ajv/dist/vocabularies/applicator/propertyNames.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -20675,9 +20675,9 @@ var require_propertyNames = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/additionalProperties.js
+// node_modules/ajv/dist/vocabularies/applicator/additionalProperties.js
 var require_additionalProperties = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/additionalProperties.js"(exports) {
+  "node_modules/ajv/dist/vocabularies/applicator/additionalProperties.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var code_1 = require_code2();
@@ -20781,9 +20781,9 @@ var require_additionalProperties = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/properties.js
+// node_modules/ajv/dist/vocabularies/applicator/properties.js
 var require_properties = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/properties.js"(exports) {
+  "node_modules/ajv/dist/vocabularies/applicator/properties.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var validate_1 = require_validate();
@@ -20839,9 +20839,9 @@ var require_properties = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/patternProperties.js
+// node_modules/ajv/dist/vocabularies/applicator/patternProperties.js
 var require_patternProperties = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/patternProperties.js"(exports) {
+  "node_modules/ajv/dist/vocabularies/applicator/patternProperties.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var code_1 = require_code2();
@@ -20913,9 +20913,9 @@ var require_patternProperties = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/not.js
+// node_modules/ajv/dist/vocabularies/applicator/not.js
 var require_not = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/not.js"(exports) {
+  "node_modules/ajv/dist/vocabularies/applicator/not.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var util_1 = require_util();
@@ -20944,9 +20944,9 @@ var require_not = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/anyOf.js
+// node_modules/ajv/dist/vocabularies/applicator/anyOf.js
 var require_anyOf = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/anyOf.js"(exports) {
+  "node_modules/ajv/dist/vocabularies/applicator/anyOf.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var code_1 = require_code2();
@@ -20961,9 +20961,9 @@ var require_anyOf = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/oneOf.js
+// node_modules/ajv/dist/vocabularies/applicator/oneOf.js
 var require_oneOf = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/oneOf.js"(exports) {
+  "node_modules/ajv/dist/vocabularies/applicator/oneOf.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -21019,9 +21019,9 @@ var require_oneOf = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/allOf.js
+// node_modules/ajv/dist/vocabularies/applicator/allOf.js
 var require_allOf = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/allOf.js"(exports) {
+  "node_modules/ajv/dist/vocabularies/applicator/allOf.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var util_1 = require_util();
@@ -21046,9 +21046,9 @@ var require_allOf = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/if.js
+// node_modules/ajv/dist/vocabularies/applicator/if.js
 var require_if = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/if.js"(exports) {
+  "node_modules/ajv/dist/vocabularies/applicator/if.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -21115,9 +21115,9 @@ var require_if = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/thenElse.js
+// node_modules/ajv/dist/vocabularies/applicator/thenElse.js
 var require_thenElse = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/thenElse.js"(exports) {
+  "node_modules/ajv/dist/vocabularies/applicator/thenElse.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var util_1 = require_util();
@@ -21133,9 +21133,9 @@ var require_thenElse = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/index.js
+// node_modules/ajv/dist/vocabularies/applicator/index.js
 var require_applicator = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/index.js"(exports) {
+  "node_modules/ajv/dist/vocabularies/applicator/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var additionalItems_1 = require_additionalItems();
@@ -21181,9 +21181,9 @@ var require_applicator = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/format/format.js
+// node_modules/ajv/dist/vocabularies/format/format.js
 var require_format = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/format/format.js"(exports) {
+  "node_modules/ajv/dist/vocabularies/format/format.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -21271,9 +21271,9 @@ var require_format = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/format/index.js
+// node_modules/ajv/dist/vocabularies/format/index.js
 var require_format2 = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/format/index.js"(exports) {
+  "node_modules/ajv/dist/vocabularies/format/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var format_1 = require_format();
@@ -21282,9 +21282,9 @@ var require_format2 = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/metadata.js
+// node_modules/ajv/dist/vocabularies/metadata.js
 var require_metadata = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/metadata.js"(exports) {
+  "node_modules/ajv/dist/vocabularies/metadata.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.contentVocabulary = exports.metadataVocabulary = void 0;
@@ -21305,9 +21305,9 @@ var require_metadata = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/draft7.js
+// node_modules/ajv/dist/vocabularies/draft7.js
 var require_draft7 = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/draft7.js"(exports) {
+  "node_modules/ajv/dist/vocabularies/draft7.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var core_1 = require_core2();
@@ -21327,9 +21327,9 @@ var require_draft7 = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/discriminator/types.js
+// node_modules/ajv/dist/vocabularies/discriminator/types.js
 var require_types = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/discriminator/types.js"(exports) {
+  "node_modules/ajv/dist/vocabularies/discriminator/types.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.DiscrError = void 0;
@@ -21341,9 +21341,9 @@ var require_types = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/discriminator/index.js
+// node_modules/ajv/dist/vocabularies/discriminator/index.js
 var require_discriminator = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/discriminator/index.js"(exports) {
+  "node_modules/ajv/dist/vocabularies/discriminator/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -21446,9 +21446,9 @@ var require_discriminator = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/refs/json-schema-draft-07.json
+// node_modules/ajv/dist/refs/json-schema-draft-07.json
 var require_json_schema_draft_07 = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/refs/json-schema-draft-07.json"(exports, module) {
+  "node_modules/ajv/dist/refs/json-schema-draft-07.json"(exports, module) {
     module.exports = {
       $schema: "http://json-schema.org/draft-07/schema#",
       $id: "http://json-schema.org/draft-07/schema#",
@@ -21603,9 +21603,9 @@ var require_json_schema_draft_07 = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/ajv.js
+// node_modules/ajv/dist/ajv.js
 var require_ajv = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/ajv.js"(exports, module) {
+  "node_modules/ajv/dist/ajv.js"(exports, module) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.MissingRefError = exports.ValidationError = exports.CodeGen = exports.Name = exports.nil = exports.stringify = exports.str = exports._ = exports.KeywordCxt = exports.Ajv = void 0;
@@ -21673,9 +21673,9 @@ var require_ajv = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv-formats/dist/formats.js
+// node_modules/ajv-formats/dist/formats.js
 var require_formats = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv-formats/dist/formats.js"(exports) {
+  "node_modules/ajv-formats/dist/formats.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.formatNames = exports.fastFormats = exports.fullFormats = void 0;
@@ -21876,9 +21876,9 @@ var require_formats = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv-formats/dist/limit.js
+// node_modules/ajv-formats/dist/limit.js
 var require_limit = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv-formats/dist/limit.js"(exports) {
+  "node_modules/ajv-formats/dist/limit.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.formatLimitDefinition = void 0;
@@ -21948,9 +21948,9 @@ var require_limit = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv-formats/dist/index.js
+// node_modules/ajv-formats/dist/index.js
 var require_dist = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv-formats/dist/index.js"(exports, module) {
+  "node_modules/ajv-formats/dist/index.js"(exports, module) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var formats_1 = require_formats();
@@ -21990,9 +21990,9 @@ var require_dist = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/elkjs/lib/elk.bundled.js
+// node_modules/elkjs/lib/elk.bundled.js
 var require_elk_bundled = __commonJS({
-  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/elkjs/lib/elk.bundled.js"(exports, module) {
+  "node_modules/elkjs/lib/elk.bundled.js"(exports, module) {
     (function(f2) {
       if (typeof exports === "object" && typeof module !== "undefined") {
         module.exports = f2();
@@ -22171,13 +22171,13 @@ var require_elk_bundled = __commonJS({
               this.id = id + 1;
               msg.id = id;
               var self2 = this;
-              return new Promise(function(resolve5, reject) {
+              return new Promise(function(resolve8, reject) {
                 self2.resolvers[id] = function(err, res) {
                   if (err) {
                     self2.convertGwtStyleError(err);
                     reject(err);
                   } else {
-                    resolve5(res);
+                    resolve8(res);
                   }
                 };
                 self2.worker.postMessage(msg);
@@ -65828,17 +65828,17 @@ var require_elk_bundled = __commonJS({
               return b.a;
             }
             function E6b(a10, b) {
-              var c10, d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C10, D;
+              var c10, d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C, D;
               v10 = a10.c;
               w10 = b.c;
               c10 = Qlb(v10.a, a10, 0);
               d10 = Qlb(w10.a, b, 0);
               t = JD(pYb(a10, (Hyc(), Eyc)).Jc().Pb(), 11);
-              C10 = JD(pYb(a10, Fyc).Jc().Pb(), 11);
+              C = JD(pYb(a10, Fyc).Jc().Pb(), 11);
               u10 = JD(pYb(b, Eyc).Jc().Pb(), 11);
               D = JD(pYb(b, Fyc).Jc().Pb(), 11);
               r10 = FXb(t.e);
-              A10 = FXb(C10.g);
+              A10 = FXb(C.g);
               s = FXb(u10.e);
               B = FXb(D.g);
               sYb(a10, d10, w10);
@@ -65848,7 +65848,7 @@ var require_elk_bundled = __commonJS({
               }
               for (h10 = B, l = 0, p10 = h10.length; l < p10; ++l) {
                 e = h10[l];
-                jWb(e, C10);
+                jWb(e, C);
               }
               sYb(b, c10, v10);
               for (i10 = r10, m10 = 0, q = i10.length; m10 < q; ++m10) {
@@ -66671,7 +66671,7 @@ var require_elk_bundled = __commonJS({
               } while (l);
             }
             function w2c(a10, b, c10, d10) {
-              var e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C10;
+              var e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C;
               g10 = a10.f;
               m10 = b.f;
               h10 = g10 == (L4c(), G4c) || g10 == I4c;
@@ -66693,7 +66693,7 @@ var require_elk_bundled = __commonJS({
                   k10 = a10;
                 }
                 f10 = (q = c10.j + c10.f, r10 = l.e + d10.f, s = $wnd.Math.max(q, r10), t = s - $wnd.Math.min(c10.j, l.e), u10 = l.d + d10.g - c10.i, u10 * t);
-                e = (v10 = c10.i + c10.g, w10 = k10.d + d10.g, A10 = $wnd.Math.max(v10, w10), B = A10 - $wnd.Math.min(c10.i, k10.d), C10 = k10.e + d10.f - c10.j, B * C10);
+                e = (v10 = c10.i + c10.g, w10 = k10.d + d10.g, A10 = $wnd.Math.max(v10, w10), B = A10 - $wnd.Math.min(c10.i, k10.d), C = k10.e + d10.f - c10.j, B * C);
                 return f10 <= e ? a10.f == H4c ? a10 : b : a10.f == G4c ? a10 : b;
               }
               return a10;
@@ -67658,7 +67658,7 @@ var require_elk_bundled = __commonJS({
               this.o = false;
             }
             function oD(a10, b) {
-              var c10, d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C10, D, F, G;
+              var c10, d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C, D, F, G;
               c10 = a10.l & 8191;
               d10 = a10.l >> 13 | (a10.m & 15) << 9;
               e = a10.m >> 4 & 8191;
@@ -67670,12 +67670,12 @@ var require_elk_bundled = __commonJS({
               k10 = b.m >> 17 | (b.h & 255) << 5;
               l = (b.h & 1048320) >> 8;
               B = c10 * h10;
-              C10 = d10 * h10;
+              C = d10 * h10;
               D = e * h10;
               F = f10 * h10;
               G = g10 * h10;
               if (i10 != 0) {
-                C10 += c10 * i10;
+                C += c10 * i10;
                 D += d10 * i10;
                 F += e * i10;
                 G += f10 * i10;
@@ -67691,10 +67691,10 @@ var require_elk_bundled = __commonJS({
               }
               l != 0 && (G += c10 * l);
               n = B & Ose;
-              o10 = (C10 & 511) << 13;
+              o10 = (C & 511) << 13;
               m10 = n + o10;
               q = B >> 22;
-              r10 = C10 >> 9;
+              r10 = C >> 9;
               s = (D & 262143) << 4;
               t = (F & 31) << 17;
               p10 = q + r10 + s + t;
@@ -71907,19 +71907,19 @@ var require_elk_bundled = __commonJS({
               }
             }
             function j1b(a10, b) {
-              var c10, d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C10, D;
+              var c10, d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C, D;
               h10 = JD(Qib(b.c, a10), 454);
               s = b.a.c;
               i10 = b.a.c + b.a.b;
-              C10 = h10.f;
+              C = h10.f;
               D = h10.a;
-              g10 = C10 < D;
-              p10 = new Idd(s, C10);
+              g10 = C < D;
+              p10 = new Idd(s, C);
               t = new Idd(i10, D);
               e = (s + i10) / 2;
-              q = new Idd(e, C10);
+              q = new Idd(e, C);
               u10 = new Idd(e, D);
-              f10 = k1b(a10, C10, D);
+              f10 = k1b(a10, C, D);
               w10 = ZYb(b.B);
               A10 = new Idd(e, f10);
               B = ZYb(b.D);
@@ -73621,7 +73621,7 @@ var require_elk_bundled = __commonJS({
               return j10;
             }
             function lzd(a10, b, c10, d10, e, f10) {
-              var g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C10, D, F, G, H10;
+              var g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C, D, F, G, H10;
               F = Qib(a10.g, e);
               if (F == null) {
                 F = new mC();
@@ -73658,10 +73658,10 @@ var require_elk_bundled = __commonJS({
               k10 = (!e.e && (e.e = new Gee(z3, e, 10, 9)), e.e).i == 0;
               q = !k10;
               if (q) {
-                C10 = new EB();
-                h10 = new aBd(a10, C10);
+                C = new EB();
+                h10 = new aBd(a10, C);
                 rfb((!e.e && (e.e = new Gee(z3, e, 10, 9)), e.e), h10);
-                kC(D, JDe, C10);
+                kC(D, JDe, C);
               }
               l = (!e.g && (e.g = new Gee(z3, e, 9, 10)), e.g).i == 0;
               r10 = !l;
@@ -73723,7 +73723,7 @@ var require_elk_bundled = __commonJS({
               b.Tg();
             }
             function Yod(a10, b, c10, d10, e) {
-              var f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C10, D;
+              var f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C, D;
               t = 0;
               o10 = 0;
               n = 0;
@@ -73744,9 +73744,9 @@ var require_elk_bundled = __commonJS({
               h10 = $wnd.Math.max(f10 / c10, n);
               for (r10 = new RHd((!a10.a && (a10.a = new k1d(D3, a10, 10, 11)), a10.a)); r10.e != r10.i.gc(); ) {
                 q = JD(PHd(r10), 26);
-                C10 = e.b + (Bvb(b, 26) * tte + Bvb(b, 27) * ute) * (i10 - q.g);
+                C = e.b + (Bvb(b, 26) * tte + Bvb(b, 27) * ute) * (i10 - q.g);
                 D = e.b + (Bvb(b, 26) * tte + Bvb(b, 27) * ute) * (h10 - q.f);
-                wtd(q, C10);
+                wtd(q, C);
                 xtd(q, D);
               }
               A10 = i10 + (e.b + e.c);
@@ -73903,7 +73903,7 @@ var require_elk_bundled = __commonJS({
               c10 > 0 && (JD(Nqb(a10.b, b), 126).a.b = c10);
             }
             function L2b(a10) {
-              var b, c10, d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C10, D, F;
+              var b, c10, d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C, D, F;
               w10 = new Xlb();
               for (o10 = new umb(a10.b); o10.a < o10.c.c.length; ) {
                 n = JD(smb(o10), 25);
@@ -73918,8 +73918,8 @@ var require_elk_bundled = __commonJS({
                   s = null;
                   u10 = null;
                   t = null;
-                  for (C10 = new umb(p10.j); C10.a < C10.c.c.length; ) {
-                    B = JD(smb(C10), 11);
+                  for (C = new umb(p10.j); C.a < C.c.c.length; ) {
+                    B = JD(smb(C), 11);
                     switch (B.j.g) {
                       case 4:
                         s = B;
@@ -74847,7 +74847,7 @@ var require_elk_bundled = __commonJS({
               }
             }
             function bZc(a10, b) {
-              var c10, d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C10;
+              var c10, d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C;
               b.Sg("Calculate Graph Size", 1);
               b.ah(a10, oAe);
               l = Bze;
@@ -74858,12 +74858,12 @@ var require_elk_bundled = __commonJS({
                 n = JD(PHd(p10), 26);
                 s = n.i;
                 t = n.j;
-                C10 = n.g;
+                C = n.g;
                 h10 = n.f;
                 i10 = JD(zsd(n, (Sgd(), zfd)), 139);
                 l = $wnd.Math.min(l, s - i10.b);
                 m10 = $wnd.Math.min(m10, t - i10.d);
-                j10 = $wnd.Math.max(j10, s + C10 + i10.c);
+                j10 = $wnd.Math.max(j10, s + C + i10.c);
                 k10 = $wnd.Math.max(k10, t + h10 + i10.a);
               }
               r10 = JD(zsd(a10, (Sgd(), Ofd)), 103);
@@ -75863,7 +75863,7 @@ var require_elk_bundled = __commonJS({
               c10.Tg();
             }
             function uVb(a10, b) {
-              var c10, d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C10;
+              var c10, d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C;
               b.Sg("Compound graph postprocessor", 1);
               c10 = Bdb(LD(ZMb(a10, (Ewc(), swc))));
               h10 = JD(ZMb(a10, (Lqc(), Opc)), 228);
@@ -75895,8 +75895,8 @@ var require_elk_bundled = __commonJS({
                   if (m10) {
                     d10.b == 0 ? o10 = w10 : o10 = (uDb(d10.b != 0), JD(d10.a.a.c, 8));
                     B = $wnd.Math.abs(m10.a - o10.a) > Uue;
-                    C10 = $wnd.Math.abs(m10.b - o10.b) > Uue;
-                    (!c10 && B && C10 || c10 && (B || C10)) && Dtb(q.a, u10);
+                    C = $wnd.Math.abs(m10.b - o10.b) > Uue;
+                    (!c10 && B && C || c10 && (B || C)) && Dtb(q.a, u10);
                   }
                   xe(q.a, d10);
                   d10.b == 0 ? m10 = u10 : m10 = (uDb(d10.b != 0), JD(d10.c.b.c, 8));
@@ -76669,7 +76669,7 @@ var require_elk_bundled = __commonJS({
               Otb(b.a);
             }
             function MBc(a10, b, c10) {
-              var d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C10, D, F, G, H10, I10;
+              var d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C, D, F, G, H10, I10;
               c10.Sg("MinWidth layering", 1);
               n = b.b;
               A10 = b.a;
@@ -76721,9 +76721,9 @@ var require_elk_bundled = __commonJS({
               }
               for (F = H10; F <= G; F++) {
                 for (d10 = f10; d10 <= e; d10++) {
-                  C10 = JBc(a10, F, d10, A10, w10);
-                  r10 = Eeb(MD(C10.a));
-                  m10 = JD(C10.b, 15);
+                  C = JBc(a10, F, d10, A10, w10);
+                  r10 = Eeb(MD(C.a));
+                  m10 = JD(C.b, 15);
                   q = m10.gc();
                   if (r10 < p10 || r10 == p10 && q < o10) {
                     p10 = r10;
@@ -76802,7 +76802,7 @@ var require_elk_bundled = __commonJS({
               b.Tg();
             }
             function dmd(a10, b, c10, d10, e, f10, g10) {
-              var h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C10, D, F, G, H10, I10;
+              var h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C, D, F, G, H10, I10;
               n = 0;
               D = 0;
               for (i10 = new umb(a10); i10.a < i10.c.c.length; ) {
@@ -76812,8 +76812,8 @@ var require_elk_bundled = __commonJS({
                 D += h10.g * h10.f;
               }
               o10 = D / a10.c.length;
-              C10 = Zld(a10, o10);
-              D += a10.c.length * C10;
+              C = Zld(a10, o10);
+              D += a10.c.length * C;
               D += $wnd.Math.sqrt(D) * (c10.a + c10.d);
               D += $wnd.Math.sqrt(D) * c10.c;
               n = $wnd.Math.max(n, $wnd.Math.sqrt(D * g10)) + c10.b;
@@ -76882,7 +76882,7 @@ var require_elk_bundled = __commonJS({
               return new Idd(k10, F);
             }
             function $Oc(a10, b, c10) {
-              var d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C10, D, F, G;
+              var d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C, D, F, G;
               c10.Sg("Spline edge routing", 1);
               if (b.b.c.length == 0) {
                 b.f.a = 0;
@@ -76910,15 +76910,15 @@ var require_elk_bundled = __commonJS({
                 t = p10.a < p10.c.c.length ? JD(smb(p10), 25) : null;
                 OOc(a10, q, t);
                 ROc(a10);
-                C10 = Vub(pBb(KBb(EBb(new UBb(null, new Jvb(a10.i, 16)), new pPc()), new rPc())));
+                C = Vub(pBb(KBb(EBb(new UBb(null, new Jvb(a10.i, 16)), new pPc()), new rPc())));
                 F = 0;
                 u10 = G;
                 m10 = !q || k10 && q == i10;
                 n = !t || l && t == o10;
-                if (C10 > 0) {
+                if (C > 0) {
                   j10 = 0;
                   !!q && (j10 += h10);
-                  j10 += (C10 - 1) * g10;
+                  j10 += (C - 1) * g10;
                   !!t && (j10 += h10);
                   B && !!t && (j10 = $wnd.Math.max(j10, POc(t, g10, s, A10)));
                   if (j10 < s && !m10 && !n) {
@@ -76953,7 +76953,7 @@ var require_elk_bundled = __commonJS({
               c10.Tg();
             }
             function m3b(a10, b) {
-              var c10, d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C10, D;
+              var c10, d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C, D;
               a10.b = b;
               a10.a = JD(ZMb(b, (Ewc(), Muc)), 17).a;
               a10.c = JD(ZMb(b, Ouc), 17).a;
@@ -76975,7 +76975,7 @@ var require_elk_bundled = __commonJS({
                 }
                 B = new Xlb();
                 for (j10 = 0; j10 < k10; ++j10) {
-                  Klb(B, 0, (uDb(q.b > 0), q.a.Xb(q.c = --q.b), C10 = new e$b(a10.b), Cjb(q, C10), uDb(q.b < q.d.gc()), q.d.Xb(q.c = q.b++), C10));
+                  Klb(B, 0, (uDb(q.b > 0), q.a.Xb(q.c = --q.b), C = new e$b(a10.b), Cjb(q, C), uDb(q.b < q.d.gc()), q.d.Xb(q.c = q.b++), C));
                 }
                 for (g10 = new umb(h10); g10.a < g10.c.c.length; ) {
                   e = JD(smb(g10), 47);
@@ -77235,7 +77235,7 @@ var require_elk_bundled = __commonJS({
               wLc(a10.e, b);
             }
             function eFc(a10) {
-              var b, c10, d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C10;
+              var b, c10, d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C;
               c10 = Eeb(MD(ZMb(a10.a.j, (Ewc(), luc))));
               if (c10 < -1 || !a10.a.i || ijd(JD(ZMb(a10.a.o, Hvc), 101)) || oYb(a10.a.o, (Yjd(), Djd)).gc() < 2 && oYb(a10.a.o, Xjd).gc() < 2) {
                 return true;
@@ -77259,8 +77259,8 @@ var require_elk_bundled = __commonJS({
                     d10.b = 1;
                     JD(ZMb(l, (Lqc(), nqc)), 11).j == (Yjd(), Djd) && (u10 += d10.a);
                   } else {
-                    C10 = oYb(l, (Yjd(), Xjd));
-                    C10.dc() || !Xq(C10, new rFc()) ? d10.c = 1 : (e = oYb(l, Djd), (e.dc() || !Xq(e, new nFc())) && (v10 += d10.a));
+                    C = oYb(l, (Yjd(), Xjd));
+                    C.dc() || !Xq(C, new rFc()) ? d10.c = 1 : (e = oYb(l, Djd), (e.dc() || !Xq(e, new nFc())) && (v10 += d10.a));
                   }
                   for (g10 = new Yr(Dr(nYb(l).a.Jc(), new Dl())); Wr(g10); ) {
                     f10 = JD(Xr(g10), 18);
@@ -77298,7 +77298,7 @@ var require_elk_bundled = __commonJS({
               return q >= c10;
             }
             function WHc(a10) {
-              var b, c10, d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C10, D;
+              var b, c10, d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C, D;
               for (t = a10.a, u10 = 0, v10 = t.length; u10 < v10; ++u10) {
                 s = t[u10];
                 j10 = Wqe;
@@ -77327,9 +77327,9 @@ var require_elk_bundled = __commonJS({
                 f10 = false;
                 e = JD(Plb(s.e, 0), 9);
                 for (D = new umb(e.j); D.a < D.c.c.length; ) {
-                  C10 = JD(smb(D), 11);
-                  p10 = e.n.b + C10.n.b + C10.a.b;
-                  for (d10 = new umb(C10.e); d10.a < d10.c.c.length; ) {
+                  C = JD(smb(D), 11);
+                  p10 = e.n.b + C.n.b + C.a.b;
+                  for (d10 = new umb(C.e); d10.a < d10.c.c.length; ) {
                     c10 = JD(smb(d10), 18);
                     w10 = c10.c;
                     b = w10.i.n.b + w10.n.b + w10.a.b - p10;
@@ -77345,8 +77345,8 @@ var require_elk_bundled = __commonJS({
                   p10 = h10.n.b + w10.n.b + w10.a.b;
                   for (d10 = new umb(w10.g); d10.a < d10.c.c.length; ) {
                     c10 = JD(smb(d10), 18);
-                    C10 = c10.d;
-                    b = C10.i.n.b + C10.n.b + C10.a.b - p10;
+                    C = c10.d;
+                    b = C.i.n.b + C.n.b + C.a.b - p10;
                     if ($wnd.Math.abs(b) < $wnd.Math.abs(i10) && $wnd.Math.abs(b) < (b < 0 ? j10 : k10)) {
                       i10 = b;
                       f10 = true;
@@ -77362,7 +77362,7 @@ var require_elk_bundled = __commonJS({
               }
             }
             function Gzd(a10, b, c10) {
-              var d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C10, D, F, G;
+              var d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C, D, F, G;
               t = b;
               s = new Np();
               u10 = new Np();
@@ -77370,8 +77370,8 @@ var require_elk_bundled = __commonJS({
               d10 = new $zd(a10, c10, s, u10);
               Tyd(d10.a, d10.b, d10.c, d10.d, k10);
               i10 = (A10 = s.i, !A10 ? s.i = new xf(s, s.c) : A10);
-              for (C10 = i10.Jc(); C10.Ob(); ) {
-                B = JD(C10.Pb(), 168);
+              for (C = i10.Jc(); C.Ob(); ) {
+                B = JD(C.Pb(), 168);
                 e = JD(Qc(s, B), 23);
                 for (p10 = e.Jc(); p10.Ob(); ) {
                   o10 = p10.Pb();
@@ -77710,7 +77710,7 @@ var require_elk_bundled = __commonJS({
               return k10;
             }
             function fmd(a10, b, c10, d10, e, f10, g10) {
-              var h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C10, D, F, G, H10, I10;
+              var h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C, D, F, G, H10, I10;
               p10 = 0;
               D = 0;
               for (j10 = new umb(a10.b); j10.a < j10.c.c.length; ) {
@@ -77720,8 +77720,8 @@ var require_elk_bundled = __commonJS({
                 D += rmd(i10) * qmd(i10);
               }
               q = D / a10.b.c.length;
-              C10 = $ld(a10.b, q);
-              D += a10.b.c.length * C10;
+              C = $ld(a10.b, q);
+              D += a10.b.c.length * C;
               p10 = $wnd.Math.max(p10, $wnd.Math.sqrt(D * g10)) + c10.b;
               H10 = c10.b;
               I10 = c10.d;
@@ -78008,7 +78008,7 @@ var require_elk_bundled = __commonJS({
               }
             }
             function qlc(a10, b) {
-              var c10, d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C10, D, F, G, H10;
+              var c10, d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C, D, F, G, H10;
               s = new Djb(a10.b, 0);
               k10 = b.Jc();
               o10 = 0;
@@ -78034,8 +78034,8 @@ var require_elk_bundled = __commonJS({
                   Cjb(s, e);
                   f10 = new e$b(a10);
                   Cjb(s, f10);
-                  for (C10 = A10.a.ec().Jc(); C10.Ob(); ) {
-                    B = JD(C10.Pb(), 18);
+                  for (C = A10.a.ec().Jc(); C.Ob(); ) {
+                    B = JD(C.Pb(), 18);
                     if (!c10.a._b(B)) {
                       ++v10;
                       c10.a.yc(B, c10);
@@ -78361,8 +78361,8 @@ var require_elk_bundled = __commonJS({
               return f10;
             }
             function aPc(a10, b) {
-              var c10, d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C10, D, F;
-              C10 = new Ptb();
+              var c10, d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C, D, F;
+              C = new Ptb();
               w10 = new Ptb();
               q = -1;
               for (i10 = new umb(a10); i10.a < i10.c.c.length; ) {
@@ -78380,7 +78380,7 @@ var require_elk_bundled = __commonJS({
                 }
                 g10.n = k10;
                 g10.u = t;
-                t == 0 ? (Gtb(w10, g10, w10.c.b, w10.c), true) : k10 == 0 && (Gtb(C10, g10, C10.c.b, C10.c), true);
+                t == 0 ? (Gtb(w10, g10, w10.c.b, w10.c), true) : k10 == 0 && (Gtb(C, g10, C.c.b, C.c), true);
               }
               F = Tx(a10);
               l = a10.c.length;
@@ -78392,13 +78392,13 @@ var require_elk_bundled = __commonJS({
                   v10 = (uDb(w10.b != 0), JD(Ntb(w10, w10.a.a), 132));
                   F.a.Ac(v10) != null;
                   v10.s = r10--;
-                  ePc(v10, C10, w10);
+                  ePc(v10, C, w10);
                 }
-                while (C10.b != 0) {
-                  A10 = (uDb(C10.b != 0), JD(Ntb(C10, C10.a.a), 132));
+                while (C.b != 0) {
+                  A10 = (uDb(C.b != 0), JD(Ntb(C, C.a.a), 132));
                   F.a.Ac(A10) != null;
                   A10.s = p10++;
-                  ePc(A10, C10, w10);
+                  ePc(A10, C, w10);
                 }
                 o10 = ase;
                 for (j10 = F.a.ec().Jc(); j10.Ob(); ) {
@@ -78416,7 +78416,7 @@ var require_elk_bundled = __commonJS({
                   m10 = JD(Plb(n, Avb(b, n.c.length)), 132);
                   F.a.Ac(m10) != null;
                   m10.s = p10++;
-                  ePc(m10, C10, w10);
+                  ePc(m10, C, w10);
                   n.c.length = 0;
                 }
               }
@@ -78445,7 +78445,7 @@ var require_elk_bundled = __commonJS({
               }
             }
             function U8b(a10, b, c10, d10, e) {
-              var f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C10, D, F;
+              var f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C, D, F;
               p10 = new Ylb(b.b);
               u10 = new Ylb(b.b);
               m10 = new Ylb(b.b);
@@ -78472,24 +78472,24 @@ var require_elk_bundled = __commonJS({
               }
               for (g10 = new umb(B); g10.a < g10.c.c.length; ) {
                 f10 = JD(smb(g10), 18);
-                C10 = new wYb(a10);
-                uYb(C10, (GYb(), EYb));
-                aNb(C10, (Ewc(), Hvc), (hjd(), cjd));
-                aNb(C10, (Lqc(), nqc), f10);
+                C = new wYb(a10);
+                uYb(C, (GYb(), EYb));
+                aNb(C, (Ewc(), Hvc), (hjd(), cjd));
+                aNb(C, (Lqc(), nqc), f10);
                 D = new eZb();
                 aNb(D, nqc, f10.d);
                 dZb(D, (Yjd(), Xjd));
-                cZb(D, C10);
+                cZb(D, C);
                 F = new eZb();
                 aNb(F, nqc, f10.c);
                 dZb(F, Djd);
-                cZb(F, C10);
-                aNb(f10.c, vqc, C10);
-                aNb(f10.d, vqc, C10);
+                cZb(F, C);
+                aNb(f10.c, vqc, C);
+                aNb(f10.d, vqc, C);
                 jWb(f10, null);
                 kWb(f10, null);
-                _Cb(c10.c, C10);
-                aNb(C10, Npc, mfb(2));
+                _Cb(c10.c, C);
+                aNb(C, Npc, mfb(2));
               }
               for (w10 = Jtb(b, 0); w10.b != w10.d.c; ) {
                 v10 = JD(Xtb(w10), 11);
@@ -78558,7 +78558,7 @@ var require_elk_bundled = __commonJS({
               Bsd(a10, Yed, l - n);
             }
             function LMb(a10) {
-              var b, c10, d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C10, D, F, G, H10, I10;
+              var b, c10, d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C, D, F, G, H10, I10;
               n = JD(ZMb(a10, (WOb(), UOb)), 26);
               t = Wqe;
               u10 = Wqe;
@@ -78583,13 +78583,13 @@ var require_elk_bundled = __commonJS({
                 s = $wnd.Math.max(s, F.b + G.b / 2);
               }
               D = JD(zsd(n, (LOb(), uOb)), 103);
-              C10 = new Idd(D.b - t, D.d - u10);
+              C = new Idd(D.b - t, D.d - u10);
               for (j10 = new umb(a10.e); j10.a < j10.c.c.length; ) {
                 i10 = JD(smb(j10), 151);
                 B = ZMb(i10, UOb);
                 if (RD(B, 206)) {
                   p10 = JD(B, 26);
-                  A10 = qdd(new Jdd(i10.d), C10);
+                  A10 = qdd(new Jdd(i10.d), C);
                   utd(p10, A10.a - p10.g / 2, A10.b - p10.f / 2);
                 }
               }
@@ -78598,17 +78598,17 @@ var require_elk_bundled = __commonJS({
                 l = JD(ZMb(e, UOb), 85);
                 m10 = wCd(l);
                 H10 = new Jdd(kNb(e));
-                qdd(H10, C10);
+                qdd(H10, C);
                 Eud(m10, H10.a, H10.b);
-                Olb(e.a, new QMb(C10, m10));
+                Olb(e.a, new QMb(C, m10));
                 d10 = new Jdd(lNb(e));
-                qdd(d10, C10);
+                qdd(d10, C);
                 xud(m10, d10.a, d10.b);
               }
               for (h10 = new umb(a10.d); h10.a < h10.c.c.length; ) {
                 g10 = JD(smb(h10), 442);
                 o10 = JD(ZMb(g10, UOb), 153);
-                q = qdd(new Jdd(g10.d), C10);
+                q = qdd(new Jdd(g10.d), C);
                 utd(o10, q.a, q.b);
               }
               I10 = r10 - t + (D.b + D.c);
@@ -78760,7 +78760,7 @@ var require_elk_bundled = __commonJS({
               c10.Tg();
             }
             function STb(a10, b) {
-              var c10, d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C10, D;
+              var c10, d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C, D;
               l = UTb(OTb(a10, (Yjd(), Jjd)), b);
               o10 = TTb(OTb(a10, Kjd), b);
               u10 = TTb(OTb(a10, Sjd), b);
@@ -78770,7 +78770,7 @@ var require_elk_bundled = __commonJS({
               p10 = TTb(OTb(a10, Ljd), b);
               w10 = TTb(OTb(a10, Tjd), b);
               v10 = TTb(OTb(a10, Gjd), b);
-              C10 = VTb(OTb(a10, Ijd), b);
+              C = VTb(OTb(a10, Ijd), b);
               r10 = TTb(OTb(a10, Pjd), b);
               t = TTb(OTb(a10, Ojd), b);
               A10 = TTb(OTb(a10, Hjd), b);
@@ -78783,7 +78783,7 @@ var require_elk_bundled = __commonJS({
               f10 = Ycd(WC(OC(aE, 1), ete, 30, 15, [p10.a, m10.a, v10.a, n.a]));
               j10 = Ycd(WC(OC(aE, 1), ete, 30, 15, [s.b, o10.b, p10.b, t.b]));
               i10 = Ycd(WC(OC(aE, 1), ete, 30, 15, [B.b, l.b, m10.b, q.b]));
-              k10 = C10.b;
+              k10 = C.b;
               h10 = Ycd(WC(OC(aE, 1), ete, 30, 15, [w10.b, u10.b, v10.b, A10.b]));
               KTb(OTb(a10, Jjd), c10 + e, j10 + k10);
               KTb(OTb(a10, Njd), c10 + e, j10 + k10);
@@ -78799,12 +78799,12 @@ var require_elk_bundled = __commonJS({
               KTb(OTb(a10, Hjd), 0, j10 + k10 + i10);
               KTb(OTb(a10, Mjd), c10 + e + d10, 0);
               g10 = new Gdd();
-              g10.a = Ycd(WC(OC(aE, 1), ete, 30, 15, [c10 + d10 + e + f10, C10.a, t.a, A10.a]));
+              g10.a = Ycd(WC(OC(aE, 1), ete, 30, 15, [c10 + d10 + e + f10, C.a, t.a, A10.a]));
               g10.b = Ycd(WC(OC(aE, 1), ete, 30, 15, [j10 + i10 + k10 + h10, r10.b, D.b, n.b]));
               return g10;
             }
             function Lzd(a10, b, c10) {
-              var d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C10, D, F, G, H10, I10, J, K10;
+              var d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C, D, F, G, H10, I10, J, K10;
               D = null;
               G = b;
               F = uzd(a10, rCd(c10), G);
@@ -78847,10 +78847,10 @@ var require_elk_bundled = __commonJS({
                 v10 = u10 + RDe;
                 throw vcb(new tyd(v10));
               }
-              C10 = (!F.c && (F.c = new Gee(y3, F, 5, 8)), F.c);
+              C = (!F.c && (F.c = new Gee(y3, F, 5, 8)), F.c);
               g10 = null;
               K10 ? g10 = K10 : g10 = J;
-              ICd(C10, g10);
+              ICd(C, g10);
               if ((!F.b && (F.b = new Gee(y3, F, 4, 7)), F.b).i == 0 || (!F.c && (F.c = new Gee(y3, F, 5, 8)), F.c).i == 0) {
                 k10 = qyd(G, MDe);
                 w10 = QDe + k10;
@@ -78863,7 +78863,7 @@ var require_elk_bundled = __commonJS({
               return D;
             }
             function GDb(a10) {
-              var b, c10, d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C10, D;
+              var b, c10, d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C, D;
               s = new Idd(Zse, Zse);
               b = new Idd($se, $se);
               for (B = new umb(a10); B.a < B.c.c.length; ) {
@@ -78883,13 +78883,13 @@ var require_elk_bundled = __commonJS({
               c10 = new Xlb();
               w10.a.yc(n, w10);
               for (D = new umb(a10); D.a < D.c.c.length; ) {
-                C10 = JD(smb(D), 8);
+                C = JD(smb(D), 8);
                 f10.c.length = 0;
                 for (v10 = w10.a.ec().Jc(); v10.Ob(); ) {
                   t = JD(v10.Pb(), 319);
                   d10 = t.d;
                   tdd(d10, t.a);
-                  Ty(tdd(t.d, C10), tdd(t.d, t.a)) < 0 && (_Cb(f10.c, t), true);
+                  Ty(tdd(t.d, C), tdd(t.d, t.a)) < 0 && (_Cb(f10.c, t), true);
                 }
                 c10.c.length = 0;
                 for (u10 = new umb(f10); u10.a < u10.c.c.length; ) {
@@ -78908,7 +78908,7 @@ var require_elk_bundled = __commonJS({
                 rfb(w10, new HDb());
                 for (p10 = new umb(c10); p10.a < p10.c.c.length; ) {
                   o10 = JD(smb(p10), 176);
-                  Qrb(w10, new ZDb(C10, o10.a, o10.b));
+                  Qrb(w10, new ZDb(C, o10.a, o10.b));
                 }
               }
               r10 = new Trb();
@@ -79409,7 +79409,7 @@ var require_elk_bundled = __commonJS({
               return b;
             }
             function f1b(a10, b, c10) {
-              var d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C10;
+              var d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C;
               if (b.dc()) {
                 return;
               }
@@ -79453,12 +79453,12 @@ var require_elk_bundled = __commonJS({
                 Gtb(e, l, e.c.b, e.c);
               }
               Ftb(e, Odd(WC(OC(b2, 1), wre, 8, 0, [p10.i.n, p10.n, p10.a])));
-              a10.d == (rzc(), ozc) && (r10 = (uDb(e.b != 0), JD(e.a.a.c, 8)), s = JD(au(e, 1), 8), t = new Hdd(HPc(o10.j)), t.a *= 5, t.b *= 5, u10 = Fdd(new Idd(s.a, s.b), r10), v10 = new Idd(e1b(t.a, u10.a), e1b(t.b, u10.b)), qdd(v10, r10), w10 = Jtb(e, 1), Vtb(w10, v10), A10 = (uDb(e.b != 0), JD(e.c.b.c, 8)), B = JD(au(e, e.b - 2), 8), t = new Hdd(HPc(p10.j)), t.a *= 5, t.b *= 5, u10 = Fdd(new Idd(B.a, B.b), A10), C10 = new Idd(e1b(t.a, u10.a), e1b(t.b, u10.b)), qdd(C10, A10), $t(e, e.b - 1, C10), void 0);
+              a10.d == (rzc(), ozc) && (r10 = (uDb(e.b != 0), JD(e.a.a.c, 8)), s = JD(au(e, 1), 8), t = new Hdd(HPc(o10.j)), t.a *= 5, t.b *= 5, u10 = Fdd(new Idd(s.a, s.b), r10), v10 = new Idd(e1b(t.a, u10.a), e1b(t.b, u10.b)), qdd(v10, r10), w10 = Jtb(e, 1), Vtb(w10, v10), A10 = (uDb(e.b != 0), JD(e.c.b.c, 8)), B = JD(au(e, e.b - 2), 8), t = new Hdd(HPc(p10.j)), t.a *= 5, t.b *= 5, u10 = Fdd(new Idd(B.a, B.b), A10), C = new Idd(e1b(t.a, u10.a), e1b(t.b, u10.b)), qdd(C, A10), $t(e, e.b - 1, C), void 0);
               n = new COc(e);
               xe(h10.a, yOc(n));
             }
             function Xod(a10, b, c10, d10) {
-              var e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C10, D, F, G, H10, I10, J, K10, L, M10, N, O10, P10;
+              var e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C, D, F, G, H10, I10, J, K10, L, M10, N, O10, P10;
               t = JD(CDd((!a10.b && (a10.b = new Gee(y3, a10, 4, 7)), a10.b), 0), 84);
               v10 = t.lh();
               w10 = t.mh();
@@ -79502,16 +79502,16 @@ var require_elk_bundled = __commonJS({
               Gud(g10, r10);
               B = v10;
               v10 > H10 + G ? B = H10 + G : v10 < H10 - G && (B = H10 - G);
-              C10 = w10;
-              w10 > I10 + A10 ? C10 = I10 + A10 : w10 < I10 - A10 && (C10 = I10 - A10);
-              B > H10 - G && B < H10 + G && C10 > I10 - A10 && C10 < I10 + A10 && (C10 = I10 + A10);
+              C = w10;
+              w10 > I10 + A10 ? C = I10 + A10 : w10 < I10 - A10 && (C = I10 - A10);
+              B > H10 - G && B < H10 + G && C > I10 - A10 && C < I10 + A10 && (C = I10 + A10);
               yud(g10, B);
-              zud(g10, C10);
+              zud(g10, C);
               eHd((!g10.a && (g10.a = new FVd(x3, g10, 5)), g10.a));
               f10 = Avb(b, 5);
               t == F && ++f10;
               L = B - q;
-              O10 = C10 - r10;
+              O10 = C - r10;
               J = $wnd.Math.sqrt(L * L + O10 * O10);
               l = J * 0.20000000298023224;
               M10 = L / (f10 + 1);
@@ -79533,7 +79533,7 @@ var require_elk_bundled = __commonJS({
             }
             function uib(a10, b) {
               rib();
-              var c10, d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C10, D, F, G, H10;
+              var c10, d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C, D, F, G, H10;
               B = a10.e;
               o10 = a10.d;
               e = a10.a;
@@ -79637,11 +79637,11 @@ var require_elk_bundled = __commonJS({
                 n && (u10[--c10] = 45);
                 return Cgb(u10, c10, t - c10);
               }
-              C10 = c10 + 1;
+              C = c10 + 1;
               f10 = t;
               v10 = new Ygb();
               n && (v10.a += "-", v10);
-              if (f10 - C10 >= 1) {
+              if (f10 - C >= 1) {
                 Ngb(v10, u10[c10]);
                 v10.a += ".";
                 v10.a += Cgb(u10, c10 + 1, t - c10 - 1);
@@ -79767,7 +79767,7 @@ var require_elk_bundled = __commonJS({
               Tad(a10, kBe, $Ae, YBd(_1c));
             }
             function Yzc(a10, b, c10) {
-              var d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C10, D, F, G, H10, I10, J, K10, L;
+              var d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C, D, F, G, H10, I10, J, K10, L;
               c10.Sg("Greedy cycle removal", 1);
               t = b.a;
               L = t.c.length;
@@ -79778,8 +79778,8 @@ var require_elk_bundled = __commonJS({
               for (r10 = new umb(t); r10.a < r10.c.c.length; ) {
                 p10 = JD(smb(r10), 9);
                 p10.p = j10;
-                for (C10 = new umb(p10.j); C10.a < C10.c.c.length; ) {
-                  w10 = JD(smb(C10), 11);
+                for (C = new umb(p10.j); C.a < C.c.c.length; ) {
+                  w10 = JD(smb(C), 11);
                   for (h10 = new umb(w10.e); h10.a < h10.c.c.length; ) {
                     d10 = JD(smb(h10), 18);
                     if (d10.c.i == p10) {
@@ -79960,7 +79960,7 @@ var require_elk_bundled = __commonJS({
               return k10;
             }
             function YVc(a10, b, c10) {
-              var d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C10, D;
+              var d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C, D;
               c10.Sg(jAe, 1);
               D = JD(BBb(EBb(new UBb(null, new Jvb(b, 16)), new kWc()), kAb(new CAb(), new AAb(), new IAb(), WC(OC(HL, 1), Vre, 131, 0, [(oAb(), mAb)]))), 15);
               k10 = JD(BBb(EBb(new UBb(null, new Jvb(b, 16)), new mWc(b)), kAb(new CAb(), new AAb(), new IAb(), WC(OC(HL, 1), Vre, 131, 0, [mAb]))), 15);
@@ -79968,25 +79968,25 @@ var require_elk_bundled = __commonJS({
               p10 = SC(NZ, Xze, 39, b.gc(), 0, 1);
               for (g10 = 0; g10 < k10.gc(); g10++) {
                 e = JD(k10.Xb(g10), 39);
-                C10 = JD(ZMb(e, (nVc(), aVc)), 17).a;
-                if (C10 >= 0 && C10 < k10.gc() && !p10[C10]) {
-                  p10[C10] = e;
+                C = JD(ZMb(e, (nVc(), aVc)), 17).a;
+                if (C >= 0 && C < k10.gc() && !p10[C]) {
+                  p10[C] = e;
                   k10.ed(g10);
                   --g10;
                 }
               }
               for (h10 = 0; h10 < k10.gc(); h10++) {
                 e = JD(k10.Xb(h10), 39);
-                C10 = JD(ZMb(e, (nVc(), aVc)), 17).a;
+                C = JD(ZMb(e, (nVc(), aVc)), 17).a;
                 for (m10 = 0; ; m10++) {
-                  n = C10 + m10;
+                  n = C + m10;
                   if (n < p10.length && n >= 0 && !p10[n]) {
                     p10[n] = e;
                     k10.ed(h10);
                     --h10;
                     break;
                   }
-                  n = C10 - m10;
+                  n = C - m10;
                   if (n < p10.length && n >= 0 && !p10[n]) {
                     p10[n] = e;
                     k10.ed(h10);
@@ -80087,7 +80087,7 @@ var require_elk_bundled = __commonJS({
               return new E4c(a10.a, u10, s.b + d10, (L4c(), K4c));
             }
             function t2b(a10) {
-              var b, c10, d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C10, D, F, G;
+              var b, c10, d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C, D, F, G;
               A10 = JD(ZMb(a10, (Ewc(), Hvc)), 101);
               if (!(A10 != (hjd(), fjd) && A10 != gjd)) {
                 return;
@@ -80121,13 +80121,13 @@ var require_elk_bundled = __commonJS({
                     if (!p2b(F)) {
                       continue;
                     }
-                    C10 = JD(B.xc(ZMb(F, (Lqc(), nqc))), 9);
-                    if (!C10) {
-                      C10 = o2b(a10, F);
-                      B.yc(ZMb(F, nqc), C10);
-                      D.Ec(C10);
+                    C = JD(B.xc(ZMb(F, (Lqc(), nqc))), 9);
+                    if (!C) {
+                      C = o2b(a10, F);
+                      B.yc(ZMb(F, nqc), C);
+                      D.Ec(C);
                     }
-                    jWb(h10, JD(Plb(C10.j, 1), 11));
+                    jWb(h10, JD(Plb(C.j, 1), 11));
                   }
                   for (i10 = new Yr(Dr(nYb(d10).a.Jc(), new Dl())); Wr(i10); ) {
                     h10 = JD(Xr(i10), 18);
@@ -80173,7 +80173,7 @@ var require_elk_bundled = __commonJS({
               aNb(a10, (Lqc(), Upc), w10);
             }
             function YHc(a10, b) {
-              var c10, d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C10, D, F, G, H10, I10, J, K10;
+              var c10, d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C, D, F, G, H10, I10, J, K10;
               I10 = new Xlb();
               for (o10 = new umb(b.b); o10.a < o10.c.c.length; ) {
                 m10 = JD(smb(o10), 25);
@@ -80183,13 +80183,13 @@ var require_elk_bundled = __commonJS({
                   l = ase;
                   B = ase;
                   for (D = new umb(u10.j); D.a < D.c.c.length; ) {
-                    C10 = JD(smb(D), 11);
-                    for (e = new umb(C10.e); e.a < e.c.c.length; ) {
+                    C = JD(smb(D), 11);
+                    for (e = new umb(C.e); e.a < e.c.c.length; ) {
                       c10 = JD(smb(e), 18);
                       F = JD(ZMb(c10, (Ewc(), Svc)), 17).a;
                       l = $wnd.Math.max(l, F);
                     }
-                    for (d10 = new umb(C10.g); d10.a < d10.c.c.length; ) {
+                    for (d10 = new umb(C.g); d10.a < d10.c.c.length; ) {
                       c10 = JD(smb(d10), 18);
                       F = JD(ZMb(c10, (Ewc(), Svc)), 17).a;
                       B = $wnd.Math.max(B, F);
@@ -81414,7 +81414,7 @@ var require_elk_bundled = __commonJS({
               c10.Tg();
             }
             function Gkc(a10, b, c10) {
-              var d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C10, D;
+              var d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C, D;
               if (b.k == (GYb(), BYb) && c10.k == DYb) {
                 f10 = JD(Plb(JD(Eub(FBb(EBb(new UBb(null, new Jvb(b.j, 16)), new Qkc()))), 11).e, 0), 18).c;
                 e = f10.i;
@@ -81505,8 +81505,8 @@ var require_elk_bundled = __commonJS({
                       return 0;
                     }
                   } else {
-                    for (C10 = new umb(j10.j); C10.a < C10.c.c.length; ) {
-                      B = JD(smb(C10), 11);
+                    for (C = new umb(j10.j); C.a < C.c.c.length; ) {
+                      B = JD(smb(C), 11);
                       if (m10 == B) {
                         Hkc(a10, c10, b);
                         return -1;
@@ -81523,7 +81523,7 @@ var require_elk_bundled = __commonJS({
               }
             }
             function MPc(a10) {
-              var b, c10, d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C10, D, F, G;
+              var b, c10, d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C, D, F, G;
               if (a10.c.length == 1) {
                 IPc((vDb(0, a10.c.length), JD(a10.c[0], 120)));
                 return vDb(0, a10.c.length), JD(a10.c[0], 120);
@@ -81582,8 +81582,8 @@ var require_elk_bundled = __commonJS({
               }
               u10 = new Lrb();
               c10 = new Lrb();
-              for (C10 = new umb(a10); C10.a < C10.c.c.length; ) {
-                B = JD(smb(C10), 120);
+              for (C = new umb(a10); C.a < C.c.c.length; ) {
+                B = JD(smb(C), 120);
                 d10 = Bdb(LD(ZMb(B, (Sgd(), bfd))));
                 t = !B.q ? (null, qnb) : B.q;
                 for (f10 = t.vc().Jc(); f10.Ob(); ) {
@@ -81846,7 +81846,7 @@ var require_elk_bundled = __commonJS({
               return true;
             }
             function u$b(a10, b, c10, d10) {
-              var e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C10, D, F, G, H10;
+              var e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C, D, F, G, H10;
               k$b(b);
               i10 = JD(CDd((!b.b && (b.b = new Gee(y3, b, 4, 7)), b.b), 0), 84);
               k10 = JD(CDd((!b.c && (b.c = new Gee(y3, b, 5, 8)), b.c), 0), 84);
@@ -81886,17 +81886,17 @@ var require_elk_bundled = __commonJS({
               A10 == F && n.Ec((bpc(), apc));
               if (!B) {
                 v10 = (Hyc(), Fyc);
-                C10 = null;
+                C = null;
                 if (!!g10 && jjd(JD(ZMb(A10, Hvc), 101))) {
-                  C10 = new Idd(g10.j, g10.k);
-                  Cnd(C10, bud(b));
-                  Dnd(C10, c10);
+                  C = new Idd(g10.j, g10.k);
+                  Cnd(C, bud(b));
+                  Dnd(C, c10);
                   if (zCd(j10, h10)) {
                     v10 = Eyc;
-                    qdd(C10, A10.n);
+                    qdd(C, A10.n);
                   }
                 }
-                B = tXb(A10, C10, v10, d10);
+                B = tXb(A10, C, v10, d10);
               }
               if (!G) {
                 v10 = (Hyc(), Eyc);
@@ -81942,8 +81942,8 @@ var require_elk_bundled = __commonJS({
               return p10;
             }
             function LWc(a10, b, c10, d10) {
-              var e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C10, D, F, G, H10, I10;
-              C10 = 0;
+              var e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C, D, F, G, H10, I10;
+              C = 0;
               D = 0;
               A10 = new Lrb();
               v10 = JD(Cub(LBb(IBb(new UBb(null, new Jvb(a10.b, 16)), new BXc()), new dXc())), 17).a + 1;
@@ -82019,10 +82019,10 @@ var require_elk_bundled = __commonJS({
                       Tib(A10, Bfb(s), n);
                     }
                     if (b == Wgd || b == Xgd) {
-                      n.f && n.d.e.b <= Eeb(MD(ZMb(a10, (wUc(), fUc)))) && ++C10;
+                      n.f && n.d.e.b <= Eeb(MD(ZMb(a10, (wUc(), fUc)))) && ++C;
                       n.g && n.c.e.b + n.c.f.b >= Eeb(MD(ZMb(a10, (wUc(), eUc)))) && ++D;
                     } else {
-                      n.f && n.d.e.a <= Eeb(MD(ZMb(a10, (wUc(), dUc)))) && ++C10;
+                      n.f && n.d.e.a <= Eeb(MD(ZMb(a10, (wUc(), dUc)))) && ++C;
                       n.g && n.c.e.a + n.c.f.a >= Eeb(MD(ZMb(a10, (wUc(), cUc)))) && ++D;
                     }
                   }
@@ -82031,8 +82031,8 @@ var require_elk_bundled = __commonJS({
                 } else if (u10 < 0) {
                   ++B[G];
                   ++q[I10];
-                  F = IWc(j10, b, a10, new Mod(mfb(C10), mfb(D)), c10, d10, new Mod(mfb(q[I10]), mfb(B[G])));
-                  C10 = JD(F.a, 17).a;
+                  F = IWc(j10, b, a10, new Mod(mfb(C), mfb(D)), c10, d10, new Mod(mfb(q[I10]), mfb(B[G])));
+                  C = JD(F.a, 17).a;
                   D = JD(F.b, 17).a;
                 }
               }
@@ -82216,7 +82216,7 @@ var require_elk_bundled = __commonJS({
               a10.K = bwd(a10, 52);
             }
             function s$b(a10, b, c10) {
-              var d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C10, D, F, G;
+              var d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C, D, F, G;
               g10 = new Ptb();
               w10 = JD(ZMb(c10, (Ewc(), uuc)), 86);
               p10 = 0;
@@ -82280,8 +82280,8 @@ var require_elk_bundled = __commonJS({
                   for (e = new RHd((!f10.a && (f10.a = new k1d(D3, f10, 10, 11)), f10.a)); e.e != e.i.gc(); ) {
                     d10 = JD(PHd(e), 26);
                     G = !Asd(d10, (Sgd(), Red)) || egb(OD(zsd(d10, Red)));
-                    C10 = XD(zsd(d10, Luc)) === XD(iid);
-                    G && C10 && (Gtb(g10, d10, g10.c.b, g10.c), true);
+                    C = XD(zsd(d10, Luc)) === XD(iid);
+                    G && C && (Gtb(g10, d10, g10.c.b, g10.c), true);
                   }
                 }
               }
@@ -82780,7 +82780,7 @@ var require_elk_bundled = __commonJS({
               C4b = new y5b("DIRECTION_POSTPROCESSOR", 57);
             }
             function oHc(a10, b, c10) {
-              var d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C10, D, F, G, H10, I10, J, K10, L, M10, N, O10, P10, Q, R10, S, T10, U10, V, W, X, Y10, Z, $, ab, bb, cb, db, eb, fb, gb, hb, ib, jb, kb, lb;
+              var d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C, D, F, G, H10, I10, J, K10, L, M10, N, O10, P10, Q, R10, S, T10, U10, V, W, X, Y10, Z, $, ab, bb, cb, db, eb, fb, gb, hb, ib, jb, kb, lb;
               cb = 0;
               for (H10 = b, K10 = 0, N = H10.length; K10 < N; ++K10) {
                 F = H10[K10];
@@ -82929,15 +82929,15 @@ var require_elk_bundled = __commonJS({
                   ++kb[A10];
                 }
               }
-              C10 = SC(BX, are, 368, p10.length * 2, 0, 1);
+              C = SC(BX, are, 368, p10.length * 2, 0, 1);
               for (u10 = 0; u10 < p10.length; u10++) {
-                C10[2 * u10] = new uHc(p10[u10], p10[u10].e, p10[u10].b, (yHc(), xHc));
-                C10[2 * u10 + 1] = new uHc(p10[u10], p10[u10].b, p10[u10].e, wHc);
+                C[2 * u10] = new uHc(p10[u10], p10[u10].e, p10[u10].b, (yHc(), xHc));
+                C[2 * u10 + 1] = new uHc(p10[u10], p10[u10].b, p10[u10].e, wHc);
               }
-              Qmb(C10, 0, C10.length, null);
+              Qmb(C, 0, C.length, null);
               Q = 0;
-              for (v10 = 0; v10 < C10.length; v10++) {
-                switch (C10[v10].d.g) {
+              for (v10 = 0; v10 < C.length; v10++) {
+                switch (C[v10].d.g) {
                   case 0:
                     ++Q;
                     break;
@@ -83429,7 +83429,7 @@ var require_elk_bundled = __commonJS({
               gje(a10);
             }
             function X8c(a10, b, c10, d10) {
-              var e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C10, D, F, G, H10, I10, J, K10, L, M10, N, O10, P10, Q, R10, S, T10, U10, V, W, X, Y10, Z, $, ab, bb;
+              var e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C, D, F, G, H10, I10, J, K10, L, M10, N, O10, P10, Q, R10, S, T10, U10, V, W, X, Y10, Z, $, ab, bb;
               if (d10.Yg()) {
                 return snb(), snb(), pnb;
               }
@@ -83437,8 +83437,8 @@ var require_elk_bundled = __commonJS({
                 return snb(), snb(), pnb;
               }
               A10 = (!b.a && (b.a = new k1d(D3, b, 10, 11)), b.a).i != 0;
-              C10 = V8c(b);
-              B = !C10.dc();
+              C = V8c(b);
+              B = !C.dc();
               if (A10 || B) {
                 e = JD(zsd(b, mgd), 142);
                 if (!e) {
@@ -83578,7 +83578,7 @@ var require_elk_bundled = __commonJS({
                 }
                 Bdb(LD(zsd(b, Hgd))) || U8c(b, e, d10.bh(M10));
                 Y8c(t);
-                return B && Z ? C10 : (snb(), snb(), pnb);
+                return B && Z ? C : (snb(), snb(), pnb);
               } else {
                 return snb(), snb(), pnb;
               }
@@ -98286,16 +98286,16 @@ var require_elk_bundled = __commonJS({
             var p0c;
             _cb(1084, 214, Iue, r0c);
             _2.kf = function t0c(a10, b) {
-              var c10, d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C10, D;
+              var c10, d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C, D;
               b.Sg("Rectangle Packing", 1);
               l = JD(zsd(a10, (n2c(), d2c)), 103);
               i10 = Bdb(LD(zsd(a10, X1c)));
               k10 = Eeb(MD(zsd(a10, g2c)));
-              C10 = Bdb(LD(zsd(a10, h2c)));
+              C = Bdb(LD(zsd(a10, h2c)));
               t = (!a10.a && (a10.a = new k1d(D3, a10, 10, 11)), a10.a);
               Bdb(LD(zsd(a10, $1c))) || TDb((e = new UDb((epd(), new spd(a10))), e));
               B = false;
-              if (C10 && t.i >= 3) {
+              if (C && t.i >= 3) {
                 v10 = JD(CDd(t, 0), 26);
                 w10 = JD(CDd(t, 1), 26);
                 f10 = 0;
@@ -99595,7 +99595,7 @@ var require_elk_bundled = __commonJS({
             var D2 = neb(VBe, "TopdownSizeApproximator/1", 966, H2, null, null);
             _cb(967, 286, JCe, sld);
             _2.Rg = function tld(b) {
-              var c10, d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C10, D;
+              var c10, d10, e, f10, g10, h10, i10, j10, k10, l, m10, n, o10, p10, q, r10, s, t, u10, v10, w10, A10, B, C, D;
               c10 = JD(zsd(b, (Sgd(), mgd)), 142);
               A10 = (Wpd(), o10 = new rxd(), o10);
               ssd(A10, b);
@@ -99638,9 +99638,9 @@ var require_elk_bundled = __commonJS({
               i10 = Eeb(MD(zsd(A10, Yed)));
               h10 = j10 / i10;
               d10 = Eeb(MD(zsd(A10, Ggd))) * $wnd.Math.sqrt((!A10.a && (A10.a = new k1d(D3, A10, 10, 11)), A10.a).i);
-              C10 = JD(zsd(A10, Ofd), 103);
-              s = C10.b + C10.c + 1;
-              r10 = C10.d + C10.a + 1;
+              C = JD(zsd(A10, Ofd), 103);
+              s = C.b + C.c + 1;
+              r10 = C.d + C.a + 1;
               return new Idd($wnd.Math.max(s, d10), $wnd.Math.max(r10, d10 / h10));
             };
             var E2 = neb(VBe, "TopdownSizeApproximator/2", 967, H2, null, null);
@@ -101159,7 +101159,7 @@ var require_elk_bundled = __commonJS({
             _2.d = null;
             _2.j = 0;
             _2.k = 0;
-            var K32 = meb(jDe, "ElkEdgeSectionImpl", 440);
+            var K3 = meb(jDe, "ElkEdgeSectionImpl", 440);
             _cb(157, 118, { 109: 1, 93: 1, 92: 1, 154: 1, 57: 1, 113: 1, 52: 1, 98: 1, 157: 1, 117: 1, 118: 1 });
             _2.Hh = function Vud(a10, b, c10) {
               var d10;
@@ -113118,10 +113118,10 @@ var require_elk_bundled = __commonJS({
   }
 });
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/@modelcontextprotocol/sdk/dist/esm/server/stdio.js
+// node_modules/@modelcontextprotocol/sdk/dist/esm/server/stdio.js
 import process3 from "node:process";
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/@modelcontextprotocol/sdk/dist/esm/types.js
+// node_modules/@modelcontextprotocol/sdk/dist/esm/types.js
 init_v4();
 var LATEST_PROTOCOL_VERSION = "2025-11-25";
 var SUPPORTED_PROTOCOL_VERSIONS = [LATEST_PROTOCOL_VERSION, "2025-06-18", "2025-03-26", "2024-11-05", "2024-10-07"];
@@ -114653,7 +114653,7 @@ var UrlElicitationRequiredError = class extends McpError {
   }
 };
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/stdio.js
+// node_modules/@modelcontextprotocol/sdk/dist/esm/shared/stdio.js
 var ReadBuffer = class {
   append(chunk) {
     this._buffer = this._buffer ? Buffer.concat([this._buffer, chunk]) : chunk;
@@ -114681,7 +114681,7 @@ function serializeMessage(message) {
   return JSON.stringify(message) + "\n";
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/@modelcontextprotocol/sdk/dist/esm/server/stdio.js
+// node_modules/@modelcontextprotocol/sdk/dist/esm/server/stdio.js
 var StdioServerTransport = class {
   constructor(_stdin = process3.stdin, _stdout = process3.stdout) {
     this._stdin = _stdin;
@@ -114731,22 +114731,22 @@ var StdioServerTransport = class {
     this.onclose?.();
   }
   send(message) {
-    return new Promise((resolve5) => {
+    return new Promise((resolve8) => {
       const json3 = serializeMessage(message);
       if (this._stdout.write(json3)) {
-        resolve5();
+        resolve8();
       } else {
-        this._stdout.once("drain", resolve5);
+        this._stdout.once("drain", resolve8);
       }
     });
   }
 };
 
 // packages/mcp/src/create-server.ts
-import { readFileSync as readFileSync4 } from "node:fs";
-import { resolve as resolve4 } from "node:path";
+import { readFileSync as readFileSync7 } from "node:fs";
+import { resolve as resolve7 } from "node:path";
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v3/helpers/util.js
+// node_modules/zod/v3/helpers/util.js
 var util;
 (function(util2) {
   util2.assertEqual = (_2) => {
@@ -114880,7 +114880,7 @@ var getParsedType2 = (data) => {
   }
 };
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v3/ZodError.js
+// node_modules/zod/v3/ZodError.js
 var ZodIssueCode2 = util.arrayToEnum([
   "invalid_type",
   "invalid_literal",
@@ -114994,7 +114994,7 @@ ZodError2.create = (issues) => {
   return error51;
 };
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v3/locales/en.js
+// node_modules/zod/v3/locales/en.js
 var errorMap = (issue2, _ctx) => {
   let message;
   switch (issue2.code) {
@@ -115097,13 +115097,13 @@ var errorMap = (issue2, _ctx) => {
 };
 var en_default2 = errorMap;
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v3/errors.js
+// node_modules/zod/v3/errors.js
 var overrideErrorMap = en_default2;
 function getErrorMap2() {
   return overrideErrorMap;
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v3/helpers/parseUtil.js
+// node_modules/zod/v3/helpers/parseUtil.js
 var makeIssue = (params) => {
   const { data, path, errorMaps, issueData } = params;
   const fullPath = [...path, ...issueData.path || []];
@@ -115212,14 +115212,14 @@ var isDirty = (x3) => x3.status === "dirty";
 var isValid = (x3) => x3.status === "valid";
 var isAsync = (x3) => typeof Promise !== "undefined" && x3 instanceof Promise;
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v3/helpers/errorUtil.js
+// node_modules/zod/v3/helpers/errorUtil.js
 var errorUtil;
 (function(errorUtil2) {
   errorUtil2.errToObj = (message) => typeof message === "string" ? { message } : message || {};
   errorUtil2.toString = (message) => typeof message === "string" ? message : message?.message;
 })(errorUtil || (errorUtil = {}));
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v3/types.js
+// node_modules/zod/v3/types.js
 var ParseInputLazyPath = class {
   constructor(parent, value, path, key) {
     this._cachedPath = [];
@@ -118622,13 +118622,13 @@ var nullableType = ZodNullable2.create;
 var preprocessType = ZodEffects.createWithPreprocess;
 var pipelineType = ZodPipeline.create;
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/mini/external.js
+// node_modules/zod/v4/mini/external.js
 init_core2();
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/mini/parse.js
+// node_modules/zod/v4/mini/parse.js
 init_core2();
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/mini/schemas.js
+// node_modules/zod/v4/mini/schemas.js
 init_core2();
 init_util();
 var ZodMiniType = /* @__PURE__ */ $constructor("ZodMiniType", (inst, def) => {
@@ -118655,8 +118655,8 @@ var ZodMiniType = /* @__PURE__ */ $constructor("ZodMiniType", (inst, def) => {
   inst.with = inst.check;
   inst.clone = (_def, params) => clone(inst, _def, params);
   inst.brand = () => inst;
-  inst.register = ((reg, meta4) => {
-    reg.add(inst, meta4);
+  inst.register = ((reg, meta3) => {
+    reg.add(inst, meta3);
     return inst;
   });
   inst.apply = (fn) => fn(inst);
@@ -118676,11 +118676,11 @@ function object2(shape, params) {
   return new ZodMiniObject(def);
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/mini/external.js
+// node_modules/zod/v4/mini/external.js
 init_json_schema_processors();
 init_locales();
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-compat.js
+// node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-compat.js
 function isZ4Schema(s) {
   const schema = s;
   return !!schema._zod;
@@ -118824,12 +118824,12 @@ function getLiteralValue(schema) {
   return void 0;
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/@modelcontextprotocol/sdk/dist/esm/experimental/tasks/interfaces.js
+// node_modules/@modelcontextprotocol/sdk/dist/esm/experimental/tasks/interfaces.js
 function isTerminal(status) {
   return status === "completed" || status === "failed" || status === "cancelled";
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/Options.js
+// node_modules/zod-to-json-schema/dist/esm/Options.js
 var ignoreOverride = /* @__PURE__ */ Symbol("Let zodToJsonSchema decide on which parser to use");
 var defaultOptions = {
   name: void 0,
@@ -118863,7 +118863,7 @@ var getDefaultOptions = (options) => typeof options === "string" ? {
   ...options
 };
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/Refs.js
+// node_modules/zod-to-json-schema/dist/esm/Refs.js
 var getRefs = (options) => {
   const _options = getDefaultOptions(options);
   const currentPath = _options.name !== void 0 ? [..._options.basePath, _options.definitionPath, _options.name] : _options.basePath;
@@ -118884,7 +118884,7 @@ var getRefs = (options) => {
   };
 };
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/errorMessages.js
+// node_modules/zod-to-json-schema/dist/esm/errorMessages.js
 function addErrorMessage(res, key, errorMessage, refs) {
   if (!refs?.errorMessages)
     return;
@@ -118900,7 +118900,7 @@ function setResponseValueAndErrors(res, key, value, errorMessage, refs) {
   addErrorMessage(res, key, errorMessage, refs);
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/getRelativePath.js
+// node_modules/zod-to-json-schema/dist/esm/getRelativePath.js
 var getRelativePath = (pathA, pathB) => {
   let i = 0;
   for (; i < pathA.length && i < pathB.length; i++) {
@@ -118910,7 +118910,7 @@ var getRelativePath = (pathA, pathB) => {
   return [(pathA.length - i).toString(), ...pathB.slice(i)].join("/");
 };
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/any.js
+// node_modules/zod-to-json-schema/dist/esm/parsers/any.js
 function parseAnyDef(refs) {
   if (refs.target !== "openAi") {
     return {};
@@ -118926,7 +118926,7 @@ function parseAnyDef(refs) {
   };
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/array.js
+// node_modules/zod-to-json-schema/dist/esm/parsers/array.js
 function parseArrayDef(def, refs) {
   const res = {
     type: "array"
@@ -118950,7 +118950,7 @@ function parseArrayDef(def, refs) {
   return res;
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/bigint.js
+// node_modules/zod-to-json-schema/dist/esm/parsers/bigint.js
 function parseBigintDef(def, refs) {
   const res = {
     type: "integer",
@@ -118996,24 +118996,24 @@ function parseBigintDef(def, refs) {
   return res;
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/boolean.js
+// node_modules/zod-to-json-schema/dist/esm/parsers/boolean.js
 function parseBooleanDef() {
   return {
     type: "boolean"
   };
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/branded.js
+// node_modules/zod-to-json-schema/dist/esm/parsers/branded.js
 function parseBrandedDef(_def, refs) {
   return parseDef(_def.type._def, refs);
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/catch.js
+// node_modules/zod-to-json-schema/dist/esm/parsers/catch.js
 var parseCatchDef = (def, refs) => {
   return parseDef(def.innerType._def, refs);
 };
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/date.js
+// node_modules/zod-to-json-schema/dist/esm/parsers/date.js
 function parseDateDef(def, refs, overrideDateStrategy) {
   const strategy = overrideDateStrategy ?? refs.dateStrategy;
   if (Array.isArray(strategy)) {
@@ -119072,7 +119072,7 @@ var integerDateParser = (def, refs) => {
   return res;
 };
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/default.js
+// node_modules/zod-to-json-schema/dist/esm/parsers/default.js
 function parseDefaultDef(_def, refs) {
   return {
     ...parseDef(_def.innerType._def, refs),
@@ -119080,12 +119080,12 @@ function parseDefaultDef(_def, refs) {
   };
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/effects.js
+// node_modules/zod-to-json-schema/dist/esm/parsers/effects.js
 function parseEffectsDef(_def, refs) {
   return refs.effectStrategy === "input" ? parseDef(_def.schema._def, refs) : parseAnyDef(refs);
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/enum.js
+// node_modules/zod-to-json-schema/dist/esm/parsers/enum.js
 function parseEnumDef(def) {
   return {
     type: "string",
@@ -119093,7 +119093,7 @@ function parseEnumDef(def) {
   };
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/intersection.js
+// node_modules/zod-to-json-schema/dist/esm/parsers/intersection.js
 var isJsonSchema7AllOfType = (type) => {
   if ("type" in type && type.type === "string")
     return false;
@@ -119135,7 +119135,7 @@ function parseIntersectionDef(def, refs) {
   } : void 0;
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/literal.js
+// node_modules/zod-to-json-schema/dist/esm/parsers/literal.js
 function parseLiteralDef(def, refs) {
   const parsedType2 = typeof def.value;
   if (parsedType2 !== "bigint" && parsedType2 !== "number" && parsedType2 !== "boolean" && parsedType2 !== "string") {
@@ -119155,7 +119155,7 @@ function parseLiteralDef(def, refs) {
   };
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/string.js
+// node_modules/zod-to-json-schema/dist/esm/parsers/string.js
 var emojiRegex2 = void 0;
 var zodPatterns = {
   /**
@@ -119480,7 +119480,7 @@ function stringifyRegExpWithFlags(regex, refs) {
   return pattern;
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/record.js
+// node_modules/zod-to-json-schema/dist/esm/parsers/record.js
 function parseRecordDef(def, refs) {
   if (refs.target === "openAi") {
     console.warn("Warning: OpenAI may not support records in schemas! Try an array of key-value pairs instead.");
@@ -119532,7 +119532,7 @@ function parseRecordDef(def, refs) {
   return schema;
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/map.js
+// node_modules/zod-to-json-schema/dist/esm/parsers/map.js
 function parseMapDef(def, refs) {
   if (refs.mapStrategy === "record") {
     return parseRecordDef(def, refs);
@@ -119557,7 +119557,7 @@ function parseMapDef(def, refs) {
   };
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/nativeEnum.js
+// node_modules/zod-to-json-schema/dist/esm/parsers/nativeEnum.js
 function parseNativeEnumDef(def) {
   const object3 = def.values;
   const actualKeys = Object.keys(def.values).filter((key) => {
@@ -119571,7 +119571,7 @@ function parseNativeEnumDef(def) {
   };
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/never.js
+// node_modules/zod-to-json-schema/dist/esm/parsers/never.js
 function parseNeverDef(refs) {
   return refs.target === "openAi" ? void 0 : {
     not: parseAnyDef({
@@ -119581,7 +119581,7 @@ function parseNeverDef(refs) {
   };
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/null.js
+// node_modules/zod-to-json-schema/dist/esm/parsers/null.js
 function parseNullDef(refs) {
   return refs.target === "openApi3" ? {
     enum: ["null"],
@@ -119591,7 +119591,7 @@ function parseNullDef(refs) {
   };
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/union.js
+// node_modules/zod-to-json-schema/dist/esm/parsers/union.js
 var primitiveMappings = {
   ZodString: "string",
   ZodNumber: "number",
@@ -119659,7 +119659,7 @@ var asAnyOf = (def, refs) => {
   return anyOf.length ? { anyOf } : void 0;
 };
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/nullable.js
+// node_modules/zod-to-json-schema/dist/esm/parsers/nullable.js
 function parseNullableDef(def, refs) {
   if (["ZodString", "ZodNumber", "ZodBigInt", "ZodBoolean", "ZodNull"].includes(def.innerType._def.typeName) && (!def.innerType._def.checks || !def.innerType._def.checks.length)) {
     if (refs.target === "openApi3") {
@@ -119691,7 +119691,7 @@ function parseNullableDef(def, refs) {
   return base && { anyOf: [base, { type: "null" }] };
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/number.js
+// node_modules/zod-to-json-schema/dist/esm/parsers/number.js
 function parseNumberDef(def, refs) {
   const res = {
     type: "number"
@@ -119740,7 +119740,7 @@ function parseNumberDef(def, refs) {
   return res;
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/object.js
+// node_modules/zod-to-json-schema/dist/esm/parsers/object.js
 function parseObjectDef(def, refs) {
   const forceOptionalIntoNullable = refs.target === "openAi";
   const result2 = {
@@ -119810,7 +119810,7 @@ function safeIsOptional(schema) {
   }
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/optional.js
+// node_modules/zod-to-json-schema/dist/esm/parsers/optional.js
 var parseOptionalDef = (def, refs) => {
   if (refs.currentPath.toString() === refs.propertyPath?.toString()) {
     return parseDef(def.innerType._def, refs);
@@ -119829,7 +119829,7 @@ var parseOptionalDef = (def, refs) => {
   } : parseAnyDef(refs);
 };
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/pipeline.js
+// node_modules/zod-to-json-schema/dist/esm/parsers/pipeline.js
 var parsePipelineDef = (def, refs) => {
   if (refs.pipeStrategy === "input") {
     return parseDef(def.in._def, refs);
@@ -119849,12 +119849,12 @@ var parsePipelineDef = (def, refs) => {
   };
 };
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/promise.js
+// node_modules/zod-to-json-schema/dist/esm/parsers/promise.js
 function parsePromiseDef(def, refs) {
   return parseDef(def.type._def, refs);
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/set.js
+// node_modules/zod-to-json-schema/dist/esm/parsers/set.js
 function parseSetDef(def, refs) {
   const items = parseDef(def.valueType._def, {
     ...refs,
@@ -119874,7 +119874,7 @@ function parseSetDef(def, refs) {
   return schema;
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/tuple.js
+// node_modules/zod-to-json-schema/dist/esm/parsers/tuple.js
 function parseTupleDef(def, refs) {
   if (def.rest) {
     return {
@@ -119902,24 +119902,24 @@ function parseTupleDef(def, refs) {
   }
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/undefined.js
+// node_modules/zod-to-json-schema/dist/esm/parsers/undefined.js
 function parseUndefinedDef(refs) {
   return {
     not: parseAnyDef(refs)
   };
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/unknown.js
+// node_modules/zod-to-json-schema/dist/esm/parsers/unknown.js
 function parseUnknownDef(refs) {
   return parseAnyDef(refs);
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/readonly.js
+// node_modules/zod-to-json-schema/dist/esm/parsers/readonly.js
 var parseReadonlyDef = (def, refs) => {
   return parseDef(def.innerType._def, refs);
 };
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/selectParser.js
+// node_modules/zod-to-json-schema/dist/esm/selectParser.js
 var selectParser = (def, typeName, refs) => {
   switch (typeName) {
     case ZodFirstPartyTypeKind2.ZodString:
@@ -119995,7 +119995,7 @@ var selectParser = (def, typeName, refs) => {
   }
 };
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parseDef.js
+// node_modules/zod-to-json-schema/dist/esm/parseDef.js
 function parseDef(def, refs, forceResolution = false) {
   const seenItem = refs.seen.get(def);
   if (refs.override) {
@@ -120051,7 +120051,7 @@ var addMeta = (def, refs, jsonSchema) => {
   return jsonSchema;
 };
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/zodToJsonSchema.js
+// node_modules/zod-to-json-schema/dist/esm/zodToJsonSchema.js
 var zodToJsonSchema = (schema, options) => {
   const refs = getRefs(options);
   let definitions2 = typeof options === "object" && options.definitions ? Object.entries(options.definitions).reduce((acc, [name2, schema2]) => ({
@@ -120113,7 +120113,7 @@ var zodToJsonSchema = (schema, options) => {
   return combined;
 };
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-json-schema-compat.js
+// node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-json-schema-compat.js
 function mapMiniTarget(t) {
   if (!t)
     return "draft-7";
@@ -120155,7 +120155,7 @@ function parseWithCompat(schema, data) {
   return result2.data;
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js
+// node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js
 var DEFAULT_REQUEST_TIMEOUT_MSEC = 6e4;
 var Protocol = class {
   constructor(_options) {
@@ -120655,7 +120655,7 @@ var Protocol = class {
           return;
         }
         const pollInterval = task3.pollInterval ?? this._options?.defaultTaskPollInterval ?? 1e3;
-        await new Promise((resolve5) => setTimeout(resolve5, pollInterval));
+        await new Promise((resolve8) => setTimeout(resolve8, pollInterval));
         options?.signal?.throwIfAborted();
       }
     } catch (error51) {
@@ -120672,7 +120672,7 @@ var Protocol = class {
    */
   request(request, resultSchema, options) {
     const { relatedRequestId, resumptionToken, onresumptiontoken, task: task2, relatedTask } = options ?? {};
-    return new Promise((resolve5, reject) => {
+    return new Promise((resolve8, reject) => {
       const earlyReject = (error51) => {
         reject(error51);
       };
@@ -120750,7 +120750,7 @@ var Protocol = class {
           if (!parseResult.success) {
             reject(parseResult.error);
           } else {
-            resolve5(parseResult.data);
+            resolve8(parseResult.data);
           }
         } catch (error51) {
           reject(error51);
@@ -121011,12 +121011,12 @@ var Protocol = class {
       }
     } catch {
     }
-    return new Promise((resolve5, reject) => {
+    return new Promise((resolve8, reject) => {
       if (signal.aborted) {
         reject(new McpError(ErrorCode.InvalidRequest, "Request cancelled"));
         return;
       }
-      const timeoutId = setTimeout(resolve5, interval2);
+      const timeoutId = setTimeout(resolve8, interval2);
       signal.addEventListener("abort", () => {
         clearTimeout(timeoutId);
         reject(new McpError(ErrorCode.InvalidRequest, "Request cancelled"));
@@ -121109,7 +121109,7 @@ function mergeCapabilities(base, additional) {
   return result2;
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/@modelcontextprotocol/sdk/dist/esm/validation/ajv-provider.js
+// node_modules/@modelcontextprotocol/sdk/dist/esm/validation/ajv-provider.js
 var import_ajv = __toESM(require_ajv(), 1);
 var import_ajv_formats = __toESM(require_dist(), 1);
 function createDefaultAjvInstance() {
@@ -121177,7 +121177,7 @@ var AjvJsonSchemaValidator = class {
   }
 };
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/@modelcontextprotocol/sdk/dist/esm/experimental/tasks/server.js
+// node_modules/@modelcontextprotocol/sdk/dist/esm/experimental/tasks/server.js
 var ExperimentalServerTasks = class {
   constructor(_server) {
     this._server = _server;
@@ -121390,7 +121390,7 @@ var ExperimentalServerTasks = class {
   }
 };
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/@modelcontextprotocol/sdk/dist/esm/experimental/tasks/helpers.js
+// node_modules/@modelcontextprotocol/sdk/dist/esm/experimental/tasks/helpers.js
 function assertToolsCallTaskCapability(requests, method, entityName) {
   if (!requests) {
     throw new Error(`${entityName} does not support task creation (required for ${method})`);
@@ -121425,7 +121425,7 @@ function assertClientRequestTaskCapability(requests, method, entityName) {
   }
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/@modelcontextprotocol/sdk/dist/esm/server/index.js
+// node_modules/@modelcontextprotocol/sdk/dist/esm/server/index.js
 var Server = class extends Protocol {
   /**
    * Initializes this server with the given name and version information.
@@ -121805,21 +121805,21 @@ var Server = class extends Protocol {
   }
 };
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/@modelcontextprotocol/sdk/dist/esm/server/completable.js
+// node_modules/@modelcontextprotocol/sdk/dist/esm/server/completable.js
 var COMPLETABLE_SYMBOL = /* @__PURE__ */ Symbol.for("mcp.completable");
 function isCompletable(schema) {
   return !!schema && typeof schema === "object" && COMPLETABLE_SYMBOL in schema;
 }
 function getCompleter(schema) {
-  const meta4 = schema[COMPLETABLE_SYMBOL];
-  return meta4?.complete;
+  const meta3 = schema[COMPLETABLE_SYMBOL];
+  return meta3?.complete;
 }
 var McpZodTypeKind;
 (function(McpZodTypeKind2) {
   McpZodTypeKind2["Completable"] = "McpCompletable";
 })(McpZodTypeKind || (McpZodTypeKind = {}));
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/uriTemplate.js
+// node_modules/@modelcontextprotocol/sdk/dist/esm/shared/uriTemplate.js
 var MAX_TEMPLATE_LENGTH = 1e6;
 var MAX_VARIABLE_LENGTH = 1e6;
 var MAX_TEMPLATE_EXPRESSIONS = 1e4;
@@ -122041,7 +122041,7 @@ var UriTemplate = class _UriTemplate {
   }
 };
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/toolNameValidation.js
+// node_modules/@modelcontextprotocol/sdk/dist/esm/shared/toolNameValidation.js
 var TOOL_NAME_REGEX = /^[A-Za-z0-9._-]{1,128}$/;
 function validateToolName(name) {
   const warnings = [];
@@ -122099,7 +122099,7 @@ function validateAndWarnToolName(name) {
   return result2.isValid;
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/@modelcontextprotocol/sdk/dist/esm/experimental/tasks/mcp-server.js
+// node_modules/@modelcontextprotocol/sdk/dist/esm/experimental/tasks/mcp-server.js
 var ExperimentalMcpServerTasks = class {
   constructor(_mcpServer) {
     this._mcpServer = _mcpServer;
@@ -122114,11 +122114,11 @@ var ExperimentalMcpServerTasks = class {
   }
 };
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/index.js
+// node_modules/zod/index.js
 init_external();
 init_external();
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/@modelcontextprotocol/sdk/dist/esm/server/mcp.js
+// node_modules/@modelcontextprotocol/sdk/dist/esm/server/mcp.js
 var McpServer = class {
   constructor(serverInfo, options) {
     this._registeredResources = {};
@@ -122342,7 +122342,7 @@ var McpServer = class {
     let task2 = createTaskResult.task;
     const pollInterval = task2.pollInterval ?? 5e3;
     while (task2.status !== "completed" && task2.status !== "failed" && task2.status !== "cancelled") {
-      await new Promise((resolve5) => setTimeout(resolve5, pollInterval));
+      await new Promise((resolve8) => setTimeout(resolve8, pollInterval));
       const updatedTask = await extra.taskStore.getTask(taskId);
       if (!updatedTask) {
         throw new McpError(ErrorCode.InternalError, `Task ${taskId} not found during polling`);
@@ -123587,7 +123587,7 @@ var widgetLayoutGroupSchema = external_exports.object({ groupId: external_export
 var widgetLayoutSchema = external_exports.object({ viewId: external_exports.string(), viewName: external_exports.string(), viewType: viewTypeSchema, graphRevision: external_exports.number().int().nonnegative(), layoutRevision: external_exports.number().int().nonnegative(), templateRef: external_exports.object({ id: external_exports.string(), version: external_exports.string() }).optional(), projection: external_exports.object({ kind: external_exports.string() }).passthrough().optional(), theme: viewThemeSchema.optional(), nodes: external_exports.record(external_exports.string(), widgetLayoutNodeSchema), edges: external_exports.record(external_exports.string(), widgetLayoutEdgeSchema).optional(), groups: external_exports.record(external_exports.string(), widgetLayoutGroupSchema).optional() }).passthrough();
 var widgetCandidateSchema = external_exports.object({ id: external_exports.string(), label: external_exports.string(), metrics: external_exports.object({ score: external_exports.number(), overlapCount: external_exports.number(), edgeCrossings: external_exports.number(), hardViolations: external_exports.array(external_exports.string()) }).passthrough(), document: widgetLayoutSchema });
 var widgetProjectViewSchema = projectViewSchema.extend({ nodeCount: external_exports.number().int().nonnegative().optional() });
-var widgetManifestSchema = external_exports.object({ scenePack: external_exports.object({ id: external_exports.string().optional(), recommendedViews: external_exports.array(viewTypeSchema), recommendedTemplateIds: external_exports.array(external_exports.string()).optional(), nodeTypes: external_exports.array(external_exports.object({ key: external_exports.string(), label: external_exports.string(), defaultContentKind: contentKindSchema, allowedContentKinds: external_exports.array(contentKindSchema) })) }), views: external_exports.array(external_exports.object({ viewId: external_exports.string(), viewName: external_exports.string(), viewType: viewTypeSchema, layoutRevision: external_exports.number(), templateRef: external_exports.object({ id: external_exports.string(), version: external_exports.string() }).optional() })).optional() });
+var widgetManifestSchema = external_exports.object({ scenePack: external_exports.object({ id: external_exports.string().optional(), recommendedViews: external_exports.array(viewTypeSchema), recommendedTemplateIds: external_exports.array(external_exports.string()).optional(), nodeTypes: external_exports.array(external_exports.object({ key: external_exports.string(), label: external_exports.string(), defaultContentKind: contentKindSchema, allowedContentKinds: external_exports.array(contentKindSchema) })), edgeTypes: external_exports.array(external_exports.object({ key: external_exports.string(), label: external_exports.string(), directed: external_exports.boolean().optional() })).default([]) }), views: external_exports.array(external_exports.object({ viewId: external_exports.string(), viewName: external_exports.string(), viewType: viewTypeSchema, layoutRevision: external_exports.number(), templateRef: external_exports.object({ id: external_exports.string(), version: external_exports.string() }).optional() })).optional() });
 var widgetChangeSetPreviewSchema = external_exports.object({ changeSet: external_exports.object({ id: external_exports.string(), rationale: external_exports.string(), riskLevel: external_exports.string(), graphOperations: external_exports.array(graphOperationSchema), layoutOperations: external_exports.array(layoutOperationSchema) }), stale: external_exports.boolean(), currentGraphRevision: external_exports.number(), summary: external_exports.object({ addedNodes: external_exports.number(), updatedNodes: external_exports.number(), archivedNodes: external_exports.number(), addedEdges: external_exports.number(), updatedEdges: external_exports.number(), archivedEdges: external_exports.number(), layoutOperations: external_exports.number() }) });
 var eventBase = external_exports.object({ sequence: external_exports.number(), graphRevision: external_exports.number().optional(), layoutRevision: external_exports.number().optional(), viewId: external_exports.string().optional() });
 var widgetProjectEventSchema = external_exports.discriminatedUnion("kind", [
@@ -123599,6 +123599,187 @@ var widgetProjectEventSchema = external_exports.discriminatedUnion("kind", [
   eventBase.extend({ kind: external_exports.literal("chat.binding.changed"), payload: external_exports.object({ bindingRevision: external_exports.number(), status: external_exports.enum(["active", "detached"]), reason: external_exports.string().optional(), fallbackViewId: external_exports.string().optional() }) }),
   eventBase.extend({ kind: external_exports.literal("stream.reset"), payload: external_exports.object({}).passthrough() })
 ]);
+
+// packages/contracts/src/canvas-runtime.ts
+var CANVAS_RUNTIME_PROTOCOL_VERSION = 1;
+var timestampSchema = external_exports.string().min(1);
+var identifierSchema = external_exports.string().min(1);
+var hashedChatSessionKeySchema = external_exports.string().regex(/^[a-f0-9]{64}$/);
+var loopbackUrlSchema = external_exports.url().refine((value) => {
+  const url2 = new URL(value);
+  return url2.protocol === "http:" && url2.hostname === "127.0.0.1";
+}, "Canvas runtime URLs must use the IPv4 loopback origin");
+var canvasRuntimeDescriptorSchema = external_exports.object({
+  workspaceKey: external_exports.string().regex(/^[a-f0-9]{64}$/),
+  protocolVersion: external_exports.number().int().positive(),
+  buildId: identifierSchema,
+  supervisorPid: external_exports.number().int().positive(),
+  port: external_exports.number().int().min(1).max(65535),
+  controlSocketName: external_exports.string().regex(/^[a-zA-Z0-9._-]+$/),
+  state: external_exports.enum(["starting", "ready", "upgrading", "degraded", "stopping"]),
+  startedAt: timestampSchema,
+  updatedAt: timestampSchema
+}).strict();
+var ensureRuntimeControlSchema = external_exports.object({
+  kind: external_exports.literal("ensure_runtime"),
+  workspaceKey: external_exports.string().regex(/^[a-f0-9]{64}$/),
+  requestedBuildId: identifierSchema,
+  protocolVersion: external_exports.number().int().positive()
+}).strict();
+var createLaunchControlSchema = external_exports.object({
+  kind: external_exports.literal("create_launch"),
+  chatSessionKey: hashedChatSessionKeySchema,
+  projectId: identifierSchema.optional(),
+  requestedViewId: identifierSchema.optional()
+}).strict();
+var readBindingControlSchema = external_exports.object({
+  kind: external_exports.literal("read_binding"),
+  chatSessionKey: hashedChatSessionKeySchema
+}).strict();
+var dispatchAgentOperationControlSchema = external_exports.object({
+  kind: external_exports.literal("dispatch_agent_operation"),
+  chatSessionKey: hashedChatSessionKeySchema,
+  tool: identifierSchema,
+  arguments: external_exports.record(external_exports.string(), external_exports.unknown())
+}).strict();
+var getDiagnosticsControlSchema = external_exports.object({
+  kind: external_exports.literal("get_diagnostics"),
+  errorsOnly: external_exports.boolean().optional(),
+  limit: external_exports.number().int().min(1).max(200).optional()
+}).strict();
+var clearDiagnosticsControlSchema = external_exports.object({ kind: external_exports.literal("clear_diagnostics") }).strict();
+var recordSurfaceFallbackControlSchema = external_exports.object({
+  kind: external_exports.literal("record_surface_fallback"),
+  code: external_exports.string().regex(/^[A-Z0-9_]{1,80}$/)
+}).strict();
+var bridgeHeartbeatControlSchema = external_exports.object({
+  kind: external_exports.literal("bridge_heartbeat"),
+  chatSessionKey: hashedChatSessionKeySchema,
+  hostLabel: external_exports.enum(["Codex", "Claude"]).optional()
+}).strict();
+var shutdownIfIdleControlSchema = external_exports.object({ kind: external_exports.literal("shutdown_if_idle") }).strict();
+var runtimeControlRequestSchema = external_exports.discriminatedUnion("kind", [
+  ensureRuntimeControlSchema,
+  createLaunchControlSchema,
+  readBindingControlSchema,
+  dispatchAgentOperationControlSchema,
+  getDiagnosticsControlSchema,
+  clearDiagnosticsControlSchema,
+  recordSurfaceFallbackControlSchema,
+  bridgeHeartbeatControlSchema,
+  shutdownIfIdleControlSchema
+]);
+var workspaceLaunchResultSchema = external_exports.object({
+  launchUrl: loopbackUrlSchema,
+  expiresAt: timestampSchema,
+  projectId: identifierSchema.optional(),
+  viewId: identifierSchema.optional(),
+  buildId: identifierSchema,
+  protocolVersion: external_exports.number().int().positive()
+}).strict();
+var browserSessionSchema = external_exports.object({
+  id: identifierSchema,
+  credentialHash: identifierSchema,
+  credentialVersion: external_exports.number().int().positive(),
+  status: external_exports.enum(["active", "detached", "expired"]),
+  pairedChatSessionKey: identifierSchema.optional(),
+  pairedBindingRevision: external_exports.number().int().positive().optional(),
+  createdAt: timestampSchema,
+  lastSeenAt: timestampSchema,
+  expiresAt: timestampSchema
+}).strict();
+var browserSessionPublicSchema = browserSessionSchema.pick({ id: true, status: true });
+var projectWriteLeaseSchema = external_exports.object({
+  projectId: identifierSchema,
+  browserSessionId: identifierSchema,
+  revision: external_exports.number().int().positive(),
+  status: external_exports.enum(["active", "released"]),
+  lastSeenAt: timestampSchema
+}).strict();
+var canvasCapabilitiesSchema = external_exports.object({
+  manualWrite: external_exports.boolean(),
+  agentConnected: external_exports.boolean(),
+  agentWrite: external_exports.boolean(),
+  canTakeOver: external_exports.boolean(),
+  hostLabel: external_exports.enum(["Codex", "Claude"]).optional(),
+  disconnectReason: identifierSchema.optional()
+}).strict();
+var canvasChatBindingSchema = external_exports.object({
+  leaseId: identifierSchema,
+  bindingRevision: external_exports.number().int().nonnegative(),
+  projectId: identifierSchema.optional(),
+  viewId: identifierSchema.optional()
+}).strict();
+var canvasBootstrapSchema = external_exports.object({
+  protocolVersion: external_exports.number().int().positive(),
+  buildId: identifierSchema,
+  serverVersion: identifierSchema,
+  browserSession: browserSessionPublicSchema,
+  csrfToken: identifierSchema,
+  capabilities: canvasCapabilitiesSchema,
+  projectId: identifierSchema.optional(),
+  viewId: identifierSchema.optional(),
+  writerLease: projectWriteLeaseSchema.optional(),
+  chatBinding: canvasChatBindingSchema.optional(),
+  graphRevision: external_exports.number().int().nonnegative().optional(),
+  layoutRevision: external_exports.number().int().nonnegative().optional(),
+  viewCatalogRevision: external_exports.number().int().nonnegative().optional()
+}).strict();
+var canvasMutationRequestSchema = external_exports.object({
+  mutationId: identifierSchema,
+  projectId: identifierSchema,
+  viewId: identifierSchema.optional(),
+  writerLeaseRevision: external_exports.number().int().positive(),
+  baseGraphRevision: external_exports.number().int().nonnegative().optional(),
+  baseLayoutRevision: external_exports.number().int().nonnegative().optional(),
+  operation: external_exports.record(external_exports.string(), external_exports.unknown())
+}).strict();
+var canvasMutationRecordSchema = external_exports.object({
+  id: identifierSchema,
+  projectId: identifierSchema,
+  viewId: identifierSchema.optional(),
+  browserSessionId: identifierSchema,
+  kind: external_exports.enum(["graph", "layout", "view", "mixed"]),
+  baseGraphRevision: external_exports.number().int().nonnegative().optional(),
+  resultGraphRevision: external_exports.number().int().nonnegative().optional(),
+  baseLayoutRevision: external_exports.number().int().nonnegative().optional(),
+  resultLayoutRevision: external_exports.number().int().nonnegative().optional(),
+  forwardOperations: external_exports.array(external_exports.unknown()),
+  inverseOperations: external_exports.array(external_exports.unknown()),
+  status: external_exports.enum(["applied", "reverted"]),
+  createdAt: timestampSchema,
+  revertedAt: timestampSchema.optional()
+}).strict();
+var canvasErrorCodeSchema = external_exports.enum([
+  "SERVICE_START_FAILED",
+  "WORKSPACE_UNAVAILABLE",
+  "BUILD_MISMATCH",
+  "PROTOCOL_MISMATCH",
+  "SCHEMA_MIGRATION_FAILED",
+  "PAIRING_EXPIRED",
+  "PAIRING_ALREADY_CLAIMED",
+  "BROWSER_NAVIGATION_FAILED",
+  "CANVAS_BOOTSTRAP_FAILED",
+  "SESSION_TAKEN_OVER",
+  "PROJECT_WRITER_EXISTS",
+  "AGENT_DISCONNECTED",
+  "BOUND_CANVAS_OFFLINE",
+  "STREAM_RECOVERY_FAILED",
+  "UNDO_REVISION_CONFLICT"
+]);
+var canvasErrorEnvelopeSchema = external_exports.object({
+  code: canvasErrorCodeSchema,
+  message: external_exports.string().min(1),
+  stage: identifierSchema,
+  retryable: external_exports.boolean(),
+  buildId: identifierSchema.optional(),
+  protocolVersion: external_exports.number().int().positive().optional(),
+  projectId: identifierSchema.optional(),
+  viewId: identifierSchema.optional(),
+  graphRevision: external_exports.number().int().nonnegative().optional(),
+  layoutRevision: external_exports.number().int().nonnegative().optional(),
+  recoveryActions: external_exports.array(identifierSchema).min(1)
+}).strict();
 
 // packages/contracts/src/actions.ts
 var workspace = { workspaceDir: external_exports.string().min(1) };
@@ -123653,13 +123834,34 @@ var reviewActionSchema = external_exports.discriminatedUnion("resource", [
 });
 
 // packages/storage/src/workspace-store.ts
-import { existsSync, mkdirSync as mkdirSync2, realpathSync, renameSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync as mkdirSync2, realpathSync, renameSync } from "node:fs";
 import { basename, join as join3, resolve as resolve2 } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
 // packages/storage/src/migrations.ts
-var CURRENT_SCHEMA_VERSION = 7;
-function initializeSchema(db) {
+var CURRENT_SCHEMA_VERSION = 8;
+var MIN_SUPPORTED_SCHEMA_VERSION = 6;
+var V7_TABLES = [
+  "project",
+  "node",
+  "edge",
+  "layout",
+  "layout_history",
+  "layout_run",
+  "project_view",
+  "canvas_view_state",
+  "canvas_session",
+  "chat_canvas_binding",
+  "agent_task",
+  "changeset",
+  "changeset_revert",
+  "artifact",
+  "asset",
+  "project_event"
+];
+var V8_TABLES = ["browser_session", "project_write_lease", "canvas_mutation"];
+var REQUIRED_TABLES = [...V7_TABLES, ...V8_TABLES];
+function ensureV7Objects(db) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS project (id TEXT PRIMARY KEY, data TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS node (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, data TEXT NOT NULL);
@@ -123683,8 +123885,84 @@ function initializeSchema(db) {
     CREATE TABLE IF NOT EXISTS project_event (sequence INTEGER PRIMARY KEY AUTOINCREMENT, project_id TEXT NOT NULL, canvas_session_id TEXT, task_id TEXT, kind TEXT NOT NULL, graph_revision INTEGER, view_id TEXT, layout_revision INTEGER, payload TEXT NOT NULL, created_at TEXT NOT NULL);
     CREATE INDEX IF NOT EXISTS ix_project_event_project_sequence ON project_event(project_id, sequence);
     CREATE INDEX IF NOT EXISTS ix_project_event_session_sequence ON project_event(canvas_session_id, sequence);
-    PRAGMA user_version = ${CURRENT_SCHEMA_VERSION};
   `);
+}
+function ensureV8Objects(db) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS browser_session (id TEXT PRIMARY KEY, status TEXT NOT NULL, credential_version INTEGER NOT NULL, data TEXT NOT NULL);
+    CREATE INDEX IF NOT EXISTS ix_browser_session_status ON browser_session(status);
+    CREATE TABLE IF NOT EXISTS project_write_lease (project_id TEXT PRIMARY KEY, browser_session_id TEXT NOT NULL, revision INTEGER NOT NULL, status TEXT NOT NULL, data TEXT NOT NULL);
+    CREATE INDEX IF NOT EXISTS ix_project_write_lease_session ON project_write_lease(browser_session_id, status);
+    CREATE TABLE IF NOT EXISTS canvas_mutation (sequence INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL UNIQUE, project_id TEXT NOT NULL, browser_session_id TEXT NOT NULL, status TEXT NOT NULL, data TEXT NOT NULL);
+    CREATE INDEX IF NOT EXISTS ix_canvas_mutation_project_sequence ON canvas_mutation(project_id, sequence);
+  `);
+}
+function ensureCurrentObjects(db) {
+  ensureV7Objects(db);
+  ensureV8Objects(db);
+}
+function verifyTables(db, required2) {
+  const names = new Set(db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map((row) => row.name));
+  const missing = required2.filter((name) => !names.has(name));
+  if (missing.length) throw new Error(`SCHEMA_VERIFY_MISSING_TABLES:${missing.join(",")}`);
+}
+function verifyV7Objects(db) {
+  verifyTables(db, V7_TABLES);
+}
+function verifyCurrentObjects(db) {
+  verifyTables(db, REQUIRED_TABLES);
+}
+var SCHEMA_MIGRATIONS = [{
+  from: 6,
+  to: 7,
+  apply: ensureV7Objects,
+  verify: verifyV7Objects
+}, {
+  from: 7,
+  to: 8,
+  apply: ensureV8Objects,
+  verify: verifyCurrentObjects
+}];
+function canMigrateSchema(version2) {
+  if (!Number.isInteger(version2) || version2 < MIN_SUPPORTED_SCHEMA_VERSION || version2 > CURRENT_SCHEMA_VERSION) return false;
+  let cursor = version2;
+  while (cursor < CURRENT_SCHEMA_VERSION) {
+    const migration = SCHEMA_MIGRATIONS.find((candidate) => candidate.from === cursor);
+    if (!migration || migration.to <= cursor) return false;
+    cursor = migration.to;
+  }
+  return cursor === CURRENT_SCHEMA_VERSION;
+}
+function migrateSchema(db, registry2 = SCHEMA_MIGRATIONS) {
+  const start = Number(db.prepare("PRAGMA user_version").get().user_version);
+  if (start === CURRENT_SCHEMA_VERSION) {
+    verifyCurrentObjects(db);
+    return;
+  }
+  if (start > CURRENT_SCHEMA_VERSION) throw new Error(`SCHEMA_VERSION_NEWER_THAN_RUNTIME:${start}>${CURRENT_SCHEMA_VERSION}`);
+  try {
+    transaction(db, () => {
+      let cursor = start;
+      while (cursor < CURRENT_SCHEMA_VERSION) {
+        const migration = registry2.find((candidate) => candidate.from === cursor);
+        if (!migration || migration.to <= cursor || migration.to > CURRENT_SCHEMA_VERSION) throw new Error(`SCHEMA_MIGRATION_PATH_MISSING:${cursor}`);
+        migration.apply(db);
+        db.exec(`PRAGMA user_version = ${migration.to}`);
+        migration.verify(db);
+        cursor = migration.to;
+      }
+      if (cursor !== CURRENT_SCHEMA_VERSION) throw new Error(`SCHEMA_MIGRATION_PATH_INCOMPLETE:${cursor}`);
+      verifyCurrentObjects(db);
+    });
+  } catch (error51) {
+    const message = error51 instanceof Error ? error51.message : String(error51);
+    throw new Error(`SCHEMA_MIGRATION_FAILED:${start}->${CURRENT_SCHEMA_VERSION}:${message}`, { cause: error51 });
+  }
+}
+function initializeSchema(db) {
+  ensureCurrentObjects(db);
+  db.exec(`PRAGMA user_version = ${CURRENT_SCHEMA_VERSION}`);
+  verifyCurrentObjects(db);
 }
 function transaction(db, callback) {
   if (db.isTransaction) return callback();
@@ -123976,106 +124254,6 @@ function applyLayoutOperations(document2, operations, nextRevision = document2.l
   next.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
   return next;
 }
-function diffLayoutDocuments(before, after) {
-  const operations = [];
-  for (const [nodeId, node] of Object.entries(after.nodes)) {
-    const previous = before.nodes[nodeId];
-    if (!previous || previous.x !== node.x || previous.y !== node.y || previous.width !== node.width || previous.height !== node.height) {
-      operations.push({ type: "set-node-frame", viewId: after.viewId, nodeId, frame: { x: node.x, y: node.y, width: node.width, height: node.height } });
-    }
-  }
-  for (const [nodeId, node] of Object.entries(after.nodes)) {
-    const previous = before.nodes[nodeId];
-    if ((previous?.groupId ?? void 0) !== (node.groupId ?? void 0)) {
-      operations.push({ type: "assign-node-to-group", viewId: after.viewId, nodeId, groupId: node.groupId ?? null });
-    }
-  }
-  for (const [groupId, group] of Object.entries(after.groups)) {
-    const previous = before.groups[groupId];
-    if (!previous) {
-      operations.push({ type: "create-group", viewId: after.viewId, groupId, frame: { x: group.x, y: group.y, width: group.width, height: group.height }, label: group.label, kind: group.kind, direction: group.direction });
-      continue;
-    }
-    if (previous.x !== group.x || previous.y !== group.y || previous.width !== group.width || previous.height !== group.height) {
-      operations.push({ type: "set-group-frame", viewId: after.viewId, groupId, frame: { x: group.x, y: group.y, width: group.width, height: group.height } });
-    }
-    if ((previous.label ?? void 0) !== (group.label ?? void 0) && group.label !== void 0) {
-      operations.push({ type: "rename-group", viewId: after.viewId, groupId, label: group.label });
-    }
-  }
-  for (const groupId of Object.keys(before.groups)) {
-    if (!after.groups[groupId]) operations.push({ type: "delete-group", viewId: after.viewId, groupId });
-  }
-  for (const [edgeId, edge] of Object.entries(after.edges)) {
-    const previous = before.edges[edgeId];
-    if (JSON.stringify(previous) !== JSON.stringify(edge)) operations.push({ type: "set-edge-route", viewId: after.viewId, edgeId, route: edge });
-  }
-  if (JSON.stringify(before.config) !== JSON.stringify(after.config)) operations.push({ type: "set-layout-config", viewId: after.viewId, config: after.config });
-  if (before.viewName !== after.viewName) operations.push({ type: "set-view-name", viewId: after.viewId, viewName: after.viewName });
-  if (JSON.stringify(before.projection) !== JSON.stringify(after.projection)) operations.push({ type: "set-view-projection", viewId: after.viewId, projection: after.projection });
-  if (JSON.stringify(before.theme) !== JSON.stringify(after.theme)) operations.push({ type: "set-view-theme", viewId: after.viewId, theme: after.theme });
-  return operations;
-}
-
-// packages/core/src/context.ts
-function resolveSceneContext(args) {
-  const allowedNodeTypes = new Set(args.scenePack.nodeTypes.map((item) => item.key));
-  const allowedEdgeTypes = new Set(args.scenePack.edgeTypes.map((item) => item.key));
-  const activeNodes = args.nodes.filter((node) => !node.archived && allowedNodeTypes.has(node.type));
-  const byId = new Map(activeNodes.map((node) => [node.id, node]));
-  const excludedArchivedNodeIds = args.nodes.filter((node) => node.archived).map((node) => node.id).sort();
-  const edges = args.edges.filter((edge) => !edge.archived && allowedEdgeTypes.has(edge.type) && byId.has(edge.sourceNodeId) && byId.has(edge.targetNodeId));
-  const ordered = [];
-  const included = /* @__PURE__ */ new Set();
-  const add2 = (id) => {
-    if (byId.has(id) && !included.has(id)) {
-      included.add(id);
-      ordered.push(id);
-    }
-  };
-  const selected = [...new Set(args.selectedNodeIds)].filter((id) => byId.has(id));
-  if (args.scenePack.contextPolicy.modes.includes("selected_nodes")) selected.forEach(add2);
-  if (args.scenePack.contextPolicy.modes.includes("pinned_nodes")) [...new Set(args.pinnedNodeIds)].sort().forEach(add2);
-  if (args.scenePack.contextPolicy.modes.includes("ancestor_path")) {
-    let frontier = [...selected].sort();
-    const visited = new Set(frontier);
-    while (frontier.length) {
-      const next = [];
-      for (const nodeId of frontier) {
-        for (const edge of edges) {
-          const ancestor = edge.targetNodeId === nodeId ? edge.sourceNodeId : !edge.directed && edge.sourceNodeId === nodeId ? edge.targetNodeId : void 0;
-          if (ancestor && !visited.has(ancestor)) {
-            visited.add(ancestor);
-            next.push(ancestor);
-          }
-        }
-      }
-      frontier = [...new Set(next)].sort();
-      frontier.forEach(add2);
-    }
-  }
-  if (args.scenePack.contextPolicy.modes.includes("typed_neighborhood")) {
-    let frontier = [...selected].sort();
-    const visited = new Set(frontier);
-    for (let hop = 0; hop < args.scenePack.contextPolicy.maxHops; hop += 1) {
-      const next = [];
-      for (const edge of edges) {
-        const sourceActive = frontier.includes(edge.sourceNodeId);
-        const targetActive = frontier.includes(edge.targetNodeId);
-        if (sourceActive && !visited.has(edge.targetNodeId)) next.push(edge.targetNodeId);
-        if (targetActive && !visited.has(edge.sourceNodeId)) next.push(edge.sourceNodeId);
-      }
-      frontier = [...new Set(next)].sort();
-      frontier.forEach((id) => {
-        visited.add(id);
-        add2(id);
-      });
-    }
-  }
-  const maxNodes = args.scenePack.contextPolicy.maxNodes;
-  const nodeIds = ordered.slice(0, maxNodes);
-  return { nodes: nodeIds.map((id) => byId.get(id)), nodeIds, truncated: ordered.length > maxNodes, excludedArchivedNodeIds, modesApplied: args.scenePack.contextPolicy.modes, diagnostics: { requestedNodeCount: ordered.length, includedNodeCount: nodeIds.length, omittedNodeIds: ordered.slice(maxNodes), maxNodes, maxHops: args.scenePack.contextPolicy.maxHops } };
-}
 
 // packages/storage/src/assets.ts
 import { createHash, randomUUID } from "node:crypto";
@@ -124086,8 +124264,8 @@ function getAsset(db, assetId) {
   const row = db.prepare("SELECT data FROM asset WHERE id = ?").get(assetId);
   return row ? assetSchema.parse(parse3(row.data)) : null;
 }
-function getAssetByHash(db, projectId, sha256) {
-  const row = db.prepare("SELECT data FROM asset WHERE project_id = ? AND sha256 = ?").get(projectId, sha256);
+function getAssetByHash(db, projectId, sha2562) {
+  const row = db.prepare("SELECT data FROM asset WHERE project_id = ? AND sha256 = ?").get(projectId, sha2562);
   return row ? assetSchema.parse(parse3(row.data)) : null;
 }
 function readAsset(db, dataDir, assetId, thumbnail = false) {
@@ -124104,8 +124282,8 @@ async function importImageAsset(db, dataDir, input) {
   if (!getProject(db, input.projectId)) throw new Error(`PROJECT_NOT_FOUND:${input.projectId}`);
   if (input.data.byteLength > 20 * 1024 * 1024) throw new Error("IMAGE_TOO_LARGE:Maximum image size is 20MB");
   const data = Buffer.from(input.data);
-  const sha256 = createHash("sha256").update(data).digest("hex");
-  const existing = getAssetByHash(db, input.projectId, sha256);
+  const sha2562 = createHash("sha256").update(data).digest("hex");
+  const existing = getAssetByHash(db, input.projectId, sha2562);
   if (existing) return { asset: existing, deduplicated: true };
   const image = sharp(data, { animated: false, limitInputPixels: 4e7 });
   const metadata = await image.metadata();
@@ -124114,8 +124292,8 @@ async function importImageAsset(db, dataDir, input) {
   if (!metadata.width || !metadata.height) throw new Error("IMAGE_DIMENSIONS_MISSING");
   const id = randomUUID();
   const extension = actualMime === "image/jpeg" ? "jpg" : actualMime.split("/")[1];
-  const originalName = `original/${sha256}.${extension}`;
-  const thumbnailName = `thumbnails/${sha256}.webp`;
+  const originalName = `original/${sha2562}.${extension}`;
+  const thumbnailName = `thumbnails/${sha2562}.webp`;
   writeFileSync(join(dataDir, "assets", originalName), data);
   const thumbnail = await sharp(data, { animated: false, limitInputPixels: 4e7 }).rotate().resize({ width: 640, height: 640, fit: "inside", withoutEnlargement: true }).webp({ quality: 82 }).toBuffer();
   writeFileSync(join(dataDir, "assets", thumbnailName), thumbnail);
@@ -124125,7 +124303,7 @@ async function importImageAsset(db, dataDir, input) {
     kind: "image",
     mimeType: actualMime,
     size: data.byteLength,
-    sha256,
+    sha256: sha2562,
     width: metadata.width,
     height: metadata.height,
     storageUri: `weaver://projects/${input.projectId}/assets/${id}/files/${originalName}`,
@@ -124470,7 +124648,7 @@ function placeRows(hub, satellites, document2, spacing) {
   });
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-force/src/center.js
+// node_modules/d3-force/src/center.js
 function center_default(x3, y3) {
   var nodes, strength = 1;
   if (x3 == null) x3 = 0;
@@ -124499,7 +124677,7 @@ function center_default(x3, y3) {
   return force;
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-quadtree/src/add.js
+// node_modules/d3-quadtree/src/add.js
 function add_default(d2) {
   const x3 = +this._x.call(null, d2), y3 = +this._y.call(null, d2);
   return add(this.cover(x3, y3), x3, y3, d2);
@@ -124546,7 +124724,7 @@ function addAll(data) {
   return this;
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-quadtree/src/cover.js
+// node_modules/d3-quadtree/src/cover.js
 function cover_default(x3, y3) {
   if (isNaN(x3 = +x3) || isNaN(y3 = +y3)) return this;
   var x0 = this._x0, y0 = this._y0, x1 = this._x1, y1 = this._y1;
@@ -124582,7 +124760,7 @@ function cover_default(x3, y3) {
   return this;
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-quadtree/src/data.js
+// node_modules/d3-quadtree/src/data.js
 function data_default() {
   var data = [];
   this.visit(function(node) {
@@ -124593,12 +124771,12 @@ function data_default() {
   return data;
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-quadtree/src/extent.js
+// node_modules/d3-quadtree/src/extent.js
 function extent_default(_2) {
   return arguments.length ? this.cover(+_2[0][0], +_2[0][1]).cover(+_2[1][0], +_2[1][1]) : isNaN(this._x0) ? void 0 : [[this._x0, this._y0], [this._x1, this._y1]];
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-quadtree/src/quad.js
+// node_modules/d3-quadtree/src/quad.js
 function quad_default(node, x0, y0, x1, y1) {
   this.node = node;
   this.x0 = x0;
@@ -124607,7 +124785,7 @@ function quad_default(node, x0, y0, x1, y1) {
   this.y1 = y1;
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-quadtree/src/find.js
+// node_modules/d3-quadtree/src/find.js
 function find_default(x3, y3, radius) {
   var data, x0 = this._x0, y0 = this._y0, x1, y1, x22, y22, x32 = this._x1, y32 = this._y1, quads = [], node = this._root, q, i;
   if (node) quads.push(new quad_default(node, x0, y0, x32, y32));
@@ -124645,7 +124823,7 @@ function find_default(x3, y3, radius) {
   return data;
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-quadtree/src/remove.js
+// node_modules/d3-quadtree/src/remove.js
 function remove_default(d2) {
   if (isNaN(x3 = +this._x.call(null, d2)) || isNaN(y3 = +this._y.call(null, d2))) return this;
   var parent, node = this._root, retainer, previous, next, x0 = this._x0, y0 = this._y0, x1 = this._x1, y1 = this._y1, x3, y3, xm, ym, right, bottom, i, j2;
@@ -124675,12 +124853,12 @@ function removeAll(data) {
   return this;
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-quadtree/src/root.js
+// node_modules/d3-quadtree/src/root.js
 function root_default() {
   return this._root;
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-quadtree/src/size.js
+// node_modules/d3-quadtree/src/size.js
 function size_default() {
   var size = 0;
   this.visit(function(node) {
@@ -124691,7 +124869,7 @@ function size_default() {
   return size;
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-quadtree/src/visit.js
+// node_modules/d3-quadtree/src/visit.js
 function visit_default(callback) {
   var quads = [], q, node = this._root, child, x0, y0, x1, y1;
   if (node) quads.push(new quad_default(node, this._x0, this._y0, this._x1, this._y1));
@@ -124707,7 +124885,7 @@ function visit_default(callback) {
   return this;
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-quadtree/src/visitAfter.js
+// node_modules/d3-quadtree/src/visitAfter.js
 function visitAfter_default(callback) {
   var quads = [], next = [], q;
   if (this._root) quads.push(new quad_default(this._root, this._x0, this._y0, this._x1, this._y1));
@@ -124728,7 +124906,7 @@ function visitAfter_default(callback) {
   return this;
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-quadtree/src/x.js
+// node_modules/d3-quadtree/src/x.js
 function defaultX(d2) {
   return d2[0];
 }
@@ -124736,7 +124914,7 @@ function x_default(_2) {
   return arguments.length ? (this._x = _2, this) : this._x;
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-quadtree/src/y.js
+// node_modules/d3-quadtree/src/y.js
 function defaultY(d2) {
   return d2[1];
 }
@@ -124744,7 +124922,7 @@ function y_default(_2) {
   return arguments.length ? (this._y = _2, this) : this._y;
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-quadtree/src/quadtree.js
+// node_modules/d3-quadtree/src/quadtree.js
 function quadtree(nodes, x3, y3) {
   var tree = new Quadtree(x3 == null ? defaultX : x3, y3 == null ? defaultY : y3, NaN, NaN, NaN, NaN);
   return nodes == null ? tree : tree.addAll(nodes);
@@ -124794,19 +124972,19 @@ treeProto.visitAfter = visitAfter_default;
 treeProto.x = x_default;
 treeProto.y = y_default;
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-force/src/constant.js
+// node_modules/d3-force/src/constant.js
 function constant_default(x3) {
   return function() {
     return x3;
   };
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-force/src/jiggle.js
+// node_modules/d3-force/src/jiggle.js
 function jiggle_default(random) {
   return (random() - 0.5) * 1e-6;
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-force/src/collide.js
+// node_modules/d3-force/src/collide.js
 function x(d2) {
   return d2.x + d2.vx;
 }
@@ -124879,7 +125057,7 @@ function collide_default(radius) {
   return force;
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-force/src/link.js
+// node_modules/d3-force/src/link.js
 function index(d2) {
   return d2.index;
 }
@@ -124961,7 +125139,7 @@ function link_default(links) {
   return force;
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-dispatch/src/dispatch.js
+// node_modules/d3-dispatch/src/dispatch.js
 var noop = { value: () => {
 } };
 function dispatch() {
@@ -125031,7 +125209,7 @@ function set2(type, name, callback) {
 }
 var dispatch_default = dispatch;
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-timer/src/timer.js
+// node_modules/d3-timer/src/timer.js
 var frame = 0;
 var timeout = 0;
 var interval = 0;
@@ -125133,7 +125311,7 @@ function sleep(time3) {
   }
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-force/src/lcg.js
+// node_modules/d3-force/src/lcg.js
 var a = 1664525;
 var c = 1013904223;
 var m = 4294967296;
@@ -125142,7 +125320,7 @@ function lcg_default() {
   return () => (s = (a * s + c) % m) / m;
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-force/src/simulation.js
+// node_modules/d3-force/src/simulation.js
 function x2(d2) {
   return d2.x;
 }
@@ -125251,7 +125429,7 @@ function simulation_default(nodes) {
   };
 }
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-force/src/manyBody.js
+// node_modules/d3-force/src/manyBody.js
 function manyBody_default() {
   var nodes, node, random, alpha, strength = constant_default(-30), strengths, distanceMin2 = 1, distanceMax2 = Infinity, theta2 = 0.81;
   function force(_2) {
@@ -125567,7 +125745,7 @@ function prepareAgentTask(db, input) {
   const timestamp = now();
   const dispatchKey = input.dispatchKey ?? randomUUID2();
   const existingTasks = listCanvasTasks(db, context.canvasSessionId, true);
-  const duplicate = existingTasks.find((task3) => task3.dispatches.some((dispatch2) => dispatch2.dispatchKey === dispatchKey));
+  const duplicate = existingTasks.find((task3) => task3.dispatches.some((dispatch3) => dispatch3.dispatchKey === dispatchKey));
   if (duplicate) return duplicate;
   reapExpiredCanvasTasks(db, context.canvasSessionId);
   const [blocking] = listCanvasTasks(db, context.canvasSessionId);
@@ -125654,10 +125832,10 @@ function updateAgentTask(db, taskId, patch, options = {}) {
 function confirmAgentDispatch(db, taskId, dispatchKey) {
   const task2 = getAgentTask(db, taskId);
   if (!task2) throw new Error(`AGENT_TASK_NOT_FOUND:${taskId}`);
-  if (task2.status === "dispatched" && task2.dispatches.some((dispatch2) => dispatch2.dispatchKey === dispatchKey && dispatch2.state === "accepted")) return task2;
+  if (task2.status === "dispatched" && task2.dispatches.some((dispatch3) => dispatch3.dispatchKey === dispatchKey && dispatch3.state === "accepted")) return task2;
   if (task2.status !== "prepared") throw new Error(terminalTaskStatuses.has(task2.status) ? `TASK_TERMINAL:${task2.status}` : `TASK_TRANSITION_INVALID:${task2.status}->dispatched`);
-  const dispatches = task2.dispatches.map((dispatch2) => dispatch2.dispatchKey === dispatchKey && dispatch2.state === "prepared" ? { ...dispatch2, state: "accepted", acceptedAt: now() } : dispatch2);
-  if (!dispatches.some((dispatch2) => dispatch2.dispatchKey === dispatchKey && dispatch2.state === "accepted")) throw new Error("AGENT_DISPATCH_NOT_FOUND");
+  const dispatches = task2.dispatches.map((dispatch3) => dispatch3.dispatchKey === dispatchKey && dispatch3.state === "prepared" ? { ...dispatch3, state: "accepted", acceptedAt: now() } : dispatch3);
+  if (!dispatches.some((dispatch3) => dispatch3.dispatchKey === dispatchKey && dispatch3.state === "accepted")) throw new Error("AGENT_DISPATCH_NOT_FOUND");
   return updateAgentTask(db, taskId, { status: "dispatched", dispatches, error: void 0 });
 }
 function failAgentDispatch(db, taskId, dispatchKey, input) {
@@ -125665,15 +125843,15 @@ function failAgentDispatch(db, taskId, dispatchKey, input) {
   if (!task2) throw new Error(`AGENT_TASK_NOT_FOUND:${taskId}`);
   if (terminalTaskStatuses.has(task2.status)) return task2;
   if (task2.status !== "prepared") throw new Error(`TASK_TRANSITION_INVALID:${task2.status}->failed`);
-  if (!task2.dispatches.some((dispatch2) => dispatch2.dispatchKey === dispatchKey && dispatch2.state === "prepared")) throw new Error("AGENT_DISPATCH_NOT_FOUND");
+  if (!task2.dispatches.some((dispatch3) => dispatch3.dispatchKey === dispatchKey && dispatch3.state === "prepared")) throw new Error("AGENT_DISPATCH_NOT_FOUND");
   const state = input.code === "DISPATCH_UNCONFIRMED" ? "unconfirmed" : "rejected";
-  const dispatches = task2.dispatches.map((dispatch2) => dispatch2.dispatchKey === dispatchKey && dispatch2.state === "prepared" ? { ...dispatch2, state, error: input } : dispatch2);
+  const dispatches = task2.dispatches.map((dispatch3) => dispatch3.dispatchKey === dispatchKey && dispatch3.state === "prepared" ? { ...dispatch3, state, error: input } : dispatch3);
   return updateAgentTask(db, taskId, { status: "failed", dispatches, error: input });
 }
 function beginAgentContinuation(db, input) {
   const task2 = getAgentTask(db, input.taskId);
   if (!task2) throw new Error(`AGENT_TASK_NOT_FOUND:${input.taskId}`);
-  const duplicate = task2.dispatches.find((dispatch2) => dispatch2.dispatchKey === input.dispatchKey);
+  const duplicate = task2.dispatches.find((dispatch3) => dispatch3.dispatchKey === input.dispatchKey);
   if (duplicate) return task2;
   if (task2.taskRevision !== input.expectedTaskRevision) throw new Error("TASK_REVISION_CONFLICT");
   if (task2.status !== "ready_to_continue" || task2.activeStage !== "layout") throw new Error(`TASK_TRANSITION_INVALID:${task2.status}->prepared`);
@@ -126711,6 +126889,186 @@ function getArtifact(db, artifactId) {
   return row ? parse3(row.data) : null;
 }
 
+// packages/storage/src/browser-sessions.ts
+function getBrowserSession(db, id) {
+  const row = db.prepare("SELECT data FROM browser_session WHERE id = ?").get(id);
+  return row ? browserSessionSchema.parse(parse3(row.data)) : null;
+}
+function saveBrowserSession(db, session) {
+  const validated = browserSessionSchema.parse(session);
+  db.prepare(`
+    INSERT INTO browser_session(id, status, credential_version, data) VALUES (?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET status=excluded.status, credential_version=excluded.credential_version, data=excluded.data
+  `).run(validated.id, validated.status, validated.credentialVersion, json2(validated));
+  return validated;
+}
+function createBrowserSession(db, input) {
+  return transaction(db, () => {
+    if (getBrowserSession(db, input.id)) throw new Error("BROWSER_SESSION_EXISTS");
+    return saveBrowserSession(db, browserSessionSchema.parse({
+      id: input.id,
+      credentialHash: input.credentialHash,
+      credentialVersion: 1,
+      status: "active",
+      createdAt: input.now,
+      lastSeenAt: input.now,
+      expiresAt: input.expiresAt
+    }));
+  });
+}
+function requireActiveBrowserSession(db, id, at) {
+  const session = getBrowserSession(db, id);
+  if (!session) throw new Error("BROWSER_SESSION_NOT_FOUND");
+  if (session.status !== "active" || Date.parse(session.expiresAt) <= Date.parse(at)) throw new Error("BROWSER_SESSION_NOT_ACTIVE");
+  return session;
+}
+function rotateBrowserCredential(db, input) {
+  return transaction(db, () => {
+    const session = requireActiveBrowserSession(db, input.id, input.now);
+    if (session.credentialVersion !== input.expectedVersion) throw new Error("BROWSER_CREDENTIAL_REPLAY");
+    return saveBrowserSession(db, {
+      ...session,
+      credentialHash: input.credentialHash,
+      credentialVersion: session.credentialVersion + 1,
+      lastSeenAt: input.now,
+      expiresAt: input.expiresAt
+    });
+  });
+}
+function pairBrowserChat(db, input) {
+  return transaction(db, () => {
+    const session = requireActiveBrowserSession(db, input.id, input.now);
+    return saveBrowserSession(db, {
+      ...session,
+      pairedChatSessionKey: input.chatSessionKey,
+      pairedBindingRevision: input.bindingRevision,
+      lastSeenAt: input.now
+    });
+  });
+}
+function getProjectWriteLease(db, projectId) {
+  const row = db.prepare("SELECT data FROM project_write_lease WHERE project_id = ?").get(projectId);
+  return row ? projectWriteLeaseSchema.parse(parse3(row.data)) : null;
+}
+function saveProjectWriteLease(db, lease) {
+  const validated = projectWriteLeaseSchema.parse(lease);
+  db.prepare(`
+    INSERT INTO project_write_lease(project_id, browser_session_id, revision, status, data) VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT(project_id) DO UPDATE SET browser_session_id=excluded.browser_session_id, revision=excluded.revision, status=excluded.status, data=excluded.data
+  `).run(validated.projectId, validated.browserSessionId, validated.revision, validated.status, json2(validated));
+  return validated;
+}
+function claimProjectWriter(db, input) {
+  return transaction(db, () => {
+    requireActiveBrowserSession(db, input.browserSessionId, input.now);
+    const current = getProjectWriteLease(db, input.projectId);
+    if (current?.status === "active" && current.browserSessionId === input.browserSessionId) {
+      return saveProjectWriteLease(db, { ...current, lastSeenAt: input.now });
+    }
+    if (current?.status === "active" && !input.takeover) throw new Error("PROJECT_WRITER_EXISTS");
+    if (current?.status === "active" && input.takeover) {
+      const previousBrowser = getBrowserSession(db, current.browserSessionId);
+      const previousBinding = previousBrowser?.pairedChatSessionKey ? getChatCanvasBinding(db, previousBrowser.pairedChatSessionKey) : null;
+      if (previousBinding?.projectId === input.projectId) {
+        rejectBindingWork(db, previousBinding);
+        const detached = saveChatCanvasBinding(db, {
+          ...previousBinding,
+          bindingRevision: previousBinding.bindingRevision + 1,
+          leaseId: newLeaseId(),
+          status: "detached",
+          lastSeenAt: input.now
+        });
+        appendProjectEvent(db, {
+          projectId: input.projectId,
+          canvasSessionId: previousBinding.canvasSessionId,
+          kind: "chat.binding.changed",
+          payload: { bindingRevision: detached.bindingRevision, status: "detached", reason: "PROJECT_WRITER_TAKEN_OVER" },
+          createdAt: input.now
+        });
+      }
+    }
+    return saveProjectWriteLease(db, {
+      projectId: input.projectId,
+      browserSessionId: input.browserSessionId,
+      revision: (current?.revision ?? 0) + 1,
+      status: "active",
+      lastSeenAt: input.now
+    });
+  });
+}
+function expireBrowserSession(db, id, at) {
+  return transaction(db, () => {
+    const session = getBrowserSession(db, id);
+    if (!session) throw new Error("BROWSER_SESSION_NOT_FOUND");
+    const expired = saveBrowserSession(db, { ...session, status: "expired", lastSeenAt: at });
+    const rows = db.prepare("SELECT data FROM project_write_lease WHERE browser_session_id = ? AND status = 'active'").all(id);
+    for (const row of rows) {
+      const lease = projectWriteLeaseSchema.parse(parse3(row.data));
+      saveProjectWriteLease(db, { ...lease, revision: lease.revision + 1, status: "released", lastSeenAt: at });
+    }
+    return expired;
+  });
+}
+
+// packages/storage/src/canvas-mutations.ts
+function getCanvasMutation(db, id) {
+  const row = db.prepare("SELECT data FROM canvas_mutation WHERE id = ?").get(id);
+  return row ? canvasMutationRecordSchema.parse(parse3(row.data)) : null;
+}
+function saveCanvasMutation(db, record2) {
+  const validated = canvasMutationRecordSchema.parse(record2);
+  db.prepare(`
+    INSERT INTO canvas_mutation(id, project_id, browser_session_id, status, data) VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET status=excluded.status, data=excluded.data
+  `).run(validated.id, validated.projectId, validated.browserSessionId, validated.status, json2(validated));
+  return validated;
+}
+function assertWriter(db, projectId, browserSessionId, revision) {
+  const lease = getProjectWriteLease(db, projectId);
+  if (!lease || lease.status !== "active" || lease.browserSessionId !== browserSessionId || revision !== void 0 && lease.revision !== revision) {
+    throw new Error("PROJECT_WRITER_LEASE_STALE");
+  }
+  return lease;
+}
+function applyCanvasMutation(db, input, applyState) {
+  const request = canvasMutationRequestSchema.parse(input.request);
+  return transaction(db, () => {
+    const existing = getCanvasMutation(db, request.mutationId);
+    if (existing) {
+      if (existing.projectId !== request.projectId || existing.browserSessionId !== input.browserSessionId) throw new Error("MUTATION_ID_CONFLICT");
+      return existing;
+    }
+    assertWriter(db, request.projectId, input.browserSessionId, request.writerLeaseRevision);
+    const result2 = applyState();
+    return saveCanvasMutation(db, {
+      id: request.mutationId,
+      projectId: request.projectId,
+      viewId: request.viewId,
+      browserSessionId: input.browserSessionId,
+      kind: result2.kind,
+      baseGraphRevision: request.baseGraphRevision,
+      resultGraphRevision: result2.resultGraphRevision,
+      baseLayoutRevision: request.baseLayoutRevision,
+      resultLayoutRevision: result2.resultLayoutRevision,
+      forwardOperations: result2.forwardOperations,
+      inverseOperations: result2.inverseOperations,
+      status: "applied",
+      createdAt: input.createdAt
+    });
+  });
+}
+function revertCanvasMutation(db, input, applyInverse) {
+  return transaction(db, () => {
+    const record2 = getCanvasMutation(db, input.id);
+    if (!record2) throw new Error("CANVAS_MUTATION_NOT_FOUND");
+    if (record2.status === "reverted") return record2;
+    assertWriter(db, record2.projectId, input.browserSessionId);
+    if (record2.resultGraphRevision !== void 0 && record2.resultGraphRevision !== input.currentGraphRevision || record2.resultLayoutRevision !== void 0 && record2.resultLayoutRevision !== input.currentLayoutRevision) throw new Error("UNDO_REVISION_CONFLICT");
+    applyInverse(record2);
+    return saveCanvasMutation(db, { ...record2, status: "reverted", revertedAt: input.revertedAt });
+  });
+}
+
 // packages/storage/src/workspace-store.ts
 function safeWorkspaceDir(input) {
   const absolute = resolve2(input);
@@ -126727,21 +127085,40 @@ function prepareWorkspaceData(workspaceDir, timestamp = /* @__PURE__ */ new Date
   const dataDir = join3(workspaceDir, ".weaver");
   const dbPath = join3(dataDir, "weaver.sqlite");
   let schemaResetBackupName;
+  let schemaMigrationBackupName;
+  let schemaVersion;
   if (existsSync(dbPath)) {
     const existing = new DatabaseSync(dbPath);
     const row = existing.prepare("PRAGMA user_version").get();
-    existing.close();
-    if (row.user_version !== CURRENT_SCHEMA_VERSION) {
+    schemaVersion = Number(row.user_version);
+    if (schemaVersion > CURRENT_SCHEMA_VERSION) {
+      existing.close();
+      throw new Error(`SCHEMA_VERSION_NEWER_THAN_RUNTIME:${schemaVersion}>${CURRENT_SCHEMA_VERSION}`);
+    }
+    if (schemaVersion !== CURRENT_SCHEMA_VERSION && canMigrateSchema(schemaVersion)) {
+      try {
+        existing.exec("PRAGMA wal_checkpoint(TRUNCATE)");
+      } finally {
+        existing.close();
+      }
+      const backup = backupName(workspaceDir, timestamp);
+      cpSync(dataDir, backup, { recursive: true, errorOnExist: true });
+      schemaMigrationBackupName = basename(backup);
+    } else {
+      existing.close();
+    }
+    if (schemaVersion !== CURRENT_SCHEMA_VERSION && !canMigrateSchema(schemaVersion)) {
       const backup = backupName(workspaceDir, timestamp);
       renameSync(dataDir, backup);
       schemaResetBackupName = basename(backup);
+      schemaVersion = void 0;
     }
   }
   mkdirSync2(join3(dataDir, "assets", "tasks"), { recursive: true });
   mkdirSync2(join3(dataDir, "assets", "original"), { recursive: true });
   mkdirSync2(join3(dataDir, "assets", "thumbnails"), { recursive: true });
   mkdirSync2(join3(dataDir, "exports"), { recursive: true });
-  return { dataDir, dbPath, schemaResetBackupName };
+  return { dataDir, dbPath, schemaResetBackupName, schemaMigrationBackupName, schemaVersion };
 }
 var WorkspaceStore = class {
   workspaceDir;
@@ -126749,19 +127126,31 @@ var WorkspaceStore = class {
   dbPath;
   db;
   schemaResetBackupName;
+  schemaMigrationBackupName;
   constructor(workspaceDir) {
     this.workspaceDir = safeWorkspaceDir(workspaceDir);
     const prepared = prepareWorkspaceData(this.workspaceDir);
     this.dataDir = prepared.dataDir;
     this.dbPath = prepared.dbPath;
     this.schemaResetBackupName = prepared.schemaResetBackupName;
-    this.db = new DatabaseSync(this.dbPath);
-    this.db.exec("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;");
-    initializeSchema(this.db);
-    purgeExpiredProjectViews(this.db);
+    this.schemaMigrationBackupName = prepared.schemaMigrationBackupName;
+    const db = new DatabaseSync(this.dbPath);
+    try {
+      db.exec("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;");
+      if (prepared.schemaVersion !== void 0 && prepared.schemaVersion !== CURRENT_SCHEMA_VERSION) migrateSchema(db);
+      else initializeSchema(db);
+      purgeExpiredProjectViews(db);
+    } catch (error51) {
+      db.close();
+      throw error51;
+    }
+    this.db = db;
   }
   close() {
     this.db.close();
+  }
+  transaction(callback) {
+    return transaction(this.db, callback);
   }
   sessions = {
     appendEvent: (input) => appendProjectEvent(this.db, input),
@@ -126822,9 +127211,23 @@ var WorkspaceStore = class {
     rejectRun: (runId) => rejectLayoutRun(this.db, runId),
     revert: (projectId, viewId) => revertLayout(this.db, projectId, viewId)
   };
-  assets = { get: (assetId) => getAsset(this.db, assetId), byHash: (projectId, sha256) => getAssetByHash(this.db, projectId, sha256), read: (assetId, thumbnail = false) => readAsset(this.db, this.dataDir, assetId, thumbnail), importImage: (input) => importImageAsset(this.db, this.dataDir, input), saveTaskFile: (taskId, fileName, data) => saveTaskAsset(this.dataDir, taskId, fileName, data) };
+  assets = { get: (assetId) => getAsset(this.db, assetId), byHash: (projectId, sha2562) => getAssetByHash(this.db, projectId, sha2562), read: (assetId, thumbnail = false) => readAsset(this.db, this.dataDir, assetId, thumbnail), importImage: (input) => importImageAsset(this.db, this.dataDir, input), saveTaskFile: (taskId, fileName, data) => saveTaskAsset(this.dataDir, taskId, fileName, data) };
   tasks = { prepare: (input) => prepareAgentTask(this.db, input), prepareBound: (input) => prepareAgentTaskFromBoundCanvas(this.db, input), assertChat: (taskId, chatSessionKey, requireOnline = true) => assertTaskChat(this.db, taskId, chatSessionKey, requireOnline), assertCanvas: (taskId, chatSessionKey, requireOnline = false) => assertTaskCanvas(this.db, taskId, chatSessionKey, requireOnline), get: (taskId) => getAgentTask(this.db, taskId), listCanvas: (canvasSessionId, includeTerminal = false) => listCanvasTasks(this.db, canvasSessionId, includeTerminal), reapCanvas: (canvasSessionId) => reapExpiredCanvasTasks(this.db, canvasSessionId), listProject: (projectId, includeTerminal = false) => listProjectTasks(this.db, projectId, includeTerminal), update: (taskId, patch) => updateAgentTask(this.db, taskId, patch), confirmDispatch: (taskId, dispatchKey) => confirmAgentDispatch(this.db, taskId, dispatchKey), failDispatch: (taskId, dispatchKey, input) => failAgentDispatch(this.db, taskId, dispatchKey, input), continue: (input) => beginAgentContinuation(this.db, input), progress: (taskId, note) => reportTaskProgress(this.db, taskId, note) };
   artifacts = { publish: (input) => publishArtifact(this.db, input), get: (artifactId) => getArtifact(this.db, artifactId) };
+  browserSessions = {
+    get: (id) => getBrowserSession(this.db, id),
+    create: (input) => createBrowserSession(this.db, input),
+    rotateCredential: (input) => rotateBrowserCredential(this.db, input),
+    pairChat: (input) => pairBrowserChat(this.db, input),
+    writer: (projectId) => getProjectWriteLease(this.db, projectId),
+    claimWriter: (input) => claimProjectWriter(this.db, input),
+    expire: (id, at) => expireBrowserSession(this.db, id, at)
+  };
+  canvasMutations = {
+    get: (id) => getCanvasMutation(this.db, id),
+    apply: (input, applyState) => applyCanvasMutation(this.db, input, applyState),
+    revert: (input, applyInverse) => revertCanvasMutation(this.db, input, applyInverse)
+  };
 };
 
 // packages/mcp/src/widget.ts
@@ -126836,9 +127239,6 @@ function widgetRoot() {
 }
 function runtimeMode() {
   return process.env.WEAVER_RUNTIME_MODE === "development" ? "development" : "installed";
-}
-function shouldBlockWorkspaceBuildMismatch(mode, activeBuildId, workspaceBuildId) {
-  return mode === "development" && Boolean(workspaceBuildId && workspaceBuildId !== activeBuildId);
 }
 function contentType(path) {
   return extname(path) === ".css" ? "text/css; charset=utf-8" : "text/javascript; charset=utf-8";
@@ -126865,25 +127265,22 @@ function widgetDistMtimeMs(root = widgetRoot()) {
     return 0;
   }
 }
-function workspaceWidgetBuildId(workspaceDir) {
-  const index2 = resolve3(workspaceDir, "apps", "widget", "dist", "index.html");
-  if (!existsSync2(index2)) return void 0;
-  try {
-    return widgetBuildId(workspaceDir);
-  } catch {
-    return void 0;
-  }
-}
 function widgetBoot(bundle) {
   return `<script>window.__weaverEmbeddedBuildId=${JSON.stringify(bundle.buildId)};window.__weaverAssetFailure=function(){var e=document.getElementById('weaver-boot-error');if(e){e.hidden=false;e.style.display='grid'}};</script><div id="weaver-boot-error" hidden style="position:fixed;inset:0;z-index:9999;place-content:center;background:#eef1ea;color:#30362f;font:14px system-ui">Weaver \u8D44\u6E90\u52A0\u8F7D\u5931\u8D25\uFF0C\u8BF7\u91CD\u65B0\u6253\u5F00\u753B\u5E03\u3002</div>`;
 }
+function injectWidgetBoot(html, bundle) {
+  return html.replace(/<body(?:\s[^>]*)?>/i, (body) => `${body}${widgetBoot(bundle)}`);
+}
+function htmlSafeInlineModule(source) {
+  return source.replace(/<body>/gi, "\\x3cbody>").replace(/<\/body>/gi, "\\x3c/body>").replace(/<\/script/gi, "<\\/script");
+}
 function inlineWidgetHtml(bundle) {
   const assets = new Map(bundle.assets.map((asset) => [asset.path, asset]));
-  return bundle.html.replace(/<link[^>]+href="\.\/([^"?#]+\.css)"[^>]*>/g, (_match, path) => `<style>${assets.get(path)?.data.toString("utf8") ?? ""}</style>`).replace(/<script[^>]+src="\.\/([^"?#]+\.js)"[^>]*><\/script>/g, (_match, path) => `<script type="module">${(assets.get(path)?.data.toString("utf8") ?? "").replaceAll("</script>", "<\\/script>")}</script>`).replace("<body>", `<body>${widgetBoot(bundle)}`);
+  return injectWidgetBoot(bundle.html, bundle).replace(/<link[^>]+href="\.\/([^"?#]+\.css)"[^>]*>/g, (_match, path) => `<style>${assets.get(path)?.data.toString("utf8") ?? ""}</style>`).replace(/<script[^>]+src="\.\/([^"?#]+\.js)"[^>]*><\/script>/g, (_match, path) => `<script type="module">${htmlSafeInlineModule(assets.get(path)?.data.toString("utf8") ?? "")}</script>`);
 }
 function bundledWidgetHtml(assetBaseUrl, bundle) {
   const base = assetBaseUrl.endsWith("/") ? assetBaseUrl : `${assetBaseUrl}/`;
-  return bundle.html.replace(/href="\.\/([^"?#]+\.css)"/g, (_match, path) => `href="${base}${path}" onerror="window.__weaverAssetFailure()"`).replace(/src="\.\/([^"?#]+\.js)"/g, (_match, path) => `src="${base}${path}" onerror="window.__weaverAssetFailure()"`).replace("<body>", `<body>${widgetBoot(bundle)}`);
+  return injectWidgetBoot(bundle.html, bundle).replace(/href="\.\/([^"?#]+\.css)"/g, (_match, path) => `href="${base}${path}" onerror="window.__weaverAssetFailure()"`).replace(/src="\.\/([^"?#]+\.js)"/g, (_match, path) => `src="${base}${path}" onerror="window.__weaverAssetFailure()"`);
 }
 
 // packages/mcp/src/logger.ts
@@ -127290,7 +127687,8 @@ var SseEventHub = class {
   // others are followers that hand back the same URL and periodically try to take
   // over if the leader dies — so the URL never goes stale.
   deterministicPort() {
-    const h2 = createHash4("sha256").update(process.cwd()).digest();
+    const instance = process.env.WEAVER_PREVIEW_INSTANCE_ID;
+    const h2 = createHash4("sha256").update(instance ? `${process.cwd()}:${instance}` : process.cwd()).digest();
     return 2e4 + h2.readUInt32BE(0) % 4e4;
   }
   deterministicToken() {
@@ -127337,12 +127735,12 @@ var SseEventHub = class {
   async tryBind() {
     if (this.isLeader) return;
     try {
-      await new Promise((resolve5, reject) => {
+      await new Promise((resolve8, reject) => {
         const onError = (error51) => reject(error51);
         this.server.once("error", onError);
         this.server.listen(this.port, "127.0.0.1", () => {
           this.server.off("error", onError);
-          resolve5();
+          resolve8();
         });
       });
       this.isLeader = true;
@@ -127367,7 +127765,7 @@ var SseEventHub = class {
   async start() {
     if (this.port) return this.origin;
     if (process.env.VITEST) {
-      await new Promise((resolve5, reject) => {
+      await new Promise((resolve8, reject) => {
         this.server.once("error", reject);
         this.server.listen(0, "127.0.0.1", () => {
           this.server.off("error", reject);
@@ -127380,7 +127778,7 @@ var SseEventHub = class {
           }, 2e4);
           this.heartbeat.unref();
           this.startDistWatcher();
-          resolve5();
+          resolve8();
         });
       });
       return this.origin;
@@ -127447,7 +127845,7 @@ var SseEventHub = class {
     for (const timer2 of this.flushTimers.values()) clearTimeout(timer2);
     for (const watcher of this.watchers.values()) watcher.close();
     for (const client of this.clients) client.response.end();
-    await new Promise((resolve5) => this.server.close(() => resolve5()));
+    await new Promise((resolve8) => this.server.close(() => resolve8()));
     this.port = 0;
   }
   notifyWorkspace(workspaceDir) {
@@ -127685,7 +128083,7 @@ data: ${JSON.stringify({ code: "EVENT_REPLAY_FAILED", message: error51 instanceo
   }
 };
 
-// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/@modelcontextprotocol/ext-apps/dist/src/server/index.js
+// node_modules/@modelcontextprotocol/ext-apps/dist/src/server/index.js
 init_v4();
 var r = ((Z) => typeof __require < "u" ? __require : typeof Proxy < "u" ? new Proxy(Z, { get: ($, J) => (typeof __require < "u" ? __require : $)[J] }) : Z)(function(Z) {
   if (typeof __require < "u") return __require.apply(this, arguments);
@@ -127768,14 +128166,7 @@ var k = external_exports.object({ method: external_exports.literal("ui/notificat
 var jQ = external_exports.object({ method: external_exports.literal("ui/update-model-context"), params: external_exports.object({ content: external_exports.array(ContentBlockSchema).optional().describe("Context content blocks (text, image, etc.)."), structuredContent: external_exports.record(external_exports.string(), external_exports.unknown().describe("Structured content for machine-readable context data.")).optional().describe("Structured content for machine-readable context data.") }) });
 var FQ = external_exports.object({ method: external_exports.literal("ui/initialize"), params: external_exports.object({ appInfo: ImplementationSchema.describe("App identification (name and version)."), appCapabilities: h.describe("Features and capabilities this app provides."), protocolVersion: external_exports.string().describe("Protocol version this app supports.") }) });
 var M = external_exports.object({ protocolVersion: external_exports.string().describe('Negotiated protocol version string (e.g., "2025-11-21").'), hostInfo: ImplementationSchema.describe("Host application identification and version."), hostCapabilities: d.describe("Features and capabilities provided by the host."), hostContext: T.describe("Rich context about the host environment.") }).passthrough();
-var C = "ui/resourceUri";
 var p = "text/html;profile=mcp-app";
-function K3(Z, $, J, X) {
-  let V = J._meta, D = V.ui, L = V[C], W = V;
-  if (D?.resourceUri && !L) W = { ...V, [C]: D.resourceUri };
-  else if (L && !D?.resourceUri) W = { ...V, ui: { ...D, resourceUri: L } };
-  return Z.registerTool($, { ...J, _meta: W }, X);
-}
 function N3(Z, $, J, X, V) {
   return Z.registerResource($, J, { mimeType: p, ...X }, V);
 }
@@ -127947,16 +128338,6 @@ function validateVisualTemplateDefinition(template) {
   }
   return template;
 }
-function validateVisualTemplateForProject(template, scene, nodes) {
-  const compatible = template.compatibleScenePackIds.includes(scene.id);
-  const binding = template.sceneBindings[scene.id];
-  if (!compatible || !binding) return { compatible: false, ready: false, matchedNodeCount: 0, unmatchedNodeCount: nodes.length, missingRequiredFields: [], warnings: ["Template is not compatible with this Scene Pack."] };
-  const allowed = new Set(Object.values(binding.nodeRoles));
-  const active = nodes.filter((node) => !node.archived);
-  const matched = active.filter((node) => allowed.has(node.type));
-  const missingRequiredFields = Object.values(binding.fields).filter((field) => field.required).flatMap((field) => matched.filter((node) => node.properties[field.propertyKey] === void 0 || node.properties[field.propertyKey] === "").map((node) => ({ nodeId: node.id, nodeType: node.type, propertyKey: field.propertyKey })));
-  return { compatible: true, ready: missingRequiredFields.length === 0, matchedNodeCount: matched.length, unmatchedNodeCount: active.length - matched.length, missingRequiredFields, warnings: matched.length ? [] : ["No current nodes match this template; it remains available for a new project."] };
-}
 builtinVisualTemplates.forEach(validateVisualTemplateDefinition);
 function validateCatalog(scenePacks = builtinScenePacks, templates = builtinVisualTemplates) {
   const templateIds = new Set(templates.map((template) => template.id));
@@ -127977,52 +128358,348 @@ function track(workspaceDir, projectId) {
   workspaceByProject.set(projectId, workspaceDir);
 }
 
-// packages/mcp/src/shared/tool-runtime.ts
-function result(value, message = "OK") {
-  const structuredContent = Array.isArray(value) ? { items: value } : value;
-  return { content: [{ type: "text", text: message }], structuredContent };
+// packages/mcp/src/thread-context.ts
+import { createHash as createHash5 } from "node:crypto";
+function chatSessionKeyFromRequest(extra, required2 = true) {
+  if (previewHost()) return syntheticChatSessionKey();
+  const meta3 = typeof extra === "object" && extra && "_meta" in extra ? extra._meta : void 0;
+  const direct = typeof meta3?.threadId === "string" ? meta3.threadId : void 0;
+  const turnMetadata = meta3?.["x-codex-turn-metadata"];
+  const nested = typeof turnMetadata?.thread_id === "string" ? turnMetadata.thread_id : void 0;
+  if (direct && nested && direct !== nested) throw new Error("CODEX_THREAD_METADATA_MISMATCH");
+  const threadId = direct ?? nested;
+  if (threadId) return createHash5("sha256").update(`codex-thread:${threadId}`).digest("hex");
+  if (required2) throw new Error("CODEX_THREAD_CONTEXT_REQUIRED");
+  return void 0;
 }
-function failure(error51) {
-  const value = normalizeWeaverFailure(error51);
-  return { isError: true, content: [{ type: "text", text: value.message }], structuredContent: value };
+
+// packages/mcp/src/workspace-runtime.ts
+import { spawn } from "node:child_process";
+import { chmodSync as chmodSync4, copyFileSync, existsSync as existsSync6, mkdirSync as mkdirSync6, readFileSync as readFileSync6, renameSync as renameSync3, rmSync as rmSync5 } from "node:fs";
+import { createHash as createHash7, randomBytes as randomBytes3 } from "node:crypto";
+import { homedir as homedir2 } from "node:os";
+import { dirname as dirname2, join as join8, resolve as resolve6 } from "node:path";
+import { fileURLToPath } from "node:url";
+
+// packages/workspace-supervisor/src/supervisor.ts
+import { createHash as createHash6 } from "node:crypto";
+import { chmodSync as chmodSync3, closeSync, existsSync as existsSync4, mkdirSync as mkdirSync5, openSync, readFileSync as readFileSync4, realpathSync as realpathSync2, renameSync as renameSync2, rmSync as rmSync3, writeFileSync as writeFileSync5 } from "node:fs";
+import { join as join6, resolve as resolve4 } from "node:path";
+import { tmpdir } from "node:os";
+
+// packages/workspace-service/src/link-enrichment.ts
+var HTML_LIMIT = 2 * 1024 * 1024;
+var IMAGE_LIMIT = 5 * 1024 * 1024;
+
+// packages/workspace-service/src/operations/content-actions.ts
+import sharp2 from "sharp";
+
+// packages/layout-engine/src/engine.ts
+var import_elk_bundled = __toESM(require_elk_bundled(), 1);
+
+// packages/workspace-supervisor/src/supervisor.ts
+function workspaceKey(workspaceDir) {
+  const canonical = realpathSync2(resolve4(workspaceDir));
+  return createHash6("sha256").update(canonical).digest("hex");
 }
-var workspaceStores = /* @__PURE__ */ new Map();
-function getWorkspaceStore(workspaceDir) {
-  const key = workspaceDir;
-  const current = workspaceStores.get(key);
-  if (current) return current;
-  const store = new WorkspaceStore(workspaceDir);
-  workspaceStores.set(key, store);
-  return store;
+function runtimeControlSocketPath(runtimeRoot2, key) {
+  const name = `${key.slice(0, 24)}.sock`;
+  const preferred = join6(resolve4(runtimeRoot2), "sockets", name);
+  if (Buffer.byteLength(preferred) < 96) return preferred;
+  return join6(tmpdir(), `weaver-${typeof process.getuid === "function" ? process.getuid() : "user"}`, name);
 }
-function withStore(workspaceDir, callback) {
-  return callback(getWorkspaceStore(workspaceDir));
+
+// packages/workspace-supervisor/src/control-client.ts
+import { createConnection } from "node:net";
+function sendRuntimeControl(socketPath, request) {
+  const validated = runtimeControlRequestSchema.parse(request);
+  return new Promise((resolve8, reject) => {
+    const socket = createConnection(socketPath);
+    let data = "";
+    socket.setEncoding("utf8");
+    socket.on("connect", () => socket.write(`${JSON.stringify(validated)}
+`));
+    socket.on("data", (chunk) => {
+      data += chunk;
+      if (data.length > 1048576) {
+        socket.destroy();
+        reject(new Error("CONTROL_RESPONSE_TOO_LARGE"));
+      }
+    });
+    socket.on("error", reject);
+    socket.on("end", () => {
+      try {
+        const response = JSON.parse(data);
+        if (!response.ok) reject(new Error(response.error?.code ?? "CONTROL_REQUEST_FAILED"));
+        else resolve8(response.result);
+      } catch (error51) {
+        reject(error51);
+      }
+    });
+  });
 }
-function closeWorkspaceStores() {
-  for (const store of workspaceStores.values()) store.close();
-  workspaceStores.clear();
+
+// packages/mcp/src/runtime-cache.ts
+import { existsSync as existsSync5, lstatSync, readdirSync as readdirSync2, readFileSync as readFileSync5, rmSync as rmSync4, statSync as statSync3, utimesSync } from "node:fs";
+import { join as join7, resolve as resolve5 } from "node:path";
+var RUNTIME_CACHE_KEEP_UNREFERENCED = 2;
+var RUNTIME_CACHE_SOFT_CAP_BYTES = 1024 ** 3;
+function directoryBytes(directory) {
+  let total = 0;
+  for (const entry of readdirSync2(directory, { withFileTypes: true })) {
+    const path = join7(directory, entry.name);
+    if (entry.isSymbolicLink()) continue;
+    if (entry.isDirectory()) total += directoryBytes(path);
+    else if (entry.isFile()) total += statSync3(path).size;
+  }
+  return total;
 }
-function createMutateWithStore(eventHub2) {
-  return function mutateWithStore(workspaceDir, callback) {
-    const output = withStore(workspaceDir, callback);
-    eventHub2.notifyWorkspace(workspaceDir);
-    return output;
-  };
-}
-function defineTool(handler) {
-  return async (...args) => {
+function referencedBuilds(root) {
+  const referenced = /* @__PURE__ */ new Set();
+  const workspaces = join7(root, "workspaces");
+  if (!existsSync5(workspaces)) return referenced;
+  for (const entry of readdirSync2(workspaces, { withFileTypes: true })) {
+    if (!entry.isDirectory() || entry.isSymbolicLink()) continue;
+    const descriptor = join7(workspaces, entry.name, "runtime.json");
+    if (!existsSync5(descriptor)) continue;
     try {
-      return await handler(...args);
-    } catch (error51) {
-      return failure(error51);
+      const buildId = JSON.parse(readFileSync5(descriptor, "utf8")).buildId;
+      if (typeof buildId === "string" && buildId.length > 0) referenced.add(buildId);
+    } catch {
     }
+  }
+  return referenced;
+}
+function markRuntimeUsed(root, buildId) {
+  const directory = join7(resolve5(root), "runtimes", buildId);
+  if (!existsSync5(directory) || !lstatSync(directory).isDirectory() || lstatSync(directory).isSymbolicLink()) return;
+  const now3 = /* @__PURE__ */ new Date();
+  utimesSync(directory, now3, now3);
+}
+function cleanupRuntimeCache(root, options = {}) {
+  const canonicalRoot = resolve5(root);
+  const runtimes = join7(canonicalRoot, "runtimes");
+  const skippedEntries = [];
+  const entries = [];
+  if (existsSync5(runtimes)) {
+    for (const entry of readdirSync2(runtimes, { withFileTypes: true })) {
+      const directory = join7(runtimes, entry.name);
+      if (entry.name.startsWith(".") || !entry.isDirectory() || entry.isSymbolicLink()) {
+        skippedEntries.push(entry.name);
+        continue;
+      }
+      const stat = lstatSync(directory);
+      entries.push({ buildId: entry.name, directory, bytes: directoryBytes(directory), lastUsedMs: stat.mtimeMs });
+    }
+  }
+  const referenced = referencedBuilds(canonicalRoot);
+  const referencedEntries = entries.filter((entry) => referenced.has(entry.buildId));
+  const unreferenced = entries.filter((entry) => !referenced.has(entry.buildId)).sort((a2, b) => b.lastUsedMs - a2.lastUsedMs || a2.buildId.localeCompare(b.buildId));
+  const keepCount = Math.max(0, options.keepUnreferenced ?? RUNTIME_CACHE_KEEP_UNREFERENCED);
+  const keptUnreferenced = unreferenced.slice(0, keepCount);
+  const removable = unreferenced.slice(keepCount);
+  for (const entry of removable) rmSync4(entry.directory, { recursive: true, force: true });
+  const remainingBytes = [...referencedEntries, ...keptUnreferenced].reduce((sum, entry) => sum + entry.bytes, 0);
+  const softCapBytes = options.softCapBytes ?? RUNTIME_CACHE_SOFT_CAP_BYTES;
+  return {
+    removedBuildIds: removable.map((entry) => entry.buildId),
+    keptReferencedBuildIds: referencedEntries.map((entry) => entry.buildId).sort(),
+    keptUnreferencedBuildIds: keptUnreferenced.map((entry) => entry.buildId),
+    skippedEntries: skippedEntries.sort(),
+    remainingBytes,
+    softCapBytes,
+    overSoftCap: remainingBytes > softCapBytes
   };
+}
+
+// packages/mcp/src/workspace-runtime.ts
+var ownedTestProcesses = /* @__PURE__ */ new Set();
+var bridgeHeartbeats = /* @__PURE__ */ new Map();
+var sleep2 = (ms) => new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
+function bridgeHostLabel() {
+  return process.env.WEAVER_HOST_KIND === "claude" ? "Claude" : "Codex";
+}
+async function maintainBridgeHeartbeat(input, socketPath) {
+  await sendRuntimeControl(socketPath, { kind: "bridge_heartbeat", chatSessionKey: input.chatSessionKey, hostLabel: bridgeHostLabel() });
+  const key = `${resolve6(input.workspaceDir)}:${input.buildId}:${input.chatSessionKey}`;
+  if (bridgeHeartbeats.has(key)) return;
+  const timer2 = setInterval(() => {
+    void ensureWorkspaceRuntime(input.workspaceDir, input.buildId).then((runtime) => sendRuntimeControl(runtime.socketPath, { kind: "bridge_heartbeat", chatSessionKey: input.chatSessionKey, hostLabel: bridgeHostLabel() })).catch(() => void 0);
+  }, 5e3);
+  timer2.unref();
+  bridgeHeartbeats.set(key, timer2);
+}
+function runtimeRoot(workspaceDir) {
+  if (process.env.WEAVER_RUNTIME_ROOT) return resolve6(process.env.WEAVER_RUNTIME_ROOT);
+  if (process.env.VITEST) return join8(workspaceDir, ".weaver-test-runtime");
+  return join8(homedir2(), ".weaver");
+}
+function supervisorScript() {
+  const candidates = [
+    fileURLToPath(new URL("../scripts/start-workspace-supervisor.mjs", import.meta.url)),
+    fileURLToPath(new URL("../../../scripts/start-workspace-supervisor.mjs", import.meta.url))
+  ];
+  const candidate = candidates.find(existsSync6);
+  if (!candidate) throw new Error("SUPERVISOR_ENTRY_NOT_FOUND");
+  return candidate;
+}
+function sha256(path) {
+  return createHash7("sha256").update(readFileSync6(path)).digest("hex");
+}
+function releaseRoot() {
+  const current = dirname2(fileURLToPath(import.meta.url));
+  const candidates = [resolve6(current, ".."), resolve6(current, "../../..")];
+  return candidates.find((candidate) => existsSync6(join8(candidate, "runtime", "manifest.json")));
+}
+function verifyRuntime(directory, manifest) {
+  return Object.entries(manifest.files).every(([relative, digest]) => {
+    const path = join8(directory, relative);
+    return existsSync6(path) && sha256(path) === digest;
+  });
+}
+function installImmutableRuntime(root, buildId) {
+  const sourceRoot = releaseRoot();
+  if (!sourceRoot) return supervisorScript();
+  const manifest = JSON.parse(readFileSync6(join8(sourceRoot, "runtime", "manifest.json"), "utf8"));
+  if (manifest.buildId !== buildId) throw new Error(`BUILD_MISMATCH:${manifest.buildId}:${buildId}`);
+  const runtimes = join8(root, "runtimes");
+  const target = join8(runtimes, buildId);
+  if (existsSync6(target)) {
+    if (!verifyRuntime(target, manifest)) throw new Error("RUNTIME_CACHE_CORRUPT");
+    return join8(target, "runtime", "supervisor.mjs");
+  }
+  mkdirSync6(runtimes, { recursive: true, mode: 448 });
+  const temporary = join8(runtimes, `.${buildId}.${process.pid}.${randomBytes3(4).toString("hex")}.tmp`);
+  try {
+    for (const [relative, digest] of Object.entries(manifest.files)) {
+      const source = join8(sourceRoot, relative);
+      if (sha256(source) !== digest) throw new Error(`RUNTIME_SOURCE_CORRUPT:${relative}`);
+      const destination = join8(temporary, relative);
+      mkdirSync6(dirname2(destination), { recursive: true });
+      copyFileSync(source, destination);
+      if (sha256(destination) !== digest) throw new Error(`RUNTIME_COPY_CORRUPT:${relative}`);
+    }
+    chmodSync4(join8(temporary, "runtime", "supervisor.mjs"), 320);
+    try {
+      renameSync3(temporary, target);
+    } catch (error51) {
+      if (!existsSync6(target) || !verifyRuntime(target, manifest)) throw error51;
+      rmSync5(temporary, { recursive: true, force: true });
+    }
+  } catch (error51) {
+    rmSync5(temporary, { recursive: true, force: true });
+    throw error51;
+  }
+  return join8(target, "runtime", "supervisor.mjs");
+}
+async function connectExisting(workspaceDir, buildId) {
+  const root = runtimeRoot(workspaceDir);
+  const key = workspaceKey(workspaceDir);
+  const descriptorPath = join8(root, "workspaces", key, "runtime.json");
+  const descriptor = canvasRuntimeDescriptorSchema.parse(JSON.parse(readFileSync6(descriptorPath, "utf8")));
+  const socketPath = runtimeControlSocketPath(root, key);
+  await sendRuntimeControl(socketPath, { kind: "ensure_runtime", workspaceKey: key, requestedBuildId: buildId, protocolVersion: CANVAS_RUNTIME_PROTOCOL_VERSION });
+  return { root, key, descriptor, socketPath };
+}
+async function ensureWorkspaceRuntime(workspaceDir, buildId) {
+  const finish = (runtime) => {
+    markRuntimeUsed(runtime.root, buildId);
+    cleanupRuntimeCache(runtime.root);
+    return runtime;
+  };
+  try {
+    return finish(await connectExisting(workspaceDir, buildId));
+  } catch {
+  }
+  const root = runtimeRoot(workspaceDir);
+  const executable = installImmutableRuntime(root, buildId);
+  try {
+    return finish(await connectExisting(workspaceDir, buildId));
+  } catch {
+  }
+  const child = spawn(process.execPath, [executable, "--workspace", resolve6(workspaceDir), "--runtime-root", root, "--build-id", buildId], {
+    cwd: dirname2(executable),
+    detached: true,
+    stdio: "ignore"
+  });
+  child.unref();
+  if (process.env.VITEST && child.pid) ownedTestProcesses.add(child.pid);
+  let lastError;
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    try {
+      return finish(await connectExisting(workspaceDir, buildId));
+    } catch (error51) {
+      lastError = error51;
+      await sleep2(50);
+    }
+  }
+  throw new Error(`SERVICE_START_FAILED:${lastError instanceof Error ? lastError.message : String(lastError)}`);
+}
+async function createWorkspaceLaunch(input) {
+  const runtime = await ensureWorkspaceRuntime(input.workspaceDir, input.buildId);
+  await maintainBridgeHeartbeat(input, runtime.socketPath);
+  let requestedViewId;
+  if (input.projectId) {
+    const project = await sendRuntimeControl(runtime.socketPath, { kind: "dispatch_agent_operation", chatSessionKey: input.chatSessionKey, tool: "catalog.getProject", arguments: { projectId: input.projectId } });
+    requestedViewId = project.defaultViewId;
+  }
+  return await sendRuntimeControl(runtime.socketPath, { kind: "create_launch", chatSessionKey: input.chatSessionKey, projectId: input.projectId, requestedViewId });
+}
+async function openWorkspaceNativeBinding(input) {
+  const runtime = await ensureWorkspaceRuntime(input.workspaceDir, input.buildId);
+  await maintainBridgeHeartbeat(input, runtime.socketPath);
+  let viewId;
+  if (input.projectId) {
+    const project = await sendRuntimeControl(runtime.socketPath, { kind: "dispatch_agent_operation", chatSessionKey: input.chatSessionKey, tool: "catalog.getProject", arguments: { projectId: input.projectId } });
+    viewId = project.defaultViewId;
+  }
+  return await sendRuntimeControl(runtime.socketPath, {
+    kind: "dispatch_agent_operation",
+    chatSessionKey: input.chatSessionKey,
+    tool: "bridge.openNativeBinding",
+    arguments: { projectId: input.projectId, viewId }
+  });
+}
+async function recordWorkspaceSurfaceFallback(input) {
+  const runtime = await ensureWorkspaceRuntime(input.workspaceDir, input.buildId);
+  return await sendRuntimeControl(runtime.socketPath, { kind: "record_surface_fallback", code: input.code });
+}
+async function dispatchWorkspaceAgentOperation(input) {
+  const runtime = await ensureWorkspaceRuntime(input.workspaceDir, input.buildId);
+  await maintainBridgeHeartbeat(input, runtime.socketPath);
+  return await sendRuntimeControl(runtime.socketPath, {
+    kind: "dispatch_agent_operation",
+    chatSessionKey: input.chatSessionKey,
+    tool: input.operation,
+    arguments: input.arguments
+  });
+}
+async function readWorkspaceRuntimeDiagnostics(input) {
+  const runtime = await ensureWorkspaceRuntime(input.workspaceDir, input.buildId);
+  return await sendRuntimeControl(runtime.socketPath, { kind: "get_diagnostics", errorsOnly: input.errorsOnly, limit: input.limit });
+}
+async function clearWorkspaceRuntimeDiagnostics(input) {
+  const runtime = await ensureWorkspaceRuntime(input.workspaceDir, input.buildId);
+  return await sendRuntimeControl(runtime.socketPath, { kind: "clear_diagnostics" });
+}
+function closeOwnedTestRuntimes() {
+  for (const timer2 of bridgeHeartbeats.values()) clearInterval(timer2);
+  bridgeHeartbeats.clear();
+  if (!process.env.VITEST) return;
+  for (const pid of ownedTestProcesses) {
+    try {
+      process.kill(pid, "SIGTERM");
+    } catch {
+    }
+  }
+  ownedTestProcesses.clear();
 }
 
 // packages/mcp/src/resources.ts
 var LEGACY_WIDGET_URI = "ui://widget/weaver/workspace.html";
 function registerResources(server2, ctx) {
   const { eventHub: eventHub2, widgetUri } = ctx;
+  const read = (workspaceDir, arguments_, extra) => dispatchWorkspaceAgentOperation({ workspaceDir, buildId: widgetBuildId(), chatSessionKey: chatSessionKeyFromRequest(extra), operation: "resource.read", arguments: arguments_ });
   const widgetResourceOptions = {
     title: "Weaver Semantic Space",
     description: "A native semantic node canvas with natural-language layout tasks and deterministic previews.",
@@ -128047,261 +128724,122 @@ function registerResources(server2, ctx) {
     if (!item) throw new Error("VISUAL_TEMPLATE_NOT_FOUND");
     return { contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(item) }] };
   });
-  server2.registerResource("weaver-agent-task", new ResourceTemplate("weaver://agent-tasks/{taskId}", { list: void 0 }), { title: "Weaver Agent Task", description: "One persisted AgentTask. Call a task tool first so the server can resolve its workspace.", mimeType: "application/json" }, async (uri, variables) => {
+  server2.registerResource("weaver-agent-task", new ResourceTemplate("weaver://agent-tasks/{taskId}", { list: void 0 }), { title: "Weaver Agent Task", description: "One persisted AgentTask. Call a task tool first so the server can resolve its workspace.", mimeType: "application/json" }, async (uri, variables, extra) => {
     const taskId = String(variables.taskId);
     const workspaceDir = workspaceByTask.get(taskId);
     if (!workspaceDir) throw new Error("WORKSPACE_UNKNOWN_CALL_WEAVER_GET_AGENT_TASK_FIRST");
-    const task2 = withStore(workspaceDir, (store) => store.tasks.get(taskId));
-    if (!task2) throw new Error("AGENT_TASK_NOT_FOUND");
+    const task2 = await read(workspaceDir, { resource: "agent_task", taskId }, extra);
     return { contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(task2) }] };
   });
-  server2.registerResource("weaver-project-views", new ResourceTemplate("weaver://projects/{projectId}/views", { list: void 0 }), { title: "Weaver Project Views", description: "Durable saved View catalog records for a project, including recycle-bin state.", mimeType: "application/json" }, async (uri, variables) => {
+  server2.registerResource("weaver-project-views", new ResourceTemplate("weaver://projects/{projectId}/views", { list: void 0 }), { title: "Weaver Project Views", description: "Durable saved View catalog records for a project, including recycle-bin state.", mimeType: "application/json" }, async (uri, variables, extra) => {
     const projectId = String(variables.projectId);
     const workspaceDir = workspaceByProject.get(projectId);
     if (!workspaceDir) throw new Error("WORKSPACE_UNKNOWN_CALL_A_WEAVER_TOOL_FIRST");
-    const views = withStore(workspaceDir, (store) => store.catalog.listViews(projectId));
+    const views = await read(workspaceDir, { resource: "project_views", projectId }, extra);
     return { contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(views) }] };
   });
-  server2.registerResource("weaver-view-projection", new ResourceTemplate("weaver://projects/{projectId}/views/{viewId}/projection", { list: void 0 }), { title: "Weaver View Projection", description: "Projection and theme metadata for one visual view.", mimeType: "application/json" }, async (uri, variables) => {
+  server2.registerResource("weaver-view-projection", new ResourceTemplate("weaver://projects/{projectId}/views/{viewId}/projection", { list: void 0 }), { title: "Weaver View Projection", description: "Projection and theme metadata for one visual view.", mimeType: "application/json" }, async (uri, variables, extra) => {
     const projectId = String(variables.projectId);
     const workspaceDir = workspaceByProject.get(projectId);
     if (!workspaceDir) throw new Error("WORKSPACE_UNKNOWN_CALL_A_WEAVER_TOOL_FIRST");
-    const layout = withStore(workspaceDir, (store) => store.layoutReviews.get(projectId, String(variables.viewId)));
-    if (!layout) throw new Error("LAYOUT_NOT_FOUND");
-    return { contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify({ viewId: layout.viewId, viewName: layout.viewName, viewType: layout.viewType, templateRef: layout.templateRef, projection: layout.projection, theme: layout.theme }) }] };
-  });
-  server2.registerResource("weaver-project-manifest", new ResourceTemplate("weaver://projects/{projectId}/manifest", { list: void 0 }), { title: "Weaver Project Manifest", description: "Pinned project and scene rules.", mimeType: "application/json" }, async (uri, variables) => {
-    const projectId = String(variables.projectId);
-    const workspaceDir = workspaceByProject.get(projectId);
-    if (!workspaceDir) throw new Error("WORKSPACE_UNKNOWN_CALL_A_WEAVER_TOOL_FIRST");
-    const data = withStore(workspaceDir, (store) => {
-      const project = store.catalog.getProject(projectId);
-      if (!project) throw new Error("PROJECT_NOT_FOUND");
-      return { project, scenePack: getScenePack(project.scenePackId, project.scenePackVersion) };
-    });
+    const data = await read(workspaceDir, { resource: "view_projection", projectId, viewId: String(variables.viewId) }, extra);
     return { contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(data) }] };
   });
-  server2.registerResource("weaver-node-content", new ResourceTemplate("weaver://projects/{projectId}/nodes/{nodeId}/content", { list: void 0 }), { title: "Weaver Node Content", description: "Full content for one explicitly selected node.", mimeType: "application/json" }, async (uri, variables) => {
+  server2.registerResource("weaver-project-manifest", new ResourceTemplate("weaver://projects/{projectId}/manifest", { list: void 0 }), { title: "Weaver Project Manifest", description: "Pinned project and scene rules.", mimeType: "application/json" }, async (uri, variables, extra) => {
     const projectId = String(variables.projectId);
-    const nodeId = String(variables.nodeId);
     const workspaceDir = workspaceByProject.get(projectId);
     if (!workspaceDir) throw new Error("WORKSPACE_UNKNOWN_CALL_A_WEAVER_TOOL_FIRST");
-    const node = withStore(workspaceDir, (store) => store.graphChanges.read(projectId).nodes.find((candidate) => candidate.id === nodeId));
-    if (!node) throw new Error("NODE_NOT_FOUND");
+    const data = await read(workspaceDir, { resource: "project_manifest", projectId }, extra);
+    return { contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(data) }] };
+  });
+  server2.registerResource("weaver-node-content", new ResourceTemplate("weaver://projects/{projectId}/nodes/{nodeId}/content", { list: void 0 }), { title: "Weaver Node Content", description: "Full content for one explicitly selected node.", mimeType: "application/json" }, async (uri, variables, extra) => {
+    const projectId = String(variables.projectId);
+    const workspaceDir = workspaceByProject.get(projectId);
+    if (!workspaceDir) throw new Error("WORKSPACE_UNKNOWN_CALL_A_WEAVER_TOOL_FIRST");
+    const node = await read(workspaceDir, { resource: "node_content", projectId, nodeId: String(variables.nodeId) }, extra);
     return { contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(node) }] };
   });
-  server2.registerResource("weaver-image-asset", new ResourceTemplate("weaver://projects/{projectId}/assets/{assetId}", { list: void 0 }), { title: "Weaver Original Image", description: "Original image bytes for an explicitly requested asset.", mimeType: "application/octet-stream" }, async (uri, variables) => {
+  server2.registerResource("weaver-image-asset", new ResourceTemplate("weaver://projects/{projectId}/assets/{assetId}", { list: void 0 }), { title: "Weaver Original Image", description: "Original image bytes for an explicitly requested asset.", mimeType: "application/octet-stream" }, async (uri, variables, extra) => {
     const projectId = String(variables.projectId);
-    const assetId = String(variables.assetId);
     const workspaceDir = workspaceByProject.get(projectId);
     if (!workspaceDir) throw new Error("WORKSPACE_UNKNOWN_CALL_A_WEAVER_TOOL_FIRST");
-    const item = withStore(workspaceDir, (store) => store.assets.read(assetId, false));
-    if (item.asset.projectId !== projectId) throw new Error("ASSET_NOT_FOUND_OR_CROSS_PROJECT");
-    return { contents: [{ uri: uri.href, mimeType: item.asset.mimeType, blob: Buffer.from(item.data).toString("base64") }] };
+    const item = await read(workspaceDir, { resource: "image_asset", projectId, assetId: String(variables.assetId) }, extra);
+    return { contents: [{ uri: uri.href, mimeType: item.mimeType, blob: item.base64 }] };
   });
-  server2.registerResource("weaver-image-thumbnail", new ResourceTemplate("weaver://projects/{projectId}/assets/{assetId}/thumbnail", { list: void 0 }), { title: "Weaver Image Thumbnail", description: "Bounded WebP thumbnail for one image asset.", mimeType: "image/webp" }, async (uri, variables) => {
+  server2.registerResource("weaver-image-thumbnail", new ResourceTemplate("weaver://projects/{projectId}/assets/{assetId}/thumbnail", { list: void 0 }), { title: "Weaver Image Thumbnail", description: "Bounded WebP thumbnail for one image asset.", mimeType: "image/webp" }, async (uri, variables, extra) => {
     const projectId = String(variables.projectId);
-    const assetId = String(variables.assetId);
     const workspaceDir = workspaceByProject.get(projectId);
     if (!workspaceDir) throw new Error("WORKSPACE_UNKNOWN_CALL_A_WEAVER_TOOL_FIRST");
-    const item = withStore(workspaceDir, (store) => store.assets.read(assetId, true));
-    if (item.asset.projectId !== projectId) throw new Error("ASSET_NOT_FOUND_OR_CROSS_PROJECT");
-    return { contents: [{ uri: uri.href, mimeType: "image/webp", blob: Buffer.from(item.data).toString("base64") }] };
+    const item = await read(workspaceDir, { resource: "image_thumbnail", projectId, assetId: String(variables.assetId) }, extra);
+    return { contents: [{ uri: uri.href, mimeType: "image/webp", blob: item.base64 }] };
   });
 }
-
-// packages/mcp/src/tools/agent-tasks.ts
-import { randomUUID as randomUUID8 } from "node:crypto";
 
 // packages/mcp/src/shared/schemas.ts
 var workspaceSchema = external_exports.object({ workspaceDir: external_exports.string().min(1) });
 var projectSchema2 = workspaceSchema.extend({ projectId: external_exports.string().min(1) });
 
-// packages/mcp/src/thread-context.ts
-import { createHash as createHash5 } from "node:crypto";
-function chatSessionKeyFromRequest(extra, required2 = true) {
-  if (previewHost()) return syntheticChatSessionKey();
-  const meta4 = typeof extra === "object" && extra && "_meta" in extra ? extra._meta : void 0;
-  const direct = typeof meta4?.threadId === "string" ? meta4.threadId : void 0;
-  const turnMetadata = meta4?.["x-codex-turn-metadata"];
-  const nested = typeof turnMetadata?.thread_id === "string" ? turnMetadata.thread_id : void 0;
-  if (direct && nested && direct !== nested) throw new Error("CODEX_THREAD_METADATA_MISMATCH");
-  const threadId = direct ?? nested;
-  if (threadId) return createHash5("sha256").update(`codex-thread:${threadId}`).digest("hex");
-  if (required2) throw new Error("CODEX_THREAD_CONTEXT_REQUIRED");
-  return void 0;
+// packages/mcp/src/shared/tool-runtime.ts
+function result(value, message = "OK") {
+  const structuredContent = Array.isArray(value) ? { items: value } : value;
+  return { content: [{ type: "text", text: message }], structuredContent };
+}
+function failure(error51) {
+  const value = normalizeWeaverFailure(error51);
+  return { isError: true, content: [{ type: "text", text: value.message }], structuredContent: value };
+}
+function defineTool(handler) {
+  return async (...args) => {
+    try {
+      return await handler(...args);
+    } catch (error51) {
+      return failure(error51);
+    }
+  };
 }
 
 // packages/mcp/src/tools/agent-tasks.ts
-function registerAgentTasksTools(server2, { mutateWithStore }) {
+var dispatch2 = (workspaceDir, chatSessionKey, operation, arguments_) => dispatchWorkspaceAgentOperation({ workspaceDir, buildId: widgetBuildId(), chatSessionKey, operation, arguments: arguments_ });
+function registerAgentTasksTools(server2) {
   server2.registerTool("weaver_prepare_task", {
     title: "Prepare Task",
     description: "Capture the current online Canvas binding and dispatch one auditable AgentTask.",
     inputSchema: { ...workspaceSchema.shape, actionKey: external_exports.string().min(1), userInstruction: external_exports.string().optional(), dispatchKey: external_exports.string().optional() },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
   }, defineTool(async ({ workspaceDir, actionKey, userInstruction, dispatchKey }, extra) => {
-    const chatSessionKey = chatSessionKeyFromRequest(extra);
-    const key = dispatchKey ?? randomUUID8();
-    const task2 = mutateWithStore(workspaceDir, (store) => {
-      const prepared = store.tasks.prepareBound({ chatSessionKey, actionKey, userInstruction, dispatchKey: key });
-      return store.tasks.confirmDispatch(prepared.taskId, key);
-    });
+    const task2 = await dispatch2(workspaceDir, chatSessionKeyFromRequest(extra), "weaver_prepare_task", { actionKey, userInstruction, dispatchKey });
     workspaceByTask.set(task2.taskId, workspaceDir);
     return result(task2, "Prepared and dispatched task from active canvas.");
   }));
-  const shape = {
-    ...workspaceSchema.shape,
-    taskId: external_exports.string().min(1),
-    action: external_exports.enum(["start", "progress", "continue", "complete", "fail", "cancel"]),
-    note: external_exports.string().max(280).optional(),
-    message: external_exports.string().optional(),
-    dispatchKey: external_exports.string().optional(),
-    expectedTaskRevision: external_exports.number().int().nonnegative().optional()
-  };
+  const shape = { ...workspaceSchema.shape, taskId: external_exports.string().min(1), action: external_exports.enum(["start", "progress", "continue", "complete", "fail", "cancel"]), note: external_exports.string().max(280).optional(), message: external_exports.string().optional(), dispatchKey: external_exports.string().optional(), expectedTaskRevision: external_exports.number().int().nonnegative().optional() };
   server2.registerTool("weaver_task_action", {
     title: "Task Action",
     description: "Advance, heartbeat, continue, finish, fail, or cancel an auditable Weaver AgentTask.",
     inputSchema: shape,
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
   }, defineTool(async ({ workspaceDir, taskId, action, note, message, dispatchKey, expectedTaskRevision }, extra) => {
-    taskActionSchema.parse({ workspaceDir, taskId, action, note, message, dispatchKey, expectedTaskRevision });
-    const chatSessionKey = chatSessionKeyFromRequest(extra);
-    return result(mutateWithStore(workspaceDir, (store) => {
-      if (action === "cancel") {
-        const task2 = store.tasks.assertCanvas(taskId, chatSessionKey);
-        return ["completed", "stale", "failed", "cancelled"].includes(task2.status) ? task2 : store.tasks.update(taskId, { status: "cancelled" });
-      }
-      store.tasks.assertChat(taskId, chatSessionKey, action !== "fail");
-      if (action === "start") return store.tasks.update(taskId, { status: "running" });
-      if (action === "progress") {
-        if (!note) throw new Error("INVALID_ARGS:note required");
-        return store.tasks.progress(taskId, note);
-      }
-      if (action === "continue") {
-        if (!dispatchKey || expectedTaskRevision === void 0) throw new Error("INVALID_ARGS:dispatchKey and expectedTaskRevision required");
-        return store.tasks.continue({ taskId, dispatchKey, expectedTaskRevision });
-      }
-      if (action === "complete") return store.tasks.update(taskId, { status: "completed" });
-      return store.tasks.update(taskId, { status: "failed", error: { code: "TASK_FAILED", message: message ?? "Task failed" } });
-    }));
+    const args = { workspaceDir, taskId, action, note, message, dispatchKey, expectedTaskRevision };
+    taskActionSchema.parse(args);
+    workspaceByTask.set(taskId, workspaceDir);
+    return result(await dispatch2(workspaceDir, chatSessionKeyFromRequest(extra), "weaver_task_action", args));
   }));
 }
 
 // packages/mcp/src/tools/artifacts.ts
 function registerArtifactsTools(server2) {
-  server2.registerTool("weaver_publish_artifact", { title: "Publish Weaver Artifact", description: "Save a scene-declared artifact from selected nodes at an exact graph revision.", inputSchema: { ...projectSchema2.shape, artifactType: external_exports.string(), title: external_exports.string(), content: external_exports.any(), sourceNodeIds: external_exports.array(external_exports.string()), graphRevision: external_exports.number().int().nonnegative() }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false } }, defineTool(async ({ workspaceDir, projectId, artifactType, title, content, sourceNodeIds, graphRevision }) => {
-    const output = withStore(workspaceDir, (store) => store.artifacts.publish({ projectId, type: artifactType, title, content, sourceNodeIds, graphRevision }));
-    return result(output, `Published ${artifactType} artifact.`);
+  server2.registerTool("weaver_publish_artifact", {
+    title: "Publish Weaver Artifact",
+    description: "Save a scene-declared artifact from selected nodes at an exact graph revision.",
+    inputSchema: { ...projectSchema2.shape, artifactType: external_exports.string(), title: external_exports.string(), content: external_exports.any(), sourceNodeIds: external_exports.array(external_exports.string()), graphRevision: external_exports.number().int().nonnegative() },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
+  }, defineTool(async (args, extra) => {
+    const output = await dispatchWorkspaceAgentOperation({ workspaceDir: args.workspaceDir, buildId: widgetBuildId(), chatSessionKey: chatSessionKeyFromRequest(extra), operation: "weaver_publish_artifact", arguments: args });
+    return result(output, `Published ${args.artifactType} artifact.`);
   }));
 }
 
-// packages/mcp/src/link-enrichment.ts
-import { lookup } from "node:dns/promises";
-import { isIP } from "node:net";
-var HTML_LIMIT = 2 * 1024 * 1024;
-var IMAGE_LIMIT = 5 * 1024 * 1024;
-var ALLOWED_IMAGE_TYPES = /* @__PURE__ */ new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
-function privateAddress(address) {
-  if (address === "::1" || address === "::" || address.startsWith("fc") || address.startsWith("fd") || address.startsWith("fe80:")) return true;
-  if (address.startsWith("::ffff:")) return privateAddress(address.slice(7));
-  if (isIP(address) !== 4) return false;
-  const [a2, b] = address.split(".").map(Number);
-  return a2 === 10 || a2 === 127 || a2 === 0 || a2 === 169 && b === 254 || a2 === 172 && b >= 16 && b <= 31 || a2 === 192 && b === 168 || a2 === 100 && b >= 64 && b <= 127 || a2 >= 224;
-}
-async function assertPublicUrl(rawUrl, lookupImpl) {
-  const url2 = new URL(rawUrl);
-  if (!["http:", "https:"].includes(url2.protocol)) throw new Error("LINK_PROTOCOL_BLOCKED:Use a public HTTP or HTTPS URL");
-  if (url2.username || url2.password) throw new Error("LINK_CREDENTIALS_BLOCKED:URLs with credentials are not allowed");
-  const hostname3 = url2.hostname.toLowerCase();
-  if (hostname3 === "localhost" || hostname3.endsWith(".localhost") || hostname3.endsWith(".local")) throw new Error("LINK_PRIVATE_HOST_BLOCKED");
-  const addresses = isIP(hostname3) ? [{ address: hostname3, family: isIP(hostname3) }] : await lookupImpl(hostname3);
-  if (!addresses.length || addresses.some((entry) => privateAddress(entry.address))) throw new Error("LINK_PRIVATE_HOST_BLOCKED");
-  return url2;
-}
-async function readLimited(response, limit) {
-  const declared = Number(response.headers.get("content-length") ?? 0);
-  if (declared > limit) throw new Error("LINK_RESPONSE_TOO_LARGE");
-  if (!response.body) return new Uint8Array();
-  const reader = response.body.getReader();
-  const chunks = [];
-  let size = 0;
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    size += value.byteLength;
-    if (size > limit) {
-      await reader.cancel();
-      throw new Error("LINK_RESPONSE_TOO_LARGE");
-    }
-    chunks.push(value);
-  }
-  const output = new Uint8Array(size);
-  let offset = 0;
-  for (const chunk of chunks) {
-    output.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return output;
-}
-async function safeFetch(rawUrl, limit, dependencies) {
-  let url2 = await assertPublicUrl(rawUrl, dependencies.lookupImpl);
-  for (let redirects = 0; redirects <= 3; redirects += 1) {
-    const response = await dependencies.fetchImpl(url2, { redirect: "manual", signal: AbortSignal.timeout(5e3), headers: { "user-agent": "Weaver-Link-Preview/1.0", accept: "text/html,image/*;q=0.8" } });
-    if ([301, 302, 303, 307, 308].includes(response.status)) {
-      if (redirects === 3) throw new Error("LINK_REDIRECT_LIMIT");
-      const location = response.headers.get("location");
-      if (!location) throw new Error("LINK_REDIRECT_WITHOUT_LOCATION");
-      url2 = await assertPublicUrl(new URL(location, url2).href, dependencies.lookupImpl);
-      continue;
-    }
-    if (!response.ok) throw new Error(`LINK_FETCH_FAILED:HTTP ${response.status}`);
-    return { response, data: await readLimited(response, limit), finalUrl: url2 };
-  }
-  throw new Error("LINK_REDIRECT_LIMIT");
-}
-function decode3(value) {
-  return value.replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/\s+/g, " ").trim();
-}
-function meta3(html, keys) {
-  for (const key of keys) {
-    const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const patterns = [
-      new RegExp(`<meta[^>]+(?:property|name)=["']${escaped}["'][^>]+content=["']([^"']*)["'][^>]*>`, "i"),
-      new RegExp(`<meta[^>]+content=["']([^"']*)["'][^>]+(?:property|name)=["']${escaped}["'][^>]*>`, "i")
-    ];
-    for (const pattern of patterns) {
-      const match = html.match(pattern);
-      if (match) return decode3(match[1]);
-    }
-  }
-  return "";
-}
-async function enrichPublicLink(rawUrl, dependencies = {}) {
-  const deps = {
-    fetchImpl: dependencies.fetchImpl ?? fetch,
-    lookupImpl: dependencies.lookupImpl ?? (async (hostname3) => lookup(hostname3, { all: true }))
-  };
-  const page = await safeFetch(rawUrl, HTML_LIMIT, deps);
-  const contentType2 = page.response.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase();
-  if (contentType2 !== "text/html" && contentType2 !== "application/xhtml+xml") throw new Error("LINK_CONTENT_TYPE_UNSUPPORTED:Expected an HTML page");
-  const html = new TextDecoder().decode(page.data);
-  const title = meta3(html, ["og:title", "twitter:title"]) || decode3(html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? "");
-  const description = meta3(html, ["og:description", "twitter:description", "description"]).slice(0, 500);
-  const imageUrl = meta3(html, ["og:image:secure_url", "og:image", "twitter:image"]);
-  let image;
-  if (imageUrl) {
-    try {
-      const cover = await safeFetch(new URL(imageUrl, page.finalUrl).href, IMAGE_LIMIT, deps);
-      const mimeType = cover.response.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase();
-      if (mimeType && ALLOWED_IMAGE_TYPES.has(mimeType)) image = { data: cover.data, mimeType };
-    } catch {
-    }
-  }
-  return { url: page.finalUrl.href, title, description, domain: page.finalUrl.hostname, image };
-}
-
 // packages/mcp/src/tools/canvas-action.ts
-function registerCanvasActionTool(server2, { mutateWithStore }) {
+function registerCanvasActionTool(server2) {
   const shape = {
     ...workspaceSchema.shape,
     action: external_exports.enum(["claim", "sync", "switch", "create_node", "update_node", "archive_node", "attach_asset", "enrich_link", "link_nodes", "layout_operations", "revert_layout"]),
@@ -128334,63 +128872,29 @@ function registerCanvasActionTool(server2, { mutateWithStore }) {
     _meta: { ui: { visibility: ["app"] } }
   }, defineTool(async (args, extra) => {
     canvasActionSchema.parse(args);
-    const chatSessionKey = chatSessionKeyFromRequest(extra);
-    const required2 = (value, name) => {
-      if (value === void 0 || value === "") throw new Error(`INVALID_ARGS:${name} required`);
-      return value;
-    };
-    if (args.action === "enrich_link") {
-      const projectId = required2(args.projectId, "projectId");
-      const nodeId = required2(args.nodeId, "nodeId");
-      const baseGraphRevision = required2(args.baseGraphRevision, "baseGraphRevision");
-      const store = getWorkspaceStore(args.workspaceDir);
-      const graph = store.graphChanges.read(projectId);
-      if (graph.revision !== baseGraphRevision) throw new Error("GRAPH_REVISION_CONFLICT");
-      const node = graph.nodes.find((candidate) => candidate.id === nodeId);
-      if (!node || node.content.kind !== "link") throw new Error("NODE_NOT_FOUND");
-      const enriched = await enrichPublicLink(node.content.url);
-      let imageAssetId;
-      if (enriched.image) imageAssetId = (await store.assets.importImage({ projectId, mimeType: enriched.image.mimeType, data: enriched.image.data })).asset.id;
-      return result(store.graphChanges.updateNode({ projectId, nodeId, baseGraphRevision, title: enriched.title || node.title, content: { kind: "link", url: enriched.url, title: enriched.title || node.title, description: enriched.description, domain: enriched.domain, imageAssetId, enrichmentStatus: "ready" } }));
-    }
-    return result(mutateWithStore(args.workspaceDir, (store) => {
-      if (args.action === "claim" || args.action === "sync") return store.sessions.syncCanvas(canvasContextSnapshotSchema.parse({ ...required2(args.snapshot, "snapshot"), syncPurpose: args.action === "claim" ? "claim" : "state" }), chatSessionKey);
-      if (args.action === "switch") return store.sessions.switchBinding({ chatSessionKey, leaseId: required2(args.leaseId, "leaseId"), bindingRevision: required2(args.bindingRevision, "bindingRevision"), projectId: required2(args.projectId, "projectId"), viewId: required2(args.viewId, "viewId") });
-      const projectId = required2(args.projectId, "projectId");
-      if (args.action === "create_node") return store.graphChanges.createNode({ projectId, viewId: required2(args.viewId, "viewId"), type: required2(args.semanticType, "semanticType"), title: required2(args.title, "title"), content: nodeContentSchema.parse(args.content), x: args.x ?? 0, y: args.y ?? 0 });
-      if (args.action === "update_node") return store.graphChanges.updateNode({ projectId, nodeId: required2(args.nodeId, "nodeId"), baseGraphRevision: required2(args.baseGraphRevision, "baseGraphRevision"), title: args.title, type: args.semanticType, content: args.content ? nodeContentSchema.parse(args.content) : void 0 });
-      if (args.action === "archive_node") return store.graphChanges.archiveNode({ projectId, nodeId: required2(args.nodeId, "nodeId"), baseGraphRevision: required2(args.baseGraphRevision, "baseGraphRevision") });
-      if (args.action === "link_nodes") return store.graphChanges.linkNodes({ projectId, sourceNodeId: required2(args.sourceNodeId, "sourceNodeId"), targetNodeId: required2(args.targetNodeId, "targetNodeId"), type: required2(args.edgeType, "edgeType"), baseGraphRevision: required2(args.baseGraphRevision, "baseGraphRevision"), directed: args.directed });
-      if (args.action === "attach_asset") return store.graphChanges.attachAsset({ projectId, nodeId: required2(args.nodeId, "nodeId"), assetId: required2(args.assetId, "assetId"), role: required2(args.role, "role"), baseGraphRevision: required2(args.baseGraphRevision, "baseGraphRevision") });
-      const viewId = required2(args.viewId, "viewId");
-      if (args.action === "revert_layout") return store.layoutReviews.revert(projectId, viewId);
-      const current = store.layoutReviews.get(projectId, viewId);
-      if (!current) throw new Error("LAYOUT_NOT_FOUND");
-      if (current.layoutRevision !== required2(args.baseLayoutRevision, "baseLayoutRevision")) throw new Error("LAYOUT_REVISION_CONFLICT");
-      return store.layoutReviews.save(applyLayoutOperations(current, required2(args.operations, "operations")), true, { operations: args.operations });
-    }));
+    const output = await dispatchWorkspaceAgentOperation({
+      workspaceDir: args.workspaceDir,
+      buildId: widgetBuildId(),
+      chatSessionKey: chatSessionKeyFromRequest(extra),
+      operation: "weaver_canvas_action",
+      arguments: args
+    });
+    if (args.projectId) track(args.workspaceDir, args.projectId);
+    return result(output);
   }));
 }
 
 // packages/mcp/src/tools/changesets.ts
-function registerChangesetsTools(server2, { mutateWithStore }) {
+function registerChangesetsTools(server2) {
   server2.registerTool("weaver_submit_changeset", {
     title: "Submit ChangeSet",
     description: "Submit semantic Graph operations. By default they apply IMMEDIATELY (direct-write: the record is kept and revertible via weaver_review_action revert); only projects set to automationLevel 'cautious' hold them for manual review. `changeSet` is a full ChangeSet object { id, taskId, projectId, baseGraphRevision, baseLayoutRevisions, graphOperations[], layoutOperations[], rationale, riskLevel, status } \u2014 validated server-side.",
-    // `changeSet` is advertised as a loose object, not the full changeSetSchema: the
-    // ChangeSet's fully-expanded JSON schema (nested graph+layout operation unions)
-    // is so large that Codex drops this tool from the model's tool surface entirely.
-    // The handler still enforces the exact schema via changeSetSchema.parse below, so
-    // no validation is lost — only the oversized advertised schema.
     inputSchema: { ...workspaceSchema.shape, changeSet: external_exports.unknown() },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }
   }, defineTool(async ({ workspaceDir, changeSet }, extra) => {
-    const chatSessionKey = chatSessionKeyFromRequest(extra);
-    const validated = changeSetSchema.parse(changeSet);
-    return result(mutateWithStore(workspaceDir, (store) => {
-      store.tasks.assertChat(validated.taskId, chatSessionKey);
-      return store.graphChanges.submit(validated);
-    }), "Submitted ChangeSet.");
+    changeSetSchema.parse(changeSet);
+    const output = await dispatchWorkspaceAgentOperation({ workspaceDir, buildId: widgetBuildId(), chatSessionKey: chatSessionKeyFromRequest(extra), operation: "weaver_submit_changeset", arguments: { changeSet } });
+    return result(output, "Submitted ChangeSet.");
   }));
 }
 
@@ -128399,28 +128903,6 @@ function parseRefined(schema, rawArgs) {
   const parsed = schema.safeParse(rawArgs);
   if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "INVALID_ARGS");
   return parsed.data;
-}
-
-// packages/mcp/src/shared/import-asset.ts
-import sharp2 from "sharp";
-async function importImageBytes(args) {
-  const store = new WorkspaceStore(args.workspaceDir);
-  try {
-    const output = await store.assets.importImage({ projectId: args.projectId, mimeType: args.mimeType, data: Buffer.from(args.base64, "base64") });
-    return result({ assetId: output.asset.id, width: output.asset.width, height: output.asset.height, deduplicated: output.deduplicated }, output.deduplicated ? "Reused existing image asset." : "Imported image asset.");
-  } finally {
-    store.close();
-  }
-}
-async function importSvgImage(args) {
-  const png = await sharp2(Buffer.from(args.svg), { density: Math.round(96 * args.scale) }).png().toBuffer();
-  const store = new WorkspaceStore(args.workspaceDir);
-  try {
-    const output = await store.assets.importImage({ projectId: args.projectId, mimeType: "image/png", data: png });
-    return result({ assetId: output.asset.id, width: output.asset.width, height: output.asset.height }, "Rendered SVG to image asset.");
-  } finally {
-    store.close();
-  }
 }
 
 // packages/mcp/src/tools/import-asset.ts
@@ -128453,353 +128935,30 @@ function registerImportAssetTool(server2) {
     // bytes/SVG → same assetId, no new asset), matching what weaver_ingest_image
     // and weaver_render_svg_image both declared.
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }
-  }, defineTool(async (rawArgs) => {
+  }, defineTool(async (rawArgs, extra) => {
     const args = parseRefined(importAssetSchema, rawArgs);
-    if (args.source === "bytes") {
-      return importImageBytes({ workspaceDir: args.workspaceDir, projectId: args.projectId, mimeType: args.mimeType, base64: args.base64 });
-    }
-    return importSvgImage({ workspaceDir: args.workspaceDir, projectId: args.projectId, svg: args.svg, scale: args.scale });
+    const output = await dispatchWorkspaceAgentOperation({ workspaceDir: args.workspaceDir, buildId: widgetBuildId(), chatSessionKey: chatSessionKeyFromRequest(extra), operation: "weaver_import_asset", arguments: args });
+    const deduplicated = output.deduplicated;
+    return result(output, args.source === "svg" ? "Rendered SVG to image asset." : deduplicated ? "Reused existing image asset." : "Imported image asset.");
   }));
 }
 
 // packages/mcp/src/tools/layout.ts
-import { randomUUID as randomUUID9 } from "node:crypto";
-
-// packages/layout-engine/src/engine.ts
-import { createHash as createHash6 } from "node:crypto";
-var import_elk_bundled = __toESM(require_elk_bundled(), 1);
-
-// packages/layout-engine/src/score.ts
-function overlap(a2, b) {
-  const width = Math.max(0, Math.min(a2.x + a2.width, b.x + b.width) - Math.max(a2.x, b.x));
-  const height = Math.max(0, Math.min(a2.y + a2.height, b.y + b.height) - Math.max(a2.y, b.y));
-  return width * height;
-}
-function orientation(a2, b, c2) {
-  return Math.sign((b.y - a2.y) * (c2.x - b.x) - (b.x - a2.x) * (c2.y - b.y));
-}
-function intersects(a2, b, c2, d2) {
-  return orientation(a2, b, c2) !== orientation(a2, b, d2) && orientation(c2, d2, a2) !== orientation(c2, d2, b);
-}
-var OVERLAP_MULT = 50;
-var CROSSINGS_MULT = 4.5;
-var DISPLACEMENT_MULT = 5e-3;
-var COMPACTNESS_MULT = 80;
-var EDGE_LENGTH_MULT = 2e-3;
-var CLUSTER_SEP_MULT = 40;
-var DIRECTION_MULT = 20;
-var DEFAULT_WEIGHTS = { overlap: 10, crossings: 4, displacement: 2, compactness: 1 };
-var INTER_GAP_TARGET = 180;
-function clusterSeparation(document2) {
-  const groups = Object.values(document2.groups);
-  if (groups.length < 2) return 0;
-  let minGap = Infinity;
-  for (let i = 0; i < groups.length; i += 1) {
-    for (let j2 = i + 1; j2 < groups.length; j2 += 1) {
-      const a2 = groups[i];
-      const b = groups[j2];
-      const gapX = Math.max(a2.x - (b.x + b.width), b.x - (a2.x + a2.width));
-      const gapY = Math.max(a2.y - (b.y + b.height), b.y - (a2.y + a2.height));
-      const gap = Math.max(gapX, gapY);
-      minGap = Math.min(minGap, gap);
-    }
-  }
-  if (!Number.isFinite(minGap)) return 0;
-  return Math.max(0, Math.min(1, minGap / INTER_GAP_TARGET));
-}
-var DIRECTION_AXIS = {
-  "left-right": { axis: "x", sign: 1 },
-  "right-left": { axis: "x", sign: -1 },
-  "top-bottom": { axis: "y", sign: 1 },
-  "bottom-top": { axis: "y", sign: -1 }
-};
-function directionFlow(document2, edges, direction) {
-  if (!direction) return 0;
-  const { axis, sign } = DIRECTION_AXIS[direction];
-  const directed = edges.filter((edge) => !edge.archived && edge.directed);
-  if (!directed.length) return 0;
-  let aligned = 0;
-  for (const edge of directed) {
-    const source = document2.nodes[edge.sourceNodeId];
-    const target = document2.nodes[edge.targetNodeId];
-    if (!source || !target) continue;
-    const delta = axis === "x" ? target.x - source.x : target.y - source.y;
-    if (delta * sign > 0) aligned += 1;
-  }
-  return aligned / directed.length;
-}
-function scoreLayout(document2, edges, previous, options = {}) {
-  const weights = { ...DEFAULT_WEIGHTS, ...options.weights };
-  const nodes = Object.values(document2.nodes).filter((node) => !node.hidden);
-  let overlapCount = 0;
-  let overlapArea2 = 0;
-  let pinnedNodeMoves = 0;
-  let displacement = 0;
-  for (let index2 = 0; index2 < nodes.length; index2 += 1) {
-    for (let other = index2 + 1; other < nodes.length; other += 1) {
-      const area2 = overlap(nodes[index2], nodes[other]);
-      if (area2 > 0) {
-        overlapCount += 1;
-        overlapArea2 += area2;
-      }
-    }
-    const before = previous?.nodes[nodes[index2].nodeId];
-    if (before) {
-      const distance = Math.hypot(nodes[index2].x - before.x, nodes[index2].y - before.y);
-      displacement += distance;
-      if (before.pinned && distance > 0.01) pinnedNodeMoves += 1;
-    }
-  }
-  const segments = edges.filter((edge) => !edge.archived).map((edge) => {
-    const source = document2.nodes[edge.sourceNodeId];
-    const target = document2.nodes[edge.targetNodeId];
-    if (!source || !target) return null;
-    return {
-      edge,
-      a: { x: source.x + source.width / 2, y: source.y + source.height / 2 },
-      b: { x: target.x + target.width / 2, y: target.y + target.height / 2 }
-    };
-  }).filter((item) => Boolean(item));
-  let edgeCrossings = 0;
-  let edgeLength = 0;
-  for (let index2 = 0; index2 < segments.length; index2 += 1) {
-    edgeLength += Math.hypot(segments[index2].a.x - segments[index2].b.x, segments[index2].a.y - segments[index2].b.y);
-    for (let other = index2 + 1; other < segments.length; other += 1) {
-      const left = segments[index2].edge;
-      const right = segments[other].edge;
-      if ([left.sourceNodeId, left.targetNodeId].some((id) => id === right.sourceNodeId || id === right.targetNodeId)) continue;
-      if (intersects(segments[index2].a, segments[index2].b, segments[other].a, segments[other].b)) edgeCrossings += 1;
-    }
-  }
-  const bounds = document2.bounds;
-  const area = Math.max(1, bounds.width * bounds.height);
-  const occupied = nodes.reduce((sum, node) => sum + node.width * node.height, 0);
-  const compactness = occupied / area;
-  const separation = clusterSeparation(document2);
-  const flow = directionFlow(document2, edges, options.direction);
-  const hardViolations = [];
-  if (overlapCount) hardViolations.push(`NODE_OVERLAP:${overlapCount}`);
-  if (pinnedNodeMoves) hardViolations.push(`PINNED_NODE_MOVED:${pinnedNodeMoves}`);
-  const score = 1e3 - overlapCount * (OVERLAP_MULT * weights.overlap) - edgeCrossings * (CROSSINGS_MULT * weights.crossings) - edgeLength * EDGE_LENGTH_MULT - displacement * (DISPLACEMENT_MULT * weights.displacement) + compactness * (COMPACTNESS_MULT * weights.compactness) + separation * (CLUSTER_SEP_MULT * (weights.clusterSeparation ?? 1)) + flow * (DIRECTION_MULT * (weights.direction ?? 0));
-  return { overlapCount, overlapArea: overlapArea2, edgeCrossings, edgeLength, pinnedNodeMoves, displacement, compactness, clusterSeparation: separation, directionFlow: flow, hardViolations, score };
-}
-
-// packages/layout-engine/src/engine.ts
-var SEMANTIC_STRATEGIES = /* @__PURE__ */ new Set(["cluster", "hybrid"]);
-var CLUSTER_VARIANTS = [
-  { label: "\u8BED\u4E49\u805A\u7C7B", micro: "radial", macro: "force", density: 1 },
-  { label: "\u5206\u533A\u77E9\u9635", micro: "rows", macro: "force", density: 1 },
-  { label: "\u7D27\u51D1\u7F51\u683C", micro: "rows", macro: "grid", density: 0.85 },
-  { label: "\u8BED\u4E49\u805A\u7C7B \xB7 \u5BBD\u677E", micro: "radial", macro: "force", density: 1.3 },
-  { label: "\u8BED\u4E49\u805A\u7C7B \xB7 \u7D27\u51D1", micro: "radial", macro: "force", density: 0.75 }
-];
-function seededRandom(seed) {
-  let state = Number.parseInt(createHash6("sha256").update(seed).digest("hex").slice(0, 8), 16) || 1;
-  return () => {
-    state = state * 1664525 + 1013904223 >>> 0;
-    return state / 4294967296;
-  };
-}
-function scopeIds(input) {
-  if (input.plan.scope.type === "whole-view") return new Set(input.nodes.map((node) => node.id));
-  if (input.plan.scope.type === "selection") return new Set(input.plan.scope.nodeIds);
-  const result2 = new Set(input.plan.scope.nodeIds);
-  let frontier = [...result2];
-  for (let hop = 0; hop < input.plan.scope.hops; hop += 1) {
-    const next = [];
-    for (const edge of input.edges) {
-      if (frontier.includes(edge.sourceNodeId)) next.push(edge.targetNodeId);
-      if (frontier.includes(edge.targetNodeId)) next.push(edge.sourceNodeId);
-    }
-    next.forEach((id) => result2.add(id));
-    frontier = next;
-  }
-  return result2;
-}
-function cloneDocument(input) {
-  const document2 = structuredClone(input.current);
-  document2.strategy = input.plan.strategy;
-  document2.config.direction = input.plan.direction ?? document2.config.direction;
-  document2.createdBy = "layout-engine";
-  document2.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
-  for (const node of input.nodes) {
-    if (!document2.nodes[node.id]) document2.nodes[node.id] = { nodeId: node.id, x: 0, y: 0, width: 220, height: 112, rotation: 0, zIndex: 0, pinned: false, hidden: false, collapsed: false };
-  }
-  return document2;
-}
-function updateBounds(document2) {
-  const nodes = Object.values(document2.nodes).filter((node) => !node.hidden);
-  if (!nodes.length) {
-    document2.bounds = { x: 0, y: 0, width: 0, height: 0 };
-    return;
-  }
-  const minX = Math.min(...nodes.map((node) => node.x));
-  const minY = Math.min(...nodes.map((node) => node.y));
-  const maxX = Math.max(...nodes.map((node) => node.x + node.width));
-  const maxY = Math.max(...nodes.map((node) => node.y + node.height));
-  document2.bounds = { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
-}
-function routeEdges(document2, edges, orthogonal, clusterOf) {
-  for (const edge of edges) {
-    const source = document2.nodes[edge.sourceNodeId];
-    const target = document2.nodes[edge.targetNodeId];
-    if (!source || !target) continue;
-    const a2 = { x: source.x + source.width / 2, y: source.y + source.height / 2 };
-    const b = { x: target.x + target.width / 2, y: target.y + target.height / 2 };
-    const crossCluster = clusterOf ? clusterOf.get(edge.sourceNodeId) !== clusterOf.get(edge.targetNodeId) : false;
-    const useOrthogonal = clusterOf ? crossCluster : orthogonal;
-    document2.edges[edge.id] = {
-      edgeId: edge.id,
-      routing: useOrthogonal ? "orthogonal" : "bezier",
-      waypoints: useOrthogonal ? [a2, { x: (a2.x + b.x) / 2, y: a2.y }, { x: (a2.x + b.x) / 2, y: b.y }, b] : [a2, b],
-      hidden: false
-    };
-  }
-}
-async function elkLayout(input, document2, spacing) {
-  const ids = scopeIds(input);
-  const selected = input.nodes.filter((node) => ids.has(node.id) && !document2.nodes[node.id].pinned);
-  const elk = new import_elk_bundled.default();
-  const direction = document2.config.direction.includes("right") ? "LEFT" : document2.config.direction.includes("left") ? "RIGHT" : document2.config.direction.includes("bottom") ? "UP" : "DOWN";
-  const graph = await elk.layout({
-    id: "root",
-    layoutOptions: {
-      "elk.algorithm": "layered",
-      "elk.direction": direction,
-      "elk.spacing.nodeNode": String(spacing),
-      "elk.layered.spacing.nodeNodeBetweenLayers": String(document2.config.rankSpacing)
-    },
-    children: selected.map((node) => ({ id: node.id, width: document2.nodes[node.id].width, height: document2.nodes[node.id].height })),
-    edges: input.edges.filter((edge) => ids.has(edge.sourceNodeId) && ids.has(edge.targetNodeId)).map((edge) => ({ id: edge.id, sources: [edge.sourceNodeId], targets: [edge.targetNodeId] }))
-  });
-  for (const node of graph.children ?? []) {
-    const target = document2.nodes[node.id];
-    target.x = node.x ?? 0;
-    target.y = node.y ?? 0;
-  }
-}
-function gridLayout(input, document2, spacing) {
-  const ids = scopeIds(input);
-  const nodes = input.nodes.filter((node) => ids.has(node.id) && !document2.nodes[node.id].pinned);
-  const columns = Math.max(1, Math.ceil(Math.sqrt(nodes.length)));
-  const rows = Math.ceil(nodes.length / columns);
-  const columnWidths = Array.from({ length: columns }, (_2, column) => Math.max(0, ...nodes.filter((_node, index2) => index2 % columns === column).map((node) => document2.nodes[node.id].width)));
-  const rowHeights = Array.from({ length: rows }, (_2, row) => Math.max(0, ...nodes.slice(row * columns, (row + 1) * columns).map((node) => document2.nodes[node.id].height)));
-  const columnOffsets = columnWidths.map((_width, column) => columnWidths.slice(0, column).reduce((sum, width) => sum + width + spacing, 0));
-  const rowOffsets = rowHeights.map((_height, row) => rowHeights.slice(0, row).reduce((sum, height) => sum + height + spacing, 0));
-  nodes.forEach((node, index2) => {
-    document2.nodes[node.id].x = columnOffsets[index2 % columns];
-    document2.nodes[node.id].y = rowOffsets[Math.floor(index2 / columns)];
-  });
-}
-function radialLayout(input, document2, spacing) {
-  const ids = scopeIds(input);
-  const nodes = input.nodes.filter((node) => ids.has(node.id) && !document2.nodes[node.id].pinned);
-  const center = nodes.find((node) => input.plan.constraints.some((constraint) => constraint.type === "emphasis" && constraint.nodeIds.includes(node.id))) ?? nodes[0];
-  if (!center) return;
-  document2.nodes[center.id].x = 0;
-  document2.nodes[center.id].y = 0;
-  const rest = nodes.filter((node) => node.id !== center.id);
-  const radius = Math.max(260, rest.length * (38 + spacing / 4));
-  rest.forEach((node, index2) => {
-    const angle = Math.PI * 2 * index2 / Math.max(rest.length, 1) - Math.PI / 2;
-    document2.nodes[node.id].x = Math.cos(angle) * radius;
-    document2.nodes[node.id].y = Math.sin(angle) * radius;
-  });
-}
-function forceLayout(input, document2, spacing, seed) {
-  const ids = scopeIds(input);
-  const graphNodes = input.nodes.filter((node) => ids.has(node.id)).map((node) => ({ id: node.id, x: document2.nodes[node.id].x, y: document2.nodes[node.id].y, fx: document2.nodes[node.id].pinned ? document2.nodes[node.id].x : void 0, fy: document2.nodes[node.id].pinned ? document2.nodes[node.id].y : void 0 }));
-  const links = input.edges.filter((edge) => ids.has(edge.sourceNodeId) && ids.has(edge.targetNodeId)).map((edge) => ({ source: edge.sourceNodeId, target: edge.targetNodeId }));
-  const simulation = simulation_default(graphNodes).randomSource(seededRandom(seed)).force("link", link_default(links).id((node) => node.id).distance(180 + spacing).strength(0.5)).force("charge", manyBody_default().strength(-520)).force("center", center_default(0, 0)).force("collide", collide_default(145 + spacing / 2).strength(1)).stop();
-  for (let tick = 0; tick < 360; tick += 1) simulation.tick();
-  for (const node of graphNodes) {
-    document2.nodes[node.id].x = node.x ?? 0;
-    document2.nodes[node.id].y = node.y ?? 0;
-  }
-}
-function restorePinned(before, after) {
-  for (const [nodeId, node] of Object.entries(before.nodes)) {
-    if (!node.pinned || !after.nodes[nodeId]) continue;
-    after.nodes[nodeId].x = node.x;
-    after.nodes[nodeId].y = node.y;
-  }
-}
-async function generateLayoutCandidates(input) {
-  const count = input.plan.candidateCount;
-  const candidates = [];
-  const labels = ["Balanced", "Preserve positions", "Compact", "Spacious", "Alternative"];
-  const isSemantic = SEMANTIC_STRATEGIES.has(input.plan.strategy);
-  for (let index2 = 0; index2 < count; index2 += 1) {
-    const document2 = cloneDocument(input);
-    const seed = `${input.plan.projectId}:${input.plan.viewId}:${input.layoutRunId ?? "standalone"}:${index2}`;
-    let clusterOf;
-    let label;
-    if (isSemantic) {
-      const variant = CLUSTER_VARIANTS[index2] ?? CLUSTER_VARIANTS[0];
-      const spacing = document2.config.nodeSpacing * variant.density;
-      const scoped = scopeIds(input);
-      const nodes = input.nodes.filter((node) => scoped.has(node.id));
-      const edges = input.edges.filter((edge) => scoped.has(edge.sourceNodeId) && scoped.has(edge.targetNodeId));
-      ({ clusterOf } = semanticClusterLayout({ nodes, edges, plan: input.plan, document: document2, current: input.current, spacing, seed, micro: variant.micro, macro: variant.macro }));
-      label = variant.label;
-    } else {
-      const density = index2 === 1 ? 1.25 : index2 === 2 ? 0.75 : 1;
-      const spacing = document2.config.nodeSpacing * density;
-      if (["tree", "layered", "timeline", "swimlane"].includes(input.plan.strategy)) await elkLayout(input, document2, spacing);
-      else if (input.plan.strategy === "force") forceLayout(input, document2, spacing, seed);
-      else if (input.plan.strategy === "radial") radialLayout(input, document2, spacing);
-      else gridLayout(input, document2, spacing);
-      label = labels[index2];
-    }
-    if (input.plan.preserve.pinnedNodes) restorePinned(input.current, document2);
-    routeEdges(document2, input.edges, ["tree", "layered", "timeline", "swimlane"].includes(input.plan.strategy), clusterOf);
-    updateBounds(document2);
-    const metrics = scoreLayout(document2, input.edges, input.current, isSemantic ? { weights: input.weights, direction: input.plan.direction ?? document2.config.direction } : void 0);
-    const id = createHash6("sha256").update(seed).digest("hex").slice(0, 24);
-    candidates.push({ id, label, document: document2, operations: diffLayoutDocuments(input.current, document2), metrics });
-  }
-  if (isSemantic) return candidates.sort((left, right) => Number(left.metrics.hardViolations.length > 0) - Number(right.metrics.hardViolations.length > 0));
-  return candidates.sort((left, right) => right.metrics.score - left.metrics.score);
-}
-
-// packages/mcp/src/tools/layout.ts
-function registerLayoutTools(server2, { eventHub: eventHub2, mutateWithStore }) {
+function registerLayoutTools(server2) {
   server2.registerTool("weaver_recommend_layout", {
     title: "Recommend Layout",
     description: "Validate a semantic LayoutPlan and generate deterministic scored candidates; final coordinates are never model-authored.",
     inputSchema: { ...workspaceSchema.shape, taskId: external_exports.string(), plan: external_exports.unknown() },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
   }, defineTool(async ({ workspaceDir, taskId, plan: rawPlan }, extra) => {
-    const chatSessionKey = chatSessionKeyFromRequest(extra);
     const plan = layoutPlanSchema.parse(rawPlan);
-    const taskState = mutateWithStore(workspaceDir, (store) => {
-      const task2 = store.tasks.assertChat(taskId, chatSessionKey);
-      if (task2.status !== "running") throw new Error(`TASK_NOT_RUNNING:${task2.status}`);
-      if (task2.activeStage !== "layout") throw new Error("TASK_TRANSITION_INVALID:stage");
-      const graph = store.graphChanges.read(plan.projectId);
-      if (graph.revision !== plan.baseGraphRevision) throw new Error("GRAPH_REVISION_CONFLICT");
-      const current = store.layoutReviews.get(plan.projectId, plan.viewId);
-      if (!current) throw new Error("LAYOUT_NOT_FOUND");
-      if (current.layoutRevision !== plan.baseLayoutRevision) throw new Error("LAYOUT_REVISION_CONFLICT");
-      const project = store.catalog.getProject(plan.projectId);
-      const weights = project ? getScenePack(project.scenePackId, project.scenePackVersion)?.scoringWeights : void 0;
-      return { task: task2, graph, current, weights };
-    });
-    const layoutRunId = randomUUID9();
-    const candidates = await generateLayoutCandidates({ nodes: taskState.graph.nodes, edges: taskState.graph.edges, current: taskState.current, plan, layoutRunId, weights: taskState.weights });
-    const output = mutateWithStore(workspaceDir, (store) => {
-      const run = store.layoutReviews.saveRun({ id: layoutRunId, projectId: plan.projectId, viewId: plan.viewId, taskId, plan, candidates });
-      store.tasks.update(taskId, { status: "pending_review", activeStage: "layout", results: { ...taskState.task.results, layoutRunId } });
-      return { layoutRunId: run.id, candidates: candidates.map(({ id, label, metrics }) => ({ id, label, metrics })) };
-    });
-    eventHub2.notifyWorkspace(workspaceDir);
+    const output = await dispatchWorkspaceAgentOperation({ workspaceDir, buildId: widgetBuildId(), chatSessionKey: chatSessionKeyFromRequest(extra), operation: "weaver_recommend_layout", arguments: { taskId, plan } });
     return result(output, `Generated ${output.candidates.length} deterministic layout candidates.`);
   }));
 }
 
 // packages/mcp/src/tools/manage-view.ts
-function registerManageViewTool(server2, { mutateWithStore }) {
+function registerManageViewTool(server2) {
   const shape = {
     ...workspaceSchema.shape,
     action: external_exports.enum(["create_project", "create_project_from_template", "create_view_from_template", "duplicate_view", "rename_view", "pin_view", "reorder_views", "set_default_view", "trash_view", "restore_view", "purge_view"]),
@@ -128827,113 +128986,15 @@ function registerManageViewTool(server2, { mutateWithStore }) {
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false }
   }, defineTool(async (args, extra) => {
     catalogActionSchema.parse(args);
-    const chatSessionKey = chatSessionKeyFromRequest(extra, false);
-    return result(mutateWithStore(args.workspaceDir, (store) => {
-      const required2 = (value, name) => {
-        if (value === void 0 || value === "") throw new Error(`INVALID_ARGS:${name} required`);
-        return value;
-      };
-      if (args.action === "create_project") {
-        const scene = getScenePack(required2(args.scenePackId, "scenePackId"));
-        if (!scene) throw new Error("CATALOG_INVALID:scene pack");
-        return store.catalog.createSeededProject({ title: required2(args.title, "title"), goal: args.goal ?? "", scenePack: scene, chatSessionKey });
-      }
-      if (args.action === "create_project_from_template") {
-        const scene = getScenePack(required2(args.scenePackId, "scenePackId"));
-        const template = getVisualTemplate(required2(args.templateId, "templateId"), args.version);
-        if (!scene || !template) throw new Error("VISUAL_TEMPLATE_NOT_FOUND");
-        return store.catalog.createProjectFromTemplate({ title: required2(args.title, "title"), goal: args.goal ?? "", scenePack: scene, template, chatBinding: chatSessionKey ? { chatSessionKey } : void 0 });
-      }
-      const projectId = required2(args.projectId, "projectId");
-      if (args.action === "create_view_from_template") {
-        const template = getVisualTemplate(required2(args.templateId, "templateId"), args.version);
-        if (!template) throw new Error("VISUAL_TEMPLATE_NOT_FOUND");
-        return store.catalog.createViewFromTemplate({ projectId, template, baseGraphRevision: required2(args.baseGraphRevision, "baseGraphRevision"), viewName: args.viewName, chatBinding: chatSessionKey && args.leaseId && args.bindingRevision ? { chatSessionKey, leaseId: args.leaseId, bindingRevision: args.bindingRevision } : void 0 });
-      }
-      const base = required2(args.baseCatalogRevision, "baseCatalogRevision");
-      if (args.action === "reorder_views") return store.catalog.reorderViews({ projectId, viewIds: required2(args.viewIds, "viewIds"), baseCatalogRevision: base });
-      const viewId = required2(args.viewId, "viewId");
-      switch (args.action) {
-        case "duplicate_view":
-          return store.catalog.duplicateView({ projectId, viewId, name: args.name, baseCatalogRevision: base });
-        case "rename_view":
-          return store.catalog.renameView({ projectId, viewId, name: required2(args.name, "name"), baseCatalogRevision: base });
-        case "pin_view":
-          return store.catalog.pinView({ projectId, viewId, pinned: args.pinned ?? true, baseCatalogRevision: base });
-        case "set_default_view":
-          return store.catalog.setDefaultView({ projectId, viewId, baseCatalogRevision: base });
-        case "trash_view":
-          return store.catalog.trashView({ projectId, viewId, fallbackViewId: args.fallbackViewId, baseCatalogRevision: base });
-        case "restore_view":
-          return store.catalog.restoreView({ projectId, viewId, baseCatalogRevision: base });
-        case "purge_view":
-          return store.catalog.purgeView({ projectId, viewId, baseCatalogRevision: base });
-        default:
-          throw new Error("INVALID_ARGS:unsupported catalog action");
-      }
-    }));
+    const output = await dispatchWorkspaceAgentOperation({
+      workspaceDir: args.workspaceDir,
+      buildId: widgetBuildId(),
+      chatSessionKey: chatSessionKeyFromRequest(extra),
+      operation: "weaver_catalog_action",
+      arguments: args
+    });
+    return result(output);
   }));
-}
-
-// packages/mcp/src/shared/catalog-reads.ts
-function listProjects2(store) {
-  return store.catalog.listProjects();
-}
-function listProjectViews2(store, projectId, status) {
-  return store.catalog.listViews(projectId, status).map((view) => ({ ...view, nodeCount: Object.keys(store.layoutReviews.get(projectId, view.id)?.nodes ?? {}).length }));
-}
-function searchProjectViews2(store, projectId, query = "", status = "active") {
-  return store.catalog.searchViews(projectId, query, status).map((view) => ({ ...view, nodeCount: Object.keys(store.layoutReviews.get(projectId, view.id)?.nodes ?? {}).length }));
-}
-function getProjectView2(store, projectId, viewId) {
-  const view = store.catalog.getView(projectId, viewId);
-  if (!view) throw new Error("VIEW_NOT_FOUND");
-  return view;
-}
-function listVisualTemplates(filter = {}) {
-  return builtinVisualTemplates.filter((item) => (!filter.scenePackId || item.compatibleScenePackIds.includes(filter.scenePackId)) && (!filter.family || item.family === filter.family) && (!filter.renderer || item.renderer === filter.renderer));
-}
-function readVisualTemplate(templateId, version2 = "1.0.0") {
-  const item = getVisualTemplate(templateId, version2);
-  if (!item) throw new Error("VISUAL_TEMPLATE_NOT_FOUND");
-  return item;
-}
-function readArtifact(store, artifactId) {
-  const artifact = store.artifacts.get(artifactId);
-  if (!artifact) throw new Error("ARTIFACT_NOT_FOUND");
-  return artifact;
-}
-function readAssetMetadata(store, projectId, assetId) {
-  const asset = store.assets.get(assetId);
-  if (!asset || asset.projectId !== projectId) throw new Error("ASSET_NOT_FOUND_OR_CROSS_PROJECT");
-  return asset;
-}
-function previewChangeSet(store, changeSetId, chatSessionKey) {
-  const item = store.graphChanges.get(changeSetId);
-  if (!item) throw new Error("CHANGESET_NOT_FOUND");
-  store.tasks.assertChat(item.taskId, chatSessionKey, false);
-  const project = store.catalog.getProject(item.projectId);
-  if (!project) throw new Error("PROJECT_NOT_FOUND");
-  return {
-    changeSet: item,
-    stale: project.graphRevision !== item.baseGraphRevision,
-    currentGraphRevision: project.graphRevision,
-    summary: {
-      addedNodes: item.graphOperations.filter((op) => op.type === "add-node").length,
-      updatedNodes: item.graphOperations.filter((op) => ["update-node", "set-node-content", "attach-asset", "detach-asset", "set-node-cover"].includes(op.type)).length,
-      archivedNodes: item.graphOperations.filter((op) => op.type === "archive-node").length,
-      addedEdges: item.graphOperations.filter((op) => op.type === "add-edge").length,
-      updatedEdges: item.graphOperations.filter((op) => op.type === "update-edge").length,
-      archivedEdges: item.graphOperations.filter((op) => op.type === "archive-edge").length,
-      layoutOperations: item.layoutOperations.length
-    }
-  };
-}
-function readLayoutRun(store, layoutRunId, chatSessionKey) {
-  const item = store.layoutReviews.getRun(layoutRunId);
-  if (!item) throw new Error("LAYOUT_RUN_NOT_FOUND");
-  if (item.taskId) store.tasks.assertChat(item.taskId, chatSessionKey, false);
-  return item;
 }
 
 // packages/mcp/src/tools/read-catalog.ts
@@ -128960,113 +129021,64 @@ function registerReadCatalogTool(server2) {
       viewName: external_exports.string().optional()
     },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
-  }, defineTool(async ({ workspaceDir, resource, projectId, viewId, assetId, artifactId, templateId, version: version2, query, status, scenePackId, family, renderer, baseGraphRevision, viewName }) => {
+  }, defineTool(async ({ workspaceDir, resource, projectId, viewId, assetId, artifactId, templateId, version: version2, query, status, scenePackId, family, renderer, baseGraphRevision, viewName }, extra) => {
+    const output = await dispatchWorkspaceAgentOperation({
+      workspaceDir,
+      buildId: widgetBuildId(),
+      chatSessionKey: chatSessionKeyFromRequest(extra),
+      operation: "weaver_read_catalog",
+      arguments: { resource, projectId, viewId, assetId, artifactId, templateId, version: version2, query, status, scenePackId, family, renderer, baseGraphRevision, viewName }
+    });
+    if (projectId) track(workspaceDir, projectId);
     switch (resource) {
       case "project.list": {
-        const projects = withStore(workspaceDir, (store) => listProjects2(store));
+        const projects = output;
         projects.forEach((project) => track(workspaceDir, project.id));
         return result(projects, `${projects.length} Weaver projects.`);
       }
       case "view.list": {
         if (!projectId) throw new Error("INVALID_ARGS:projectId required");
-        return result(withStore(workspaceDir, (store) => listProjectViews2(store, projectId, status)));
+        return result(output);
       }
       case "view.search": {
         if (!projectId) throw new Error("INVALID_ARGS:projectId required");
-        return result(withStore(workspaceDir, (store) => searchProjectViews2(store, projectId, query ?? "", status ?? "active")));
+        return result(output);
       }
       case "view.get": {
         if (!projectId) throw new Error("INVALID_ARGS:projectId required");
         if (!viewId) throw new Error("INVALID_ARGS:viewId required");
-        return result(withStore(workspaceDir, (store) => getProjectView2(store, projectId, viewId)));
+        return result(output);
       }
       case "template.list": {
-        return result(listVisualTemplates({ scenePackId, family, renderer }));
+        return result(output);
       }
       case "template.get": {
         if (!templateId) throw new Error("INVALID_ARGS:templateId required");
-        return result(readVisualTemplate(templateId, version2 ?? "1.0.0"));
+        return result(output);
       }
       case "template.validate": {
         if (!projectId || !templateId) throw new Error("INVALID_ARGS:projectId and templateId required");
-        return result(withStore(workspaceDir, (store) => {
-          const project = store.catalog.getProject(projectId);
-          if (!project) throw new Error("PROJECT_NOT_FOUND");
-          const scene = getScenePack(project.scenePackId, project.scenePackVersion);
-          const template = getVisualTemplate(templateId, version2);
-          if (!scene || !template) throw new Error("VISUAL_TEMPLATE_NOT_FOUND");
-          return validateVisualTemplateForProject(template, scene, store.graphChanges.read(projectId).nodes);
-        }));
+        return result(output);
       }
       case "template.preview": {
         if (!projectId || !templateId || baseGraphRevision === void 0) throw new Error("INVALID_ARGS:projectId, templateId and baseGraphRevision required");
-        return result(withStore(workspaceDir, (store) => {
-          const template = getVisualTemplate(templateId, version2);
-          if (!template) throw new Error("VISUAL_TEMPLATE_NOT_FOUND");
-          return store.catalog.previewTemplate({ projectId, template, baseGraphRevision, viewName });
-        }));
+        return result(output);
       }
       case "artifact.get": {
         if (!artifactId) throw new Error("INVALID_ARGS:artifactId required");
-        return result(withStore(workspaceDir, (store) => readArtifact(store, artifactId)));
+        return result(output);
       }
       case "asset.metadata": {
         if (!projectId) throw new Error("INVALID_ARGS:projectId required");
         if (!assetId) throw new Error("INVALID_ARGS:assetId required");
-        return result(withStore(workspaceDir, (store) => readAssetMetadata(store, projectId, assetId)));
+        return result(output);
       }
       case "asset.preview": {
         if (!projectId || !assetId) throw new Error("INVALID_ARGS:projectId and assetId required");
-        return result(withStore(workspaceDir, (store) => {
-          const item = store.assets.read(assetId, true);
-          if (item.asset.projectId !== projectId) throw new Error("ASSET_NOT_FOUND_OR_CROSS_PROJECT");
-          return { assetId, dataUrl: `data:image/webp;base64,${Buffer.from(item.data).toString("base64")}` };
-        }));
+        return result(output);
       }
     }
   }));
-}
-
-// packages/mcp/src/shared/graph-reads.ts
-function summarizeNode(store, node) {
-  const content = node.content.kind === "document" ? { ...node.content, markdown: void 0 } : node.content;
-  const assetIds = node.content.kind === "image" ? [node.content.assetId] : node.content.kind === "document" ? [node.content.coverAssetId, ...node.content.embeddedAssetIds].filter(Boolean) : node.content.kind === "link" ? [node.content.imageAssetId].filter(Boolean) : [];
-  return { id: node.id, projectId: node.projectId, type: node.type, title: node.title, contentKind: node.contentKind, content, properties: node.properties, archived: node.archived, createdAt: node.createdAt, updatedAt: node.updatedAt, assets: assetIds.map((id) => store.assets.get(id)).filter(Boolean) };
-}
-function readProjectManifest(store, projectId) {
-  const project = store.catalog.getProject(projectId);
-  if (!project) throw new Error("PROJECT_NOT_FOUND");
-  const scenePack = getScenePack(project.scenePackId, project.scenePackVersion);
-  return { project, scenePack, views: store.catalog.listViews(projectId, "active").map((view) => ({ ...view, viewId: view.id, viewName: view.name, layoutRevision: store.layoutReviews.get(projectId, view.id)?.layoutRevision ?? 0 })) };
-}
-function readProjectGraph(store, projectId, viewId) {
-  const project = store.catalog.getProject(projectId);
-  if (!project) throw new Error("PROJECT_NOT_FOUND");
-  const graph = store.graphChanges.read(projectId);
-  const layout = store.layoutReviews.get(projectId, viewId ?? project.defaultViewId);
-  if (!layout) throw new Error("LAYOUT_NOT_FOUND");
-  const nodes = graph.nodes.filter((node) => !node.archived);
-  const nodeIds = new Set(nodes.map((node) => node.id));
-  const edges = graph.edges.filter((edge) => !edge.archived && nodeIds.has(edge.sourceNodeId) && nodeIds.has(edge.targetNodeId));
-  return { project, nodes: nodes.map((node) => summarizeNode(store, node)), edges, layout };
-}
-function queryGraph(store, projectId, filter) {
-  const graph = store.graphChanges.read(projectId);
-  let nodes = graph.nodes.filter((node) => !node.archived);
-  if (filter.nodeIds?.length) nodes = nodes.filter((node) => filter.nodeIds.includes(node.id));
-  if (filter.nodeTypes?.length) nodes = nodes.filter((node) => filter.nodeTypes.includes(node.type));
-  if (filter.text) nodes = nodes.filter((node) => `${node.title}
-${node.content.kind === "document" ? node.content.markdown : node.content.kind === "link" ? node.content.description : node.content.kind === "chart" ? node.content.title : node.content.caption}`.toLowerCase().includes(filter.text.toLowerCase()));
-  nodes = nodes.slice(0, filter.limit ?? 50);
-  const ids = new Set(nodes.map((node) => node.id));
-  const edges = graph.edges.filter((edge) => ids.has(edge.sourceNodeId) || ids.has(edge.targetNodeId));
-  return { revision: graph.revision, nodes: nodes.map((node) => summarizeNode(store, node)), edges };
-}
-function readNodeContent(store, projectId, nodeId) {
-  const graph = store.graphChanges.read(projectId);
-  const node = graph.nodes.find((candidate) => candidate.id === nodeId);
-  if (!node) throw new Error(`NODE_NOT_FOUND:${nodeId}`);
-  return { graphRevision: graph.revision, node };
 }
 
 // packages/mcp/src/tools/read-graph.ts
@@ -129086,51 +129098,32 @@ function registerReadGraphTool(server2) {
       limit: external_exports.number().int().positive().max(200).optional()
     },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
-  }, defineTool(async ({ workspaceDir, resource, projectId, viewId, nodeId, nodeIds, nodeTypes, text, limit }) => {
+  }, defineTool(async ({ workspaceDir, resource, projectId, viewId, nodeId, nodeIds, nodeTypes, text, limit }, extra) => {
     if (!projectId) throw new Error("INVALID_ARGS:projectId required");
+    const output = await dispatchWorkspaceAgentOperation({
+      workspaceDir,
+      buildId: widgetBuildId(),
+      chatSessionKey: chatSessionKeyFromRequest(extra),
+      operation: "weaver_read_graph",
+      arguments: { resource, projectId, viewId, nodeId, nodeIds, nodeTypes, text, limit }
+    });
+    track(workspaceDir, projectId);
     switch (resource) {
       case "manifest": {
-        const output = withStore(workspaceDir, (store) => readProjectManifest(store, projectId));
-        track(workspaceDir, projectId);
         return result(output);
       }
       case "full": {
-        const output = withStore(workspaceDir, (store) => readProjectGraph(store, projectId, viewId));
-        track(workspaceDir, projectId);
         return result(output, 'Loaded graph summaries and layout. Use weaver_read_graph(resource:"node") for full Markdown.');
       }
       case "query": {
-        const output = withStore(workspaceDir, (store) => queryGraph(store, projectId, { nodeIds, nodeTypes, text, limit }));
         return result(output);
       }
       case "node": {
         if (!nodeId) throw new Error("INVALID_ARGS:nodeId required");
-        const output = withStore(workspaceDir, (store) => readNodeContent(store, projectId, nodeId));
         return result(output);
       }
     }
   }));
-}
-
-// packages/mcp/src/shared/bound-canvas.ts
-function resolveBoundCanvas(store, chatSessionKey) {
-  const { binding, context } = store.sessions.boundCanvas(chatSessionKey, false);
-  const project = store.catalog.getProject(context.projectId);
-  if (!project) throw new Error("PROJECT_NOT_FOUND");
-  const layout = store.layoutReviews.get(context.projectId, context.viewId);
-  if (!layout) throw new Error("LAYOUT_NOT_FOUND");
-  const seenAt = Date.parse(context.presence?.lastSeenAt ?? context.updatedAt);
-  return {
-    projectId: context.projectId,
-    viewId: context.viewId,
-    canvasSessionId: context.canvasSessionId,
-    bindingStatus: binding.status,
-    online: Date.now() - seenAt <= 3e4,
-    lastSeenAt: context.presence?.lastSeenAt ?? context.updatedAt,
-    graphRevision: project.graphRevision,
-    layoutRevision: layout.layoutRevision,
-    bindingRevision: binding.bindingRevision
-  };
 }
 
 // packages/mcp/src/tools/read-session.ts
@@ -129138,137 +129131,48 @@ function registerReadSessionTool(server2) {
   server2.registerTool("weaver_read_session", {
     title: "Read Session",
     description: "Read the current chat's session state: the bound canvas, a durable task, a canvas context snapshot, the resolved scene context, or a guard bundle (bound canvas + active task). Pick one via `resource`.",
-    inputSchema: {
-      ...workspaceSchema.shape,
-      resource: external_exports.enum(["bound_canvas", "task", "canvas_tasks", "canvas_context", "canvas_view_state", "resolved_context", "guard"]),
-      taskId: external_exports.string().optional(),
-      canvasSessionId: external_exports.string().optional(),
-      viewId: external_exports.string().optional()
-    },
+    inputSchema: { ...workspaceSchema.shape, resource: external_exports.enum(["bound_canvas", "task", "canvas_tasks", "canvas_context", "canvas_view_state", "resolved_context", "guard"]), taskId: external_exports.string().optional(), canvasSessionId: external_exports.string().optional(), viewId: external_exports.string().optional() },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
   }, defineTool(async ({ workspaceDir, resource, taskId, canvasSessionId, viewId }, extra) => {
-    switch (resource) {
-      case "bound_canvas": {
-        const chatSessionKey = chatSessionKeyFromRequest(extra);
-        return result(withStore(workspaceDir, (store) => resolveBoundCanvas(store, chatSessionKey)));
-      }
-      case "task": {
-        if (!taskId) throw new Error("INVALID_ARGS:taskId required");
-        const chatSessionKey = chatSessionKeyFromRequest(extra);
-        const task2 = withStore(workspaceDir, (store) => store.tasks.assertChat(taskId, chatSessionKey, false));
-        workspaceByTask.set(taskId, workspaceDir);
-        return result(task2);
-      }
-      case "canvas_context": {
-        if (!canvasSessionId) throw new Error("INVALID_ARGS:canvasSessionId required");
-        const context = withStore(workspaceDir, (store) => store.sessions.canvasContext(canvasSessionId));
-        if (!context) throw new Error("CANVAS_SESSION_NOT_FOUND");
-        return result(context);
-      }
-      case "canvas_tasks": {
-        if (!canvasSessionId) throw new Error("INVALID_ARGS:canvasSessionId required");
-        return result(withStore(workspaceDir, (store) => {
-          store.tasks.reapCanvas(canvasSessionId);
-          return store.tasks.listCanvas(canvasSessionId);
-        }));
-      }
-      case "canvas_view_state": {
-        if (!canvasSessionId || !viewId) throw new Error("INVALID_ARGS:canvasSessionId and viewId required");
-        return result(withStore(workspaceDir, (store) => store.catalog.canvasState(canvasSessionId, viewId) ?? { canvasSessionId, viewId, firstOpen: true }));
-      }
-      case "resolved_context": {
-        if (!canvasSessionId) throw new Error("INVALID_ARGS:canvasSessionId required");
-        const output = withStore(workspaceDir, (store) => {
-          const context = store.sessions.canvasContext(canvasSessionId);
-          if (!context) throw new Error("CANVAS_SESSION_NOT_FOUND");
-          const project = store.catalog.getProject(context.projectId);
-          if (!project) throw new Error("PROJECT_NOT_FOUND");
-          const scenePack = getScenePack(project.scenePackId, project.scenePackVersion);
-          if (!scenePack) throw new Error("SCENE_PACK_NOT_FOUND");
-          const graph = store.graphChanges.read(project.id);
-          const resolved = resolveSceneContext({ nodes: graph.nodes, edges: graph.edges, scenePack, selectedNodeIds: context.selectedNodeIds, pinnedNodeIds: context.pinnedContextNodeIds });
-          return { projectId: project.id, graphRevision: graph.revision, policy: scenePack.contextPolicy, ...resolved };
-        });
-        return result(output, `Resolved ${output.nodes.length} context nodes.`);
-      }
-      case "guard": {
-        const chatSessionKey = chatSessionKeyFromRequest(extra);
-        const { boundCanvas, task: task2 } = withStore(workspaceDir, (store) => {
-          const boundCanvas2 = resolveBoundCanvas(store, chatSessionKey);
-          const task3 = taskId ? store.tasks.assertChat(taskId, chatSessionKey, false) : store.tasks.listCanvas(boundCanvas2.canvasSessionId)[0] ?? null;
-          return { boundCanvas: boundCanvas2, task: task3 };
-        });
-        if (task2) workspaceByTask.set(task2.taskId, workspaceDir);
-        return result({ boundCanvas, task: task2 });
-      }
+    const output = await dispatchWorkspaceAgentOperation({ workspaceDir, buildId: widgetBuildId(), chatSessionKey: chatSessionKeyFromRequest(extra), operation: "weaver_read_session", arguments: { resource, taskId, canvasSessionId, viewId } });
+    if (resource === "task" && taskId) workspaceByTask.set(taskId, workspaceDir);
+    if (resource === "guard") {
+      const guarded = output;
+      if (guarded.task) workspaceByTask.set(guarded.task.taskId, workspaceDir);
     }
+    const count = resource === "resolved_context" ? output.nodes.length : void 0;
+    return result(output, count === void 0 ? "OK" : `Resolved ${count} context nodes.`);
   }));
 }
 
-// packages/mcp/src/shared/review-actions.ts
-function rejectChangeSet2(store, changeSetId, chatSessionKey) {
-  const item = store.graphChanges.get(changeSetId);
-  if (!item) throw new Error("CHANGESET_NOT_FOUND");
-  store.tasks.assertChat(item.taskId, chatSessionKey);
-  return store.graphChanges.reject(changeSetId);
-}
-function applyLayoutCandidate2(store, layoutRunId, candidateId, chatSessionKey) {
-  const run = store.layoutReviews.getRun(layoutRunId);
-  if (!run) throw new Error("LAYOUT_RUN_NOT_FOUND");
-  if (run.taskId) store.tasks.assertChat(run.taskId, chatSessionKey);
-  return store.layoutReviews.applyCandidate(layoutRunId, candidateId);
-}
-function rejectLayoutRun2(store, layoutRunId, chatSessionKey) {
-  const run = store.layoutReviews.getRun(layoutRunId);
-  if (!run) throw new Error("LAYOUT_RUN_NOT_FOUND");
-  if (run.taskId) store.tasks.assertChat(run.taskId, chatSessionKey);
-  return store.layoutReviews.rejectRun(layoutRunId);
-}
-function revertLayout2(store, projectId, viewId) {
-  return store.layoutReviews.revert(projectId, viewId);
-}
-
 // packages/mcp/src/tools/review-action.ts
-function registerReviewActionTool(server2, { mutateWithStore }) {
+function registerReviewActionTool(server2) {
   server2.registerTool("weaver_review_action", {
     title: "Review Action",
     description: "Preview, apply, reject, or revert a pending ChangeSet or LayoutRun.",
     inputSchema: { ...workspaceSchema.shape, resource: external_exports.enum(["changeset", "layout_run"]), action: external_exports.enum(["preview", "apply", "reject", "revert"]), id: external_exports.string().optional(), candidateId: external_exports.string().optional(), projectId: external_exports.string().optional(), viewId: external_exports.string().optional() },
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
     _meta: { ui: { visibility: ["app", "model"] } }
-  }, defineTool(async ({ workspaceDir, resource, action, id, candidateId, projectId, viewId }, extra) => {
-    reviewActionSchema.parse({ workspaceDir, resource, action, id, candidateId, projectId, viewId });
-    const chatSessionKey = chatSessionKeyFromRequest(extra);
-    const need = (value, name) => {
-      if (!value) throw new Error(`INVALID_ARGS:${name} required`);
-      return value;
-    };
-    return result(mutateWithStore(workspaceDir, (store) => {
-      if (resource === "changeset") {
-        const changeSetId = need(id, "id");
-        if (action === "preview") return previewChangeSet(store, changeSetId, chatSessionKey);
-        if (action === "reject") return rejectChangeSet2(store, changeSetId, chatSessionKey);
-        if (action === "apply") {
-          const item2 = store.graphChanges.get(changeSetId);
-          if (!item2) throw new Error("CHANGESET_NOT_FOUND");
-          store.tasks.assertChat(item2.taskId, chatSessionKey);
-          return store.graphChanges.apply(changeSetId);
-        }
-        const item = store.graphChanges.get(changeSetId);
-        if (!item) throw new Error("CHANGESET_NOT_FOUND");
-        store.tasks.assertCanvas(item.taskId, chatSessionKey);
-        return store.graphChanges.revert(changeSetId);
-      }
-      if (action === "preview") return readLayoutRun(store, need(id, "id"), chatSessionKey);
-      if (action === "apply") return applyLayoutCandidate2(store, need(id, "id"), need(candidateId, "candidateId"), chatSessionKey);
-      if (action === "reject") return rejectLayoutRun2(store, need(id, "id"), chatSessionKey);
-      return revertLayout2(store, need(projectId, "projectId"), need(viewId, "viewId"));
-    }));
+  }, defineTool(async (args, extra) => {
+    reviewActionSchema.parse(args);
+    const output = await dispatchWorkspaceAgentOperation({ workspaceDir: args.workspaceDir, buildId: widgetBuildId(), chatSessionKey: chatSessionKeyFromRequest(extra), operation: "weaver_review_action", arguments: args });
+    return result(output);
   }));
 }
 
 // packages/mcp/src/tools/workspace.ts
-import { spawn } from "node:child_process";
+import { spawn as spawn2 } from "node:child_process";
+
+// packages/mcp/src/canvas-surface.ts
+function canvasSurface() {
+  return process.env.WEAVER_CANVAS_SURFACE === "legacy-widget" && hostKind() === "codex" ? "legacy-widget" : "localhost";
+}
+function legacyWidgetFallbackReason() {
+  const value = process.env.WEAVER_CANVAS_FALLBACK_REASON ?? "OPERATOR_ROLLBACK";
+  return /^[A-Z0-9_]{1,80}$/.test(value) ? value : "INVALID_FALLBACK_REASON";
+}
+
+// packages/mcp/src/tools/workspace.ts
 var openedPreviews = /* @__PURE__ */ new Set();
 function autoOpenPreview(url2) {
   if (openedPreviews.has(url2)) return;
@@ -129276,7 +129180,7 @@ function autoOpenPreview(url2) {
   if (process.env.WEAVER_NO_AUTO_OPEN === "1" || process.env.VITEST) return;
   const [cmd, args] = process.platform === "darwin" ? ["open", [url2]] : process.platform === "win32" ? ["cmd", ["/c", "start", "", url2]] : ["xdg-open", [url2]];
   try {
-    const child = spawn(cmd, args, { stdio: "ignore", detached: true });
+    const child = spawn2(cmd, args, { stdio: "ignore", detached: true });
     child.on("error", (error51) => log("warn", "preview.autoOpenFailed", { message: error51 instanceof Error ? error51.message : String(error51) }));
     child.unref();
     log("info", "preview.autoOpen", { opener: cmd });
@@ -129285,52 +129189,37 @@ function autoOpenPreview(url2) {
   }
 }
 function registerWorkspaceTools(server2, ctx) {
-  const { eventHub: eventHub2, mutateWithStore, serverVersion } = ctx;
-  K3(server2, "weaver_open_space", {
+  const { eventHub: eventHub2 } = ctx;
+  const legacyWidget = canvasSurface() === "legacy-widget";
+  server2.registerTool("weaver_open_space", {
     title: "Open Weaver Workspace",
-    description: "Open the Weaver semantic canvas for an explicit local workspace and optional project. Codex renders it as an embedded panel; Claude Code opens it as a tokenized loopback browser preview.",
+    description: "Ensure the workspace-scoped localhost Canvas runtime and create a short-lived, one-time launch URL for an explicit local workspace and optional project.",
     inputSchema: { workspaceDir: external_exports.string().min(1), projectId: external_exports.string().optional(), displayMode: external_exports.enum(["fullscreen", "inline"]).default("fullscreen") },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    _meta: { ui: { resourceUri: LEGACY_WIDGET_URI, visibility: ["model", "app"] }, "ui/resourceUri": LEGACY_WIDGET_URI, "openai/outputTemplate": LEGACY_WIDGET_URI, "openai/widgetAccessible": true }
+    ...legacyWidget ? { _meta: { ui: { resourceUri: LEGACY_WIDGET_URI, visibility: ["model", "app"] }, "ui/resourceUri": LEGACY_WIDGET_URI, "openai/outputTemplate": LEGACY_WIDGET_URI, "openai/widgetAccessible": true } } : {}
   }, defineTool(async (input, extra) => {
     const chatSessionKey = chatSessionKeyFromRequest(extra);
-    const opened = mutateWithStore(input.workspaceDir, (store) => {
-      let viewId;
-      if (input.projectId) {
-        const project = store.catalog.getProject(input.projectId);
-        if (!project) throw new Error("PROJECT_NOT_FOUND");
-        viewId = project.defaultViewId;
-      }
-      return { binding: store.sessions.openBinding({ chatSessionKey, projectId: input.projectId, viewId }), schemaResetBackupName: store.schemaResetBackupName };
-    });
-    const { binding, schemaResetBackupName } = opened;
-    const activeWidgetBuildId = widgetBuildId();
-    const workspaceBuildId = workspaceWidgetBuildId(input.workspaceDir);
-    const activeRuntimeMode = runtimeMode();
-    const isPreview = previewHost();
-    const isCodex = hostKind() === "codex";
-    if (isPreview) {
-      if (eventHub2.retargetPreviewWorkspace(input.workspaceDir)) log("info", "preview.retarget", { workspaceDir: input.workspaceDir });
-      if (!isCodex && eventHub2.previewUrl) autoOpenPreview(eventHub2.previewUrl);
+    if (legacyWidget) {
+      const chatBinding = await openWorkspaceNativeBinding({ workspaceDir: input.workspaceDir, buildId: widgetBuildId(), chatSessionKey, projectId: input.projectId });
+      const code = legacyWidgetFallbackReason();
+      await recordWorkspaceSurfaceFallback({ workspaceDir: input.workspaceDir, buildId: widgetBuildId(), code });
+      log("warn", "canvas.legacyFallbackUsed", { code, status: "active", actionKey: "legacy-widget" });
+      return result({
+        version: 2,
+        widget: "weaver-workspace",
+        workspaceDir: input.workspaceDir,
+        projectId: input.projectId,
+        preferredDisplayMode: "fullscreen",
+        serverVersion: ctx.serverVersion,
+        widgetBuildId: widgetBuildId(),
+        runtimeMode: "installed",
+        chatBinding: { leaseId: chatBinding.leaseId, bindingRevision: chatBinding.bindingRevision, projectId: chatBinding.projectId, viewId: chatBinding.viewId },
+        rendering: "native-widget"
+      }, "Opened the temporary Weaver native Widget rollback surface.");
     }
-    const preview = isPreview && !isCodex ? { previewUrl: eventHub2.previewUrl, previewToken: eventHub2.previewToken } : {};
-    const message = isCodex ? 'Opened the Weaver canvas panel. The user selects nodes on the canvas, then asks you (in chat) to develop them: read the live selection with weaver_read_session(resource:"bound_canvas"), do the work, then weaver_submit_changeset \u2014 the panel refreshes to show it. The canvas is a visual surface; you are triggered from the chat.' : isPreview ? "Opened the Weaver canvas in your browser. If no window appeared, open previewUrl manually." : "Opened Weaver workspace widget.";
-    return result({
-      version: 2,
-      widget: "weaver-workspace",
-      workspaceDir: input.workspaceDir,
-      projectId: input.projectId,
-      preferredDisplayMode: "fullscreen",
-      serverVersion,
-      widgetBuildId: activeWidgetBuildId,
-      workspaceWidgetBuildId: workspaceBuildId,
-      runtimeMode: activeRuntimeMode,
-      buildMismatch: shouldBlockWorkspaceBuildMismatch(activeRuntimeMode, activeWidgetBuildId, workspaceBuildId),
-      chatBinding: { leaseId: binding.leaseId, bindingRevision: binding.bindingRevision, projectId: binding.projectId, viewId: binding.viewId },
-      schemaReset: schemaResetBackupName ? { backupName: schemaResetBackupName } : void 0,
-      ...isCodex ? { rendering: "native-widget" } : {},
-      ...preview
-    }, message);
+    const launch = await createWorkspaceLaunch({ workspaceDir: input.workspaceDir, buildId: widgetBuildId(), chatSessionKey, projectId: input.projectId });
+    if (hostKind() === "claude" && process.env.WEAVER_DISABLE_AUTO_OPEN !== "1") autoOpenPreview(launch.launchUrl);
+    return result(launch, "Created a short-lived Weaver Canvas launch. Open it with the Weaver open-space workflow; do not repeat the URL in prose.");
   }));
   server2.registerTool("weaver_subscribe_canvas", {
     title: "Open Canvas Event Stream",
@@ -129351,7 +129240,7 @@ function registerDiagnosticsTools(server2, ctx) {
     description: "Read this MCP server's identity, health, recent activity log, and the model-facing tool surface it advertises. If `toolSurface.criticalPresent.weaver_submit_changeset` is true but you cannot call that tool, this host (e.g. Codex) dropped it from your tool list \u2014 not the server.",
     inputSchema: { limit: external_exports.number().int().min(1).max(500).default(120).optional(), errorsOnly: external_exports.boolean().optional(), workspaceDir: external_exports.string().optional() },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
-  }, defineTool(async ({ limit, errorsOnly }) => {
+  }, defineTool(async ({ limit, errorsOnly, workspaceDir }) => {
     const preview = hostKind() === "claude";
     const server3 = {
       pid: process.pid,
@@ -129363,13 +129252,19 @@ function registerDiagnosticsTools(server2, ctx) {
       previewAvailable: preview,
       fileLogging: fileLoggingEnabled()
     };
-    return result({ server: server3, toolSurface: toolSurface(), errors: recentErrors(50), recent: errorsOnly ? [] : recentEntries(limit ?? 120) }, "Weaver server diagnostics.");
+    const runtime = workspaceDir ? await readWorkspaceRuntimeDiagnostics({ workspaceDir, buildId: widgetBuildId(), errorsOnly, limit: Math.min(limit ?? 120, 200) }) : void 0;
+    return result({ server: server3, toolSurface: toolSurface(), errors: recentErrors(50), recent: errorsOnly ? [] : recentEntries(limit ?? 120), runtime }, "Weaver server diagnostics.");
   }));
+  server2.registerTool("weaver_clear_runtime_diagnostics", {
+    title: "Clear Weaver Runtime Diagnostics",
+    description: "Delete the redacted, rotated operational diagnostics for one workspace runtime. Project data and browser sessions are not changed.",
+    inputSchema: { workspaceDir: external_exports.string().min(1) },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false }
+  }, defineTool(async ({ workspaceDir }) => result(await clearWorkspaceRuntimeDiagnostics({ workspaceDir, buildId: widgetBuildId() }), "Cleared Weaver runtime diagnostics.")));
 }
 
 // packages/mcp/src/create-server.ts
 var PREVIEW_TOOL_ALLOWLIST = /* @__PURE__ */ new Set([
-  "weaver_open_space",
   "weaver_read_catalog",
   "weaver_read_graph",
   "weaver_read_session",
@@ -129388,8 +129283,8 @@ var CRITICAL_MODEL_TOOLS = [
   "weaver_review_action",
   "weaver_read_session"
 ];
-function isModelFacing(meta4) {
-  const visibility = meta4?.ui?.visibility;
+function isModelFacing(meta3) {
+  const visibility = meta3?.ui?.visibility;
   return !visibility || visibility.includes("model");
 }
 function computeToolSurface(registry2) {
@@ -129407,13 +129302,12 @@ function computeToolSurface(registry2) {
 }
 async function createWeaverServer(options = {}) {
   initLog(options.previewWorkspaceDir ?? process.cwd(), options.logOptions);
-  const manifest = JSON.parse(readFileSync4(resolve4(process.cwd(), ".codex-plugin", "plugin.json"), "utf8"));
+  const manifest = JSON.parse(readFileSync7(resolve7(process.cwd(), ".codex-plugin", "plugin.json"), "utf8"));
   const serverVersion = manifest.version;
   const server2 = new McpServer({ name: "weaver-mcp-server", version: serverVersion }, { instructions: "Use Weaver tools to create semantic spaces, recommend immutable VisualTemplates, project one content graph into independent views, read concise graph summaries, propose LayoutPlan constraints, and submit auditable ChangeSets. For quantitative or trend data (market size over time, share breakdowns, growth rates, KPIs), author a `chart` content node instead of prose \u2014 set content.kind='chart' with chartType line/bar/area (series of {label,value} points), pie (share breakdown), or metric (a single KPI with delta), and always fill sourceNote + asOf so figures stay auditable. Submit these via weaver_submit_changeset like any other content. Never invent template ids, final coordinates, or direct asset paths. Applying a template to an existing project must not mutate graph content." });
   const eventHub2 = new SseEventHub();
   await eventHub2.start();
   const widgetUri = widgetResourceUri(eventHub2.buildId);
-  const mutateWithStore = createMutateWithStore(eventHub2);
   const registry2 = /* @__PURE__ */ new Map();
   const originalRegisterTool = server2.registerTool.bind(server2);
   server2.registerTool = (name, config2, handler) => {
@@ -129438,34 +129332,34 @@ async function createWeaverServer(options = {}) {
     registry2.set(name, { shape: config2?.inputSchema, handler: logged, meta: config2?._meta });
     return originalRegisterTool(name, config2, logged);
   };
-  registerWorkspaceTools(server2, { eventHub: eventHub2, mutateWithStore, widgetUri, serverVersion });
-  registerManageViewTool(server2, { mutateWithStore });
-  registerCanvasActionTool(server2, { mutateWithStore });
+  registerWorkspaceTools(server2, { eventHub: eventHub2, widgetUri, serverVersion });
+  registerManageViewTool(server2);
+  registerCanvasActionTool(server2);
   registerReadGraphTool(server2);
   registerReadCatalogTool(server2);
   registerImportAssetTool(server2);
   registerReadSessionTool(server2);
-  registerAgentTasksTools(server2, { mutateWithStore });
-  registerLayoutTools(server2, { eventHub: eventHub2, mutateWithStore });
-  registerChangesetsTools(server2, { mutateWithStore });
-  registerReviewActionTool(server2, { mutateWithStore });
+  registerAgentTasksTools(server2);
+  registerLayoutTools(server2);
+  registerChangesetsTools(server2);
+  registerReviewActionTool(server2);
   registerArtifactsTools(server2);
   registerDiagnosticsTools(server2, { eventHub: eventHub2, serverVersion, toolSurface: () => computeToolSurface(registry2) });
   registerResources(server2, { eventHub: eventHub2, widgetUri });
   server2.registerTool = originalRegisterTool;
   const surface = computeToolSurface(registry2);
   log("info", "server.boot", { serverVersion, hostKind: hostKind() ?? "codex", runtimeMode: process.env.WEAVER_RUNTIME_MODE ?? "installed", buildId: eventHub2.buildId, origin: eventHub2.origin, cwd: process.cwd(), node: process.version, toolCount: registry2.size, modelFacingTools: surface.modelFacing, criticalModelTools: surface.criticalPresent });
-  const dispatch2 = async (name, args) => {
+  const dispatch3 = async (name, args) => {
     const entry = registry2.get(name);
     if (!entry) throw new Error(`TOOL_NOT_FOUND:${name}`);
     const parsed = entry.shape ? external_exports.object(entry.shape).parse(args ?? {}) : args;
     return entry.handler(parsed, { _meta: {} });
   };
   if (previewHost()) {
-    eventHub2.configurePreview({ workspaceDir: options.previewWorkspaceDir ?? widgetRoot(), chatSessionKey: syntheticChatSessionKey(), dispatch: dispatch2, allowlist: PREVIEW_TOOL_ALLOWLIST });
+    eventHub2.configurePreview({ workspaceDir: options.previewWorkspaceDir ?? widgetRoot(), chatSessionKey: syntheticChatSessionKey(), dispatch: dispatch3, allowlist: PREVIEW_TOOL_ALLOWLIST });
   }
-  return { server: server2, eventHub: eventHub2, dispatch: dispatch2, toolMeta: (name) => registry2.get(name)?.meta, serverVersion, close: async () => {
-    closeWorkspaceStores();
+  return { server: server2, eventHub: eventHub2, dispatch: dispatch3, toolMeta: (name) => registry2.get(name)?.meta, serverVersion, close: async () => {
+    closeOwnedTestRuntimes();
     await eventHub2.close();
   } };
 }

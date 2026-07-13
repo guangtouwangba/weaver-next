@@ -34,6 +34,12 @@ jobs:
       - name: Widget typecheck
         run: npm run typecheck:widget
 
+      - name: Install Chromium for required localhost E2E
+        run: npx playwright install --with-deps chromium
+
+      - name: Required localhost E2E
+        run: npm run e2e:core
+
       - name: Build and validate installable plugin
         run: |
           node scripts/build-plugin-release.mjs

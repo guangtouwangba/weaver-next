@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { enrichPublicLink } from "../src/link-enrichment.js";
+import { enrichPublicLink } from "@weaver/workspace-service";
 
 const publicLookup = async () => [{ address: "93.184.216.34", family: 4 }];
 

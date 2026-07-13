@@ -1,0 +1,40 @@
+name: Nightly Canvas E2E
+
+on:
+  schedule:
+    - cron: "30 18 * * *"
+  workflow_dispatch:
+
+jobs:
+  canvas-e2e:
+    runs-on: macos-14
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build production packages and Canvas
+        run: npm run build:plugin
+
+      - name: Install Chromium
+        run: npx playwright install chromium
+
+      - name: Run full Canvas E2E and performance suite
+        run: npm run e2e:nightly
+
+      - name: Upload Playwright report and SLO evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-playwright-report
+          path: |
+            test-results/playwright-report
+            test-results/playwright
+          retention-days: 14

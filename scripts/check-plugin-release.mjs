@@ -8,6 +8,8 @@ const required = [
   ".mcp.json",
   ".release-manifest.json",
   "runtime/server.mjs",
+  "runtime/supervisor.mjs",
+  "runtime/manifest.json",
   "apps/widget/dist/index.html",
   "scripts/start-mcp.mjs",
   "scripts/start-mcp-claude.mjs",

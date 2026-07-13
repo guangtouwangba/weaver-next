@@ -2,14 +2,26 @@
 
 Weaver is in early development. The first public release supports macOS on Apple Silicon and requires Node.js 24 or newer. Project data is always stored under the workspace you open, not in the plugin installation directory.
 
+> Architecture migration in progress (2026-07-13): the approved product surface is one
+> workspace-scoped localhost Canvas, preferentially opened in Codex's right-side in-app
+> Browser. The existing native Widget/Claude preview instructions below describe the
+> temporary rollback path until `docs/localhost-canvas-runtime-prd.md` Phase 8 completes.
+
+The temporary Codex rollback is operator-only: set `WEAVER_CANVAS_SURFACE=legacy-widget`
+and `WEAVER_CANVAS_FALLBACK_REASON=<CODE>` in the MCP bridge environment, then restart the
+bridge. Localhost remains the default when the variables are absent. The fallback is owned
+by the Weaver maintainers and cannot be used as a Claude Canvas surface.
+> New implementation work must target the localhost runtime and must preserve existing
+> `<workspace>/.weaver/` business data through in-place migrations.
+
 ## Choose a host
 
 | Host | Canvas | Natural-language input | Recommended install |
 |---|---|---|---|
-| Codex | Embedded native Widget | Codex task | Git marketplace |
-| Claude Code | Browser beside the terminal | Terminal or `/weaver-watch` canvas composer | Git clone + installer |
+| Codex target | Localhost Canvas in the right-side in-app Browser | Codex task | Git marketplace + immutable local runtime |
+| Claude Code target | The same localhost Canvas in a system browser | Terminal | Git clone + installer |
 
-Both hosts use the same semantic graph, audited ChangeSets, deterministic layout pipeline, and project-local SQLite database.
+Both hosts use the same Canvas application, semantic graph, audited writes, deterministic layout pipeline, and project-local SQLite database.
 
 ## Requirements
 
@@ -114,6 +126,7 @@ rm -rf ~/.local/share/weaver-next
 - Claude runtime checkout: `~/.local/share/weaver-next`.
 - Claude skills: `~/.claude/skills/weaver-open` and `~/.claude/skills/weaver-watch`.
 - Codex plugin cache: managed by Codex; do not edit it manually.
+- Runtime cache: `~/.weaver/runtimes/`; Weaver preserves every descriptor-referenced build plus the two newest unreferenced builds under a 1 GiB soft cap. Run `npm run runtime:cleanup` for an explicit safe cleanup.
 - Browser preview and SSE endpoints bind only to `127.0.0.1` and require an owner-secret-derived capability token.
 - Preview metadata is created only after you explicitly open a workspace. `<workspace>/.weaver/preview.json` and `~/.weaver/runtime/` are owner-only (`0600` files inside `0700` directories); do not share their contents.
 - Link enrichment makes outbound HTTP/HTTPS requests only when you explicitly add a public link. Private-network targets are blocked.

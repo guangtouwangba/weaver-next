@@ -50,22 +50,35 @@ function widgetBoot(bundle: WidgetBundle) {
   return `<script>window.__weaverEmbeddedBuildId=${JSON.stringify(bundle.buildId)};window.__weaverAssetFailure=function(){var e=document.getElementById('weaver-boot-error');if(e){e.hidden=false;e.style.display='grid'}};</script><div id="weaver-boot-error" hidden style="position:fixed;inset:0;z-index:9999;place-content:center;background:#eef1ea;color:#30362f;font:14px system-ui">Weaver 资源加载失败，请重新打开画布。</div>`;
 }
 
+function injectWidgetBoot(html: string, bundle: WidgetBundle) {
+  return html.replace(/<body(?:\s[^>]*)?>/i, (body) => `${body}${widgetBoot(bundle)}`);
+}
+
+/** Keep document-boundary tokens out of an inline module. Codex reparses the MCP
+ * resource before mounting it and treats a literal `<body>` inside JavaScript as an
+ * HTML boundary, even though browsers correctly keep it inside the script raw-text
+ * element. Hex escapes preserve the runtime string while leaving one real body pair. */
+function htmlSafeInlineModule(source: string) {
+  return source
+    .replace(/<body>/gi, "\\x3cbody>")
+    .replace(/<\/body>/gi, "\\x3c/body>")
+    .replace(/<\/script/gi, "<\\/script");
+}
+
 /** Codex app resources must be self-contained. The iframe cannot rely on the MCP
  * process's ephemeral loopback origin for its initial JS and CSS. */
 export function inlineWidgetHtml(bundle: WidgetBundle) {
   const assets = new Map(bundle.assets.map((asset) => [asset.path, asset]));
-  return bundle.html
+  return injectWidgetBoot(bundle.html, bundle)
     .replace(/<link[^>]+href="\.\/([^"?#]+\.css)"[^>]*>/g, (_match, path) => `<style>${assets.get(path)?.data.toString("utf8") ?? ""}</style>`)
-    .replace(/<script[^>]+src="\.\/([^"?#]+\.js)"[^>]*><\/script>/g, (_match, path) => `<script type="module">${(assets.get(path)?.data.toString("utf8") ?? "").replaceAll("</script>", "<\\/script>")}</script>`)
-    .replace("<body>", `<body>${widgetBoot(bundle)}`);
+    .replace(/<script[^>]+src="\.\/([^"?#]+\.js)"[^>]*><\/script>/g, (_match, path) => `<script type="module">${htmlSafeInlineModule(assets.get(path)?.data.toString("utf8") ?? "")}</script>`);
 }
 
 /** Rewrite a widget bundle's HTML to load its assets from the loopback origin. Takes an
  *  explicit bundle so the HTML and the asset URLs it references always come from one snapshot. */
 export function bundledWidgetHtml(assetBaseUrl: string, bundle: WidgetBundle) {
   const base = assetBaseUrl.endsWith("/") ? assetBaseUrl : `${assetBaseUrl}/`;
-  return bundle.html
+  return injectWidgetBoot(bundle.html, bundle)
     .replace(/href="\.\/([^"?#]+\.css)"/g, (_match, path) => `href="${base}${path}" onerror="window.__weaverAssetFailure()"`)
-    .replace(/src="\.\/([^"?#]+\.js)"/g, (_match, path) => `src="${base}${path}" onerror="window.__weaverAssetFailure()"`)
-    .replace("<body>", `<body>${widgetBoot(bundle)}`);
+    .replace(/src="\.\/([^"?#]+\.js)"/g, (_match, path) => `src="${base}${path}" onerror="window.__weaverAssetFailure()"`);
 }

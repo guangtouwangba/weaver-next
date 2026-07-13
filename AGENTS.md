@@ -13,9 +13,9 @@
 
 ## 项目是什么
 
-Weaver 是一个以 Codex 插件为正式入口的、场景驱动的语义知识空间。底层核心工件是带类型的 Node/Edge 图谱；自由画布、树、关系图、流程、时间线、看板、矩阵和表格只是同一内容图谱的独立投影。
+Weaver 是一个由 Codex 插件驱动、以 workspace 级 localhost Canvas 为正式操作界面的场景化语义知识空间。底层核心工件是带类型的 Node/Edge 图谱；自由画布、树、关系图、流程、时间线、看板、矩阵和表格只是同一内容图谱的独立投影。
 
-用户在 Widget 中编辑、选择和组织内容，在 Codex Chat 中表达自然语言意图。Agent 读取当前 Chat 精确绑定的 Canvas 上下文，提交可审计的 `GraphOperation`、`ChangeSet` 或语义化 `LayoutPlan`；确定性布局引擎负责最终坐标，Widget 负责预览、确认、撤销和实时反馈。
+用户在 localhost Canvas 中编辑、选择和组织内容，在 Codex Chat 中表达自然语言意图。Agent 读取当前 Chat 精确绑定的 Canvas 上下文，提交可审计的 `GraphOperation`、`ChangeSet` 或语义化 `LayoutPlan`；确定性布局引擎负责最终坐标，Canvas 负责预览、确认、撤销和实时反馈。Codex 右侧内置浏览器是首选容器，系统浏览器只作为降级入口。
 
 ## 核心设计
 
@@ -46,8 +46,9 @@ Weaver 是一个以 Codex 插件为正式入口的、场景驱动的语义知识
 ### 4. 本地优先与可恢复
 
 - 项目数据保存在 `<workspace>/.weaver/`，SQLite 是权威状态。
-- MCP 通过 stdio 提供结构化工具，通过带随机令牌的 loopback HTTP 提供 Widget 静态资源和 SSE。
-- Widget 必须能通过 revision 核对恢复遗漏事件，不能依赖旧页面收到完整历史广播。
+- Chat 级 MCP bridge 通过 stdio 提供结构化工具；workspace supervisor/worker 通过受限 loopback HTTP 提供 Canvas、RPC 和 SSE。
+- Canvas 必须能通过 revision 核对恢复遗漏事件，不能依赖旧页面收到完整历史广播。
+- Canvas 在 Chat/MCP 离线时仍允许经过审计的手动编辑；Agent 写入必须要求在线、精确配对且 revision/lease 有效的 Chat binding。
 - viewport 恢复失败不能阻止 Session 激活；应降级为 Fit All 并给出可见警告。
 - 优先保持简单的 local-first 架构，不为未来假设提前引入分布式系统。
 
@@ -61,41 +62,45 @@ Weaver 是一个以 Codex 插件为正式入口的、场景驱动的语义知识
 
 ```mermaid
 flowchart LR
-  User["User"] --> Widget["Codex Widget / Browser Preview"]
+  User["User"] --> Canvas["Localhost Canvas / Codex Browser"]
   User --> Chat["Codex Chat"]
-  Widget -->|"MCP app tools"| MCP["Local MCP Server"]
-  Chat -->|"MCP tools + Skills"| MCP
-  MCP --> Contracts["Contracts + Core policies"]
-  MCP --> Storage["WorkspaceStore / SQLite"]
-  MCP --> Layout["Deterministic Layout Engine"]
+  Chat -->|"MCP tools + Skills"| MCP["Chat-scoped MCP Bridge"]
+  MCP -->|"owner-only control"| Supervisor["Workspace Supervisor"]
+  Canvas -->|"same-origin RPC + SSE"| Supervisor
+  Supervisor --> Service["Workspace Service Worker"]
+  Service --> Contracts["Contracts + Core policies"]
+  Service --> Storage["WorkspaceStore / SQLite"]
+  Service --> Layout["Deterministic Layout Engine"]
   Storage --> Data["<workspace>/.weaver/"]
-  MCP -->|"tokenized static assets + SSE"| Widget
-  Layout -->|"candidates + metrics"| MCP
+  Layout -->|"candidates + metrics"| Service
 ```
 
 关键数据流：
 
-1. Widget 加载 Project/Graph/Layout，并先 claim Canvas Session。
-2. Session 激活后异步恢复 viewport，再发送完整 state snapshot。
-3. Widget 将 selection、focused node、Pin、viewport 和 revisions 同步到 MCP。
-4. Codex 根据当前 Chat binding 准备并执行 AgentTask。
-5. 内容写入经过 ChangeSet；布局写入经过 LayoutPlan/validated layout operations。
-6. SQLite 事务写入状态和 ProjectEvent；SSE 推送增量。
-7. Widget 幂等应用 delta，序列缺口或 revision 落后时重新读取权威 Graph/Layout。
+1. `weaver_open_space` 确保 workspace runtime、创建一次性 pairing nonce，并由 Skill 优先在 Codex 右侧浏览器打开或复用 Canvas。
+2. Canvas 领取 Browser Session 与 Project writer lease，加载 Project/Graph/Layout；同一 Project 的第二个标签页默认只读，显式接管才可写。
+3. Session 激活后异步恢复 viewport，再发送完整 state snapshot。
+4. Canvas 将 selection、focused node、Pin、viewport 和 revisions 同步到 workspace service。
+5. Codex 根据当前 Chat binding 准备并执行 AgentTask；浏览器不得自行声明 Chat 身份或 Agent 权限。
+6. 内容写入经过 ChangeSet/validated manual mutation；布局写入经过 LayoutPlan/validated layout operations。
+7. SQLite 事务同时写入状态、审计记录和 ProjectEvent；SSE 推送增量。
+8. Canvas 幂等应用 delta，序列缺口或 revision 落后时重新读取权威 Graph/Layout。
 
 ## 目录地图
 
 | 路径 | 职责 |
 |---|---|
-| `apps/widget/` | 正式 Codex Widget 与 localhost 开发预览；React、React Flow、Vite。 |
+| `apps/widget/` | 迁移期 Canvas 源码；最终机械重命名为 `apps/canvas/`，生产与 E2E 使用同一 localhost 应用。 |
 | `apps/widget/src/hooks/` | Bootstrap、Canvas 状态、绑定同步、SSE、文档编辑和 View 管理等前端领域逻辑。 |
 | `apps/widget/src/components/` | Canvas、节点、边、导航、编辑器和任务预览 UI。 |
-| `apps/widget/src/__tests__/` | Widget 纯逻辑与交互相关回归测试。 |
+| `apps/widget/src/__tests__/` | 迁移期 Canvas 纯逻辑与交互相关回归测试。 |
 | `packages/contracts/` | Zod schema、共享类型、错误和 API contract；跨层数据的唯一结构定义。 |
 | `packages/core/` | 无 IO 的 Graph、LayoutOperation、上下文策略等纯领域逻辑。 |
 | `packages/layout-engine/` | 确定性布局、候选生成、连线路由和质量评分。 |
 | `packages/storage/` | `WorkspaceStore`、SQLite schema/事务、Graph/Layout/View/Task/事件持久化。 |
-| `packages/mcp/` | stdio MCP Server、Tools、Resources、Chat identity、SSE 与 loopback 静态资源。 |
+| `packages/mcp/` | Chat 级 stdio MCP bridge、model-facing Tools、可信 Chat identity 与 workspace service client。 |
+| `packages/workspace-service/` | 目标 workspace worker；Canvas HTTP/RPC/SSE、Browser Session、业务操作与 SQLite 单一运行时所有者。 |
+| `packages/workspace-supervisor/` | 目标按 workspace 按需 supervisor；稳定 loopback origin、worker 恢复、build 升级与空闲退出。 |
 | `packages/scene-packs/` | 内置场景包及上下文/动作规则。 |
 | `packages/visual-templates/` | 不可变、版本化的结构化视觉模板目录。 |
 | `skills/` | 面向 Coding Agent 的稳定 Weaver 工作流。 |
@@ -110,14 +115,14 @@ flowchart LR
 - Schema 变更必须保持 legacy 数据可读；能用默认值兼容时不做无意义迁移。
 - 所有写路径必须验证 Project/View/Session/revision 边界。
 - 布局操作必须保持 `graphRevision` 不变。
-- 文件和 Asset 必须限制在 project/workspace 路径内；禁止把任意本地路径暴露给 Widget 或模型。
-- Widget 有三种宿主：`codex`（Apps-SDK iframe）、`claude`（Claude Code 终端 + 独立浏览器预览，通过 loopback `/preview` + `/mcp-rpc`，是完整绑定的 agent 宿主）、`dev`（Vite localhost 只读预览）。仅 `dev` 与 `?demo=1` 必须显示 `Browser preview. Agent unavailable`；`claude` 宿主与 Codex 一样 agent-eligible。宿主判定见 `apps/widget/src/lib/host-mode.ts`。
-- Claude 宿主由 `scripts/start-mcp-claude.mjs`（`WEAVER_HOST_KIND=claude`）启动，与 Codex 共用同一 store/binding，靠进程级合成 `chatSessionKey`（`packages/mcp/src/session-identity.ts`）让 stdio（Claude）与 loopback（浏览器）收敛到同一绑定。`.mcp.json` 保持 Codex 干净，不要写入 `WEAVER_HOST_KIND`。
-- loopback `/mcp-rpc`/`/api/bootstrap`/`/preview` 只绑本机、带 token、workspace 钉死、工具白名单、最小 CSP；身份从进程推导，从不取自请求。
-- Localhost browser preview（dev）不得启动 AgentTask，必须清楚显示 `Browser preview. Agent unavailable`。
-- Widget、插件和 MCP Server 必须校验 build/version；开发态使用 workspace build，安装态使用插件缓存。
-- 开发态下 Claude 宿主的 MCP 进程会**按需重读 widget dist**并在重建时通过 SSE `widget.reload` 让浏览器自动刷新（`SseEventHub` 的 bundle 注册表按 buildId 服务，杜绝 HTML/资源 buildId 错配的白屏）。因此**只改 widget 前端 → 刷新/自动刷新浏览器即可**，无需重启 MCP。
-- **改 MCP/contracts/scene-packs 等服务端代码后仍必须重启对应 MCP/Vite 进程**（运行中进程加载的是旧服务端代码），再做真实页面验收，避免用旧 schema/逻辑得出错误结论。
+- 文件和 Asset 必须限制在 project/workspace 路径内；禁止把任意本地路径暴露给 Canvas 或模型。
+- 正式 Canvas 只有 localhost 一种业务运行模式；Codex 右侧浏览器、Claude 系统浏览器和 Playwright 只是容器，不得产生前端业务分叉。能力由服务端 bootstrap 下发，不得通过 hostname/query 推导。
+- Codex/Claude 都通过 Chat 级 MCP bridge 与同一个 workspace service 配对。Codex 必须使用可信 thread metadata 哈希；Claude 可使用 bridge 生成的宿主身份。进程 `cwd` 不得代替精确 Chat pairing。
+- 正式 loopback `/app`、`/api/bootstrap`、`/api/rpc`、`/events` 只绑 `127.0.0.1`，同源、workspace 钉死、操作白名单、最小 CSP，并校验 Host/Origin/CSRF；浏览器身份来自一次性 pairing 与 HttpOnly Session，不取自普通请求参数。
+- 未配对的 localhost Canvas 不得启动 AgentTask，但允许经过 contracts/revision/事务/审计的手动编辑，并清楚显示 `Local editing · Agent disconnected`。
+- Canvas runtime、workspace service、supervisor、插件和 MCP bridge 必须校验 build/protocol version；不允许混合版本继续写入。
+- 开发态 Canvas bundle 可热更新并通过 runtime SSE 自动刷新；HTML 与资源必须钉死同一 buildId，杜绝版本错配白屏。
+- **改 workspace service/supervisor/MCP/contracts/scene-packs 等服务端代码后必须重启或升级对应 worker/bridge**，再做真实页面验收，避免用旧 schema/逻辑得出错误结论。
 
 ## 开发与验收
 
@@ -139,6 +144,20 @@ npm run build:plugin
 npm run test
 node scripts/probe-mcp.mjs
 ```
+
+## Agent skills
+
+### Issue tracker
+
+Issues and PRDs are tracked in GitHub Issues for `guangtouwangba/weaver-next`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Triage uses the five default canonical labels. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Domain documentation uses a single-context layout. See `docs/agents/domain.md`.
 
 ## 修改策略
 

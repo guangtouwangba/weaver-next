@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
-import type { Edge, Node, Viewport } from "@xyflow/react";
-import { callTool, connectMcpApp, hostMode, mcp, setCodexLoopback, weaverPreview } from "../mcp-client";
+import type { CanvasEdge as Edge, CanvasNode as Node, CanvasViewport as Viewport } from "../lib/canvas-model";
+import { callTool, connectMcpApp, hostMode, mcp, setCodexLoopback, setRuntimeCsrfToken, weaverPreview, weaverRuntime } from "../mcp-client";
 import { shouldPromptForProject } from "../lib/graph-view";
+import { buildWidgetBenchmarkScene } from "../lib/benchmark-scene";
 import type { Bootstrap, ChatBindingBootstrap, GraphEdge, GraphNode, Layout, Manifest, Project, ProjectView, ToolResult, VisualTemplate } from "../types";
 
 // Domain A: bootstrap/project/graph load. Owns the project/manifest/layout/graph state and
@@ -26,6 +27,7 @@ export function useProjectBootstrap(params: {
 }) {
   const { standaloneDemo, activeViewId, setActiveViewId, setProjectViews, setNodes, setEdges, setSelection, previewCache, setAssetPreviews, setTemplateMode, setTemplateGallery, setTemplates, sessionId, fitView, setViewport } = params;
   const query = new URLSearchParams(location.search);
+  const benchmarkMode = standaloneDemo && query.get("benchmark") === "1";
   const initial = (window.openai?.toolOutput ?? {}) as Partial<Bootstrap>;
   const [bootstrap, setBootstrap] = useState<Bootstrap>({ workspaceDir: String(initial.workspaceDir ?? query.get("workspaceDir") ?? ""), projectId: String(initial.projectId ?? query.get("projectId") ?? "") || undefined });
   const [project, setProject] = useState<Project | null>(null);
@@ -43,6 +45,7 @@ export function useProjectBootstrap(params: {
   const bindingRef = useRef<ChatBindingBootstrap | undefined>(bootstrap.chatBinding);
   const pendingInitialFitView = useRef<string | null>(null);
   const pendingViewportRestore = useRef<{ viewId: string; viewport: Viewport } | null>(null);
+  const bridgeConnectedRef = useRef<boolean | undefined>(bootstrap.capabilities?.agentConnected);
 
   const demoImage = useMemo(() => `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="640" height="420"><rect width="640" height="420" fill="#d8dbcf"/><circle cx="160" cy="160" r="90" fill="#315cf6"/><path d="M280 310L390 130L520 310Z" fill="#eb775f"/></svg>')}`, []);
 
@@ -76,6 +79,16 @@ export function useProjectBootstrap(params: {
 
   useEffect(() => {
     if (standaloneDemo || bootstrap.workspaceDir) return;
+    if (hostMode === "runtime" && weaverRuntime) {
+      void fetch(weaverRuntime.bootstrapPath)
+        .then((response) => response.json())
+        .then((value: { projectId?: string; viewId?: string; chatBinding?: ChatBindingBootstrap; capabilities?: Bootstrap["capabilities"]; buildId?: string; serverVersion?: string; csrfToken?: string }) => {
+          setRuntimeCsrfToken(value.csrfToken);
+          setBootstrap({ workspaceDir: "runtime", projectId: value.projectId, chatBinding: value.chatBinding, capabilities: value.capabilities, runtimeMode: "installed", widgetBuildId: value.buildId, serverVersion: value.serverVersion, csrfToken: value.csrfToken });
+        })
+        .catch((error) => setStatus(String(error)));
+      return;
+    }
     if (hostMode === "claude" && weaverPreview) {
       void fetch(weaverPreview.bootstrapPath, { headers: { "x-weaver-preview-token": weaverPreview.token } })
         .then((response) => response.json())
@@ -87,6 +100,29 @@ export function useProjectBootstrap(params: {
     if (hostMode === "dev") {
       void fetch("/api/bootstrap").then((response) => response.json()).then((value: Bootstrap) => setBootstrap(value)).catch((error) => setStatus(String(error)));
     }
+  }, [bootstrap.workspaceDir, standaloneDemo]);
+
+  useEffect(() => {
+    const runtime = weaverRuntime;
+    if (standaloneDemo || hostMode !== "runtime" || !runtime || !bootstrap.workspaceDir) return;
+    let cancelled = false;
+    const refreshCapabilities = () => {
+      void fetch(runtime.bootstrapPath)
+        .then((response) => { if (!response.ok) throw new Error(`BOOTSTRAP_REFRESH_FAILED:${response.status}`); return response.json(); })
+        .then((value: { projectId?: string; chatBinding?: ChatBindingBootstrap; capabilities?: Bootstrap["capabilities"]; buildId?: string; serverVersion?: string; csrfToken?: string }) => {
+          if (cancelled) return;
+          setRuntimeCsrfToken(value.csrfToken);
+          setBootstrap((current) => ({ ...current, projectId: value.projectId ?? current.projectId, chatBinding: value.chatBinding, capabilities: value.capabilities, widgetBuildId: value.buildId ?? current.widgetBuildId, serverVersion: value.serverVersion ?? current.serverVersion, csrfToken: value.csrfToken ?? current.csrfToken }));
+          const connected = value.capabilities?.agentConnected;
+          if (connected !== undefined && connected !== bridgeConnectedRef.current) {
+            bridgeConnectedRef.current = connected;
+            setStatus(connected ? `Connected to this ${value.capabilities?.hostLabel ?? "Agent"} session` : "Local editing · Agent disconnected");
+          }
+        })
+        .catch(() => { /* worker reconnect is surfaced by the existing RPC/SSE state */ });
+    };
+    const timer = window.setInterval(refreshCapabilities, 5_000);
+    return () => { cancelled = true; window.clearInterval(timer); };
   }, [bootstrap.workspaceDir, standaloneDemo]);
 
   const ensureBindingTarget = useCallback(async (projectId: string, viewId: string) => {
@@ -127,20 +163,22 @@ export function useProjectBootstrap(params: {
   const load = useCallback(async () => {
     if (standaloneDemo) {
       const timestamp = new Date().toISOString();
+      const benchmark = benchmarkMode ? buildWidgetBenchmarkScene(500, 1000) : null;
       const demoProject: Project = { id: "demo", title: "机器人研究 · 技术与产业图谱", defaultViewId: "graph-default", graphRevision: 7, viewCatalogRevision: 1, scenePackId: "entity-relationship", scenePackVersion: "1.0.0" };
-      const demoManifest: Manifest = { scenePack: { id: "entity-relationship", recommendedViews: ["graph", "canvas", "board"], nodeTypes: [{ key: "entity", label: "实体", defaultContentKind: "document", allowedContentKinds: ["document", "image", "link"] }, { key: "source", label: "来源", defaultContentKind: "document", allowedContentKinds: ["document", "image", "link"] }] }, views: [{ viewId: "graph-default", viewName: "Concept network", viewType: "graph", layoutRevision: 4 }] };
-      const items: GraphNode[] = [
+      const demoManifest: Manifest = { scenePack: { id: "entity-relationship", recommendedViews: ["graph", "canvas", "board"], nodeTypes: [{ key: "entity", label: "实体", defaultContentKind: "document", allowedContentKinds: ["document", "image", "link"] }, { key: "source", label: "来源", defaultContentKind: "document", allowedContentKinds: ["document", "image", "link"] }], edgeTypes: [{ key: "relates-to", label: "关联", directed: true }] }, views: [{ viewId: "graph-default", viewName: "Concept network", viewType: "graph", layoutRevision: 4 }] };
+      const items: GraphNode[] = benchmark?.nodes ?? [
         { id: "article", projectId: "demo", type: "entity", title: "人形机器人技术栈", contentKind: "document", content: { kind: "document", mode: "article", markdown: "# 人形机器人技术栈\n\n关节模组、减速器、伺服系统与具身智能模型。", excerpt: "关节模组、减速器、伺服系统与具身智能模型。", coverAssetId: "demo-image", embeddedAssetIds: [] }, assets: [{ id: "demo-image", width: 640, height: 420, mimeType: "image/png", thumbnailUri: "" }], properties: {}, archived: false, createdAt: timestamp, updatedAt: timestamp },
         { id: "image", projectId: "demo", type: "source", title: "关节模组结构", contentKind: "image", content: { kind: "image", assetId: "demo-image", alt: "机器人关节模组示意", caption: "机器人硬件结构参考" }, assets: [{ id: "demo-image", width: 640, height: 420, mimeType: "image/png", thumbnailUri: "" }], properties: {}, archived: false, createdAt: timestamp, updatedAt: timestamp },
         { id: "link", projectId: "demo", type: "source", title: "具身智能研究资料", contentKind: "link", content: { kind: "link", url: "https://example.com/embodied-ai", title: "具身智能研究资料", description: "具身智能模型与机器人控制研究资料。", domain: "example.com", enrichmentStatus: "ready" }, properties: {}, archived: false, createdAt: timestamp, updatedAt: timestamp },
       ];
-      const demoLayout: Layout = { viewId: "graph-default", viewName: "Concept network", viewType: "graph", graphRevision: 7, layoutRevision: 4, nodes: { article: { nodeId: "article", x: 0, y: 30, width: 280, height: 160, pinned: true }, image: { nodeId: "image", x: 380, y: -80, width: 320, height: 240, pinned: false }, link: { nodeId: "link", x: 770, y: 80, width: 300, height: 180, pinned: false } } };
+      const demoLayout: Layout = { viewId: "graph-default", viewName: "Concept network", viewType: "graph", graphRevision: 7, layoutRevision: 4, nodes: benchmark ? Object.fromEntries(benchmark.layoutNodes.map((node) => [node.nodeId, node])) : { article: { nodeId: "article", x: 0, y: 30, width: 280, height: 160, pinned: true }, image: { nodeId: "image", x: 380, y: -80, width: 320, height: 240, pinned: false }, link: { nodeId: "link", x: 770, y: 80, width: 300, height: 180, pinned: false } } };
+      pendingInitialFitView.current = demoLayout.viewId;
       previewCache.current = { "demo-image": demoImage }; setAssetPreviews(previewCache.current);
       setProject(demoProject); setManifest(demoManifest); setLayout(demoLayout); setGraphNodes(items); setActiveViewId(demoLayout.viewId);
       setProjectViews([{ id: demoLayout.viewId, projectId: demoProject.id, name: demoLayout.viewName, viewType: demoLayout.viewType, status: "active", pinned: true, pinnedOrder: 0, createdBy: "template", createdAt: timestamp, updatedAt: timestamp, lastOpenedAt: timestamp }]);
-      const demoEdges = [{ id: "e1", sourceNodeId: "article", targetNodeId: "image", type: "has-attribute" }, { id: "e2", sourceNodeId: "image", targetNodeId: "link", type: "relates-to" }];
+      const demoEdges = benchmark?.edges ?? [{ id: "e1", sourceNodeId: "article", targetNodeId: "image", type: "has-attribute" }, { id: "e2", sourceNodeId: "image", targetNodeId: "link", type: "relates-to" }];
       setGraphEdges(demoEdges);
-      setStatus("Development preview · three content kinds"); return;
+      setStatus(benchmark ? "Performance benchmark · 500 nodes · 1000 edges" : "Development preview · three content kinds"); return;
     }
     if (!bootstrap.workspaceDir) { setStatus("Open this widget from the Weaver Codex plugin, or provide ?workspaceDir=/path."); return; }
     setBusy(true);
@@ -177,7 +215,7 @@ export function useProjectBootstrap(params: {
       setStatus(`${liveNodes.length} nodes · graph r${graph.project.graphRevision} · layout r${graph.layout.layoutRevision}${runtime}`);
     } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); }
     finally { setBusy(false); }
-  }, [activeViewId, bootstrap.projectId, bootstrap.runtimeMode, bootstrap.widgetBuildId, bootstrap.workspaceDir, demoImage, ensureBindingTarget, fitView, hydratePreviews, setEdges, setViewport, standaloneDemo, startFromTemplateGallery]);
+  }, [activeViewId, benchmarkMode, bootstrap.projectId, bootstrap.runtimeMode, bootstrap.widgetBuildId, bootstrap.workspaceDir, demoImage, ensureBindingTarget, fitView, hydratePreviews, setEdges, setViewport, standaloneDemo, startFromTemplateGallery]);
 
   useEffect(() => { void load(); }, [load]);
 

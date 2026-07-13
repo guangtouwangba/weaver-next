@@ -4,6 +4,8 @@
 !.env.example
 secrets.json
 node_modules/
+test-results/
+playwright-report/
 .next/
 dist/
 build/

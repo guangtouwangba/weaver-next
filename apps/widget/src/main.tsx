@@ -1,7 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { ReactFlowProvider, useEdgesState, useNodesState, useReactFlow, type Edge, type Node, type Viewport } from "@xyflow/react";
-import "@xyflow/react/dist/style.css";
 import "./styles.css";
 
 import { useProjectBootstrap } from "./hooks/useProjectBootstrap";
@@ -17,13 +15,16 @@ import { useDisplayMode } from "./hooks/useDisplayMode";
 
 import { TopBar } from "./components/TopBar";
 import { ViewLibraryDrawer } from "./components/ViewLibraryDrawer";
-import { CanvasStage } from "./components/CanvasStage";
+import { CanvasStage, type CanvasApi } from "./components/CanvasStage";
 import { TemplateGalleryModal } from "./components/TemplateGalleryModal";
 import { ProjectPickerModal } from "./components/ProjectPickerModal";
 import { NodeViewerModal } from "./components/NodeViewerModal";
 import { DocumentEditorPanel } from "./components/DocumentEditorPanel";
+import { InlineLauncher } from "./components/InlineLauncher";
 import { loadCanvasSessionId } from "./lib/canvas-session";
 import { I18nProvider, useI18n } from "./lib/i18n";
+import { alignNodes, distributeNodes } from "./lib/canvas-tools";
+import type { CanvasEdge, CanvasNode, CanvasViewport } from "./lib/canvas-model";
 
 import type { Candidate, ProjectView, VisualTemplate } from "./types";
 
@@ -31,22 +32,27 @@ declare global { interface Window { openai?: { toolOutput?: Record<string, unkno
 
 function WeaverWidget() {
   const { t } = useI18n();
-  const { fitView, getViewport, screenToFlowPosition, setViewport } = useReactFlow();
   const query = new URLSearchParams(location.search);
   const standaloneDemo = query.get("demo") === "1";
-  const { displayMode } = useDisplayMode();
+  const inlinePreview = import.meta.env.DEV && standaloneDemo && query.get("inline") === "1";
+  const { displayMode, openFullscreen } = useDisplayMode();
 
   // Cross-cutting state that two or more domain hooks both need to read *and* write —
   // lifted to the composition root (same style as the cross-cutting refs) so the domain
   // hooks below can be constructed in a straight line without circular dependencies.
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  const [nodes, setNodes] = useState<CanvasNode[]>([]);
+  const [edges, setEdges] = useState<CanvasEdge[]>([]);
   const [assetPreviews, setAssetPreviews] = useState<Record<string, string>>({});
   const previewCache = useRef<Record<string, string>>({});
   const [selection, setSelection] = useState<string[]>([]);
   const [anchorNodeId, setAnchorNodeId] = useState<string>();
   const draggingNodeId = useRef<string | null>(null);
-  const viewport = useRef<Viewport>({ x: 0, y: 0, zoom: 1 });
+  const viewport = useRef<CanvasViewport>({ x: 0, y: 0, zoom: 1 });
+  const canvasApiRef = useRef<CanvasApi | null>(null);
+  const getViewport = useCallback(() => canvasApiRef.current?.getViewport() ?? viewport.current, []);
+  const setViewport = useCallback((next: CanvasViewport, options?: { duration?: number }) => canvasApiRef.current?.setViewport(next, options) ?? Promise.resolve(false), []);
+  const fitView = useCallback((options?: Record<string, unknown>) => canvasApiRef.current?.fitView(options as Parameters<CanvasApi["fitView"]>[0]) ?? Promise.resolve(false), []);
+  const screenToFlowPosition = useCallback((point: { x: number; y: number }) => canvasApiRef.current?.screenToWorld(point) ?? point, []);
   const stream = useRef<EventSource | null>(null);
   const sessionId = useRef(loadCanvasSessionId());
   const [activeViewId, setActiveViewId] = useState("");
@@ -62,11 +68,11 @@ function WeaverWidget() {
   });
   const { bootstrap, setBootstrap, project, setProject, manifest, setManifest, layout, setLayout, graphNodes, setGraphNodes, graphEdges, setGraphEdges, status, setStatus, busy, setBusy, projectRef, layoutRef, graphNodesRef, graphEdgesRef, bindingRef, pendingInitialFitView, pendingViewportRestore, projectChoices, chooseProject, startFromTemplateGallery, load, ensureBindingTarget, hydratePreviews } = bootstrapHook;
 
-  const { syncContext, accessState, setAccessState, claimError, retryClaim } = useCanvasBindingSync({
+  const { syncContext, accessState, setAccessState, claimError, retryClaim, takeOver } = useCanvasBindingSync({
     standaloneDemo, project, layout, bootstrap, bindingRef, setStatus, selection, anchorNodeId, nodes, viewport, sessionId, stream, pendingInitialFitView, pendingViewportRestore,
   });
 
-  const { persistNodeFrame, persistNodeResize: _persistNodeResize, persistEdgeRoute, groupSelection, archiveNodes, togglePinned, toggleCanvasTheme, handleSelectionChange, handleNodeDrag } = useCanvasGraph({
+  const { persistNodeFrame, persistSelectionFrames, persistNodeResize: _persistNodeResize, persistEdgeRoute, linkNodes, duplicateSelection, groupSelection, archiveNodes, togglePinned, toggleCanvasTheme, handleSelectionChange } = useCanvasGraph({
     standaloneDemo, setNodes, setEdges, graphNodes, graphEdges, assetPreviews, draggingNodeId, selection, setSelection, bootstrap, project, layout, setLayout, layoutRef, projectRef, setStatus, load,
   });
   const canvasViewport = useCanvasViewport({ nodes, selection, viewId: layout?.viewId, viewport, pendingInitialFitView, pendingViewportRestore, fitView, getViewport, setViewport, onViewportReady: () => { window.setTimeout(() => void syncContext(), 0); } });
@@ -74,7 +80,7 @@ function WeaverWidget() {
   const documentEditor = useDocumentEditor({
     standaloneDemo, bootstrap, project, layout, manifest, graphNodes, graphNodesRef, setProject, setLayout, setGraphNodes, setStatus, setBusy, load, previewCache, setAssetPreviews, screenToFlowPosition,
   });
-  const { createMenu, setCreateMenu, linkComposer, setLinkComposer, linkUrl, setLinkUrl, activeDocument, setActiveDocument, activeViewer, setActiveViewer, draft, editorMode, setEditorMode, saveState, setSaveState, fileInput, editorTextArea, saveStateRef, activeDocumentRef, createArticle, chooseImage, importImageFile, createLink, openDocument, openNodeViewer, saveDocument, editDraft, formatMarkdown } = documentEditor;
+  const { setCreateMenu, linkComposer, setLinkComposer, linkUrl, setLinkUrl, activeDocument, setActiveDocument, activeViewer, setActiveViewer, draft, editorMode, setEditorMode, saveState, setSaveState, fileInput, editorTextArea, saveStateRef, activeDocumentRef, createNoteAt, createArticle, chooseImage, importImageFile, createLink, openDocument, openNodeViewer, saveDocument, editDraft, formatMarkdown } = documentEditor;
 
   const eventStream = useCanvasEventStream({
     authority: { standaloneDemo, bootstrap, project, layout, accessState },
@@ -98,17 +104,30 @@ function WeaverWidget() {
 
   const displayedNodes = useMemo(() => { const candidate = (candidates as Candidate[])[candidateIndex]; if (!candidate) return nodes; return nodes.map((node) => ({ ...node, position: { x: candidate.document.nodes[node.id]?.x ?? node.position.x, y: candidate.document.nodes[node.id]?.y ?? node.position.y } })); }, [candidateIndex, candidates, nodes]);
 
+  function arrangeSelection(kind: "align" | "distribute", axis: "horizontal" | "vertical") {
+    const selected = nodes.filter((node) => selection.includes(node.id));
+    const arranged = kind === "align" ? alignNodes(selected, axis === "horizontal" ? "center-y" : "center-x") : distributeNodes(selected, axis);
+    const byId = new Map(arranged.map((node) => [node.id, node]));
+    setNodes((current) => current.map((node) => byId.get(node.id) ?? node));
+    void persistSelectionFrames(arranged);
+  }
+
   useEffect(() => {
     if (!selection.length) { setAnchorNodeId(undefined); return; }
     if (!anchorNodeId || !selection.includes(anchorNodeId)) setAnchorNodeId(selection[0]);
   }, [anchorNodeId, selection]);
 
+  if (displayMode === "inline" || inlinePreview) return <InlineLauncher projectTitle={project?.title} status={status} labels={{ currentSpace: t("currentSpace"), spaceFallback: t("weaverSpace"), brandSubtitle: t("semanticCanvas"), reopen: t("reopenWeaver"), collapsed: t("canvasCollapsed"), hint: t("reopenCanvasHint") }} onOpen={() => {
+    if (inlinePreview) { query.delete("inline"); location.search = query.toString(); return; }
+    void openFullscreen();
+  }} />;
+
   return <main className="weaver-shell" data-editor-open={Boolean(activeDocument)} data-display-mode={displayMode} data-schema-reset={Boolean(bootstrap.schemaReset)}>
     <TopBar
       project={project} status={status} switcherViews={switcherViews} layout={layout} draggedViewId={draggedViewId} setDraggedViewId={setDraggedViewId} reorderPinnedViews={reorderPinnedViews} switchView={switchView} busy={busy}
       viewMenuId={viewMenuId} setViewMenuId={setViewMenuId} setViewLibrary={setViewLibrary} projectViews={projectViews} openTemplateGallery={openTemplateGallery} streamState={streamState} reconnect={reconnect}
-      createMenu={createMenu} setCreateMenu={setCreateMenu} linkComposer={linkComposer} setLinkComposer={setLinkComposer} createArticle={createArticle} chooseImage={chooseImage} linkUrl={linkUrl} setLinkUrl={setLinkUrl} createLink={createLink}
-      selection={selection} standaloneDemo={standaloneDemo} togglePinned={togglePinned} revertLayout={revertLayout}
+      linkComposer={linkComposer} setLinkComposer={setLinkComposer} linkUrl={linkUrl} setLinkUrl={setLinkUrl} createLink={createLink}
+      selection={selection} standaloneDemo={standaloneDemo} togglePinned={togglePinned}
       beginRename={beginRename} pinProjectView={pinProjectView} duplicateProjectView={duplicateProjectView} setDefaultView={setDefaultView} trashProjectView={trashProjectView}
       workspaceDir={bootstrap.workspaceDir} chooseProject={chooseProject} startFromTemplateGallery={startFromTemplateGallery}
       projectRevision={project?.graphRevision} layoutRevision={layout?.layoutRevision} catalogRevision={project?.viewCatalogRevision} bindingRevision={bindingRef.current?.bindingRevision}
@@ -119,6 +138,7 @@ function WeaverWidget() {
         <strong>{accessState === "claiming" ? t("canvasConnecting") : accessState === "claim-failed" ? t("canvasConnectFailed") : accessState === "duplicate" ? t("canvasDuplicate") : accessState === "build-mismatch" ? t("buildMismatch") : t("canvasDetached")}</strong>
         <p>{accessState === "claiming" ? t("claimingHelp") : accessState === "claim-failed" ? `${t("errorCode")}: ${claimError ?? "CANVAS_CLAIM_FAILED"}. ${t("retryHelp")}` : accessState === "duplicate" ? t("duplicateHelp") : accessState === "build-mismatch" ? `${window.__weaverEmbeddedBuildId ?? "unknown"} / ${bootstrap.widgetBuildId ?? "unknown"} / ${bootstrap.workspaceWidgetBuildId ?? "unknown"}. ${t("buildMismatchHelp")}` : t("detachedHelp")}</p>
         {accessState === "claim-failed" ? <button type="button" onClick={retryClaim}>{t("reconnect")}</button> : null}
+        {accessState === "duplicate" ? <button type="button" onClick={() => void takeOver()}>{t("takeOver")}</button> : null}
       </div> : null}
       <ViewLibraryDrawer
         viewLibrary={viewLibrary} setViewLibrary={setViewLibrary} viewQuery={viewQuery} setViewQuery={setViewQuery} fixedCatalogViews={fixedCatalogViews} recentCatalogViews={recentCatalogViews} activeCatalogViews={activeCatalogViews} trashedCatalogViews={trashedCatalogViews} openTemplateGallery={openTemplateGallery}
@@ -127,8 +147,8 @@ function WeaverWidget() {
         beginRename={beginRename} pinProjectView={pinProjectView} duplicateProjectView={duplicateProjectView} setDefaultView={setDefaultView} trashProjectView={trashProjectView}
       />
       <CanvasStage
-        standaloneDemo={standaloneDemo} displayedNodes={displayedNodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} layout={layout} handleCanvasWheel={canvasViewport.handleCanvasWheel} viewportState={canvasViewport.state} miniMapOpen={canvasViewport.miniMapOpen} setMiniMapOpen={canvasViewport.setMiniMapOpen} beginViewportInteraction={canvasViewport.beginInteraction} handleViewportMove={canvasViewport.handleMove} handleViewportMoveEnd={canvasViewport.handleMoveEnd} zoomBy={canvasViewport.zoomBy} fitAll={canvasViewport.fitAll} focusSelection={canvasViewport.focusSelection} toggleCanvasTheme={toggleCanvasTheme} onNodeClick={setAnchorNodeId} handleNodeDrag={handleNodeDrag} handleSelectionChange={handleSelectionChange} archiveNodes={archiveNodes}
-        draggingNodeId={draggingNodeId} viewport={viewport} setStatus={setStatus} syncContext={syncContext} persistNodeFrame={persistNodeFrame} persistEdgeRoute={persistEdgeRoute} groupSelection={groupSelection} openNodeViewer={openNodeViewer} bindingRef={bindingRef} selection={selection}
+        standaloneDemo={standaloneDemo} projectId={project?.id} canvasSessionId={sessionId.current} buildId={window.__weaverEmbeddedBuildId ?? bootstrap.widgetBuildId} graphNodes={graphNodes} graphEdges={graphEdges} displayedNodes={displayedNodes} edges={edges} setNodes={setNodes} layout={layout} canvasApiRef={canvasApiRef} viewportState={canvasViewport.state} miniMapOpen={canvasViewport.miniMapOpen} setMiniMapOpen={canvasViewport.setMiniMapOpen} beginViewportInteraction={canvasViewport.beginInteraction} handleViewportMoveEnd={canvasViewport.handleMoveEnd} zoomBy={canvasViewport.zoomBy} fitAll={canvasViewport.fitAll} focusSelection={canvasViewport.focusSelection} toggleCanvasTheme={toggleCanvasTheme} onNodeClick={setAnchorNodeId} handleSelectionChange={handleSelectionChange} archiveNodes={archiveNodes}
+        draggingNodeId={draggingNodeId} viewport={viewport} setStatus={setStatus} syncContext={syncContext} persistNodeFrame={persistNodeFrame} persistSelectionFrames={persistSelectionFrames} persistEdgeRoute={persistEdgeRoute} linkNodes={linkNodes} availableEdgeTypes={manifest?.scenePack.edgeTypes ?? []} createNoteAtScreen={(point) => { void createNoteAt(screenToFlowPosition(point)); }} createArticle={createArticle} chooseImage={() => chooseImage("node")} openLinkComposer={() => setLinkComposer(true)} duplicateSelection={duplicateSelection} alignSelection={(axis) => arrangeSelection("align", axis)} distributeSelection={(axis) => arrangeSelection("distribute", axis)} revertLayout={revertLayout} groupSelection={groupSelection} openNodeViewer={openNodeViewer} bindingRef={bindingRef} selection={selection}
         activeTask={activeTask} cancelActiveTask={cancelActiveTask} changePreview={changePreview} rejectChangeSet={rejectChangeSet} applyChangeSet={applyChangeSet}
         candidates={candidates} candidateIndex={candidateIndex} setCandidateIndex={setCandidateIndex} rejectLayout={rejectLayout} applyCandidate={applyCandidate}
         staleTask={staleTask} viewToast={viewToast} setViewToast={setViewToast} restoreProjectView={restoreProjectView}
@@ -153,4 +173,4 @@ function WeaverWidget() {
 
 const root = window.__weaverRoot ?? createRoot(document.getElementById("root")!);
 window.__weaverRoot = root;
-root.render(<React.StrictMode><I18nProvider><ReactFlowProvider><WeaverWidget /></ReactFlowProvider></I18nProvider></React.StrictMode>);
+root.render(<React.StrictMode><I18nProvider><WeaverWidget /></I18nProvider></React.StrictMode>);

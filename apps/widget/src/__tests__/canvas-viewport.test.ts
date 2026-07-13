@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canvasLod, canvasPatternOpacity, clampCanvasZoom, MAX_CANVAS_ZOOM, MIN_CANVAS_ZOOM, zoomViewportAtPoint } from "../lib/canvas-viewport";
+import { canvasLod, canvasPatternOpacity, clampCanvasZoom, MAX_CANVAS_ZOOM, MIN_CANVAS_ZOOM, wheelZoomMultiplier, zoomViewportAtPoint } from "../lib/canvas-viewport";
 
 describe("canvas viewport", () => {
   it("keeps the world point under the pointer stable while zooming", () => {
@@ -27,5 +27,19 @@ describe("canvas viewport", () => {
   it("fades the dot field at overview scale", () => {
     expect(canvasPatternOpacity(0.2, 0.4)).toBeCloseTo(0.088);
     expect(canvasPatternOpacity(1, 0.4)).toBe(0.4);
+  });
+
+  it("amplifies macOS trackpad pinch without making command-wheel jump", () => {
+    const pinch = wheelZoomMultiplier({ deltaY: -2, deltaMode: 0, ctrlKey: true, metaKey: false });
+    const commandWheel = wheelZoomMultiplier({ deltaY: -2, deltaMode: 0, ctrlKey: false, metaKey: true });
+    expect(pinch).toBeGreaterThan(1.03);
+    expect(pinch).toBeLessThan(1.08);
+    expect(commandWheel).toBeGreaterThan(1);
+    expect(commandWheel).toBeLessThan(pinch);
+  });
+
+  it("caps a coarse wheel event so one event cannot lose the canvas", () => {
+    expect(wheelZoomMultiplier({ deltaY: -100, deltaMode: 0, ctrlKey: true, metaKey: false })).toBeLessThanOrEqual(Math.exp(0.35));
+    expect(wheelZoomMultiplier({ deltaY: 100, deltaMode: 0, ctrlKey: true, metaKey: false })).toBeGreaterThanOrEqual(Math.exp(-0.35));
   });
 });

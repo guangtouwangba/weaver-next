@@ -16,6 +16,8 @@ function workspace() {
 describe("observability", () => {
   it("logs boot, every tool call, and errors — and weaver_get_diagnostics reads them back", async () => {
     const root = workspace();
+    const previousHost = process.env.WEAVER_HOST_KIND;
+    process.env.WEAVER_HOST_KIND = "claude";
     const { dispatch, close } = await createWeaverServer({ previewWorkspaceDir: root, logOptions: { fileLogging: true, fileLevel: "debug" } });
     try {
       // A successful call and a failing call both flow through the logging wrap.
@@ -47,7 +49,10 @@ describe("observability", () => {
       const lines = readFileSync(file, "utf8").trim().split("\n").map((line) => JSON.parse(line));
       expect(lines.some((entry) => entry.event === "server.boot")).toBe(true);
       expect(lines.every((entry) => entry.pid === process.pid && typeof entry.ts === "string")).toBe(true);
-    } finally { await close(); }
+    } finally {
+      await close();
+      if (previousHost === undefined) delete process.env.WEAVER_HOST_KIND; else process.env.WEAVER_HOST_KIND = previousHost;
+    }
   });
 
   it("reports the model-facing tool surface so a stuck agent can prove Codex dropped a tool", async () => {
@@ -57,9 +62,9 @@ describe("observability", () => {
       const diagnostics = await dispatch("weaver_get_diagnostics", {}) as any;
       const surface = diagnostics.structuredContent.toolSurface;
       // Whole registered surface, and the subset the server advertises to the model.
-      expect(surface.registered).toBe(15);
+      expect(surface.registered).toBe(16);
       expect(surface.registeredNames).toEqual([
-        "weaver_canvas_action", "weaver_catalog_action", "weaver_get_diagnostics",
+        "weaver_canvas_action", "weaver_catalog_action", "weaver_clear_runtime_diagnostics", "weaver_get_diagnostics",
         "weaver_import_asset", "weaver_open_space", "weaver_prepare_task",
         "weaver_publish_artifact", "weaver_read_catalog", "weaver_read_graph",
         "weaver_read_session", "weaver_recommend_layout", "weaver_review_action",
@@ -77,7 +82,7 @@ describe("observability", () => {
       expect(Object.values(surface.criticalPresent).every((present) => present === true)).toBe(true);
       // Regression guard: the model surface must not silently bloat back. It is 19
       // after dropping the legacy task-dispatch tools; keep a small headroom.
-      expect(surface.modelFacing).toBeLessThanOrEqual(15);
+      expect(surface.modelFacing).toBeLessThanOrEqual(16);
       // A widget-only tool (visibility ["app"], not in the preview allowlist) stays hidden from the model.
       expect(surface.modelFacingNames).not.toContain("weaver_confirm_agent_dispatch");
       // The legacy dispatch tools are off the model surface (removed / reclassified app-only).

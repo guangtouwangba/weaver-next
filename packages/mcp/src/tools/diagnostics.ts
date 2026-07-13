@@ -4,6 +4,8 @@ import { hostKind } from "../session-identity.js";
 import { bootedAt, fileLoggingEnabled, recentEntries, recentErrors } from "../logger.js";
 import { defineTool, result } from "../shared/tool-runtime.js";
 import type { SseEventHub } from "../event-hub.js";
+import { widgetBuildId } from "../widget.js";
+import { clearWorkspaceRuntimeDiagnostics, readWorkspaceRuntimeDiagnostics } from "../workspace-runtime.js";
 
 export type DiagnosticsToolsCtx = { eventHub: SseEventHub; serverVersion: string; toolSurface: () => unknown };
 
@@ -21,7 +23,7 @@ export function registerDiagnosticsTools(server: McpServer, ctx: DiagnosticsTool
     description: "Read this MCP server's identity, health, recent activity log, and the model-facing tool surface it advertises. If `toolSurface.criticalPresent.weaver_submit_changeset` is true but you cannot call that tool, this host (e.g. Codex) dropped it from your tool list — not the server.",
     inputSchema: { limit: z.number().int().min(1).max(500).default(120).optional(), errorsOnly: z.boolean().optional(), workspaceDir: z.string().optional() },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-  }, defineTool(async ({ limit, errorsOnly }) => {
+  }, defineTool(async ({ limit, errorsOnly, workspaceDir }) => {
     const preview = hostKind() === "claude";
     const server = {
       pid: process.pid,
@@ -33,6 +35,14 @@ export function registerDiagnosticsTools(server: McpServer, ctx: DiagnosticsTool
       previewAvailable: preview,
       fileLogging: fileLoggingEnabled(),
     };
-    return result({ server, toolSurface: toolSurface(), errors: recentErrors(50), recent: errorsOnly ? [] : recentEntries(limit ?? 120) }, "Weaver server diagnostics.");
+    const runtime = workspaceDir ? await readWorkspaceRuntimeDiagnostics({ workspaceDir, buildId: widgetBuildId(), errorsOnly, limit: Math.min(limit ?? 120, 200) }) : undefined;
+    return result({ server, toolSurface: toolSurface(), errors: recentErrors(50), recent: errorsOnly ? [] : recentEntries(limit ?? 120), runtime }, "Weaver server diagnostics.");
   }));
+
+  server.registerTool("weaver_clear_runtime_diagnostics", {
+    title: "Clear Weaver Runtime Diagnostics",
+    description: "Delete the redacted, rotated operational diagnostics for one workspace runtime. Project data and browser sessions are not changed.",
+    inputSchema: { workspaceDir: z.string().min(1) },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+  }, defineTool(async ({ workspaceDir }) => result(await clearWorkspaceRuntimeDiagnostics({ workspaceDir, buildId: widgetBuildId() }), "Cleared Weaver runtime diagnostics.")));
 }

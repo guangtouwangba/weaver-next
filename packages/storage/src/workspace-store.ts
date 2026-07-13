@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, realpathSync, renameSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, realpathSync, renameSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import type {
@@ -28,6 +28,8 @@ import * as assets from "./assets.js";
 import * as agentTasks from "./agent-tasks.js";
 import * as changesets from "./changesets.js";
 import * as artifacts from "./artifacts.js";
+import * as browserSessions from "./browser-sessions.js";
+import * as canvasMutations from "./canvas-mutations.js";
 
 function safeWorkspaceDir(input: string) {
   const absolute = resolve(input);
@@ -44,17 +46,36 @@ function backupName(workspaceDir: string, timestamp: Date) {
 export function prepareWorkspaceData(workspaceDir: string, timestamp = new Date()) {
   const dataDir = join(workspaceDir, ".weaver"); const dbPath = join(dataDir, "weaver.sqlite");
   let schemaResetBackupName: string | undefined;
+  let schemaMigrationBackupName: string | undefined;
+  let schemaVersion: number | undefined;
   if (existsSync(dbPath)) {
-    const existing = new DatabaseSync(dbPath); const row = existing.prepare("PRAGMA user_version").get() as { user_version: number }; existing.close();
-    if (row.user_version !== migrations.CURRENT_SCHEMA_VERSION) {
-      const backup = backupName(workspaceDir, timestamp); renameSync(dataDir, backup); schemaResetBackupName = basename(backup);
+    const existing = new DatabaseSync(dbPath);
+    const row = existing.prepare("PRAGMA user_version").get() as { user_version: number };
+    schemaVersion = Number(row.user_version);
+    if (schemaVersion > migrations.CURRENT_SCHEMA_VERSION) {
+      existing.close();
+      throw new Error(`SCHEMA_VERSION_NEWER_THAN_RUNTIME:${schemaVersion}>${migrations.CURRENT_SCHEMA_VERSION}`);
+    }
+    if (schemaVersion !== migrations.CURRENT_SCHEMA_VERSION && migrations.canMigrateSchema(schemaVersion)) {
+      try { existing.exec("PRAGMA wal_checkpoint(TRUNCATE)"); } finally { existing.close(); }
+      const backup = backupName(workspaceDir, timestamp);
+      cpSync(dataDir, backup, { recursive: true, errorOnExist: true });
+      schemaMigrationBackupName = basename(backup);
+    } else {
+      existing.close();
+    }
+    if (schemaVersion !== migrations.CURRENT_SCHEMA_VERSION && !migrations.canMigrateSchema(schemaVersion)) {
+      const backup = backupName(workspaceDir, timestamp);
+      renameSync(dataDir, backup);
+      schemaResetBackupName = basename(backup);
+      schemaVersion = undefined;
     }
   }
   mkdirSync(join(dataDir, "assets", "tasks"), { recursive: true });
   mkdirSync(join(dataDir, "assets", "original"), { recursive: true });
   mkdirSync(join(dataDir, "assets", "thumbnails"), { recursive: true });
   mkdirSync(join(dataDir, "exports"), { recursive: true });
-  return { dataDir, dbPath, schemaResetBackupName };
+  return { dataDir, dbPath, schemaResetBackupName, schemaMigrationBackupName, schemaVersion };
 }
 
 export class WorkspaceStore {
@@ -63,18 +84,29 @@ export class WorkspaceStore {
   readonly dbPath: string;
   readonly db: DatabaseSync;
   readonly schemaResetBackupName?: string;
+  readonly schemaMigrationBackupName?: string;
 
   constructor(workspaceDir: string) {
     this.workspaceDir = safeWorkspaceDir(workspaceDir);
     const prepared = prepareWorkspaceData(this.workspaceDir);
-    this.dataDir = prepared.dataDir; this.dbPath = prepared.dbPath; this.schemaResetBackupName = prepared.schemaResetBackupName;
-    this.db = new DatabaseSync(this.dbPath);
-    this.db.exec("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;");
-    migrations.initializeSchema(this.db);
-    viewCatalog.purgeExpiredProjectViews(this.db);
+    this.dataDir = prepared.dataDir; this.dbPath = prepared.dbPath;
+    this.schemaResetBackupName = prepared.schemaResetBackupName;
+    this.schemaMigrationBackupName = prepared.schemaMigrationBackupName;
+    const db = new DatabaseSync(this.dbPath);
+    try {
+      db.exec("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;");
+      if (prepared.schemaVersion !== undefined && prepared.schemaVersion !== migrations.CURRENT_SCHEMA_VERSION) migrations.migrateSchema(db);
+      else migrations.initializeSchema(db);
+      viewCatalog.purgeExpiredProjectViews(db);
+    } catch (error) {
+      db.close();
+      throw error;
+    }
+    this.db = db;
   }
 
   close() { this.db.close(); }
+  transaction<T>(callback: () => T) { return migrations.transaction(this.db, callback); }
 
   readonly sessions = {
     appendEvent: (input: Omit<ProjectEvent, "sequence" | "createdAt"> & { createdAt?: string }) => projectEvents.appendProjectEvent(this.db, input),
@@ -107,4 +139,18 @@ export class WorkspaceStore {
   readonly assets = { get: (assetId: string) => assets.getAsset(this.db, assetId), byHash: (projectId: string, sha256: string) => assets.getAssetByHash(this.db, projectId, sha256), read: (assetId: string, thumbnail = false) => assets.readAsset(this.db, this.dataDir, assetId, thumbnail), importImage: (input: { projectId: string; mimeType: Asset["mimeType"]; data: Uint8Array }) => assets.importImageAsset(this.db, this.dataDir, input), saveTaskFile: (taskId: string, fileName: string, data: Uint8Array) => assets.saveTaskAsset(this.dataDir, taskId, fileName, data) };
   readonly tasks = { prepare: (input: { canvasSessionId: string; actionKey: string; userInstruction?: string; dispatchKey?: string; chatSessionKey?: string }) => agentTasks.prepareAgentTask(this.db, input), prepareBound: (input: { chatSessionKey: string; actionKey: string; userInstruction?: string; dispatchKey?: string }) => agentTasks.prepareAgentTaskFromBoundCanvas(this.db, input), assertChat: (taskId: string, chatSessionKey: string, requireOnline = true) => agentTasks.assertTaskChat(this.db, taskId, chatSessionKey, requireOnline), assertCanvas: (taskId: string, chatSessionKey: string, requireOnline = false) => agentTasks.assertTaskCanvas(this.db, taskId, chatSessionKey, requireOnline), get: (taskId: string) => agentTasks.getAgentTask(this.db, taskId), listCanvas: (canvasSessionId: string, includeTerminal = false) => agentTasks.listCanvasTasks(this.db, canvasSessionId, includeTerminal), reapCanvas: (canvasSessionId: string) => agentTasks.reapExpiredCanvasTasks(this.db, canvasSessionId), listProject: (projectId: string, includeTerminal = false) => agentTasks.listProjectTasks(this.db, projectId, includeTerminal), update: (taskId: string, patch: Partial<AgentTask>) => agentTasks.updateAgentTask(this.db, taskId, patch), confirmDispatch: (taskId: string, dispatchKey: string) => agentTasks.confirmAgentDispatch(this.db, taskId, dispatchKey), failDispatch: (taskId: string, dispatchKey: string, input: { code: "AGENT_DISPATCH_REJECTED" | "DISPATCH_UNCONFIRMED"; message: string }) => agentTasks.failAgentDispatch(this.db, taskId, dispatchKey, input), continue: (input: { taskId: string; dispatchKey: string; expectedTaskRevision: number }) => agentTasks.beginAgentContinuation(this.db, input), progress: (taskId: string, note: string) => agentTasks.reportTaskProgress(this.db, taskId, note) };
   readonly artifacts = { publish: (input: { projectId: string; type: string; title: string; content: unknown; sourceNodeIds: string[]; graphRevision: number }) => artifacts.publishArtifact(this.db, input), get: (artifactId: string) => artifacts.getArtifact(this.db, artifactId) };
+  readonly browserSessions = {
+    get: (id: string) => browserSessions.getBrowserSession(this.db, id),
+    create: (input: { id: string; credentialHash: string; now: string; expiresAt: string }) => browserSessions.createBrowserSession(this.db, input),
+    rotateCredential: (input: { id: string; expectedVersion: number; credentialHash: string; now: string; expiresAt: string }) => browserSessions.rotateBrowserCredential(this.db, input),
+    pairChat: (input: { id: string; chatSessionKey: string; bindingRevision: number; now: string }) => browserSessions.pairBrowserChat(this.db, input),
+    writer: (projectId: string) => browserSessions.getProjectWriteLease(this.db, projectId),
+    claimWriter: (input: { projectId: string; browserSessionId: string; now: string; takeover?: boolean }) => browserSessions.claimProjectWriter(this.db, input),
+    expire: (id: string, at: string) => browserSessions.expireBrowserSession(this.db, id, at),
+  };
+  readonly canvasMutations = {
+    get: (id: string) => canvasMutations.getCanvasMutation(this.db, id),
+    apply: (input: Parameters<typeof canvasMutations.applyCanvasMutation>[1], applyState: Parameters<typeof canvasMutations.applyCanvasMutation>[2]) => canvasMutations.applyCanvasMutation(this.db, input, applyState),
+    revert: (input: Parameters<typeof canvasMutations.revertCanvasMutation>[1], applyInverse: Parameters<typeof canvasMutations.revertCanvasMutation>[2]) => canvasMutations.revertCanvasMutation(this.db, input, applyInverse),
+  };
 }

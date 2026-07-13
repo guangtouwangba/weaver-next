@@ -43,13 +43,13 @@ try {
     name: "weaver_open_space",
     arguments: { workspaceDir: root, projectId: project.id, displayMode: "fullscreen" },
   }));
-  if (!opened?.previewUrl) throw new Error("Claude preview URL was not returned");
+  if (!opened?.launchUrl) throw new Error("Canvas launch URL was not returned");
 
   browser = await chromium.launch({ channel: "chrome", headless: true });
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
   const errors = [];
   page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
-  await page.goto(opened.previewUrl, { waitUntil: "domcontentloaded", timeout: 15_000 });
+  await page.goto(opened.launchUrl, { waitUntil: "domcontentloaded", timeout: 15_000 });
   await page.locator("#root").waitFor({ state: "visible" });
   const projectChoice = page.getByText(project.title, { exact: true });
   if (await projectChoice.count()) {

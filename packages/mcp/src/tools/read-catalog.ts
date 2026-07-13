@@ -1,23 +1,20 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { viewTypeSchema } from "@weaver/contracts";
-import { getScenePack } from "@weaver/scene-packs";
-import { getVisualTemplate, validateVisualTemplateForProject } from "@weaver/visual-templates";
-import {
-  getProjectView, listProjectViews, listProjects, listVisualTemplates,
-  readArtifact, readAssetMetadata, readVisualTemplate, searchProjectViews,
-} from "../shared/catalog-reads.js";
 import { workspaceSchema } from "../shared/schemas.js";
 import { track } from "../shared/workspace-registry.js";
-import { defineTool, result, withStore } from "../shared/tool-runtime.js";
+import { defineTool, result } from "../shared/tool-runtime.js";
+import { chatSessionKeyFromRequest } from "../thread-context.js";
+import { widgetBuildId } from "../widget.js";
+import { dispatchWorkspaceAgentOperation } from "../workspace-runtime.js";
 
 const templateFamilySchema = z.enum(["canvas", "hierarchy", "relationship", "flow", "temporal", "board", "matrix", "table"]);
 
 /**
  * `weaver_read_catalog` — one model-facing tool that groups the project/view/
  * template/artifact/asset browse reads.
- * Every `resource` reuses the shared helper the kept widget tool calls (see
- * shared/catalog-reads.ts) so the model surface and widget surface never drift.
+ * Every `resource` is dispatched to the workspace service so the model and
+ * browser surfaces use one operation authority.
  */
 export function registerReadCatalogTool(server: McpServer) {
   server.registerTool("weaver_read_catalog", {
@@ -41,61 +38,61 @@ export function registerReadCatalogTool(server: McpServer) {
       viewName: z.string().optional(),
     },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-  }, defineTool(async ({ workspaceDir, resource, projectId, viewId, assetId, artifactId, templateId, version, query, status, scenePackId, family, renderer, baseGraphRevision, viewName }) => {
+  }, defineTool(async ({ workspaceDir, resource, projectId, viewId, assetId, artifactId, templateId, version, query, status, scenePackId, family, renderer, baseGraphRevision, viewName }, extra) => {
+    const output = await dispatchWorkspaceAgentOperation({
+      workspaceDir,
+      buildId: widgetBuildId(),
+      chatSessionKey: chatSessionKeyFromRequest(extra),
+      operation: "weaver_read_catalog",
+      arguments: { resource, projectId, viewId, assetId, artifactId, templateId, version, query, status, scenePackId, family, renderer, baseGraphRevision, viewName },
+    });
+    if (projectId) track(workspaceDir, projectId);
     switch (resource) {
       case "project.list": {
-        // weaver_read_catalog(resource:"project.list")
-        const projects = withStore(workspaceDir, (store) => listProjects(store));
+        const projects = output as Array<{ id: string }>;
         projects.forEach((project) => track(workspaceDir, project.id));
         return result(projects, `${projects.length} Weaver projects.`);
       }
       case "view.list": {
-        // weaver_read_catalog(resource:"view.list")
         if (!projectId) throw new Error("INVALID_ARGS:projectId required");
-        return result(withStore(workspaceDir, (store) => listProjectViews(store, projectId, status)));
+        return result(output);
       }
       case "view.search": {
-        // weaver_search_project_views
         if (!projectId) throw new Error("INVALID_ARGS:projectId required");
-        return result(withStore(workspaceDir, (store) => searchProjectViews(store, projectId, query ?? "", status ?? "active")));
+        return result(output);
       }
       case "view.get": {
-        // weaver_get_project_view
         if (!projectId) throw new Error("INVALID_ARGS:projectId required");
         if (!viewId) throw new Error("INVALID_ARGS:viewId required");
-        return result(withStore(workspaceDir, (store) => getProjectView(store, projectId, viewId)));
+        return result(output);
       }
       case "template.list": {
-        // weaver_read_catalog(resource:"template.list")
-        return result(listVisualTemplates({ scenePackId, family, renderer }));
+        return result(output);
       }
       case "template.get": {
-        // weaver_get_visual_template
         if (!templateId) throw new Error("INVALID_ARGS:templateId required");
-        return result(readVisualTemplate(templateId, version ?? "1.0.0"));
+        return result(output);
       }
       case "template.validate": {
         if (!projectId || !templateId) throw new Error("INVALID_ARGS:projectId and templateId required");
-        return result(withStore(workspaceDir, (store) => { const project = store.catalog.getProject(projectId); if (!project) throw new Error("PROJECT_NOT_FOUND"); const scene = getScenePack(project.scenePackId, project.scenePackVersion); const template = getVisualTemplate(templateId, version); if (!scene || !template) throw new Error("VISUAL_TEMPLATE_NOT_FOUND"); return validateVisualTemplateForProject(template, scene, store.graphChanges.read(projectId).nodes); }));
+        return result(output);
       }
       case "template.preview": {
         if (!projectId || !templateId || baseGraphRevision === undefined) throw new Error("INVALID_ARGS:projectId, templateId and baseGraphRevision required");
-        return result(withStore(workspaceDir, (store) => { const template = getVisualTemplate(templateId, version); if (!template) throw new Error("VISUAL_TEMPLATE_NOT_FOUND"); return store.catalog.previewTemplate({ projectId, template, baseGraphRevision, viewName }); }));
+        return result(output);
       }
       case "artifact.get": {
-        // weaver_get_artifact
         if (!artifactId) throw new Error("INVALID_ARGS:artifactId required");
-        return result(withStore(workspaceDir, (store) => readArtifact(store, artifactId)));
+        return result(output);
       }
       case "asset.metadata": {
-        // weaver_get_asset_metadata
         if (!projectId) throw new Error("INVALID_ARGS:projectId required");
         if (!assetId) throw new Error("INVALID_ARGS:assetId required");
-        return result(withStore(workspaceDir, (store) => readAssetMetadata(store, projectId, assetId)));
+        return result(output);
       }
       case "asset.preview": {
         if (!projectId || !assetId) throw new Error("INVALID_ARGS:projectId and assetId required");
-        return result(withStore(workspaceDir, (store) => { const item = store.assets.read(assetId, true); if (item.asset.projectId !== projectId) throw new Error("ASSET_NOT_FOUND_OR_CROSS_PROJECT"); return { assetId, dataUrl: `data:image/webp;base64,${Buffer.from(item.data).toString("base64")}` }; }));
+        return result(output);
       }
     }
   }));

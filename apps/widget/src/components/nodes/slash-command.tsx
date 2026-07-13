@@ -1,6 +1,7 @@
 import { Extension, type Editor, type Range } from "@tiptap/core";
 import Suggestion, { type SuggestionProps } from "@tiptap/suggestion";
 import { ReactRenderer } from "@tiptap/react";
+import { PluginKey } from "@tiptap/pm/state";
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 
 // Shared machinery for the editor's `/` command menu and `@` reference menu.
@@ -33,6 +34,8 @@ const SuggestionMenu = forwardRef<MenuHandle, { items: SuggestionItem[]; command
 });
 SuggestionMenu.displayName = "SuggestionMenu";
 
+export const suggestionPluginKey = (name: string) => new PluginKey(`suggestion:${name}`);
+
 export function createSuggestionExtension(config: { name: string; char: string; items: (query: string) => SuggestionItem[] }) {
   return Extension.create({
     name: config.name,
@@ -40,6 +43,7 @@ export function createSuggestionExtension(config: { name: string; char: string; 
       return [
         Suggestion<SuggestionItem>({
           editor: this.editor,
+          pluginKey: suggestionPluginKey(config.name),
           char: config.char,
           startOfLine: false,
           items: ({ query }) => config.items(query).slice(0, 10),

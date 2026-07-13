@@ -2,8 +2,10 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { workspaceSchema } from "../shared/schemas.js";
 import { parseRefined } from "../shared/refined-args.js";
-import { importImageBytes, importSvgImage } from "../shared/import-asset.js";
-import { defineTool } from "../shared/tool-runtime.js";
+import { defineTool, result } from "../shared/tool-runtime.js";
+import { chatSessionKeyFromRequest } from "../thread-context.js";
+import { widgetBuildId } from "../widget.js";
+import { dispatchWorkspaceAgentOperation } from "../workspace-runtime.js";
 
 /** The raw input shape the MCP SDK wraps in `z.object(...)` (registerTool needs a
  * ZodRawShape, not a refined schema). The per-source required-param validation
@@ -43,8 +45,8 @@ const importAssetSchema = z.object(importAssetShape).superRefine((value, ctx) =>
  * One model-facing WRITE tool that merges the two agent/skill-side image-import
  * writes (both model-only, now removed): `weaver_ingest_image`
  * (`source:"bytes"`) and `weaver_render_svg_image` (`source:"svg"`). Both paths
- * delegate to shared/import-asset.ts, preserving each old handler's asset-store
- * calls, content-hash dedup, dimension extraction and `{assetId,...}` payload so
+ * dispatch to the workspace service, preserving content-hash dedup, dimension
+ * extraction and the `{assetId,...}` payload so
  * skills that reference `assetId` for a ChangeSet add-node op keep working.
  * NOTE: `weaver_import_image_asset` (the widget's own image import) is a DIFFERENT,
  * app-only tool and is intentionally untouched here.
@@ -58,11 +60,10 @@ export function registerImportAssetTool(server: McpServer) {
     // bytes/SVG → same assetId, no new asset), matching what weaver_ingest_image
     // and weaver_render_svg_image both declared.
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-  }, defineTool(async (rawArgs) => {
+  }, defineTool(async (rawArgs, extra) => {
     const args = parseRefined<z.infer<typeof importAssetSchema>>(importAssetSchema, rawArgs);
-    if (args.source === "bytes") {
-      return importImageBytes({ workspaceDir: args.workspaceDir, projectId: args.projectId, mimeType: args.mimeType!, base64: args.base64! });
-    }
-    return importSvgImage({ workspaceDir: args.workspaceDir, projectId: args.projectId, svg: args.svg!, scale: args.scale });
+    const output = await dispatchWorkspaceAgentOperation({ workspaceDir: args.workspaceDir, buildId: widgetBuildId(), chatSessionKey: chatSessionKeyFromRequest(extra), operation: "weaver_import_asset", arguments: args });
+    const deduplicated = (output as { deduplicated?: boolean }).deduplicated;
+    return result(output, args.source === "svg" ? "Rendered SVG to image asset." : deduplicated ? "Reused existing image asset." : "Imported image asset.");
   }));
 }

@@ -37,5 +37,34 @@ export function loadCanvasSequence(): number {
 
 /** Persist the latest sync sequence so a reload continues from here. */
 export function persistCanvasSequence(sequence: number): void {
-  try { safeSession()?.setItem(SEQ_KEY, String(sequence)); } catch { /* ignore */ }
+  try {
+    const store = safeSession();
+    if (!store) return;
+    const persisted = loadCanvasSequence();
+    store.setItem(SEQ_KEY, String(Math.max(persisted, sequence)));
+  } catch { /* ignore */ }
+}
+
+/** Serialize context writes so a later sequence cannot overtake an earlier request. */
+export function createCanvasSyncQueue() {
+  let tail = Promise.resolve();
+  return function enqueue<T>(work: () => Promise<T>) {
+    const next = tail.then(work, work);
+    tail = next.then(() => undefined, () => undefined);
+    return next;
+  };
+}
+
+/**
+ * Reserve the next sequence from the shared per-tab floor.
+ *
+ * Codex can briefly keep the inline iframe alive while mounting the fullscreen
+ * iframe. Both documents then share sessionStorage but have separate React refs.
+ * Reading the shared floor for every send prevents those overlapping instances
+ * from emitting the same sequence and invalidating each other.
+ */
+export function reserveCanvasSequence(localSequence: number): number {
+  const next = Math.max(localSequence, loadCanvasSequence()) + 1;
+  persistCanvasSequence(next);
+  return next;
 }

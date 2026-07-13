@@ -53,11 +53,12 @@ Weaver 的目的，是让可视化成为思考过程的副产品：用户每次�
 
 创建新 View 不复制或改写 Graph。模板是不可变、版本化的纯数据，只定义内容骨架、Projection、LayoutPreset 和 Theme。
 
-### Codex 是语言入口，Widget 是操作界面
+### Codex 是语言入口，localhost Canvas 是操作界面
 
 - 用户在 Codex Chat 中表达自然语言意图。
-- Widget 展示并操作画布、选择、任务状态、ChangeSet 和布局候选。
-- MCP 精确绑定 Chat 与 Canvas，提供结构化读写工具。
+- 唯一正式 Canvas 由 workspace 级 localhost runtime 提供，优先显示在 Codex 右侧内置浏览器；系统浏览器只作为降级入口。
+- Canvas 展示并操作画布、选择、任务状态、ChangeSet 和布局候选；没有在线 Chat 时仍允许经过审计的手动编辑。
+- MCP 只作为可信 Chat/Agent bridge，精确绑定 Chat 与 Canvas，提供结构化读写工具；浏览器不得自行声明 Chat 身份或 Agent 权限。
 - Skills 把创建空间、发展内容、布局、审阅和产物生成固化成稳定工作流。
 
 ## 产品原则
@@ -86,10 +87,10 @@ Session 绑定、离线保护、revision 冲突、事件重放、恢复和 undo 
 
 1. 用户描述目标或从模板创建空间。
 2. Weaver 固定 Scene Pack，并建立语义 Graph 与默认 View。
-3. 用户在 Widget 中添加、选择、连接、Pin 或编辑节点。
+3. 用户在 localhost Canvas 中添加、选择、连接、Pin 或编辑节点。
 4. 用户在 Codex 中要求发展内容、研究缺口或调整布局。
 5. Agent 基于当前 Canvas 的精确上下文提交 ChangeSet 或 LayoutPlan。
-6. Widget 展示实时状态和候选，用户 apply/reject/undo。
+6. Canvas 展示实时状态和候选，用户 apply/reject/undo。
 7. 空间持续积累，最终结晶为可交付产物。
 
 ## 差异化
@@ -105,7 +106,7 @@ Session 绑定、离线保护、revision 冲突、事件重放、恢复和 undo 
 MVP 聚焦：
 
 - 本地优先的 typed semantic graph。
-- Codex 原生 Widget 与 MCP/Skills 协作。
+- Codex 插件、MCP/Skills 与 workspace 级 localhost Canvas 协作。
 - 场景包和版本化视觉模板。
 - Graph/Layout/View/Binding 独立 revisions。
 - Canvas、Tree、Graph、Flow、Timeline、Board、Matrix、Table 投影基础。

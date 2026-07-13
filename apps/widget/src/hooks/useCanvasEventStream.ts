@@ -32,6 +32,7 @@ export function useCanvasEventStream(params: {
   const [candidateIndex, setCandidateIndex] = useState(0);
   const lastEventSequence = useRef(0);
   const polledTaskRevs = useRef<Map<string, number>>(new Map());
+  const streamReconnectAttempts = useRef(0);
 
   const reconcileRevisions = useCallback(async () => {
     if (isLocalDevelopment) return;
@@ -126,6 +127,7 @@ export function useCanvasEventStream(params: {
   useEffect(() => {
     if (standaloneDemo || accessState !== "active" || !project?.id || !layout?.viewId || !bootstrap.workspaceDir) return;
     let disposed = false;
+    let reconnectTimer: number | undefined;
     setStreamState("connecting");
     void (async () => {
       try {
@@ -140,8 +142,16 @@ export function useCanvasEventStream(params: {
         const grant = await callTool<{ eventStreamUrl: string; currentSequence: number }>("weaver_subscribe_canvas", { workspaceDir: bootstrap.workspaceDir, projectId: project.id, canvasSessionId: sessionId.current });
         lastEventSequence.current = Math.max(lastEventSequence.current, grant.currentSequence);
         const source = new EventSource(grant.eventStreamUrl); stream.current?.close(); stream.current = source;
-        source.onopen = () => { setStreamState("online"); setStatus((current) => current.includes("Agent task") ? current : "Live sync connected"); };
-        source.onerror = () => { setStreamState("offline"); setStatus("Live sync disconnected · reconnecting…"); };
+        source.onopen = () => { streamReconnectAttempts.current = 0; setStreamState("online"); setStatus((current) => current.includes("Agent task") ? current : "Live sync connected"); };
+        source.onerror = () => {
+          if (disposed) return;
+          source.close();
+          setStreamState("offline"); setStatus("Live sync disconnected · reconnecting…");
+          const delays = [250, 1_000, 3_000, 5_000];
+          const delay = delays[Math.min(streamReconnectAttempts.current, delays.length - 1)];
+          streamReconnectAttempts.current += 1;
+          reconnectTimer = window.setTimeout(() => { if (!disposed) setStreamGeneration((value) => value + 1); }, delay);
+        };
         for (const kind of ["task.updated", "graph.changed", "layout.changed", "view.created", "view.catalog.changed", "chat.binding.changed", "stream.reset"] as const) source.addEventListener(kind, (message) => {
           try { handleProjectEvent(JSON.parse((message as MessageEvent).data) as ProjectEvent); }
           catch (error) { setStatus(`Invalid live event · ${error instanceof Error ? error.message : String(error)}`); }
@@ -150,7 +160,7 @@ export function useCanvasEventStream(params: {
         source.addEventListener("widget.reload", () => location.reload());
       } catch (error) { if (!disposed) { setStreamState("offline"); setStatus(error instanceof Error ? error.message : String(error)); } }
     })();
-    return () => { disposed = true; stream.current?.close(); stream.current = null; };
+    return () => { disposed = true; if (reconnectTimer !== undefined) window.clearTimeout(reconnectTimer); stream.current?.close(); stream.current = null; };
   }, [accessState, bootstrap.workspaceDir, project?.id, layout?.viewId, reconcileRevisions, standaloneDemo, streamGeneration]);
 
   useEffect(() => {

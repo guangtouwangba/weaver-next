@@ -1,13 +1,13 @@
 import { useCallback, useEffect } from "react";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
-import type { Edge, Node } from "@xyflow/react";
+import type { CanvasEdge as Edge, CanvasNode as Node } from "../lib/canvas-model";
 import { callTool } from "../mcp-client";
 import { applyLayoutOperations, type LayoutOperation } from "../sync";
 import { excerpt, toFlowEdge } from "../lib/graph-view";
 import { canvasThemeForMode, normalizeCanvasTheme } from "../lib/canvas-theme";
 import type { Bootstrap, CardData, GraphEdge, GraphNode, Layout, Project } from "../types";
 
-// Domain B: ReactFlow node/edge derivation, node layout mutations (persistNodeFrame,
+// Domain B: renderer-neutral node/edge derivation and node layout mutations (persistNodeFrame,
 // persistNodeResize, togglePinned), and the canvas gesture handlers.
 export function useCanvasGraph(params: {
   standaloneDemo: boolean;
@@ -34,8 +34,44 @@ export function useCanvasGraph(params: {
     const currentLayout = layoutRef.current;
     if (!project || !currentLayout) return;
     if (standaloneDemo) { setLayout((current) => current ? { ...current, nodes: { ...current.nodes, [node.id]: { ...current.nodes[node.id], x: node.position.x, y: node.position.y } } } : current); setStatus(`Moved ${String((node.data as CardData).title ?? node.id)}`); return; }
-    try { const next = await callTool<Layout>("weaver_canvas_action", { workspaceDir: bootstrap.workspaceDir, action: "layout_operations", projectId: project.id, viewId: currentLayout.viewId, baseLayoutRevision: currentLayout.layoutRevision, operations: [{ type: "set-node-frame", viewId: currentLayout.viewId, nodeId: node.id, frame: { x: node.position.x, y: node.position.y, width: Number(node.style?.width ?? 280), height: Number(node.style?.height ?? 160) } }] }); layoutRef.current = next; setLayout(next); setStatus(`Manual layout saved · r${next.layoutRevision}`); }
+    try { const next = await callTool<Layout>("weaver_canvas_action", { workspaceDir: bootstrap.workspaceDir, action: "layout_operations", projectId: project.id, viewId: currentLayout.viewId, baseLayoutRevision: currentLayout.layoutRevision, operations: [{ type: "set-node-frame", viewId: currentLayout.viewId, nodeId: node.id, frame: { x: node.position.x, y: node.position.y, width: Number(node.style?.width ?? 280), height: Number(node.style?.height ?? 160) } }, { type: "pin-node", viewId: currentLayout.viewId, nodeId: node.id }] }); layoutRef.current = next; setLayout(next); setStatus(`Manual layout saved · r${next.layoutRevision}`); }
     catch (error) { setStatus(error instanceof Error ? error.message : String(error)); await load(); }
+  }
+
+  async function persistSelectionFrames(selectedNodes: Node[]) {
+    const currentLayout = layoutRef.current ?? layout; const currentProject = projectRef.current ?? project;
+    if (!currentLayout || !selectedNodes.length) return;
+    const operations: LayoutOperation[] = selectedNodes.flatMap((node) => [
+      { type: "set-node-frame", viewId: currentLayout.viewId, nodeId: node.id, frame: { x: node.position.x, y: node.position.y, width: Number(node.style?.width ?? currentLayout.nodes[node.id]?.width ?? 280), height: Number(node.style?.height ?? currentLayout.nodes[node.id]?.height ?? 160) } },
+      { type: "pin-node", viewId: currentLayout.viewId, nodeId: node.id },
+    ] as LayoutOperation[]);
+    if (standaloneDemo || !currentProject) { const next = applyLayoutOperations(currentLayout, currentLayout.layoutRevision + 1, operations); layoutRef.current = next; setLayout(next); return; }
+    try { const next = await callTool<Layout>("weaver_canvas_action", { workspaceDir: bootstrap.workspaceDir, action: "layout_operations", projectId: currentProject.id, viewId: currentLayout.viewId, baseLayoutRevision: currentLayout.layoutRevision, operations }); layoutRef.current = next; setLayout(next); setStatus(`Moved ${selectedNodes.length} nodes · r${next.layoutRevision}`); }
+    catch (error) { setStatus(error instanceof Error ? error.message : String(error)); await load(); }
+  }
+
+  async function linkNodes(sourceNodeId: string, targetNodeId: string, edgeType: string) {
+    const currentProject = projectRef.current ?? project;
+    if (!currentProject || sourceNodeId === targetNodeId) { setStatus(sourceNodeId === targetNodeId ? "A node cannot connect to itself" : "No active project"); return; }
+    if (standaloneDemo) { setStatus(`${edgeType} connection previewed`); return; }
+    try { await callTool("weaver_canvas_action", { action: "link_nodes", workspaceDir: bootstrap.workspaceDir, projectId: currentProject.id, sourceNodeId, targetNodeId, edgeType, baseGraphRevision: currentProject.graphRevision }); setStatus(`Created ${edgeType} relation`); await load(); }
+    catch (error) { setStatus(error instanceof Error ? error.message : String(error)); await load(); }
+  }
+
+  async function duplicateSelection() {
+    const currentProject = projectRef.current ?? project; const currentLayout = layoutRef.current ?? layout;
+    if (!currentProject || !currentLayout || !selection.length) return;
+    if (standaloneDemo) { setStatus(`Duplicated ${selection.length} nodes in preview`); return; }
+    let offset = 32;
+    try {
+      for (const nodeId of selection) {
+        const source = graphNodes.find((node) => node.id === nodeId); const frame = currentLayout.nodes[nodeId];
+        if (!source || !frame) continue;
+        await callTool("weaver_canvas_action", { action: "create_node", workspaceDir: bootstrap.workspaceDir, projectId: currentProject.id, viewId: currentLayout.viewId, semanticType: source.type, title: `${source.title} copy`, content: source.content, x: frame.x + offset, y: frame.y + offset });
+        offset += 8;
+      }
+      setStatus(`Duplicated ${selection.length} nodes`); await load();
+    } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); await load(); }
   }
 
   // Deleting a node (Delete key or the toolbar trash) must be archived in
@@ -215,5 +251,5 @@ export function useCanvasGraph(params: {
 
   const handleSelectionChange = useCallback(({ nodes: selected }: { nodes: Node[] }) => { const next = selected.map((node) => node.id).sort(); setSelection((current) => current.length === next.length && current.every((id, index) => id === next[index]) ? current : next); }, [setSelection]);
   const handleNodeDrag = useCallback((_event: MouseEvent | TouchEvent, dragged: Node) => { setNodes((current) => current.map((node) => node.id === dragged.id ? { ...node, position: { x: dragged.position.x, y: dragged.position.y } } : node)); }, [setNodes]);
-  return { persistNodeFrame, persistNodeResize, persistEdgeRoute, groupSelection, renameGroup, dissolveGroup, archiveNodes, togglePinned, toggleCanvasTheme, handleSelectionChange, handleNodeDrag };
+  return { persistNodeFrame, persistSelectionFrames, persistNodeResize, persistEdgeRoute, linkNodes, duplicateSelection, groupSelection, persistGroupOps, renameGroup, dissolveGroup, archiveNodes, togglePinned, toggleCanvasTheme, handleSelectionChange, handleNodeDrag };
 }

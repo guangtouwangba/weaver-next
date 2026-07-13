@@ -187,7 +187,11 @@ export class SseEventHub {
   // others are followers that hand back the same URL and periodically try to take
   // over if the leader dies — so the URL never goes stale.
   private deterministicPort(): number {
-    const h = createHash("sha256").update(process.cwd()).digest();
+    // Test/diagnostic processes can opt into an isolated loopback instance while
+    // production keeps the stable cwd-derived port. This prevents a temporary-HOME
+    // process from following an existing leader that owns a different secret.
+    const instance = process.env.WEAVER_PREVIEW_INSTANCE_ID;
+    const h = createHash("sha256").update(instance ? `${process.cwd()}:${instance}` : process.cwd()).digest();
     return 20000 + (h.readUInt32BE(0) % 40000); // [20000, 60000)
   }
   private deterministicToken(): string {

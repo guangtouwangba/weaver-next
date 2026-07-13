@@ -10,6 +10,8 @@ const internalPackages = new Map([
   ["@weaver/scene-packs", "packages/scene-packs/src/index.ts"],
   ["@weaver/storage", "packages/storage/src/index.ts"],
   ["@weaver/visual-templates", "packages/visual-templates/src/index.ts"],
+  ["@weaver/workspace-service", "packages/workspace-service/src/index.ts"],
+  ["@weaver/workspace-supervisor", "packages/workspace-supervisor/src/index.ts"],
 ]);
 
 const outfileFlag = process.argv.indexOf("--outfile");

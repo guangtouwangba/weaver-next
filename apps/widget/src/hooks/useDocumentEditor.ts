@@ -59,6 +59,16 @@ export function useDocumentEditor(params: {
     return node;
   }
 
+  async function createNoteAt(point: { x: number; y: number }) {
+    if (!project || !layout) return null;
+    const content: DocumentContent = { kind: "document", mode: "note", markdown: "", excerpt: "", embeddedAssetIds: [] };
+    if (standaloneDemo) return createDemoNode("Untitled note", content);
+    try {
+      const output = await callTool<CanvasMutationResult>("weaver_canvas_action", { action: "create_node", workspaceDir: bootstrap.workspaceDir, projectId: project.id, viewId: layout.viewId, semanticType: defaultSemanticType(), title: "Untitled note", content, x: point.x, y: point.y });
+      setProject(output.project); setLayout(output.layout); await load(); await openDocument(output.node.id, output.node); return output.node;
+    } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); return null; }
+  }
+
   async function createArticle() {
     if (!project || !layout) return; setCreateMenu(false); const content: DocumentContent = { kind: "document", mode: "article", markdown: "", excerpt: "", embeddedAssetIds: [] };
     if (standaloneDemo) { const node = createDemoNode("Untitled article", content); if (node) openDocument(node.id, node); return; }
@@ -132,6 +142,6 @@ export function useDocumentEditor(params: {
   return {
     createMenu, setCreateMenu, linkComposer, setLinkComposer, linkUrl, setLinkUrl, activeDocument, setActiveDocument, activeViewer, setActiveViewer, draft, editorMode, setEditorMode, saveState, setSaveState,
     fileInput, editorTextArea, saveStateRef, activeDocumentRef,
-    createArticle, chooseImage, importImageFile, createLink, openDocument, openNodeViewer, saveDocument, editDraft, formatMarkdown,
+    createNoteAt, createArticle, chooseImage, importImageFile, createLink, openDocument, openNodeViewer, saveDocument, editDraft, formatMarkdown,
   };
 }

@@ -14,9 +14,10 @@ afterEach(async () => {
   delete process.env.WEAVER_HOST_KIND;
 });
 
-async function rpc(server: WeaverServer, name: string, args: Record<string, unknown>) {
-  const response = await fetch(`${server.eventHub.origin}/mcp-rpc?token=${server.eventHub.previewToken}`, {
-    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name, arguments: args }),
+async function runtimeRpc(origin: string, cookie: string, operation: string, args: Record<string, unknown>) {
+  const bootstrap = await fetch(`${origin}/api/bootstrap`, { headers: { cookie } }).then((response) => response.json()) as { csrfToken: string };
+  const response = await fetch(`${origin}/api/rpc`, {
+    method: "POST", headers: { "content-type": "application/json", cookie, origin, "x-weaver-csrf": bootstrap.csrfToken }, body: JSON.stringify({ operation, arguments: args }),
   });
   return { status: response.status, body: await response.json() as any };
 }
@@ -34,7 +35,11 @@ describe("Claude agent loop — cross-transport identity convergence", () => {
 
     // Claude (stdio side) opens the workspace, creating the binding under the synthetic key.
     const opened = await server.dispatch("weaver_open_space", { workspaceDir: root, projectId: project.id }) as any;
-    const lease = opened.structuredContent.chatBinding;
+    const launchUrl = opened.structuredContent.launchUrl;
+    const claimedLaunch = await fetch(launchUrl, { redirect: "manual" });
+    const cookie = claimedLaunch.headers.get("set-cookie")!.split(";")[0];
+    const origin = new URL(launchUrl).origin;
+    const lease = (await fetch(`${origin}/api/bootstrap`, { headers: { cookie } }).then((response) => response.json())).chatBinding;
     expect(lease.projectId).toBe(project.id);
 
     // Browser (loopback RPC) claims the canvas as agent-eligible using that lease.
@@ -46,17 +51,17 @@ describe("Claude agent loop — cross-transport identity convergence", () => {
       presence: { visible: true, focused: true, lastSeenAt: timestamp }, chatBinding: { leaseId: lease.leaseId, bindingRevision: lease.bindingRevision },
       agentEligible: true, sequence: 1, updatedAt: timestamp,
     };
-    const claim = await rpc(server, "weaver_canvas_action", { workspaceDir: root, action: "claim", snapshot });
+    const claim = await runtimeRpc(origin, cookie, "weaver_canvas_action", { workspaceDir: "runtime", action: "claim", snapshot });
     expect(claim.status).toBe(200);
-    expect(claim.body.isError).toBeFalsy();
-    expect(claim.body.structuredContent).toMatchObject({ canvasSessionId: "browser-canvas", agentEligible: true });
+    expect(claim.body.ok).toBe(true);
+    expect(claim.body.result.context).toMatchObject({ canvasSessionId: "browser-canvas", agentEligible: true });
 
     // A re-render/reload can replay a locally stale claim. The server owns the
     // monotonic sequence floor and returns the accepted value to the widget.
-    const reclaimed = await rpc(server, "weaver_canvas_action", { workspaceDir: root, action: "claim", snapshot });
+    const reclaimed = await runtimeRpc(origin, cookie, "weaver_canvas_action", { workspaceDir: "runtime", action: "claim", snapshot });
     expect(reclaimed.status).toBe(200);
-    expect(reclaimed.body.isError).toBeFalsy();
-    expect(reclaimed.body.structuredContent.sequence).toBe(2);
+    expect(reclaimed.body.ok).toBe(true);
+    expect(reclaimed.body.result.context.sequence).toBe(2);
 
     // Claude sees the online, agent-eligible canvas the browser is holding.
     const bound = await server.dispatch("weaver_read_session", { workspaceDir: root, resource: "bound_canvas" }) as any;
@@ -95,7 +100,11 @@ describe("Claude agent loop — cross-transport identity convergence", () => {
     const project = store.catalog.createProject({ title: "Forge", goal: "", scenePack: scene });
     store.close();
     const server = await createWeaverServer({ previewWorkspaceDir: root }); servers.push(server);
-    await server.dispatch("weaver_open_space", { workspaceDir: root, projectId: project.id });
+    const opened = await server.dispatch("weaver_open_space", { workspaceDir: root, projectId: project.id }) as any;
+    const launchUrl = opened.structuredContent.launchUrl;
+    const claimedLaunch = await fetch(launchUrl, { redirect: "manual" });
+    const cookie = claimedLaunch.headers.get("set-cookie")!.split(";")[0];
+    const origin = new URL(launchUrl).origin;
 
     const timestamp = new Date().toISOString();
     const snapshot = {
@@ -105,8 +114,8 @@ describe("Claude agent loop — cross-transport identity convergence", () => {
       presence: { visible: true, focused: true, lastSeenAt: timestamp }, chatBinding: { leaseId: "f".repeat(64), bindingRevision: 999 },
       agentEligible: true, sequence: 1, updatedAt: timestamp,
     };
-    const claim = await rpc(server, "weaver_canvas_action", { workspaceDir: root, action: "claim", snapshot });
-    expect(claim.body.isError).toBe(true);
-    expect(claim.body.structuredContent.code).toBe("CHAT_CANVAS_LEASE_STALE");
+    const claim = await runtimeRpc(origin, cookie, "weaver_canvas_action", { workspaceDir: "runtime", action: "claim", snapshot });
+    expect(claim.body.ok).toBe(false);
+    expect(claim.body.error.code).toContain("CHAT_CANVAS_LEASE_STALE");
   });
 });

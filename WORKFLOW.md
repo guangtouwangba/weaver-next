@@ -6,7 +6,7 @@
 
 1. 阅读 [AGENTS.md](AGENTS.md)、[product.md](product.md) 和任务相关 PRD/architecture 文档。
 2. 检查 `git status`，识别用户已有改动；不得覆盖或清理无关内容。
-3. 明确本次变更属于哪些边界：Widget、Contracts、Core、Storage、MCP、Layout Engine、API、Plugin packaging。
+3. 明确本次变更属于哪些边界：Canvas、Contracts、Core、Storage、Workspace Service、Supervisor、MCP Bridge、Layout Engine、Plugin packaging。
 4. 写出可验证的验收条件，至少包含正常路径、失败路径和 revision/持久化影响。
 5. 若问题来自 UI，先在真实页面复现并记录：操作步骤、当前 DOM/视觉状态、错误信息、相关网络/console 信号。
 
@@ -17,7 +17,7 @@
 ### Red：先证明问题存在
 
 - 在最接近行为所有者的层级增加最小失败测试。
-- 纯领域规则测试放在 `packages/*/__tests__/` 或 Widget 的 `src/__tests__/`。
+- 纯领域规则测试放在 `packages/*/__tests__/` 或 Canvas 的 `src/__tests__/`（迁移期路径仍为 `apps/widget/src/__tests__/`）。
 - Storage 测试要验证事务结果和 revisions，不只验证返回值。
 - MCP 测试要验证 Tool 的结构化输出、错误码、Session/Chat 隔离和事件可见性。
 - UI 问题先保留真实页面复现证据，再为可抽离逻辑增加测试；不要用脆弱快照代替行为断言。
@@ -88,7 +88,7 @@ npm run build:widget
 
 ### UI 验收步骤
 
-1. 启动或确认 Widget 开发服务：
+1. 启动或确认迁移期 Canvas 开发服务：
 
    ```bash
    npm --workspace @weaver/widget run dev
@@ -111,13 +111,21 @@ npm run build:widget
 满足以下全部条件才可声明完成：
 
 - 相关自动化测试通过。
-- Widget typecheck/build 通过。
+- Canvas typecheck/build 通过。
 - 真实页面操作通过。
 - 目标状态与服务端持久化一致。
 - 页面刷新/恢复后仍正确。
 - 没有新增 console error。
 
 ## 5. MCP、插件与多进程验证
+
+localhost runtime 迁移的目标边界以 `docs/localhost-canvas-runtime-prd.md` 为准：生产与 E2E 必须使用同一个 workspace supervisor/worker Canvas；MCP 只作为 Chat bridge。迁移期保留的 Apps-SDK Widget 只允许用于回滚，不得承载 localhost 路径没有的新功能。
+
+- 修改 workspace service/supervisor/Contracts 后必须重启或升级 worker；只重启 Chat 的 MCP bridge 不代表新服务端代码已加载。
+- `weaver_open_space` 的完成证据包括 runtime health、pairing 领取和 Canvas bootstrap；仅返回 URL 或启动进程不算打开成功。
+- 核心 PR E2E 必须使用真实 application RPC、SSE 和 SQLite，覆盖刷新、Chat 断开、重复标签接管、worker kill/restart 和 revision gap recovery。
+- Codex 右侧内置浏览器与 Claude 只做相同 localhost 应用的容器 smoke，不得各自保留业务分叉。
+- runtime/build/protocol 不一致时 fail closed，完成受控 worker 升级后才能恢复写入。
 
 - `apps/widget/vite.config.ts` 会懒启动 MCP 子进程；修改 MCP/Contracts 后必须重启 Vite 才能获得新进程。
 - Claude 宿主(`scripts/start-mcp-claude.mjs`)开发态会按需重读 widget dist 并在重建时经 SSE `widget.reload` 自动刷新浏览器：**只改 widget 前端时 `npm run build:widget` 后浏览器自动刷新即可，不必重启 MCP**；改服务端(MCP/Contracts/scene-packs)仍必须重启 MCP。
@@ -128,7 +136,7 @@ npm run build:widget
 
 ### 5.0 两个宿主跑的是不同副本（改代码为什么“没生效”）
 
-这是最容易吃亏、也最难自查的一点：**Claude 和 Codex 运行的不是同一份代码**。
+以下是迁移完成前的 legacy 现实：**Claude 和 Codex 可能运行不同缓存副本**。目标 runtime 落地后由 `~/.weaver/runtimes/<buildId>/` 的不可变构建和 supervisor 受控升级取代此差异。
 
 - **Claude 预览宿主**：`scripts/start-mcp-claude.mjs` 直接从**仓库**跑，`cwd = 仓库根`。所以仓库里 `npm run build:plugin` + 在 Claude 里重连 `weaver-preview` 就能拿到新代码。
 - **Codex**：`weaver_mcp` 由 Codex 从**本地 marketplace 安装的缓存副本**跑，链路是三跳：
@@ -183,6 +191,6 @@ MCP server 走 stdio，不能 `console.log`（会污染协议），所以所有�
 2. 运行与风险相称的测试、构建和真实页面验证。
 3. 更新受影响的 README、AGENTS、WORKFLOW、product、PRD 或 architecture 文档。
 4. 报告具体结果，不只写“已测试”：列出测试数量、命令和真实页面操作。
-5. 明确仍需用户执行的动作，例如重启 Codex、新建 Chat 或重新打开 Widget。
+5. 明确仍需用户执行的动作，例如重启 Codex、新建 Chat、重新配对或重新打开 Canvas。
 
 若任何必需验证因环境原因无法执行，不得宣称完成；应说明阻塞条件、已验证部分和最短下一步。

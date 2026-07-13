@@ -1,11 +1,11 @@
 import { App as McpApp } from "@modelcontextprotocol/ext-apps";
-import { isDevHost, resolveHostMode, type WeaverPreview } from "./lib/host-mode";
+import { isDevHost, resolveHostMode, type WeaverPreview, type WeaverRuntime } from "./lib/host-mode";
 import { createMcpAppConnection } from "./mcp-app-connection";
 import type { ToolResult } from "./types";
 
 export type { HostMode, WeaverPreview } from "./lib/host-mode";
 
-declare global { interface Window { __weaverPreview?: WeaverPreview; __weaverCodexLoopback?: { origin: string; token: string } } }
+declare global { interface Window { __weaverPreview?: WeaverPreview; __weaverRuntime?: WeaverRuntime; __weaverCodexLoopback?: { origin: string; token: string } } }
 
 export const mcp = new McpApp({ name: "weaver-next-widget", version: "0.1.0" }, { availableDisplayModes: ["inline", "fullscreen"] }, { autoResize: true });
 const connectedMcp = createMcpAppConnection(mcp);
@@ -19,11 +19,14 @@ const browserLocation: Location | undefined = typeof location === "undefined" ? 
 
 /** Injected by the MCP process's /preview route when Claude Code is the agent host. */
 export const weaverPreview = browserWindow?.__weaverPreview;
+export const weaverRuntime = browserWindow?.__weaverRuntime;
 
 // `isLocalDevelopment` means the Vite dev proxy (no chat binding, agent unavailable).
 // The Claude preview is also on 127.0.0.1 but is a bound agent host, so it is excluded.
-export const isLocalDevelopment = isDevHost(browserLocation?.hostname ?? "localhost", weaverPreview);
-export const hostMode = resolveHostMode(browserLocation?.hostname ?? "localhost", weaverPreview);
+export const isLocalDevelopment = isDevHost(browserLocation?.hostname ?? "localhost", weaverPreview, weaverRuntime);
+export const hostMode = resolveHostMode(browserLocation?.hostname ?? "localhost", weaverPreview, weaverRuntime);
+let runtimeCsrfToken: string | undefined;
+export function setRuntimeCsrfToken(value?: string) { runtimeCsrfToken = value; }
 
 // Codex loopback bypass. Codex's tools/call proxy rejects some widget calls in the
 // renderer before they ever reach the MCP server ("-32000 MCP proxy request failed" —
@@ -79,11 +82,23 @@ async function callCodexTool<T>(name: string, args: Record<string, unknown>): Pr
 
 export async function callTool<T>(name: string, args: Record<string, unknown>): Promise<T> {
   let result: ToolResult<T>;
-  if (hostMode === "claude" && weaverPreview) result = await fetchTool<T>(weaverPreview.rpcPath, name, args, { "x-weaver-preview-token": weaverPreview.token });
+  if (hostMode === "runtime" && weaverRuntime) {
+    const response = await fetch(weaverRuntime.rpcPath, { method: "POST", headers: { "content-type": "application/json", "x-weaver-csrf": runtimeCsrfToken ?? "" }, body: JSON.stringify({ operation: name, arguments: args }) });
+    const value = await response.json() as { ok: boolean; result?: T; error?: { code?: string } };
+    result = value.ok ? { structuredContent: value.result } : { isError: true, content: [{ type: "text", text: value.error?.code ?? `${name} failed` }] };
+  }
+  else if (hostMode === "claude" && weaverPreview) result = await fetchTool<T>(weaverPreview.rpcPath, name, args, { "x-weaver-preview-token": weaverPreview.token });
   else if (hostMode === "dev") result = await fetchTool<T>("/api/mcp", name, args);
   else result = await callCodexTool<T>(name, args);
   if (result.isError) throw new Error(result.content?.find((item) => item.type === "text")?.text ?? `${name} failed`);
   const value: unknown = result.structuredContent;
   if (value && typeof value === "object" && Object.keys(value).length === 1 && "items" in value && Array.isArray(value.items)) return value.items as T;
   return value as T;
+}
+
+export async function takeOverRuntimeProject(projectId: string) {
+  if (hostMode !== "runtime") return false;
+  const response = await fetch("/api/session/takeover", { method: "POST", headers: { "content-type": "application/json", "x-weaver-csrf": runtimeCsrfToken ?? "" }, body: JSON.stringify({ projectId, confirm: true }) });
+  if (!response.ok) throw new Error((await response.json() as { error?: { code?: string } }).error?.code ?? "TAKEOVER_FAILED");
+  return true;
 }

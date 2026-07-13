@@ -4,7 +4,7 @@
 // usage (demo/seed data, MCP responses) doesn't match the contracts shape stay local —
 // see the refactor report for the per-type compatibility notes.
 
-import type { AgentTask, ChartContent, NodeContent, WidgetBinding, WidgetBootstrap, WidgetCandidate, WidgetChangeSetPreview, WidgetGraphEdge, WidgetGraphNode, WidgetLayout, WidgetManifest, WidgetProject, WidgetProjectEvent, WidgetProjectView } from "@weaver/contracts";
+import type { AgentTask, CanvasCapabilities, ChartContent, NodeContent, WidgetBinding, WidgetBootstrap, WidgetCandidate, WidgetChangeSetPreview, WidgetGraphEdge, WidgetGraphNode, WidgetLayout, WidgetManifest, WidgetProject, WidgetProjectEvent, WidgetProjectView } from "@weaver/contracts";
 
 export type { VisualFamily, ViewTheme, VisualTemplate, TemplateValidationResult as TemplateValidation, AgentTaskIntent as TaskIntent, AgentTask } from "@weaver/contracts";
 // These alias cleanly: the widget always supplies every field on construction, and the
@@ -13,7 +13,7 @@ export type { DocumentContent, ImageContent, LinkContent, ChartContent, ChartSer
 
 export type ToolResult<T> = { structuredContent?: T; isError?: boolean; content?: Array<{ type: string; text?: string }> };
 export type ChatBindingBootstrap = WidgetBinding;
-export type Bootstrap = WidgetBootstrap;
+export type Bootstrap = WidgetBootstrap & { capabilities?: CanvasCapabilities; csrfToken?: string };
 export type CanvasAccessState = "claiming" | "claim-failed" | "active" | "duplicate" | "detached" | "build-mismatch";
 export type Project = WidgetProject;
 export type GraphNode = WidgetGraphNode;

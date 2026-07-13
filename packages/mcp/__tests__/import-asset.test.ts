@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getScenePack } from "@weaver/scene-packs";
 import { WorkspaceStore } from "@weaver/storage";
 import { createWeaverServer, type WeaverServer } from "../src/create-server.js";
@@ -12,9 +12,11 @@ const SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="200"><r
 
 const roots: string[] = [];
 const servers: WeaverServer[] = [];
+beforeEach(() => { process.env.WEAVER_HOST_KIND = "claude"; });
 afterEach(async () => {
   await Promise.all(servers.splice(0).map((server) => server.close()));
   roots.splice(0).forEach((root) => rmSync(root, { recursive: true, force: true }));
+  delete process.env.WEAVER_HOST_KIND;
 });
 
 async function setup() {

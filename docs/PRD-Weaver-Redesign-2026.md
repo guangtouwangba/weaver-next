@@ -18,7 +18,7 @@
 - **布局是一等数据且与内容分离**：`graphRevision` 与每个视图的 `layoutRevision` 独立；手动拖放、固定、分组、连线路由、候选预览和撤销均持久化。
 - **自然语言布局**：Canvas 将选择和视图状态同步给 coding agent；Agent 只生成 `LayoutPlan` 语义约束，确定性布局引擎生成坐标、候选与质量评分。
 - **双轴节点**：场景语义 `type` 与内容形态分离。第一阶段内容形态为 Markdown document、project-local image Asset 和安全 enrichment 的 public link；媒体二进制不进入图谱 JSON，完整内容由 MCP 显式按需读取。
-- **Codex 插件优先**：正式入口是原生 widget；MCP 提供结构化状态与 ChangeSet；Skills 提供稳定工作流；浏览器只用于开发预览。
+- **Codex 驱动的 localhost 应用**：正式 Canvas 是 workspace 级 localhost 应用，优先承载于 Codex 右侧内置浏览器；MCP 只承担可信 Chat/Agent bridge、结构化状态与 ChangeSet，Skills 提供稳定工作流。生产与 E2E 使用同一页面和协议。
 - **原分支隔离保留**：它成为 branching/argument 等场景的 `ancestor_path` 上下文策略；其他场景可使用有类型邻域 + 用户钉选，禁止默认读取整个图。
 
 ### v4.1 Structured Visual 模板系统
@@ -30,24 +30,27 @@
 - **准备度**：模板先校验 Scene Pack 兼容性和属性字段准备度。必需字段缺失时禁止直接创建 View，可由用户补充或由 Agent 提交独立 ChangeSet，模板应用不得静默修改内容。
 - **版本与同步**：View 保存模板版本、Projection 和 Theme 快照；样式与投影只递增 `layoutRevision`。新视图通过 `view.created` SSE 事件同步，不重置其他 session 的当前 View 或 viewport。
 
-### v4.2 Canvas ↔ Codex 协作通道
+### v4.2 Localhost Canvas ↔ Codex 协作通道
 
-- **单一语言入口**：自然语言只在 Codex 对话中输入。Widget 不复制聊天输入框，也不提供 `Copy for Codex`；它负责画布操作、任务状态、预览和确认。
+- **单一语言入口**：自然语言只在 Codex 对话中输入。localhost Canvas 不复制聊天输入框；它负责画布操作、任务状态、预览和确认。
+- **右侧浏览器优先**：`weaver_open_space` 创建一次性 launch nonce，`weaver-open-space` Skill 优先复用或打开 Codex 右侧内置浏览器并完成 Canvas bootstrap；系统浏览器只作为能力缺失或导航失败时的降级入口。
+- **独立生命周期**：Canvas 由 workspace supervisor + worker 提供，不依赖某个 Chat/MCP 进程存活。worker 崩溃由按需 supervisor 恢复；所有浏览器和 bridge 离线后 runtime 才空闲退出。
 - **主动上下文**：Canvas 静默同步 selection、focused node、Pin、viewport、viewId 与 graph/layout revisions。Codex 调用 `weaver_prepare_task_from_active_canvas` 获取当前 Chat 精确绑定的画布，不要求用户搬运 Task ID 或 Prompt，也不使用最近焦点兜底。
 - **可靠状态机**：每个 Canvas Session 同时只允许一个非终态任务。任务按 `prepared → dispatched → running` 推进；Agent 必须重新读取任务并确认有效后才能开始和写回。
 - **混合任务**：内容应用后进入 `ready_to_continue`。用户在 Codex 中说“继续布局”时，`weaver_prepare_task_from_active_canvas` 原子领取同一任务的布局阶段并返回 dispatched Task；已应用内容不会回滚。
 - **持久化优先**：取消、失败、过期和 stale Task 的后续写回由服务端拒绝。Codex 的执行结果以 SQLite 状态与事务化事件为权威，由 SSE 增量推送任务、图谱、布局和视图变化。
-- **浏览器边界**：localhost 不启动 Agent、Codex CLI 或后台 daemon；它可编辑画布，但明确显示 `Browser preview. Agent unavailable`，且不能创建 AgentTask。
+- **浏览器边界**：浏览器本身不启动 Agent、Codex CLI 或模型。未绑定 Chat 时允许经过 contracts/revision/事务/审计的手动编辑，并显示 `Local editing · Agent disconnected`；只有在线且精确配对的 Chat binding 可以创建 AgentTask。
 
 ### v4.3 Codex Chat 与 Canvas 精确绑定
 
 - **一对一当前绑定**：可信 Codex `threadId` 在 MCP Server 内哈希为 `chatSessionKey`；一个 Chat 同时只绑定一个当前 Project/View/Canvas Session，同一 Project 可被多个 Chat 以独立 Session 打开。
 - **身份不可伪造**：Server 从 Tool Request `_meta.threadId` 读取身份，并与 `x-codex-turn-metadata.thread_id` 交叉校验。客户端参数、模型消息、SQLite、SSE 和日志均不保存原始 thread ID。
-- **lease 与 revision**：Widget bootstrap 获得 256-bit `leaseId` 和 `bindingRevision`。Project/View 显式切换递增 revision；selection、viewport、Pin 和 presence 更新不递增。旧 Widget 的 lease 立即失效。
+- **lease 与 revision**：Canvas bootstrap 获得浏览器 Session、Project writer lease 及可选 Chat binding。Project/View 显式切换递增 binding revision；selection、viewport、Pin 和 presence 更新不递增。旧 Canvas/Chat lease 立即失效。
 - **严格任务隔离**：AgentTask 固定 `chatSessionKey + bindingRevision`。prepare、start、读取结果、提交 ChangeSet、生成 LayoutRun、apply/reject 和混合任务续派均重新验证当前 Chat binding。
-- **切换语义**：Chat 切换 Canvas 时取消旧绑定的非终态任务，拒绝 pending ChangeSet/LayoutRun，并通过 `chat.binding.changed` SSE 让旧 Widget 进入 detached；已应用内容与布局不回滚。
+- **切换语义**：Chat 切换 Canvas 或 Project writer 被接管时取消旧绑定的非终态任务，拒绝 pending ChangeSet/LayoutRun，并通过 session-scoped SSE 让旧 Canvas 进入 detached/read-only；已应用内容与布局不回滚。
 - **在线要求**：5 秒 presence heartbeat，30 秒未同步视为 Canvas offline。Binding 继续持久化，但 Agent 不得基于最后快照继续写入；重新从该 Chat 打开 Weaver 后取得新 lease。
 - **fork 语义**：Chat fork 获得新的 thread identity，默认未绑定，必须显式打开或创建 Weaver Canvas。
+- **容器不决定租约**：Codex 右侧浏览器的显示/隐藏不递增 `bindingRevision`，不创建新 binding，也不丢失当前 Project/View；只有显式切换、接管、解绑或离线超过 presence 门槛后，Agent 写入才按规则拒绝。
 
 ### v4.4 Visual View 管理
 
@@ -59,7 +62,7 @@
 - **恢复位置属于 Canvas Session**：viewport、selection 与 focused node 按 `canvasSessionId + viewId` 保存；切换 View 前 flush 文章编辑和拖拽状态，返回时恢复原位置且不关闭已打开的文章编辑器。
 - **模板重复可见但不禁止**：模板库展示当前项目已有实例，优先允许直接打开；用户仍可显式“再创建一个 View”，并可以在创建前命名。模板应用不改变 Graph。
 - **项目与 Chat 各有恢复语义**：Project 保存 default View；每个 Codex Chat 通过精确 binding 恢复自己最后打开的 View。同一 Project 的多个 Chat 不共享 viewport、selection 或当前 View。
-- **同步只传目录 delta**：所有 View 元数据变化统一写入 `view.catalog.changed` 事务事件；Widget 以 `viewCatalogRevision` 幂等应用，不重新加载 Graph、不重置 viewport。
+- **同步只传目录 delta**：所有 View 元数据变化统一写入 `view.catalog.changed` 事务事件；Canvas 以 `viewCatalogRevision` 幂等应用，不重新加载 Graph、不重置 viewport。
 
 ---
 
@@ -67,7 +70,7 @@
 
 - **方向一句话**：Weaver 把自然语言目标变成一个可由用户和 coding agent 共同维护、可自动布局、可切换结构的场景化语义空间。
 - **核心问题**：思考天然是分支的（岔开/回溯/并比/汇合/剪枝），但 Chat 是单线程，**介质本身摧毁了思考的分支结构**。
-- **核心交互**：**场景节点空间 + Canvas/Agent 双向任务**——用户编辑或选择节点，Agent 根据场景规则生成 ChangeSet 或 LayoutPlan，Widget 预览、应用和撤销。
+- **核心交互**：**场景节点空间 + Canvas/Agent 双向任务**——用户编辑或选择节点，Agent 根据场景规则生成 ChangeSet 或 LayoutPlan，localhost Canvas 预览、应用和撤销。
 - **核心工件**：**语义图谱 + 独立布局文档**；自由画布、树、关系图、分组板、时间线、流程和表格是同一份内容的不同视图。
 - **核心赌注**：人定角度、AI 加速综合。AI 的角色是"思考副驾"——主动提议分叉、按分支隔离上下文、发现分支汇合、标记死胡同——而不是替你下结论。
 - **差异化护城河**：①**按分支隔离上下文**（每条分支是干净上下文，NotebookLM/YouMind/ChatGPT 都没有）；②**论证结构可视可改可追**；③句子级引用接地 + 作用到成稿的 Voice。
@@ -316,7 +319,24 @@
 6. 长文编辑器 + Voice（MVP 用**预设 tone**：学术/轻松/专业）
 7. 导出 Markdown
 
-**MVP 明确不做**：自由画布、并排对比、跨枝汇合、缺口/反例检测、阅读高亮、视频/播客转写、浏览器扩展、多格式产出、跨项目网络、协作、OCR、Podcast。
+**MVP 明确不做**：并排对比、AI 自动跨枝汇合、缺口/反例检测、阅读高亮、视频/播客转写、浏览器扩展、多格式产出、跨项目网络、协作、OCR、Podcast。自由画布与用户手动连线已升级为基础直接操作能力，不再属于排除项。
+
+### 7.4 专业画板直接操作（2026-07-13）
+
+- 所有 View 提供一致的选择、框选、批量移动、创建节点和手动连线入口；投影视图中的手动移动会自动 Pin，确保后续确定性布局保留用户意图。
+- 左侧主工具栏是内容创建与操作模式的唯一入口；顶部栏不再承担 Article、Image、Link 创建菜单。
+- 便签可在画布落点直接创建；关系必须选自当前 Scene Pack，禁止自连且重复关系幂等。
+- 多节点移动、对齐、分布和分组是 Layout 变更，不递增 `graphRevision`；创建节点、删除和语义关系是 Graph 变更。
+- 桌面与触屏均支持核心直接操作。真实 Playwright E2E 必须通过 loopback preview 驱动 MCP 与 SQLite，不得 mock 写路径。
+
+### 7.5 混合渲染性能验收（2026-07-13）
+
+- 生产画布采用 PixiJS v8 WebGL + 视口虚拟化 DOM + React UI 三层结构，不保留 React Flow 运行时或生产回退。
+- 七种 `ViewType` 与 matrix projection 使用同一 Graph/Layout 权威；table 使用虚拟化 DOM，其余投影编译为共享 GPU Scene。
+- 固定基线为 Apple M1、Chrome、1440×900、DPR 2：Graph 500 节点/1000 连线，其他 View 500 节点。
+- 连续 pan、zoom、drag 各 10 秒：median FPS ≥ 55，p95 frame time ≤ 25 ms；每段最多一个超过 50 ms 的 long task，且不得超过 100 ms。
+- 打开基准项目到首次可交互 ≤ 1.5 秒；相机操作期间 React 根组件提交次数为 0；高倍复杂 DOM 节点 ≤ 100，低倍为 0。
+- `e2e/canvas-performance.spec.ts` 生成可重复 trace 指标并识别 WebGL renderer。SwiftShader 结果只用于功能与测试链路回归，不能替代上述 M1 硬件门槛。
 
 ### 7.3 MVP 成功标准
 - 用户能用 Weaver 独立完成一次真实的分支思考 → 一篇带引用初稿。

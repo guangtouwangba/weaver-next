@@ -1,19 +1,19 @@
 import { spawn } from "node:child_process";
-import { registerAppTool } from "@modelcontextprotocol/ext-apps/server";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { projectSchema } from "../shared/schemas.js";
-import { defineTool, result, type MutateWithStore } from "../shared/tool-runtime.js";
+import { defineTool, result } from "../shared/tool-runtime.js";
 import { chatSessionKeyFromRequest } from "../thread-context.js";
-import { hostKind, previewHost } from "../session-identity.js";
-import { LEGACY_WIDGET_URI } from "../resources.js";
+import { hostKind } from "../session-identity.js";
 import type { SseEventHub } from "../event-hub.js";
 import { log } from "../logger.js";
-import { runtimeMode, shouldBlockWorkspaceBuildMismatch, widgetBuildId, workspaceWidgetBuildId } from "../widget.js";
+import { widgetBuildId } from "../widget.js";
+import { createWorkspaceLaunch, openWorkspaceNativeBinding, recordWorkspaceSurfaceFallback } from "../workspace-runtime.js";
+import { LEGACY_WIDGET_URI } from "../resources.js";
+import { canvasSurface, legacyWidgetFallbackReason } from "../canvas-surface.js";
 
 export type WorkspaceToolsCtx = {
   eventHub: SseEventHub;
-  mutateWithStore: MutateWithStore;
   widgetUri: string;
   serverVersion: string;
 };
@@ -46,7 +46,8 @@ function autoOpenPreview(url: string) {
 
 /** Workspace bootstrap: bind the canvas, render/open its surface, and open the SSE event stream. */
 export function registerWorkspaceTools(server: McpServer, ctx: WorkspaceToolsCtx) {
-  const { eventHub, mutateWithStore, serverVersion } = ctx;
+  const { eventHub } = ctx;
+  const legacyWidget = canvasSurface() === "legacy-widget";
 
   // Codex renders the embedded widget by reading `_meta.ui.resourceUri` (and the
   // legacy `openai/outputTemplate`) and calling `resources/read` on that ui:// URI.
@@ -55,59 +56,35 @@ export function registerWorkspaceTools(server: McpServer, ctx: WorkspaceToolsCtx
   // Codex still holds the old cached descriptor, which surfaced as
   // `-32602 Resource not found` and cascaded into the widget's -32000. The stable
   // URI always resolves to the current process's fresh inline HTML.
-  registerAppTool(server, "weaver_open_space", {
+  server.registerTool("weaver_open_space", {
     title: "Open Weaver Workspace",
-    description: "Open the Weaver semantic canvas for an explicit local workspace and optional project. Codex renders it as an embedded panel; Claude Code opens it as a tokenized loopback browser preview.",
+    description: "Ensure the workspace-scoped localhost Canvas runtime and create a short-lived, one-time launch URL for an explicit local workspace and optional project.",
     inputSchema: { workspaceDir: z.string().min(1), projectId: z.string().optional(), displayMode: z.enum(["fullscreen", "inline"]).default("fullscreen") },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    _meta: { ui: { resourceUri: LEGACY_WIDGET_URI, visibility: ["model", "app"] }, "ui/resourceUri": LEGACY_WIDGET_URI, "openai/outputTemplate": LEGACY_WIDGET_URI, "openai/widgetAccessible": true },
+    ...(legacyWidget ? { _meta: { ui: { resourceUri: LEGACY_WIDGET_URI, visibility: ["model", "app"] }, "ui/resourceUri": LEGACY_WIDGET_URI, "openai/outputTemplate": LEGACY_WIDGET_URI, "openai/widgetAccessible": true } } : {}),
   }, defineTool(async (input, extra) => {
     const chatSessionKey = chatSessionKeyFromRequest(extra);
-    const opened = mutateWithStore(input.workspaceDir, (store) => {
-      let viewId: string | undefined;
-      if (input.projectId) {
-        const project = store.catalog.getProject(input.projectId);
-        if (!project) throw new Error("PROJECT_NOT_FOUND");
-        viewId = project.defaultViewId;
-      }
-      return { binding: store.sessions.openBinding({ chatSessionKey, projectId: input.projectId, viewId }), schemaResetBackupName: store.schemaResetBackupName };
-    });
-    const { binding, schemaResetBackupName } = opened;
-    const activeWidgetBuildId = widgetBuildId();
-    const workspaceBuildId = workspaceWidgetBuildId(input.workspaceDir);
-    const activeRuntimeMode = runtimeMode();
-    const isPreview = previewHost();
-    const isCodex = hostKind() === "codex";
-    // Pin the loopback preview to the agent's real workspace — Codex boots the MCP
-    // from its cache dir, so without this both the embedded widget's callServerTool
-    // and the browser read an empty cache `.weaver` and hang.
-    if (isPreview) {
-      if (eventHub.retargetPreviewWorkspace(input.workspaceDir)) log("info", "preview.retarget", { workspaceDir: input.workspaceDir });
-      // Only the Claude host pops the browser (the terminal has no embedded panel).
-      // Codex renders the widget in-panel via outputTemplate, so no browser pop.
-      if (!isCodex && eventHub.previewUrl) autoOpenPreview(eventHub.previewUrl);
+    if (legacyWidget) {
+      const chatBinding = await openWorkspaceNativeBinding({ workspaceDir: input.workspaceDir, buildId: widgetBuildId(), chatSessionKey, projectId: input.projectId });
+      const code = legacyWidgetFallbackReason();
+      await recordWorkspaceSurfaceFallback({ workspaceDir: input.workspaceDir, buildId: widgetBuildId(), code });
+      log("warn", "canvas.legacyFallbackUsed", { code, status: "active", actionKey: "legacy-widget" });
+      return result({
+        version: 2,
+        widget: "weaver-workspace",
+        workspaceDir: input.workspaceDir,
+        projectId: input.projectId,
+        preferredDisplayMode: "fullscreen",
+        serverVersion: ctx.serverVersion,
+        widgetBuildId: widgetBuildId(),
+        runtimeMode: "installed",
+        chatBinding: { leaseId: chatBinding.leaseId, bindingRevision: chatBinding.bindingRevision, projectId: chatBinding.projectId, viewId: chatBinding.viewId },
+        rendering: "native-widget",
+      }, "Opened the temporary Weaver native Widget rollback surface.");
     }
-    // Codex renders the NATIVE panel (window.openai widget) from openai/outputTemplate
-    // and reads this structuredContent as window.openai.toolOutput. Returning a
-    // previewUrl made Codex open a browser sidebar instead of the native panel
-    // (Cowart, which renders natively, returns no URL) — so omit it for Codex.
-    // Claude Code has no native panel, so it still gets the loopback browser URL.
-    const preview = (isPreview && !isCodex) ? { previewUrl: eventHub.previewUrl, previewToken: eventHub.previewToken } : {};
-    const message = isCodex
-      ? 'Opened the Weaver canvas panel. The user selects nodes on the canvas, then asks you (in chat) to develop them: read the live selection with weaver_read_session(resource:"bound_canvas"), do the work, then weaver_submit_changeset — the panel refreshes to show it. The canvas is a visual surface; you are triggered from the chat.'
-      : isPreview
-        ? "Opened the Weaver canvas in your browser. If no window appeared, open previewUrl manually."
-        : "Opened Weaver workspace widget.";
-    return result({
-      version: 2, widget: "weaver-workspace", workspaceDir: input.workspaceDir, projectId: input.projectId,
-      preferredDisplayMode: "fullscreen", serverVersion, widgetBuildId: activeWidgetBuildId,
-      workspaceWidgetBuildId: workspaceBuildId, runtimeMode: activeRuntimeMode,
-      buildMismatch: shouldBlockWorkspaceBuildMismatch(activeRuntimeMode, activeWidgetBuildId, workspaceBuildId),
-      chatBinding: { leaseId: binding.leaseId, bindingRevision: binding.bindingRevision, projectId: binding.projectId, viewId: binding.viewId },
-      schemaReset: schemaResetBackupName ? { backupName: schemaResetBackupName } : undefined,
-      ...(isCodex ? { rendering: "native-widget" } : {}),
-      ...preview,
-    }, message);
+    const launch = await createWorkspaceLaunch({ workspaceDir: input.workspaceDir, buildId: widgetBuildId(), chatSessionKey, projectId: input.projectId });
+    if (hostKind() === "claude" && process.env.WEAVER_DISABLE_AUTO_OPEN !== "1") autoOpenPreview(launch.launchUrl);
+    return result(launch, "Created a short-lived Weaver Canvas launch. Open it with the Weaver open-space workflow; do not repeat the URL in prose.");
   }));
 
   server.registerTool("weaver_subscribe_canvas", {

@@ -1,9 +1,11 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { readNodeContent, readProjectGraph, readProjectManifest, queryGraph } from "../shared/graph-reads.js";
 import { workspaceSchema } from "../shared/schemas.js";
 import { track } from "../shared/workspace-registry.js";
-import { defineTool, result, withStore } from "../shared/tool-runtime.js";
+import { defineTool, result } from "../shared/tool-runtime.js";
+import { chatSessionKeyFromRequest } from "../thread-context.js";
+import { widgetBuildId } from "../widget.js";
+import { dispatchWorkspaceAgentOperation } from "../workspace-runtime.js";
 
 /**
  * One model-facing read tool that groups the four graph reads — the project
@@ -28,30 +30,28 @@ export function registerReadGraphTool(server: McpServer) {
       limit: z.number().int().positive().max(200).optional(),
     },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-  }, defineTool(async ({ workspaceDir, resource, projectId, viewId, nodeId, nodeIds, nodeTypes, text, limit }) => {
+  }, defineTool(async ({ workspaceDir, resource, projectId, viewId, nodeId, nodeIds, nodeTypes, text, limit }, extra) => {
     if (!projectId) throw new Error("INVALID_ARGS:projectId required");
+    const output = await dispatchWorkspaceAgentOperation({
+      workspaceDir,
+      buildId: widgetBuildId(),
+      chatSessionKey: chatSessionKeyFromRequest(extra),
+      operation: "weaver_read_graph",
+      arguments: { resource, projectId, viewId, nodeId, nodeIds, nodeTypes, text, limit },
+    });
+    track(workspaceDir, projectId);
     switch (resource) {
       case "manifest": {
-        // weaver_read_graph(resource:"manifest")
-        const output = withStore(workspaceDir, (store) => readProjectManifest(store, projectId));
-        track(workspaceDir, projectId);
         return result(output);
       }
       case "full": {
-        // weaver_read_graph(resource:"full")
-        const output = withStore(workspaceDir, (store) => readProjectGraph(store, projectId, viewId));
-        track(workspaceDir, projectId);
         return result(output, "Loaded graph summaries and layout. Use weaver_read_graph(resource:\"node\") for full Markdown.");
       }
       case "query": {
-        // weaver_query_graph
-        const output = withStore(workspaceDir, (store) => queryGraph(store, projectId, { nodeIds, nodeTypes, text, limit }));
         return result(output);
       }
       case "node": {
-        // weaver_read_graph(resource:"node")
         if (!nodeId) throw new Error("INVALID_ARGS:nodeId required");
-        const output = withStore(workspaceDir, (store) => readNodeContent(store, projectId, nodeId));
         return result(output);
       }
     }

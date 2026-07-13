@@ -20,6 +20,17 @@ describe("Widget runtime metadata", () => {
     expect(html).toContain("<style>");
     expect(html).not.toContain("http://127.0.0.1:");
     expect(html).not.toMatch(/(?:href|src)="\.\/[^\"]+\.(?:css|js)"/);
+    const bootAssignment = `window.__weaverEmbeddedBuildId=${JSON.stringify(widgetBuildId())};window.__weaverAssetFailure=`;
+    expect(html.indexOf(bootAssignment)).toBeGreaterThan(html.indexOf("</head>"));
+  });
+
+  it("keeps HTML body markers out of the inlined module source", () => {
+    const html = inlineWidgetHtml(widgetBundle());
+
+    expect(html.match(/<body(?:\s[^>]*)?>/gi)).toHaveLength(1);
+    expect(html.match(/<\/body>/gi)).toHaveLength(1);
+    expect(html).toContain("\\x3cbody>");
+    expect(html).toContain("\\x3c/body>");
   });
 
   it("versions the Codex app resource URI by widget build", () => {

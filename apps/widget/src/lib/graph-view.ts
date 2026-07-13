@@ -1,9 +1,6 @@
-import type { Edge } from "@xyflow/react";
+import type { CanvasEdge } from "./canvas-model";
 import { resolveEdgeHandles } from "../sync";
 import type { GraphEdge, GraphNode, Layout, Project } from "../types";
-import { DocumentCard, ImageCard, LinkCard, VisualGroupCard } from "../components/nodes/ContentCards";
-import { ChartCard } from "../components/nodes/ChartCard";
-import { WeaverEdge } from "../components/WeaverEdge";
 import { resolveEdgeVisual } from "./edge-style";
 
 export function excerpt(markdown: string) { return markdown.replace(/[#>*_`[\]()!-]/g, " ").replace(/\s+/g, " ").trim().slice(0, 280); }
@@ -24,7 +21,7 @@ export function describeCanvasSelection(nodes: GraphNode[], selection: string[],
   return `Canvas selection — anchor: ${label(anchor)}${references.length ? `; also referencing: ${references.map(label).join(", ")}` : ""}.`;
 }
 
-export function toFlowEdge(item: GraphEdge, layout: Layout): Edge {
+export function toFlowEdge(item: GraphEdge, layout: Layout): CanvasEdge {
   const edgeTheme = layout.theme?.edgeStyles.default;
   const route = layout.edges?.[item.id];
   const handles = resolveEdgeHandles(layout.nodes[item.sourceNodeId], layout.nodes[item.targetNodeId]);
@@ -34,12 +31,8 @@ export function toFlowEdge(item: GraphEdge, layout: Layout): Edge {
   const visual = resolveEdgeVisual(item.type, route);
   return {
     id: item.id, source: item.sourceNodeId, target: item.targetNodeId, label: item.type,
-    sourceHandle, targetHandle,
-    type: "weaver",
-    data: { routing: visual.routing, arrows: visual.arrows, lineStyle: visual.lineStyle, muted: visual.muted, waypoints: route?.waypoints ?? [], semanticType: item.type },
+    type: "weaver", sourceHandle, targetHandle,
+    data: { routing: visual.routing, arrows: visual.arrows, lineStyle: visual.lineStyle, muted: visual.muted, waypoints: route?.waypoints ?? [], semanticType: item.type, sourceHandle, targetHandle },
     style: { stroke: edgeTheme?.color, strokeWidth: edgeTheme?.width },
   };
 }
-
-export const nodeTypes = { document: DocumentCard, image: ImageCard, link: LinkCard, chart: ChartCard, visualGroup: VisualGroupCard };
-export const edgeTypes = { weaver: WeaverEdge };

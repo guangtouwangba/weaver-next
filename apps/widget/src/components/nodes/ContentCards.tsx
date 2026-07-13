@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { Node, NodeProps } from "@xyflow/react";
+import type { CanvasNodeProps } from "../../lib/canvas-model";
 import { ExternalLink, FileImage, FileText, Lock, X } from "lucide-react";
 import type { CardData } from "../../types";
 import { NodeShell } from "./NodeShell";
 import { NodeBlockEditor } from "./NodeBlockEditor";
 import { useI18n } from "../../lib/i18n";
 
-export function DocumentCard({ data, id, selected }: NodeProps<Node<CardData>>) {
+export function DocumentCard({ data, id, selected }: CanvasNodeProps<CardData>) {
   const { t } = useI18n();
   // Lazily pull the node's full Markdown the first time it is selected, then keep
   // it so the card renders as a live document (read-only until selected).
@@ -32,7 +32,7 @@ export function DocumentCard({ data, id, selected }: NodeProps<Node<CardData>>) 
   </NodeShell>;
 }
 
-export function ImageCard({ data, id, selected }: NodeProps<Node<CardData>>) {
+export function ImageCard({ data, id, selected }: CanvasNodeProps<CardData>) {
   const { t } = useI18n();
   return <NodeShell data={data} className="image-card" id={id} selected={selected}>
     <div className="image-stage">{data.imageSrc ? <img src={data.imageSrc} alt={data.caption || data.title} /> : <FileImage size={30} />}</div>
@@ -40,7 +40,7 @@ export function ImageCard({ data, id, selected }: NodeProps<Node<CardData>>) {
   </NodeShell>;
 }
 
-export function LinkCard({ data, id, selected }: NodeProps<Node<CardData>>) {
+export function LinkCard({ data, id, selected }: CanvasNodeProps<CardData>) {
   const { t } = useI18n();
   return <NodeShell data={data} className="link-card" id={id} selected={selected}>
     {data.imageSrc ? <img className="link-cover" src={data.imageSrc} alt="" /> : <div className="link-mark"><ExternalLink size={22} /></div>}
@@ -49,7 +49,7 @@ export function LinkCard({ data, id, selected }: NodeProps<Node<CardData>>) {
 }
 
 type GroupData = { groupId: string; label: string; kind: string; onRename?: (groupId: string, label: string) => void; onDissolve?: (groupId: string) => void };
-export function VisualGroupCard({ data }: NodeProps<Node<GroupData>>) {
+export function VisualGroupCard({ data }: CanvasNodeProps<GroupData>) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(data.label);
   const commit = () => { setEditing(false); if (draft.trim() && draft !== data.label) data.onRename?.(data.groupId, draft.trim()); else setDraft(data.label); };

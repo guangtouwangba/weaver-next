@@ -1,4 +1,4 @@
-import { FileText, ImagePlus, Link2, LayoutTemplate, Lock, MoreHorizontal, Pin as PinIcon, Plus, RotateCcw, Sparkles, Unlock, Library } from "lucide-react";
+import { Lock, MoreHorizontal, Pin as PinIcon, Plus, Unlock, Library } from "lucide-react";
 import type { Dispatch, SetStateAction } from "react";
 import { ViewActionsMenu, type ViewRowActions } from "./ViewLibraryDrawer";
 import { ProjectSwitcher } from "./ProjectSwitcher";
@@ -22,25 +22,20 @@ export function TopBar(props: {
   openTemplateGallery: (mode: "project" | "view") => void | Promise<void>;
   streamState: "connecting" | "online" | "offline" | "polling";
   reconnect: () => void;
-  createMenu: boolean;
-  setCreateMenu: Dispatch<SetStateAction<boolean>>;
   linkComposer: boolean;
   setLinkComposer: Dispatch<SetStateAction<boolean>>;
-  createArticle: () => void | Promise<void>;
-  chooseImage: (action: "node" | "cover" | "embedded") => void;
   linkUrl: string;
   setLinkUrl: Dispatch<SetStateAction<string>>;
   createLink: () => void | Promise<void>;
   selection: string[];
   standaloneDemo: boolean;
   togglePinned: () => void | Promise<void>;
-  revertLayout: () => void | Promise<void>;
   workspaceDir?: string;
   chooseProject: (projectId: string) => void;
   startFromTemplateGallery: () => void | Promise<void>;
   projectRevision?: number; layoutRevision?: number; catalogRevision?: number; bindingRevision?: number;
 } & ViewRowActions) {
-  const { project, status, switcherViews, layout, draggedViewId, setDraggedViewId, reorderPinnedViews, switchView, busy, viewMenuId, setViewMenuId, setViewLibrary, projectViews, openTemplateGallery, streamState, reconnect, createMenu, setCreateMenu, linkComposer, setLinkComposer, createArticle, chooseImage, linkUrl, setLinkUrl, createLink, selection, standaloneDemo, togglePinned, revertLayout, beginRename, pinProjectView, duplicateProjectView, setDefaultView, trashProjectView, workspaceDir, chooseProject, startFromTemplateGallery, projectRevision, layoutRevision, catalogRevision, bindingRevision } = props;
+  const { project, status, switcherViews, layout, draggedViewId, setDraggedViewId, reorderPinnedViews, switchView, busy, viewMenuId, setViewMenuId, setViewLibrary, projectViews, openTemplateGallery, streamState, reconnect, linkComposer, setLinkComposer, linkUrl, setLinkUrl, createLink, selection, standaloneDemo, togglePinned, beginRename, pinProjectView, duplicateProjectView, setDefaultView, trashProjectView, workspaceDir, chooseProject, startFromTemplateGallery, projectRevision, layoutRevision, catalogRevision, bindingRevision } = props;
   const { t, locale, setLocale } = useI18n();
   return <header className="topbar">
     <ProjectSwitcher project={project} status={status} workspaceDir={workspaceDir} standaloneDemo={standaloneDemo} busy={busy} chooseProject={chooseProject} startFromTemplateGallery={startFromTemplateGallery} />
@@ -49,11 +44,8 @@ export function TopBar(props: {
       <span className="revision-strip">G{projectRevision ?? 0} · L{layoutRevision ?? 0} · C{catalogRevision ?? 0} · B{bindingRevision ?? 0}</span>
       <button className="stream-status" data-state={streamState} onClick={() => streamState === "offline" && reconnect()} title={streamState === "offline" ? t("reconnect") : t("live")}><span /> {streamState === "online" || streamState === "polling" ? t("live") : streamState === "connecting" ? t("connecting") : t("reconnect")}</button>
       <button className="locale-toggle" onClick={() => setLocale(locale === "zh-CN" ? "en-US" : "zh-CN")}>{t("language")}</button>
-      <div className="create-anchor"><button className="create-button" onClick={() => { setCreateMenu(!createMenu); setLinkComposer(false); }}><Plus size={15} /> {t("create")}</button>
-        {createMenu ? <div className="create-menu" role="menu"><button onClick={() => void openTemplateGallery("project")}><LayoutTemplate size={17} /><span><strong>{t("projectFromTemplate")}</strong><small>{t("starterStructure")}</small></span></button><button onClick={() => void openTemplateGallery("view")} disabled={!project}><Sparkles size={17} /><span><strong>{t("newVisualView")}</strong><small>{t("projectCurrentContent")}</small></span></button><button onClick={() => void createArticle()} disabled={!project}><FileText size={17} /><span><strong>{t("article")}</strong><small>{t("sideEditor")}</small></span></button><button onClick={() => chooseImage("node")} disabled={!project}><ImagePlus size={17} /><span><strong>{t("image")}</strong><small>{t("uploadPaste")}</small></span></button><button onClick={() => setLinkComposer(true)} disabled={!project}><Link2 size={17} /><span><strong>{t("link")}</strong><small>{t("richPreview")}</small></span></button>{linkComposer ? <div className="link-composer"><label htmlFor="link-url">{t("publicUrl")}</label><input id="link-url" value={linkUrl} onChange={(event) => setLinkUrl(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void createLink(); }} placeholder="https://…" autoFocus /><button onClick={() => void createLink()} disabled={!linkUrl.trim() || busy}>{t("createLink")}</button></div> : null}</div> : null}
-      </div>
+      {linkComposer ? <div className="create-anchor"><div className="create-menu toolbar-link-composer"><div className="link-composer"><label htmlFor="link-url">{t("publicUrl")}</label><input id="link-url" value={linkUrl} onChange={(event) => setLinkUrl(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") setLinkComposer(false); if (event.key === "Enter") void createLink(); }} placeholder="https://…" autoFocus /><button onClick={() => void createLink()} disabled={!linkUrl.trim() || busy}>{t("createLink")}</button></div></div></div> : null}
       <button onClick={() => void togglePinned()} disabled={!selection.length || standaloneDemo}>{selection.some((id) => layout?.nodes[id]?.pinned) ? <Unlock size={15} /> : <Lock size={15} />} {selection.some((id) => layout?.nodes[id]?.pinned) ? t("unpin") : t("pin")}</button>
-      <button onClick={revertLayout} disabled={busy || standaloneDemo}><RotateCcw size={15} /> {t("undoLayout")}</button>
     </div>
   </header>;
 }

@@ -1,4 +1,4 @@
-import type { Edge } from "@xyflow/react";
+import type { CanvasEdge } from "../lib/canvas-model";
 import type { EdgeArrows, EdgeLineStyle, EdgeRouting } from "../lib/edge-style";
 import { useI18n } from "../lib/i18n";
 
@@ -7,7 +7,7 @@ import { useI18n } from "../lib/i18n";
 // they emit a set-edge-route layout op scoped to the current view only.
 type EdgePatch = { lineStyle?: EdgeLineStyle; arrows?: EdgeArrows; routing?: EdgeRouting };
 
-export function EdgeStyleBar(props: { edge: Edge | null; persistEdgeRoute: (edgeId: string, patch: EdgePatch) => void | Promise<void> }) {
+export function EdgeStyleBar(props: { edge: CanvasEdge | null; persistEdgeRoute: (edgeId: string, patch: EdgePatch) => void | Promise<void> }) {
   const { edge, persistEdgeRoute } = props;
   const { t } = useI18n();
   if (!edge) return null;

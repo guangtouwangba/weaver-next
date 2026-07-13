@@ -5,7 +5,6 @@ import { z, type ZodRawShape } from "zod";
 import { SseEventHub } from "./event-hub.js";
 import { registerResources } from "./resources.js";
 import { hostKind, previewHost, syntheticChatSessionKey } from "./session-identity.js";
-import { closeWorkspaceStores, createMutateWithStore } from "./shared/tool-runtime.js";
 import { registerAgentTasksTools } from "./tools/agent-tasks.js";
 import { registerArtifactsTools } from "./tools/artifacts.js";
 import { registerCanvasActionTool } from "./tools/canvas-action.js";
@@ -21,6 +20,7 @@ import { registerWorkspaceTools } from "./tools/workspace.js";
 import { registerDiagnosticsTools } from "./tools/diagnostics.js";
 import { initLog, log, nextRequestId, summarizeArgs, type LogOptions } from "./logger.js";
 import { widgetResourceUri, widgetRoot } from "./widget.js";
+import { closeOwnedTestRuntimes } from "./workspace-runtime.js";
 
 /**
  * Tools the standalone-browser preview widget is allowed to call over `/mcp-rpc`.
@@ -28,7 +28,7 @@ import { widgetResourceUri, widgetRoot } from "./widget.js";
  * `weaver_open_space` is intentionally excluded because it creates the host surface.
  */
 export const PREVIEW_TOOL_ALLOWLIST = new Set<string>([
-  "weaver_open_space", "weaver_read_catalog", "weaver_read_graph", "weaver_read_session",
+  "weaver_read_catalog", "weaver_read_graph", "weaver_read_session",
   "weaver_catalog_action", "weaver_canvas_action", "weaver_task_action", "weaver_review_action",
   "weaver_import_asset", "weaver_subscribe_canvas", "weaver_get_diagnostics",
 ]);
@@ -93,7 +93,6 @@ export async function createWeaverServer(options: { previewWorkspaceDir?: string
   const eventHub = new SseEventHub();
   await eventHub.start();
   const widgetUri = widgetResourceUri(eventHub.buildId);
-  const mutateWithStore = createMutateWithStore(eventHub);
 
   // Capture every registered tool's handler + input shape so the loopback RPC
   // dispatcher can invoke it in-process. registerAppTool also routes through
@@ -132,17 +131,17 @@ export async function createWeaverServer(options: { previewWorkspaceDir?: string
     return (originalRegisterTool as any)(name, config, logged);
   };
 
-  registerWorkspaceTools(server, { eventHub, mutateWithStore, widgetUri, serverVersion });
-  registerManageViewTool(server, { mutateWithStore });
-  registerCanvasActionTool(server, { mutateWithStore });
+  registerWorkspaceTools(server, { eventHub, widgetUri, serverVersion });
+  registerManageViewTool(server);
+  registerCanvasActionTool(server);
   registerReadGraphTool(server);
   registerReadCatalogTool(server);
   registerImportAssetTool(server);
   registerReadSessionTool(server);
-  registerAgentTasksTools(server, { mutateWithStore });
-  registerLayoutTools(server, { eventHub, mutateWithStore });
-  registerChangesetsTools(server, { mutateWithStore });
-  registerReviewActionTool(server, { mutateWithStore });
+  registerAgentTasksTools(server);
+  registerLayoutTools(server);
+  registerChangesetsTools(server);
+  registerReviewActionTool(server);
   registerArtifactsTools(server);
   // Lazy: reads the registry at call time, so it reflects the full tool set even
   // though diagnostics is registered before every tool below it exists yet.
@@ -165,5 +164,5 @@ export async function createWeaverServer(options: { previewWorkspaceDir?: string
     eventHub.configurePreview({ workspaceDir: options.previewWorkspaceDir ?? widgetRoot(), chatSessionKey: syntheticChatSessionKey(), dispatch, allowlist: PREVIEW_TOOL_ALLOWLIST });
   }
 
-  return { server, eventHub, dispatch, toolMeta: (name: string) => registry.get(name)?.meta, serverVersion, close: async () => { closeWorkspaceStores(); await eventHub.close(); } };
+  return { server, eventHub, dispatch, toolMeta: (name: string) => registry.get(name)?.meta, serverVersion, close: async () => { closeOwnedTestRuntimes(); await eventHub.close(); } };
 }
