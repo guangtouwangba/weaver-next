@@ -2,6 +2,7 @@ import { Background, BackgroundVariant, MiniMap, PanOnScrollMode, ReactFlow, Sel
 import { useState, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import { edgeTypes, nodeTypes } from "../lib/graph-view";
 import type { EdgeArrows, EdgeLineStyle, EdgeRouting } from "../lib/edge-style";
+import { normalizeCanvasTheme } from "../lib/canvas-theme";
 import { EdgeStyleBar } from "./EdgeStyleBar";
 import { canvasPatternOpacity, MAX_CANVAS_ZOOM, MIN_CANVAS_ZOOM, type CanvasInteraction, type CanvasViewportState } from "../lib/canvas-viewport";
 import { WeaverEdgeMarkers } from "./WeaverEdge";
@@ -67,11 +68,15 @@ export function CanvasStage(props: {
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const selectedEdge = selectedEdgeId ? edges.find((edge) => edge.id === selectedEdgeId) ?? null : null;
   const onSelectionChange = (params: { nodes: Node[]; edges: Edge[] }) => { handleSelectionChange({ nodes: params.nodes }); setSelectedEdgeId(params.nodes.length === 0 && params.edges.length === 1 ? params.edges[0].id : null); };
-  const canvas = layout?.theme?.canvas;
+  // Render through the normalised design palette so the plane, dots and accent
+  // match the redesign for any stored theme (see normalizeCanvasTheme).
+  const theme = normalizeCanvasTheme(layout?.theme);
+  const canvas = theme?.canvas;
+  const accent = theme?.nodeStyles.default?.accentColor ?? "#1fa2dc";
   const patternOpacity = canvasPatternOpacity(viewportState.zoom, canvas?.patternOpacity ?? 0.5);
   // TapNow is dark-first: treat an unset mode as dark, only an explicit "light" theme stays light.
   const dark = canvas?.mode !== "light";
-  return <section className="canvas-wrap" data-lod={viewportState.lod} data-theme={dark ? "dark" : "light"} onWheelCapture={handleCanvasWheel} style={{ "--canvas-background": canvas?.backgroundColor ?? "#0a0a0a", "--canvas-accent": layout?.theme?.nodeStyles.default?.accentColor ?? "#1fa2dc" } as React.CSSProperties}>
+  return <section className="canvas-wrap" data-lod={viewportState.lod} data-theme={dark ? "dark" : "light"} onWheelCapture={handleCanvasWheel} style={{ "--canvas-background": canvas?.backgroundColor ?? "#0a0a0a", "--canvas-accent": accent } as React.CSSProperties}>
     <WeaverEdgeMarkers />
     <ReactFlow nodes={displayedNodes} edges={edges} nodeTypes={nodeTypes} edgeTypes={edgeTypes} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
       nodesDraggable elementsSelectable nodeDragThreshold={1} selectNodesOnDrag
@@ -82,7 +87,7 @@ export function CanvasStage(props: {
       onNodeClick={(_event, node) => onNodeClick(node.id)} onNodeDrag={handleNodeDrag} onNodeDragStart={(_event, node) => { draggingNodeId.current = node.id; setStatus("Moving node…"); }} onNodeDragStop={(_event, node) => { draggingNodeId.current = null; void persistNodeFrame(node); }} onNodeDoubleClick={(_event, node) => void openNodeViewer(node.id)} onSelectionChange={onSelectionChange} onNodesDelete={(deleted) => void archiveNodes(deleted.map((node) => node.id))}
       fitView fitViewOptions={{ padding: 0.18, maxZoom: 1.15 }} minZoom={MIN_CANVAS_ZOOM} maxZoom={MAX_CANVAS_ZOOM}>
       {canvas?.pattern !== "plain" ? <Background variant={canvas?.pattern === "grid" ? BackgroundVariant.Lines : BackgroundVariant.Dots} gap={viewportState.zoom < .25 ? (canvas?.patternGap ?? 20) * 2 : canvas?.patternGap ?? 20} size={canvas?.patternSize ?? 1} color={canvas?.patternColor ?? "#aeb5aa"} style={{ opacity: patternOpacity, transition: "opacity 120ms ease" }} /> : null}
-      {miniMapOpen ? <MiniMap pannable zoomable nodeStrokeWidth={0} maskColor={dark ? "rgba(13,15,14,.72)" : "rgba(242,243,237,.72)"} nodeColor={(node) => node.type === "image" ? "#eb775f" : node.type === "link" ? dark ? "#d9ddd8" : "#282d28" : layout?.theme?.nodeStyles.default?.accentColor ?? "#315cf6"} /> : null}
+      {miniMapOpen ? <MiniMap pannable zoomable nodeStrokeWidth={0} maskColor={dark ? "rgba(13,15,14,.72)" : "rgba(242,243,237,.72)"} nodeColor={(node) => node.type === "image" ? "#eb775f" : node.type === "link" ? dark ? "#d9ddd8" : "#282d28" : accent} /> : null}
     </ReactFlow>
     <CanvasNavigation state={viewportState} miniMapOpen={miniMapOpen} hasSelection={Boolean(selection.length)} dark={dark} onZoomOut={(bounds) => zoomBy(1 / 1.2, bounds)} onZoomIn={(bounds) => zoomBy(1.2, bounds)} onFit={fitAll} onFocus={focusSelection} onToggleMiniMap={() => setMiniMapOpen((open) => !open)} onToggleTheme={() => void toggleCanvasTheme()} onDeleteSelection={() => void archiveNodes(selection)} onGroupSelection={groupSelection} selectionCount={selection.length} />
     <div className="canvas-gesture-hint"><span>{t("dragCanvas")}</span><span>{t("scrollPan")}</span><span>{t("scrollZoom")}</span><span>{t("shiftSelect")}</span></div>

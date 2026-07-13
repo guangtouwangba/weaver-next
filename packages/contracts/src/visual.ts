@@ -46,9 +46,9 @@ export const viewThemeSchema = z.object({
 export type ViewTheme = z.infer<typeof viewThemeSchema>;
 
 export const defaultViewTheme: ViewTheme = {
-  canvas: { mode: "light", backgroundColor: "#f2f3ed", pattern: "dots", patternGap: 20, patternSize: 1, patternColor: "#aeb5aa", patternOpacity: 0.42 },
-  nodeStyles: { default: { fill: "#fbfbf6", borderColor: "#cbd0c6", textColor: "#20231f", accentColor: "#315cf6", borderRadius: 8, titleScale: 1 } },
-  edgeStyles: { default: { color: "#7e867c", width: 1.5, dashed: false, routing: "straight", arrows: "forward" } },
+  canvas: { mode: "light", backgroundColor: "#f4f5f7", pattern: "dots", patternGap: 20, patternSize: 1, patternColor: "#c7ccd3", patternOpacity: 0.55 },
+  nodeStyles: { default: { fill: "#ffffff", borderColor: "#e3e6ea", textColor: "#171a1f", accentColor: "#1585bd", borderRadius: 8, titleScale: 1 } },
+  edgeStyles: { default: { color: "rgba(23,26,31,0.34)", width: 1.5, dashed: false, routing: "straight", arrows: "forward" } },
 };
 
 export const sceneTemplateBindingSchema = z.object({

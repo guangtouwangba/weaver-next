@@ -4,7 +4,7 @@ import type { Edge, Node } from "@xyflow/react";
 import { callTool } from "../mcp-client";
 import { applyLayoutOperations, type LayoutOperation } from "../sync";
 import { excerpt, toFlowEdge } from "../lib/graph-view";
-import { canvasThemeForMode } from "../lib/canvas-theme";
+import { canvasThemeForMode, normalizeCanvasTheme } from "../lib/canvas-theme";
 import type { Bootstrap, CardData, GraphEdge, GraphNode, Layout, Project } from "../types";
 
 // Domain B: ReactFlow node/edge derivation, node layout mutations (persistNodeFrame,
@@ -196,18 +196,22 @@ export function useCanvasGraph(params: {
 
   useEffect(() => {
     if (!layout) return;
+    // Normalise the stored theme to the design palette (near-monochrome, one blue)
+    // for its own mode, so even a board with a legacy warm/green theme renders the
+    // redesign without needing a theme toggle first.
+    const theme = normalizeCanvasTheme(layout.theme);
     const visualGroups: Node[] = Object.values(layout.groups ?? {}).map((group) => ({ id: `visual-group:${group.groupId}`, type: "visualGroup", position: { x: group.x, y: group.y }, data: { groupId: group.groupId, label: group.label ?? group.groupId.split(":").slice(1).join(":"), kind: group.kind ?? "interaction", onRename: renameGroup, onDissolve: dissolveGroup }, style: { width: group.width, height: group.height, zIndex: -1 }, draggable: false, selectable: false, connectable: false }));
     const references = graphNodes.map((node) => ({ id: node.id, title: node.title }));
     setNodes([...visualGroups, ...graphNodes.map((item, index) => {
       const frame = layout.nodes[item.id] ?? { x: (index % 4) * 300, y: Math.floor(index / 4) * 190, width: item.contentKind === "chart" ? 320 : item.contentKind === "link" ? 300 : 280, height: item.contentKind === "chart" ? 220 : 160, pinned: false };
       const coverId = item.content.kind === "document" ? item.content.coverAssetId : item.content.kind === "image" ? item.content.assetId : item.content.kind === "link" ? item.content.imageAssetId : undefined;
-      const nodeTheme = layout.theme?.nodeStyles[item.type] ?? layout.theme?.nodeStyles.default;
+      const nodeTheme = theme?.nodeStyles[item.type] ?? theme?.nodeStyles.default;
       const data: CardData = { title: item.title, semanticType: item.type, pinned: frame.pinned, contentKind: item.contentKind, excerpt: item.content.kind === "document" ? item.content.excerpt : undefined, imageSrc: coverId ? assetPreviews[coverId] : undefined, caption: item.content.kind === "image" ? item.content.caption : undefined, domain: item.content.kind === "link" ? item.content.domain : undefined, description: item.content.kind === "link" ? item.content.description : undefined, status: item.content.kind === "link" ? item.content.enrichmentStatus : undefined, chart: item.content.kind === "chart" ? item.content : undefined, fetchMarkdown, saveMarkdown, references, linkReference, onResizeStart: (nodeId) => { draggingNodeId.current = nodeId; setStatus("Resizing node…"); }, onResizeEnd: persistNodeResize };
       return { id: item.id, type: item.contentKind, position: { x: frame.x, y: frame.y }, data, style: { width: frame.width, height: frame.height, "--node-fill": nodeTheme?.fill, "--node-border": nodeTheme?.borderColor, "--node-text": nodeTheme?.textColor, "--node-accent": nodeTheme?.accentColor, "--node-radius": `${nodeTheme?.borderRadius ?? 8}px`, "--node-title-scale": nodeTheme?.titleScale ?? 1 } as React.CSSProperties };
     })]);
   }, [assetPreviews, graphNodes, layout, setNodes]);
 
-  useEffect(() => { if (layout) setEdges(graphEdges.map((item) => toFlowEdge(item, layout))); }, [graphEdges, layout, setEdges]);
+  useEffect(() => { if (layout) { const normalized = { ...layout, theme: normalizeCanvasTheme(layout.theme) }; setEdges(graphEdges.map((item) => toFlowEdge(item, normalized))); } }, [graphEdges, layout, setEdges]);
 
   const handleSelectionChange = useCallback(({ nodes: selected }: { nodes: Node[] }) => { const next = selected.map((node) => node.id).sort(); setSelection((current) => current.length === next.length && current.every((id, index) => id === next[index]) ? current : next); }, [setSelection]);
   const handleNodeDrag = useCallback((_event: MouseEvent | TouchEvent, dragged: Node) => { setNodes((current) => current.map((node) => node.id === dragged.id ? { ...node, position: { x: dragged.position.x, y: dragged.position.y } } : node)); }, [setNodes]);

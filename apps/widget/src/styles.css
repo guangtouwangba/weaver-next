@@ -233,7 +233,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .content-card .react-flow__handle { width: 1px; min-width: 1px; height: 1px; min-height: 1px; opacity: 0; background: transparent; border: 0; pointer-events: none; }
 .react-flow__node:hover .content-card { border-color: color-mix(in srgb, var(--node-accent, var(--blue)) 50%, var(--line-strong)); }
 .content-card[data-pinned="true"] { outline: 2px solid var(--blue); outline-offset: 2px; }
-.card-kicker { display: flex; align-items: center; gap: 5px; color: var(--blue); font-size: 9px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+.card-kicker { display: flex; align-items: center; gap: 5px; color: var(--node-accent, var(--blue)); font-size: 9px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
 .document-card { padding: 16px 17px 30px; border: 1px solid var(--node-border, var(--line)); }
 .document-card::before { content: ""; position: absolute; top: 0; left: 0; width: 36px; height: 3px; background: var(--node-accent, var(--blue)); }
 .document-card .document-cover { width: 78px; height: 58px; float: right; margin: -2px -2px 8px 12px; object-fit: cover; filter: saturate(.9); }

@@ -17,14 +17,16 @@ describe("canvas appearance", () => {
     expect(parsed.canvas).toMatchObject({ mode: "light", patternGap: 20, patternSize: 1, patternOpacity: 0.55 });
   });
 
-  it("switches dark/light surfaces without changing semantic accents", () => {
+  it("normalises both modes to the near-monochrome design palette with one blue accent", () => {
     const dark = canvasThemeForMode(defaultViewTheme, "dark");
     const light = canvasThemeForMode(dark, "light");
     expect(dark.canvas).toMatchObject({ mode: "dark", backgroundColor: "#0a0a0a" });
-    expect(dark.nodeStyles.default).toMatchObject({ fill: "#1f1f1f", textColor: "#fafafa" });
-    expect(light.canvas.mode).toBe("light");
-    expect(light.canvas.backgroundColor).toBe("#f2f3ed");
-    expect(light.nodeStyles.default.accentColor).toBe(defaultViewTheme.nodeStyles.default.accentColor);
+    expect(dark.nodeStyles.default).toMatchObject({ fill: "#1f1f1f", textColor: "#fafafa", accentColor: "#1fa2dc" });
+    expect(dark.edgeStyles.default.color).toBe("rgba(255,255,255,0.376)");
+    // Light is a neutral cool-grey sibling — not the old warm/green tapnow tint.
+    expect(light.canvas).toMatchObject({ mode: "light", backgroundColor: "#f4f5f7" });
+    expect(light.nodeStyles.default).toMatchObject({ fill: "#ffffff", textColor: "#171a1f", accentColor: "#1585bd" });
+    expect(light.canvas.patternColor).not.toBe("#aeb5aa");
   });
 });
 
