@@ -5,6 +5,7 @@ import { extname, resolve } from "node:path";
 export type WeaverRuntimeMode = "development" | "installed";
 export type WidgetAsset = { path: string; data: Buffer; contentType: string };
 export type WidgetBundle = { buildId: string; html: string; assets: WidgetAsset[] };
+const installedBundles = new Map<string, WidgetBundle>();
 
 export function widgetRoot() { return process.env.WEAVER_DEV_ROOT ? resolve(process.env.WEAVER_DEV_ROOT) : process.cwd(); }
 export function runtimeMode(): WeaverRuntimeMode { return process.env.WEAVER_RUNTIME_MODE === "development" ? "development" : "installed"; }
@@ -18,13 +19,20 @@ function contentType(path: string) {
 }
 
 export function widgetBundle(root = widgetRoot()): WidgetBundle {
-  const dist = resolve(root, "apps", "widget", "dist");
+  const resolvedRoot = resolve(root);
+  if (runtimeMode() === "installed") {
+    const cached = installedBundles.get(resolvedRoot);
+    if (cached) return cached;
+  }
+  const dist = resolve(resolvedRoot, "apps", "widget", "dist");
   const html = readFileSync(resolve(dist, "index.html"), "utf8");
   const paths = [...html.matchAll(/(?:href|src)="\.\/([^"?#]+\.(?:css|js))"/g)].map((match) => match[1]);
   const assets = [...new Set(paths)].map((path) => ({ path, data: readFileSync(resolve(dist, path)), contentType: contentType(path) }));
   const hash = createHash("sha256").update(html);
   for (const asset of assets) hash.update(asset.path).update(asset.data);
-  return { buildId: hash.digest("hex").slice(0, 12), html, assets };
+  const bundle = { buildId: hash.digest("hex").slice(0, 12), html, assets };
+  if (runtimeMode() === "installed") installedBundles.set(resolvedRoot, bundle);
+  return bundle;
 }
 
 export function widgetBuildId(root = widgetRoot()) { return widgetBundle(root).buildId; }

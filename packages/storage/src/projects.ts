@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { nodeSchema, projectSchema, type LayoutDocument, type ScenePack, type SpaceProject } from "@weaver/contracts";
+import { chatCanvasBindingSchema, nodeSchema, projectSchema, type LayoutDocument, type ScenePack, type SpaceProject } from "@weaver/contracts";
 import { defaultLayout, json, now, parse } from "./store-internal.js";
 import { transaction } from "./migrations.js";
 import { getGraph, replaceGraph } from "./graph.js";
@@ -65,4 +65,27 @@ export function createSeededProject(db: DatabaseSync, dataDir: string, input: { 
 export function writeProjectSnapshots(dataDir: string, project: SpaceProject, scenePack: ScenePack) {
   writeFileSync(join(dataDir, "scene-pack.snapshot.json"), `${JSON.stringify(scenePack, null, 2)}\n`, "utf8");
   writeFileSync(join(dataDir, "project.json"), `${JSON.stringify(project, null, 2)}\n`, "utf8");
+}
+
+export function deletePristineProject(db: DatabaseSync, input: { projectId: string; creationMutationId: string }) {
+  return transaction(db, () => {
+    const project = getProject(db, input.projectId);
+    if (!project) throw new Error("PROJECT_NOT_FOUND");
+    const laterMutation = db.prepare("SELECT 1 FROM canvas_mutation WHERE project_id = ? AND id <> ? LIMIT 1").get(input.projectId, input.creationMutationId);
+    const externalStateTables = ["asset", "agent_task", "changeset", "artifact", "layout_run"];
+    if (laterMutation || externalStateTables.some((table) => Number((db.prepare(`SELECT COUNT(*) AS count FROM ${table} WHERE project_id = ?`).get(input.projectId) as { count: number }).count) > 0)) {
+      throw new Error("UNDO_REVISION_CONFLICT");
+    }
+    const viewIds = (db.prepare("SELECT id FROM project_view WHERE project_id = ?").all(input.projectId) as Array<{ id: string }>).map((row) => row.id);
+    for (const viewId of viewIds) db.prepare("DELETE FROM canvas_view_state WHERE view_id = ?").run(viewId);
+    const bindings = db.prepare("SELECT chat_session_key, data FROM chat_canvas_binding").all() as Array<{ chat_session_key: string; data: string }>;
+    for (const row of bindings) {
+      if (chatCanvasBindingSchema.parse(JSON.parse(row.data)).projectId === input.projectId) db.prepare("DELETE FROM chat_canvas_binding WHERE chat_session_key = ?").run(row.chat_session_key);
+    }
+    for (const table of ["project_event", "changeset_revert", "changeset", "agent_task", "artifact", "asset", "canvas_session", "project_view", "layout_history", "layout", "edge", "node", "project_write_lease"]) {
+      db.prepare(`DELETE FROM ${table} WHERE project_id = ?`).run(input.projectId);
+    }
+    db.prepare("DELETE FROM project WHERE id = ?").run(input.projectId);
+    return { deleted: true, projectId: input.projectId };
+  });
 }

@@ -42,6 +42,16 @@ test("canonical localhost Canvas loads, edits, persists and explicitly transfers
     expect(await page.locator(".canvas-access-blocker").count(), JSON.stringify({ diagnostics: worker.getDiagnostics(), rpcLog })).toBe(0);
     await expect(page.locator(".weaver-dom-node")).toHaveCount(2);
 
+    await page.getByRole("button", { name: "Note" }).click();
+    const undoPane = page.locator(".hybrid-canvas");
+    const undoBox = await undoPane.boundingBox();
+    if (!undoBox) throw new Error("Canvas has no bounds for undo proof");
+    await page.mouse.click(undoBox.x + undoBox.width - 180, undoBox.y + undoBox.height - 180);
+    await expect(page.locator(".weaver-dom-node")).toHaveCount(3);
+    await page.getByRole("button", { name: /close/i }).click();
+    await page.getByRole("button", { name: "Undo" }).click();
+    await expect(page.locator(".weaver-dom-node")).toHaveCount(2);
+
     const before = await page.locator(".weaver-dom-node").count();
     await page.getByRole("button", { name: "Note" }).click();
     const pane = page.locator(".hybrid-canvas");
@@ -60,7 +70,7 @@ test("canonical localhost Canvas loads, edits, persists and explicitly transfers
     const betaId = graphBeforeLink.nodes.find((node) => node.title === "Beta")!.id;
     const linkResult = await page.evaluate(async ({ projectId, alphaId, betaId, baseGraphRevision }) => {
       const bootstrap = await fetch("/api/bootstrap").then((response) => response.json()) as { csrfToken: string };
-      const response = await fetch("/api/rpc", { method: "POST", headers: { "content-type": "application/json", "x-weaver-csrf": bootstrap.csrfToken }, body: JSON.stringify({ operation: "weaver_canvas_action", arguments: { workspaceDir: "runtime", action: "link_nodes", projectId, sourceNodeId: alphaId, targetNodeId: betaId, edgeType: "association", baseGraphRevision } }) });
+      const response = await fetch("/api/rpc", { method: "POST", headers: { "content-type": "application/json", "x-weaver-csrf": bootstrap.csrfToken }, body: JSON.stringify({ operation: "weaver_canvas_action", arguments: { workspaceDir: "runtime", action: "link_nodes", mutationId: crypto.randomUUID(), projectId, sourceNodeId: alphaId, targetNodeId: betaId, edgeType: "association", baseGraphRevision } }) });
       return response.json();
     }, { projectId: project.id, alphaId, betaId, baseGraphRevision: graphBeforeLink.revision });
     expect(linkResult).toMatchObject({ ok: true, result: { created: true } });

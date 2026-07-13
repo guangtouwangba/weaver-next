@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { catalogActionSchema } from "@weaver/contracts";
 import { getScenePack } from "@weaver/scene-packs";
 import type { WorkspaceStore } from "@weaver/storage";
@@ -19,6 +18,54 @@ function principalChatSessionKey(store: WorkspaceStore, principal: WorkspacePrin
 export function applyCatalogAction(store: WorkspaceStore, principal: WorkspacePrincipal, input: Record<string, unknown>) {
   const args = catalogActionSchema.parse({ ...input, workspaceDir: store.workspaceDir });
   const chatSessionKey = principalChatSessionKey(store, principal);
+  if (principal.kind === "browser" && (args.action === "create_project" || args.action === "create_project_from_template")) {
+    const mutationId = required(typeof input.mutationId === "string" ? input.mutationId : undefined, "mutationId");
+    const existing = store.canvasMutations.get(mutationId);
+    if (existing) {
+      if (existing.browserSessionId !== principal.browserSessionId) throw new Error("MUTATION_ID_CONFLICT");
+      const project = store.catalog.getProject(existing.projectId);
+      if (!project) throw new Error("MUTATION_RESULT_UNAVAILABLE");
+      const session = store.browserSessions.get(principal.browserSessionId);
+      return {
+        project,
+        graph: store.graphChanges.read(project.id),
+        layout: store.layoutReviews.get(project.id, project.defaultViewId),
+        binding: session?.pairedChatSessionKey ? store.sessions.getBinding(session.pairedChatSessionKey) : undefined,
+      };
+    }
+    let result: unknown;
+    store.transaction(() => {
+      result = applyCatalogAction(store, { kind: "local-read" }, input);
+      const project = (result as { project?: { id: string; defaultViewId: string; graphRevision: number; viewCatalogRevision: number } }).project;
+      if (!project) throw new Error("PROJECT_CREATION_FAILED");
+      const now = new Date().toISOString();
+      store.browserSessions.setTarget({ id: principal.browserSessionId, projectId: project.id, viewId: project.defaultViewId, now });
+      const lease = store.browserSessions.claimWriter({ projectId: project.id, browserSessionId: principal.browserSessionId, now });
+      const layout = store.layoutReviews.get(project.id, project.defaultViewId);
+      store.canvasMutations.apply({
+        request: {
+          mutationId,
+          projectId: project.id,
+          viewId: project.defaultViewId,
+          writerLeaseRevision: lease.revision,
+          baseGraphRevision: 0,
+          baseLayoutRevision: 0,
+          baseViewCatalogRevision: 0,
+          operation: { action: args.action, title: args.title, goal: args.goal, scenePackId: args.scenePackId, templateId: "templateId" in args ? args.templateId : undefined, version: "version" in args ? args.version : undefined },
+        },
+        browserSessionId: principal.browserSessionId,
+        createdAt: now,
+      }, () => ({
+        kind: "mixed",
+        resultGraphRevision: project.graphRevision,
+        resultLayoutRevision: layout?.layoutRevision,
+        resultViewCatalogRevision: project.viewCatalogRevision,
+        forwardOperations: [{ action: args.action, projectId: project.id }],
+        inverseOperations: [{ action: "delete_pristine_project", mutationId }],
+      }));
+    });
+    return result!;
+  }
   if (args.action === "create_project") {
     const scene = getScenePack(required(args.scenePackId, "scenePackId"));
     if (!scene) throw new Error("CATALOG_INVALID:scene pack");
@@ -36,7 +83,7 @@ export function applyCatalogAction(store: WorkspaceStore, principal: WorkspacePr
     if (!lease || lease.status !== "active" || lease.browserSessionId !== principal.browserSessionId) throw new Error("PROJECT_WRITER_LEASE_STALE");
     let result: unknown;
     const request = {
-      mutationId: typeof input.mutationId === "string" ? input.mutationId : randomUUID(),
+      mutationId: required(typeof input.mutationId === "string" ? input.mutationId : undefined, "mutationId"),
       projectId,
       viewId: "viewId" in args && typeof args.viewId === "string" ? args.viewId : undefined,
       writerLeaseRevision: lease.revision,

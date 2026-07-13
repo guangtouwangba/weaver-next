@@ -124283,13 +124283,13 @@ function readAsset(db, dataDir, assetId, thumbnail = false) {
   if (!target.startsWith(resolve(dataDir, "assets"))) throw new Error("UNSAFE_ASSET_PATH");
   return { asset, data: readFileSync(target) };
 }
-async function importImageAsset(db, dataDir, input) {
+async function prepareImageAsset(db, input) {
   if (!getProject(db, input.projectId)) throw new Error(`PROJECT_NOT_FOUND:${input.projectId}`);
   if (input.data.byteLength > 20 * 1024 * 1024) throw new Error("IMAGE_TOO_LARGE:Maximum image size is 20MB");
   const data = Buffer.from(input.data);
   const sha2562 = createHash("sha256").update(data).digest("hex");
   const existing = getAssetByHash(db, input.projectId, sha2562);
-  if (existing) return { asset: existing, deduplicated: true };
+  if (existing) return { existing };
   const image = sharp(data, { animated: false, limitInputPixels: 4e7 });
   const metadata = await image.metadata();
   const actualMime = { jpeg: "image/jpeg", png: "image/png", webp: "image/webp", gif: "image/gif" }[metadata.format];
@@ -124299,9 +124299,7 @@ async function importImageAsset(db, dataDir, input) {
   const extension = actualMime === "image/jpeg" ? "jpg" : actualMime.split("/")[1];
   const originalName = `original/${sha2562}.${extension}`;
   const thumbnailName = `thumbnails/${sha2562}.webp`;
-  writeFileSync(join(dataDir, "assets", originalName), data);
   const thumbnail = await sharp(data, { animated: false, limitInputPixels: 4e7 }).rotate().resize({ width: 640, height: 640, fit: "inside", withoutEnlargement: true }).webp({ quality: 82 }).toBuffer();
-  writeFileSync(join(dataDir, "assets", thumbnailName), thumbnail);
   const asset = assetSchema.parse({
     id,
     projectId: input.projectId,
@@ -124315,8 +124313,21 @@ async function importImageAsset(db, dataDir, input) {
     thumbnailUri: `weaver://projects/${input.projectId}/assets/${id}/files/${thumbnailName}`,
     createdAt: now()
   });
+  return { asset, originalName, thumbnailName, original: data, thumbnail };
+}
+function commitPreparedImageAsset(db, dataDir, prepared) {
+  if ("existing" in prepared) return { asset: prepared.existing, deduplicated: true };
+  const existing = getAssetByHash(db, prepared.asset.projectId, prepared.asset.sha256);
+  if (existing) return { asset: existing, deduplicated: true };
+  writeFileSync(join(dataDir, "assets", prepared.originalName), prepared.original);
+  writeFileSync(join(dataDir, "assets", prepared.thumbnailName), prepared.thumbnail);
+  const asset = prepared.asset;
   db.prepare("INSERT INTO asset(id, project_id, sha256, data) VALUES (?, ?, ?, ?)").run(asset.id, asset.projectId, asset.sha256, json2(asset));
   return { asset, deduplicated: false };
+}
+async function importImageAsset(db, dataDir, input) {
+  const prepared = await prepareImageAsset(db, input);
+  return transaction(db, () => commitPreparedImageAsset(db, dataDir, prepared));
 }
 function saveTaskAsset(dataDir, taskId, fileName, data) {
   const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, "-");
@@ -126381,6 +126392,28 @@ function writeProjectSnapshots(dataDir, project, scenePack) {
   writeFileSync2(join2(dataDir, "project.json"), `${JSON.stringify(project, null, 2)}
 `, "utf8");
 }
+function deletePristineProject(db, input) {
+  return transaction(db, () => {
+    const project = getProject(db, input.projectId);
+    if (!project) throw new Error("PROJECT_NOT_FOUND");
+    const laterMutation = db.prepare("SELECT 1 FROM canvas_mutation WHERE project_id = ? AND id <> ? LIMIT 1").get(input.projectId, input.creationMutationId);
+    const externalStateTables = ["asset", "agent_task", "changeset", "artifact", "layout_run"];
+    if (laterMutation || externalStateTables.some((table) => Number(db.prepare(`SELECT COUNT(*) AS count FROM ${table} WHERE project_id = ?`).get(input.projectId).count) > 0)) {
+      throw new Error("UNDO_REVISION_CONFLICT");
+    }
+    const viewIds = db.prepare("SELECT id FROM project_view WHERE project_id = ?").all(input.projectId).map((row) => row.id);
+    for (const viewId of viewIds) db.prepare("DELETE FROM canvas_view_state WHERE view_id = ?").run(viewId);
+    const bindings = db.prepare("SELECT chat_session_key, data FROM chat_canvas_binding").all();
+    for (const row of bindings) {
+      if (chatCanvasBindingSchema.parse(JSON.parse(row.data)).projectId === input.projectId) db.prepare("DELETE FROM chat_canvas_binding WHERE chat_session_key = ?").run(row.chat_session_key);
+    }
+    for (const table of ["project_event", "changeset_revert", "changeset", "agent_task", "artifact", "asset", "canvas_session", "project_view", "layout_history", "layout", "edge", "node", "project_write_lease"]) {
+      db.prepare(`DELETE FROM ${table} WHERE project_id = ?`).run(input.projectId);
+    }
+    db.prepare("DELETE FROM project WHERE id = ?").run(input.projectId);
+    return { deleted: true, projectId: input.projectId };
+  });
+}
 
 // packages/storage/src/view-catalog.ts
 function listProjectViews(db, projectId, status) {
@@ -127245,6 +127278,7 @@ var WorkspaceStore = class {
     getProject: (projectId) => getProject(this.db, projectId),
     createProject: (input) => createProject(this.db, this.dataDir, input),
     createSeededProject: (input) => createSeededProject(this.db, this.dataDir, input),
+    deletePristineProject: (input) => deletePristineProject(this.db, input),
     listViews: (projectId, status) => listProjectViews(this.db, projectId, status),
     getView: (projectId, viewId) => getProjectView(this.db, projectId, viewId),
     searchViews: (projectId, query, status = "active") => searchProjectViews(this.db, projectId, query, status),
@@ -127289,7 +127323,7 @@ var WorkspaceStore = class {
     rejectRun: (runId) => rejectLayoutRun(this.db, runId),
     revert: (projectId, viewId) => revertLayout(this.db, projectId, viewId)
   };
-  assets = { get: (assetId) => getAsset(this.db, assetId), byHash: (projectId, sha2562) => getAssetByHash(this.db, projectId, sha2562), read: (assetId, thumbnail = false) => readAsset(this.db, this.dataDir, assetId, thumbnail), importImage: (input) => importImageAsset(this.db, this.dataDir, input), deleteUnreferenced: (assetId) => deleteUnreferencedAsset(this.db, this.dataDir, assetId), saveTaskFile: (taskId, fileName, data) => saveTaskAsset(this.dataDir, taskId, fileName, data) };
+  assets = { get: (assetId) => getAsset(this.db, assetId), byHash: (projectId, sha2562) => getAssetByHash(this.db, projectId, sha2562), read: (assetId, thumbnail = false) => readAsset(this.db, this.dataDir, assetId, thumbnail), prepareImage: (input) => prepareImageAsset(this.db, input), commitPreparedImage: (prepared) => commitPreparedImageAsset(this.db, this.dataDir, prepared), importImage: (input) => importImageAsset(this.db, this.dataDir, input), deleteUnreferenced: (assetId) => deleteUnreferencedAsset(this.db, this.dataDir, assetId), saveTaskFile: (taskId, fileName, data) => saveTaskAsset(this.dataDir, taskId, fileName, data) };
   tasks = { prepare: (input) => prepareAgentTask(this.db, input), prepareBound: (input) => prepareAgentTaskFromBoundCanvas(this.db, input), assertChat: (taskId, chatSessionKey, requireOnline = true) => assertTaskChat(this.db, taskId, chatSessionKey, requireOnline), assertCanvas: (taskId, chatSessionKey, requireOnline = false) => assertTaskCanvas(this.db, taskId, chatSessionKey, requireOnline), get: (taskId) => getAgentTask(this.db, taskId), listCanvas: (canvasSessionId, includeTerminal = false) => listCanvasTasks(this.db, canvasSessionId, includeTerminal), reapCanvas: (canvasSessionId) => reapExpiredCanvasTasks(this.db, canvasSessionId), listProject: (projectId, includeTerminal = false) => listProjectTasks(this.db, projectId, includeTerminal), update: (taskId, patch) => updateAgentTask(this.db, taskId, patch), confirmDispatch: (taskId, dispatchKey) => confirmAgentDispatch(this.db, taskId, dispatchKey), failDispatch: (taskId, dispatchKey, input) => failAgentDispatch(this.db, taskId, dispatchKey, input), continue: (input) => beginAgentContinuation(this.db, input), progress: (taskId, note) => reportTaskProgress(this.db, taskId, note) };
   artifacts = { publish: (input) => publishArtifact(this.db, input), get: (artifactId) => getArtifact(this.db, artifactId) };
   browserSessions = {
@@ -127313,6 +127347,7 @@ var WorkspaceStore = class {
 import { createHash as createHash2 } from "node:crypto";
 import { existsSync as existsSync3, readFileSync as readFileSync2, statSync } from "node:fs";
 import { extname, resolve as resolve3 } from "node:path";
+var installedBundles = /* @__PURE__ */ new Map();
 function widgetRoot() {
   return process.env.WEAVER_DEV_ROOT ? resolve3(process.env.WEAVER_DEV_ROOT) : process.cwd();
 }
@@ -127323,13 +127358,20 @@ function contentType(path) {
   return extname(path) === ".css" ? "text/css; charset=utf-8" : "text/javascript; charset=utf-8";
 }
 function widgetBundle(root = widgetRoot()) {
-  const dist = resolve3(root, "apps", "widget", "dist");
+  const resolvedRoot = resolve3(root);
+  if (runtimeMode() === "installed") {
+    const cached2 = installedBundles.get(resolvedRoot);
+    if (cached2) return cached2;
+  }
+  const dist = resolve3(resolvedRoot, "apps", "widget", "dist");
   const html = readFileSync2(resolve3(dist, "index.html"), "utf8");
   const paths = [...html.matchAll(/(?:href|src)="\.\/([^"?#]+\.(?:css|js))"/g)].map((match) => match[1]);
   const assets = [...new Set(paths)].map((path) => ({ path, data: readFileSync2(resolve3(dist, path)), contentType: contentType(path) }));
   const hash2 = createHash2("sha256").update(html);
   for (const asset of assets) hash2.update(asset.path).update(asset.data);
-  return { buildId: hash2.digest("hex").slice(0, 12), html, assets };
+  const bundle = { buildId: hash2.digest("hex").slice(0, 12), html, assets };
+  if (runtimeMode() === "installed") installedBundles.set(resolvedRoot, bundle);
+  return bundle;
 }
 function widgetBuildId(root = widgetRoot()) {
   return widgetBundle(root).buildId;

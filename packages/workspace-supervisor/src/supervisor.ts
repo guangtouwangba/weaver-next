@@ -112,7 +112,7 @@ async function inProcessWorker(options: { workspaceDir: string; buildId: string 
     heartbeat: async (key, hostLabel) => worker.heartbeatBridge(key, hostLabel),
     diagnostics: async () => worker.getDiagnostics(),
     setPublicOrigin: async (value) => { worker.setPublicOrigin(value); },
-    quiesce: async () => { worker.quiesce(); },
+    quiesce: async () => { await worker.quiesce(); },
     resume: async () => { worker.resume(); },
     close: () => worker.close(),
     kill: () => { void worker.close(); },
@@ -281,7 +281,7 @@ export class WorkspaceSupervisor {
       const port = Number(new URL(this.origin).port);
       this.#writeDescriptor(port, "ready");
       this.#diagnostics.record("runtime.upgradeCompleted", { fromBuildId: previousBuildId, toBuildId: requestedBuildId });
-      if (previous) await previous.close();
+      if (previous) await previous.close().catch(() => undefined);
     } catch (error) {
       if (candidate) await candidate.close().catch(() => undefined);
       if (previous) await previous.resume().catch(() => undefined);

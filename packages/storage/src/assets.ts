@@ -6,6 +6,11 @@ import sharp from "sharp";
 import { assetSchema, type Asset } from "@weaver/contracts";
 import { json, now, parse } from "./store-internal.js";
 import { getProject } from "./projects.js";
+import { transaction } from "./migrations.js";
+
+export type PreparedImageAsset =
+  | { existing: Asset }
+  | { asset: Asset; originalName: string; thumbnailName: string; original: Buffer; thumbnail: Buffer };
 
 export function getAsset(db: DatabaseSync, assetId: string) {
   const row = db.prepare("SELECT data FROM asset WHERE id = ?").get(assetId) as any;
@@ -28,13 +33,13 @@ export function readAsset(db: DatabaseSync, dataDir: string, assetId: string, th
   return { asset, data: readFileSync(target) };
 }
 
-export async function importImageAsset(db: DatabaseSync, dataDir: string, input: { projectId: string; mimeType: Asset["mimeType"]; data: Uint8Array }) {
+export async function prepareImageAsset(db: DatabaseSync, input: { projectId: string; mimeType: Asset["mimeType"]; data: Uint8Array }): Promise<PreparedImageAsset> {
   if (!getProject(db, input.projectId)) throw new Error(`PROJECT_NOT_FOUND:${input.projectId}`);
   if (input.data.byteLength > 20 * 1024 * 1024) throw new Error("IMAGE_TOO_LARGE:Maximum image size is 20MB");
   const data = Buffer.from(input.data);
   const sha256 = createHash("sha256").update(data).digest("hex");
   const existing = getAssetByHash(db, input.projectId, sha256);
-  if (existing) return { asset: existing, deduplicated: true };
+  if (existing) return { existing };
   const image = sharp(data, { animated: false, limitInputPixels: 40_000_000 });
   const metadata = await image.metadata();
   const actualMime = ({ jpeg: "image/jpeg", png: "image/png", webp: "image/webp", gif: "image/gif" } as const)[metadata.format as "jpeg" | "png" | "webp" | "gif"];
@@ -44,9 +49,7 @@ export async function importImageAsset(db: DatabaseSync, dataDir: string, input:
   const extension = actualMime === "image/jpeg" ? "jpg" : actualMime.split("/")[1];
   const originalName = `original/${sha256}.${extension}`;
   const thumbnailName = `thumbnails/${sha256}.webp`;
-  writeFileSync(join(dataDir, "assets", originalName), data);
   const thumbnail = await sharp(data, { animated: false, limitInputPixels: 40_000_000 }).rotate().resize({ width: 640, height: 640, fit: "inside", withoutEnlargement: true }).webp({ quality: 82 }).toBuffer();
-  writeFileSync(join(dataDir, "assets", thumbnailName), thumbnail);
   const asset = assetSchema.parse({
     id, projectId: input.projectId, kind: "image", mimeType: actualMime, size: data.byteLength, sha256,
     width: metadata.width, height: metadata.height,
@@ -54,8 +57,23 @@ export async function importImageAsset(db: DatabaseSync, dataDir: string, input:
     thumbnailUri: `weaver://projects/${input.projectId}/assets/${id}/files/${thumbnailName}`,
     createdAt: now(),
   });
+  return { asset, originalName, thumbnailName, original: data, thumbnail };
+}
+
+export function commitPreparedImageAsset(db: DatabaseSync, dataDir: string, prepared: PreparedImageAsset) {
+  if ("existing" in prepared) return { asset: prepared.existing, deduplicated: true };
+  const existing = getAssetByHash(db, prepared.asset.projectId, prepared.asset.sha256);
+  if (existing) return { asset: existing, deduplicated: true };
+  writeFileSync(join(dataDir, "assets", prepared.originalName), prepared.original);
+  writeFileSync(join(dataDir, "assets", prepared.thumbnailName), prepared.thumbnail);
+  const asset = prepared.asset;
   db.prepare("INSERT INTO asset(id, project_id, sha256, data) VALUES (?, ?, ?, ?)").run(asset.id, asset.projectId, asset.sha256, json(asset));
   return { asset, deduplicated: false };
+}
+
+export async function importImageAsset(db: DatabaseSync, dataDir: string, input: { projectId: string; mimeType: Asset["mimeType"]; data: Uint8Array }) {
+  const prepared = await prepareImageAsset(db, input);
+  return transaction(db, () => commitPreparedImageAsset(db, dataDir, prepared));
 }
 
 export function saveTaskAsset(dataDir: string, taskId: string, fileName: string, data: Uint8Array) {

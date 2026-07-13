@@ -1,10 +1,18 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { expect, test } from "@playwright/test";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
 const nativeImport = new Function("specifier", "return import(specifier)") as (specifier: string) => Promise<any>;
+
+function unwrapMcp(result: { isError?: boolean; structuredContent?: any; content?: Array<{ type?: string; text?: string }> }) {
+  if (result.isError) throw new Error(result.content?.find((item) => item.type === "text")?.text ?? result.structuredContent?.code ?? "MCP_TOOL_FAILED");
+  const value = result.structuredContent;
+  return value && Object.keys(value).length === 1 && Array.isArray(value.items) ? value.items : value;
+}
 
 async function seedWorkspace(workspace: string, title: string) {
   const { WorkspaceStore } = await nativeImport(pathToFileURL(resolve(process.cwd(), "packages/storage/dist/index.js")).href);
@@ -109,5 +117,64 @@ test("two workspaces run concurrently with distinct origins and isolated state",
     rmSync(firstWorkspace, { recursive: true, force: true });
     rmSync(secondWorkspace, { recursive: true, force: true });
     rmSync(runtimeRoot, { recursive: true, force: true });
+  }
+});
+
+test("packaged runtime survives a cold-start collision and deletion of the original plugin cache", async ({ page }) => {
+  const { sendRuntimeControl, runtimeControlSocketPath, workspaceKey } = await nativeImport(pathToFileURL(resolve(process.cwd(), "packages/workspace-supervisor/dist/index.js")).href);
+  const root = mkdtempSync(resolve(tmpdir(), "weaver-immutable-runtime-e2e-"));
+  const workspace = resolve(root, "workspace");
+  const runtimeRoot = resolve(root, "runtime-root");
+  const pluginDir = resolve(root, "plugin-cache", "weaver-next");
+  mkdirSync(workspace, { recursive: true });
+  cpSync(resolve(process.cwd(), "plugins/weaver-next"), pluginDir, { recursive: true });
+  const clients: Client[] = [];
+  let supervisorPid: number | undefined;
+  try {
+    const makeClient = async (suffix: string) => {
+      const transport = new StdioClientTransport({ command: process.execPath, args: ["./scripts/start-mcp.mjs"], cwd: pluginDir, stderr: "pipe", env: { ...process.env, WEAVER_RUNTIME_ROOT: runtimeRoot, WEAVER_RUNTIME_IDLE_MS: "60000" } });
+      const client = new Client({ name: `runtime-collision-${suffix}`, version: "0.1.0" });
+      await client.connect(transport); clients.push(client);
+      const threadId = `runtime-collision-${suffix}-${process.pid}`;
+      const meta = { threadId, "x-codex-turn-metadata": { thread_id: threadId } };
+      return { client, call: (name: string, args: Record<string, unknown>) => client.callTool({ name, arguments: args, _meta: meta }).then(unwrapMcp) };
+    };
+    const [first, second] = await Promise.all([makeClient("a"), makeClient("b")]);
+    const [createdA, createdB] = await Promise.all([
+      first.call("weaver_catalog_action", { workspaceDir: workspace, action: "create_project", title: "Collision A", goal: "", scenePackId: "free-brainstorming" }),
+      second.call("weaver_catalog_action", { workspaceDir: workspace, action: "create_project", title: "Collision B", goal: "", scenePackId: "free-brainstorming" }),
+    ]);
+    const key = workspaceKey(workspace);
+    const descriptor = JSON.parse(readFileSync(resolve(runtimeRoot, "workspaces", key, "runtime.json"), "utf8")) as { supervisorPid: number; port: number };
+    supervisorPid = descriptor.supervisorPid;
+    const socketPath = runtimeControlSocketPath(runtimeRoot, key);
+    const diagnostics = await sendRuntimeControl(socketPath, { kind: "get_diagnostics", limit: 100 }) as Array<{ event: string; workerPid?: number }>;
+    const workerPid = diagnostics.filter((entry) => entry.event === "worker.ready").at(-1)?.workerPid;
+    expect(workerPid).toBeTruthy();
+    const projects = await first.call("weaver_read_catalog", { workspaceDir: workspace, resource: "project.list" }) as Array<{ id: string; title: string }>;
+    expect(projects.map((project) => project.title)).toEqual(expect.arrayContaining(["Collision A", "Collision B"]));
+
+    rmSync(resolve(root, "plugin-cache"), { recursive: true, force: true });
+    process.kill(workerPid!, "SIGKILL");
+    const origin = `http://127.0.0.1:${descriptor.port}`;
+    await expect.poll(async () => {
+      try {
+        const entries = await sendRuntimeControl(socketPath, { kind: "get_diagnostics", limit: 100 }) as Array<{ event: string; workerPid?: number }>;
+        return entries.filter((entry) => entry.event === "worker.ready").at(-1)?.workerPid;
+      } catch { return undefined; }
+    }, { timeout: 7_000 }).not.toBe(workerPid);
+    await expect.poll(async () => fetch(`${origin}/healthz`).then((response) => response.status).catch(() => 0), { timeout: 7_000 }).toBe(200);
+    const afterRestart = await first.call("weaver_read_catalog", { workspaceDir: workspace, resource: "project.list" }) as Array<{ id: string; title: string }>;
+    expect(afterRestart.map((project) => project.title)).toEqual(expect.arrayContaining(["Collision A", "Collision B"]));
+
+    const opened = await first.call("weaver_open_space", { workspaceDir: workspace, projectId: (createdA as { project: { id: string } }).project.id }) as { launchUrl: string };
+    await page.goto(opened.launchUrl, { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("toolbar", { name: "Canvas tools" })).toBeVisible();
+    await expect(page.locator(".weaver-dom-node")).toHaveCount(1);
+    expect((createdB as { project: { id: string } }).project.id).not.toBe((createdA as { project: { id: string } }).project.id);
+  } finally {
+    await Promise.all(clients.map((client) => client.close().catch(() => undefined)));
+    if (supervisorPid) { try { process.kill(supervisorPid, "SIGTERM"); } catch { /* already stopped */ } }
+    rmSync(root, { recursive: true, force: true });
   }
 });

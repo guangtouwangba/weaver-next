@@ -80,32 +80,49 @@ export async function importAsset(store: WorkspaceStore, _principal: WorkspacePr
   const browserSessionId = _principal.kind === "browser" ? _principal.browserSessionId : undefined;
   const writerLease = browserSessionId ? store.browserSessions.writer(projectId) : undefined;
   if (browserSessionId && (!writerLease || writerLease.status !== "active" || writerLease.browserSessionId !== browserSessionId)) throw new Error("PROJECT_WRITER_LEASE_STALE");
-  let output: Awaited<ReturnType<WorkspaceStore["assets"]["importImage"]>>;
+  const mutationId = browserSessionId ? required(args, "mutationId") : undefined;
+  if (browserSessionId && mutationId) {
+    const existing = store.canvasMutations.get(mutationId);
+    if (existing) {
+      if (existing.projectId !== projectId || existing.browserSessionId !== browserSessionId) throw new Error("MUTATION_ID_CONFLICT");
+      if (existing.status !== "applied") throw new Error("MUTATION_ALREADY_REVERTED");
+      const operation = existing.forwardOperations[0] as { assetId?: unknown; deduplicated?: unknown } | undefined;
+      const asset = typeof operation?.assetId === "string" ? store.assets.get(operation.assetId) : null;
+      if (!asset) throw new Error("MUTATION_RESULT_UNAVAILABLE");
+      return { assetId: asset.id, width: asset.width, height: asset.height, deduplicated: operation?.deduplicated === true };
+    }
+  }
+  let input: { projectId: string; mimeType: "image/jpeg" | "image/png" | "image/webp" | "image/gif"; data: Uint8Array };
   if (args.source === "bytes") {
     const mimeType = required(args, "mimeType") as "image/jpeg" | "image/png" | "image/webp" | "image/gif";
-    output = await store.assets.importImage({ projectId, mimeType, data: Buffer.from(required(args, "base64"), "base64") });
+    input = { projectId, mimeType, data: Buffer.from(required(args, "base64"), "base64") };
   } else {
     if (args.source !== "svg") throw new Error("INVALID_ARGS:source required");
     const scale = typeof args.scale === "number" ? args.scale : 2;
     const png = await sharp(Buffer.from(required(args, "svg")), { density: Math.round(96 * scale) }).png().toBuffer();
-    output = await store.assets.importImage({ projectId, mimeType: "image/png", data: png });
+    input = { projectId, mimeType: "image/png", data: png };
   }
+  const prepared = await store.assets.prepareImage(input);
+  let output!: ReturnType<WorkspaceStore["assets"]["commitPreparedImage"]>;
   if (browserSessionId && writerLease) {
     store.canvasMutations.apply({
       request: {
-        mutationId: typeof args.mutationId === "string" ? args.mutationId : randomUUID(),
+        mutationId: mutationId!,
         projectId,
         writerLeaseRevision: writerLease.revision,
-        operation: { action: "import_asset", assetId: output.asset.id, mimeType: output.asset.mimeType, sha256: output.asset.sha256 },
+        operation: { action: "import_asset" },
       },
       browserSessionId,
       createdAt: new Date().toISOString(),
-    }, () => ({
-      kind: "graph",
-      forwardOperations: [{ action: "import_asset", assetId: output.asset.id }],
-      inverseOperations: output.deduplicated ? [] : [{ action: "delete_asset", assetId: output.asset.id }],
-    }));
-  }
+    }, () => {
+      output = store.assets.commitPreparedImage(prepared);
+      return {
+        kind: "graph",
+        forwardOperations: [{ action: "import_asset", assetId: output.asset.id, deduplicated: output.deduplicated }],
+        inverseOperations: output.deduplicated ? [] : [{ action: "delete_asset", assetId: output.asset.id }],
+      };
+    });
+  } else output = store.transaction(() => store.assets.commitPreparedImage(prepared));
   return { assetId: output.asset.id, width: output.asset.width, height: output.asset.height, deduplicated: output.deduplicated };
 }
 

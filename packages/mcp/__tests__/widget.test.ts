@@ -1,4 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { bundledWidgetHtml, inlineWidgetHtml, runtimeMode, shouldBlockWorkspaceBuildMismatch, widgetBuildId, widgetBundle, widgetResourceUri, workspaceWidgetBuildId } from "../src/widget.js";
 
 describe("Widget runtime metadata", () => {
@@ -46,5 +49,25 @@ describe("Widget runtime metadata", () => {
     expect(shouldBlockWorkspaceBuildMismatch("installed", "installed-build", "workspace-build")).toBe(false);
     expect(shouldBlockWorkspaceBuildMismatch("development", "installed-build", "workspace-build")).toBe(true);
     expect(shouldBlockWorkspaceBuildMismatch("development", "same-build", "same-build")).toBe(false);
+  });
+
+  it("pins the installed widget bundle in memory after the plugin cache disappears", () => {
+    const previous = process.env.WEAVER_RUNTIME_MODE;
+    delete process.env.WEAVER_RUNTIME_MODE;
+    const root = mkdtempSync(join(tmpdir(), "weaver-widget-cache-"));
+    const dist = join(root, "apps", "widget", "dist");
+    mkdirSync(join(dist, "assets"), { recursive: true });
+    writeFileSync(join(dist, "index.html"), '<html><body><script type="module" src="./assets/app.js"></script></body></html>');
+    writeFileSync(join(dist, "assets", "app.js"), "export const ready = true;");
+    try {
+      const before = widgetBundle(root);
+      rmSync(root, { recursive: true, force: true });
+      expect(widgetBundle(root)).toEqual(before);
+      expect(widgetBuildId(root)).toBe(before.buildId);
+    } finally {
+      if (previous === undefined) delete process.env.WEAVER_RUNTIME_MODE;
+      else process.env.WEAVER_RUNTIME_MODE = previous;
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });

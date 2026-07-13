@@ -130,7 +130,10 @@ export function useProjectBootstrap(params: {
           }
         });
     };
-    const timer = window.setInterval(refreshCapabilities, 5_000);
+    // Bridge presence is process-local runtime state, so it has no durable
+    // ProjectEvent to replay. Poll it frequently enough that disconnect/reconnect
+    // status is actionable instead of lagging behind normal Canvas updates.
+    const timer = window.setInterval(refreshCapabilities, 1_000);
     return () => { cancelled = true; window.clearInterval(timer); };
   }, [bootstrap.workspaceDir, standaloneDemo]);
 

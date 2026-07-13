@@ -41,6 +41,8 @@ export class WorkspaceWorker {
   #eventStreams = new Set<{ response: ServerResponse; timer: NodeJS.Timeout }>();
   #closed = false;
   #quiesced = false;
+  #activeRequests = 0;
+  #quiesceWaiters = new Set<() => void>();
   #publicOrigin?: string;
   #bridgeHeartbeats = new Map<string, { seenAt: number; hostLabel?: "Codex" | "Claude" }>();
 
@@ -55,7 +57,7 @@ export class WorkspaceWorker {
       fileURLToPath(new URL("../../../apps/widget/dist", import.meta.url)),
     ].filter((value): value is string => Boolean(value));
     this.canvasRoot = resolve(options.canvasRoot ?? canvasCandidates.find(existsSync) ?? canvasCandidates.at(-1)!);
-    this.#server = createServer((request, response) => void this.#handle(request, response));
+    this.#server = createServer((request, response) => void this.#trackRequest(request, response));
   }
 
   async listen(port = 0) {
@@ -77,7 +79,11 @@ export class WorkspaceWorker {
     this.#publicOrigin = parsed.origin;
   }
 
-  quiesce() { this.#quiesced = true; return { quiesced: true }; }
+  async quiesce() {
+    this.#quiesced = true;
+    if (this.#activeRequests > 0) await new Promise<void>((resolve) => this.#quiesceWaiters.add(resolve));
+    return { quiesced: true };
+  }
   resume() { this.#quiesced = false; return { quiesced: false }; }
 
   createLaunch(input: { chatSessionKey: string; projectId?: string; requestedViewId?: string }): WorkspaceLaunchResult {
@@ -132,6 +138,18 @@ export class WorkspaceWorker {
     this.#eventStreams.clear();
     await new Promise<void>((resolve, reject) => this.#server.close((error) => error ? reject(error) : resolve()));
     this.store.close();
+  }
+
+  async #trackRequest(request: IncomingMessage, response: ServerResponse) {
+    this.#activeRequests += 1;
+    try { await this.#handle(request, response); }
+    finally {
+      this.#activeRequests -= 1;
+      if (this.#activeRequests === 0) {
+        for (const resolveWaiter of this.#quiesceWaiters) resolveWaiter();
+        this.#quiesceWaiters.clear();
+      }
+    }
   }
 
   async #handle(request: IncomingMessage, response: ServerResponse) {
@@ -320,8 +338,13 @@ export class WorkspaceWorker {
       return;
     }
     if (request.method === "POST" && url.pathname === "/api/rpc") {
-      const auth = this.#authenticateBrowser(request);
+      // A takeover can race a request already queued by the former writer. Keep
+      // that valid (but detached) browser credential distinguishable from an
+      // unauthenticated request so the Canvas can fail closed without producing
+      // a noisy 401 resource error in the old tab.
+      const auth = this.#authenticateBrowser(request, true);
       if (!auth) { sendJson(response, 401, { ok: false, error: { code: "BROWSER_SESSION_INVALID" } }); return; }
+      if (auth.session.status === "detached") { sendJson(response, 200, { ok: false, error: { code: "SESSION_TAKEN_OVER" } }); return; }
       if (!this.#validWriteRequest(request, auth.session)) { sendJson(response, 403, { ok: false, error: { code: "CSRF_REJECTED" } }); return; }
       try {
         const startedAt = Date.now();

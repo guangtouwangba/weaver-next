@@ -124,7 +124,7 @@ function WeaverWidget() {
 
   return <main className="weaver-shell" data-editor-open={Boolean(activeDocument)} data-display-mode={displayMode} data-schema-reset={Boolean(bootstrap.schemaReset)}>
     <TopBar
-      project={project} status={status} switcherViews={switcherViews} layout={layout} draggedViewId={draggedViewId} setDraggedViewId={setDraggedViewId} reorderPinnedViews={reorderPinnedViews} switchView={switchView} busy={busy}
+      project={project} status={status} agentConnectionLabel={bootstrap.capabilities?.agentConnected ? `Connected to this ${bootstrap.capabilities.hostLabel ?? "Agent"} session` : bootstrap.capabilities?.disconnectReason === "AGENT_DISCONNECTED" ? "Local editing · Agent disconnected" : undefined} switcherViews={switcherViews} layout={layout} draggedViewId={draggedViewId} setDraggedViewId={setDraggedViewId} reorderPinnedViews={reorderPinnedViews} switchView={switchView} busy={busy}
       viewMenuId={viewMenuId} setViewMenuId={setViewMenuId} setViewLibrary={setViewLibrary} projectViews={projectViews} openTemplateGallery={openTemplateGallery} streamState={streamState} reconnect={reconnect}
       linkComposer={linkComposer} setLinkComposer={setLinkComposer} linkUrl={linkUrl} setLinkUrl={setLinkUrl} createLink={createLink}
       selection={selection} standaloneDemo={standaloneDemo} togglePinned={togglePinned}

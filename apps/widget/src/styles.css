@@ -97,6 +97,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .topbar { position: relative; z-index: 30; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 18px; background: var(--bg); border-bottom: 1px solid var(--line); }
 .back-to-chat, .locale-toggle { min-height: 32px; padding: 0 9px; display: inline-flex; align-items: center; gap: 6px; color: var(--muted); background: transparent; border: 1px solid var(--line); border-radius: var(--radius-control); white-space: nowrap; }
 .revision-strip { display: flex; gap: 5px; color: var(--muted); font: 9px ui-monospace, SFMono-Regular, Menlo, monospace; white-space: nowrap; }
+.agent-connection-status { color: var(--muted); font-size: 10px; white-space: nowrap; }
 .brand, .top-actions, .view-tabs, .candidate-actions { display: flex; align-items: center; }
 .brand { min-width: 0; flex: 1 1 280px; gap: 11px; }
 .brand > div { min-width: 0; }

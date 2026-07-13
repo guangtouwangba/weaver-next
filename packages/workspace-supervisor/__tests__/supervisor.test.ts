@@ -142,6 +142,8 @@ describe("workspace supervisor", () => {
       mkdirSync(candidateDir, { recursive: true });
       writeFileSync(join(candidateDir, "supervisor.mjs"), `import ${JSON.stringify(pathToFileURL(options.workerEntry).href)};\n`);
     }
+    const chatSessionKey = "a".repeat(64);
+    const created = await sendRuntimeControl(supervisor.controlSocketPath, { kind: "dispatch_agent_operation", chatSessionKey, tool: "weaver_catalog_action", arguments: { action: "create_project", title: "Upgrade persistence", goal: "", scenePackId: "free-brainstorming" } }) as { project: { id: string } };
 
     const firstUpgrade = await sendRuntimeControl(supervisor.controlSocketPath, { kind: "ensure_runtime", workspaceKey: workspaceKey(options.workspaceDir), requestedBuildId: "build-b", protocolVersion: CANVAS_RUNTIME_PROTOCOL_VERSION });
     const secondUpgrade = await sendRuntimeControl(supervisor.controlSocketPath, { kind: "ensure_runtime", workspaceKey: workspaceKey(options.workspaceDir), requestedBuildId: "build-c", protocolVersion: CANVAS_RUNTIME_PROTOCOL_VERSION });
@@ -150,6 +152,7 @@ describe("workspace supervisor", () => {
     expect(secondUpgrade).toMatchObject({ origin, buildId: "build-c", protocolVersion: CANVAS_RUNTIME_PROTOCOL_VERSION });
     expect(supervisor.origin).toBe(origin);
     expect(await fetch(`${origin}/healthz`).then((response) => response.json())).toMatchObject({ ok: true, buildId: "build-c" });
+    expect(await sendRuntimeControl(supervisor.controlSocketPath, { kind: "dispatch_agent_operation", chatSessionKey, tool: "catalog.getProject", arguments: { projectId: created.project.id } })).toMatchObject({ id: created.project.id, title: "Upgrade persistence" });
     const diagnostics = await sendRuntimeControl(supervisor.controlSocketPath, { kind: "get_diagnostics", limit: 100 }) as Array<{ event: string }>;
     expect(diagnostics.filter((entry) => entry.event === "runtime.upgradeStarted")).toHaveLength(2);
     expect(diagnostics.filter((entry) => entry.event === "runtime.upgradeCompleted")).toHaveLength(2);

@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { canvasContextSnapshotSchema, nodeContentSchema, type CanvasMutationRequest } from "@weaver/contracts";
 import { applyLayoutOperations } from "@weaver/core";
 import type { WorkspaceStore } from "@weaver/storage";
@@ -35,7 +34,7 @@ function mutationRequest(store: WorkspaceStore, browserSessionId: string, args: 
   const viewId = typeof args.viewId === "string" ? args.viewId : undefined;
   const layout = viewId ? store.layoutReviews.get(projectId, viewId) : null;
   return {
-    mutationId: typeof args.mutationId === "string" ? args.mutationId : randomUUID(),
+    mutationId: required(args, "mutationId"),
     projectId,
     viewId,
     writerLeaseRevision: lease.revision,

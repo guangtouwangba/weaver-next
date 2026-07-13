@@ -136,6 +136,14 @@ describe("workspace worker", () => {
     const acceptedBody = await accepted.json();
     expect(accepted.status, JSON.stringify(acceptedBody)).toBe(200);
     expect(worker.store.canvasMutations.get("asset-mutation-1")).toMatchObject({ projectId: project.id, kind: "graph", status: "applied" });
+    const replay = await fetch(`${origin}/api/rpc`, { method: "POST", headers: { "content-type": "application/json", ...await browserHeaders(origin, writerCookie) }, body: JSON.stringify({ operation: "weaver_import_asset", arguments: arguments_ }) });
+    expect(replay.status).toBe(200);
+    expect(await replay.json()).toEqual(acceptedBody);
+    expect((worker.store.db.prepare("SELECT COUNT(*) AS count FROM asset WHERE project_id = ?").get(project.id) as { count: number }).count).toBe(1);
+    const assetId = (acceptedBody as { result: { assetId: string } }).result.assetId;
+    const undo = await fetch(`${origin}/api/rpc`, { method: "POST", headers: { "content-type": "application/json", ...await browserHeaders(origin, writerCookie) }, body: JSON.stringify({ operation: "canvas.undo", arguments: { mutationId: "asset-mutation-1" } }) });
+    expect(undo.status).toBe(200);
+    expect(worker.store.assets.get(assetId)).toBeNull();
     await worker.close();
   });
 
@@ -222,10 +230,18 @@ describe("workspace worker", () => {
     });
     expect(bootstrap.chatBinding).toBeUndefined();
 
+    const missingMutationId = await fetch(`${origin}/api/rpc`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...await browserHeaders(origin, cookie) },
+      body: JSON.stringify({ operation: "weaver_canvas_action", arguments: { action: "create_node", projectId: project.id, viewId: project.defaultViewId, semanticType: "idea", title: "Rejected", content: { kind: "document", mode: "note", markdown: "", excerpt: "", embeddedAssetIds: [] } } }),
+    });
+    expect(missingMutationId.status).toBe(400);
+    expect(await missingMutationId.json()).toEqual({ ok: false, error: { code: "INVALID_ARGS:mutationId required" } });
+
     const create = await fetch(`${origin}/api/rpc`, {
       method: "POST",
       headers: { "content-type": "application/json", ...await browserHeaders(origin, cookie) },
-      body: JSON.stringify({ operation: "weaver_canvas_action", arguments: { action: "create_node", projectId: project.id, viewId: project.defaultViewId, semanticType: "idea", title: "Offline note", content: { kind: "document", mode: "note", markdown: "offline", excerpt: "offline", embeddedAssetIds: [] } } }),
+      body: JSON.stringify({ operation: "weaver_canvas_action", arguments: { action: "create_node", mutationId: "offline-note", projectId: project.id, viewId: project.defaultViewId, semanticType: "idea", title: "Offline note", content: { kind: "document", mode: "note", markdown: "offline", excerpt: "offline", embeddedAssetIds: [] } } }),
     });
     expect(create.status).toBe(200);
     expect(worker.store.graphChanges.read(project.id).nodes.some((node) => node.title === "Offline note")).toBe(true);
@@ -237,6 +253,32 @@ describe("workspace worker", () => {
     });
     expect(agent.status).toBe(400);
     expect(await agent.json()).toEqual({ ok: false, error: { code: "CHAT_PRINCIPAL_REQUIRED" } });
+    await worker.close();
+  });
+
+  it("audits, deduplicates and can undo an unpaired Browser project creation", async () => {
+    const workspaceDir = mkdtempSync(join(tmpdir(), "weaver-worker-")); roots.push(workspaceDir);
+    const worker = new WorkspaceWorker({ workspaceDir, buildId: "test-build" });
+    const origin = await worker.listen();
+    const claimed = await fetch(worker.createLocalLaunch().launchUrl, { redirect: "manual" });
+    const cookie = claimed.headers.get("set-cookie")!.split(";")[0];
+    const headers = { "content-type": "application/json", ...await browserHeaders(origin, cookie) };
+    const body = JSON.stringify({ operation: "weaver_catalog_action", arguments: { action: "create_project", mutationId: "create-project-1", title: "Local project", goal: "Audited bootstrap", scenePackId: "free-brainstorming" } });
+    const first = await fetch(`${origin}/api/rpc`, { method: "POST", headers, body });
+    expect(first.status).toBe(200);
+    const firstResult = await first.json() as { result: { project: { id: string } } };
+    expect(worker.store.catalog.listProjects()).toHaveLength(1);
+    expect(worker.store.canvasMutations.get("create-project-1")).toMatchObject({ projectId: firstResult.result.project.id, kind: "mixed", status: "applied" });
+
+    const replay = await fetch(`${origin}/api/rpc`, { method: "POST", headers, body });
+    expect(replay.status).toBe(200);
+    expect(await replay.json()).toMatchObject({ result: { project: { id: firstResult.result.project.id } } });
+    expect(worker.store.catalog.listProjects()).toHaveLength(1);
+
+    const undo = await fetch(`${origin}/api/rpc`, { method: "POST", headers, body: JSON.stringify({ operation: "canvas.undo", arguments: { mutationId: "create-project-1" } }) });
+    expect(undo.status).toBe(200);
+    expect(worker.store.catalog.listProjects()).toHaveLength(0);
+    expect(worker.store.canvasMutations.get("create-project-1")).toMatchObject({ status: "reverted" });
     await worker.close();
   });
 
@@ -318,8 +360,13 @@ describe("workspace worker", () => {
     const detached = await fetch(`${origin}/api/bootstrap`, { headers: { cookie: first } });
     expect(detached.status).toBe(200);
     expect(await detached.json()).toMatchObject({ browserSession: { status: "detached" }, capabilities: { manualWrite: false, agentConnected: false, agentWrite: false, canTakeOver: false, disconnectReason: "SESSION_TAKEN_OVER" } });
-    const detachedHeaders = await browserHeaders(origin, first);
-    expect((await fetch(`${origin}/api/rpc`, { method: "POST", headers: { "content-type": "application/json", ...detachedHeaders }, body: JSON.stringify({ operation: "catalog.listProjects", arguments: {} }) })).status).toBe(401);
+    const detachedRpc = await fetch(`${origin}/api/rpc`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...await browserHeaders(origin, first) },
+      body: JSON.stringify({ operation: "weaver_read_catalog", arguments: { resource: "project.list" } }),
+    });
+    expect(detachedRpc.status).toBe(200);
+    expect(await detachedRpc.json()).toEqual({ ok: false, error: { code: "SESSION_TAKEN_OVER" } });
     expect(await fetch(`${origin}/api/bootstrap`, { headers: { cookie: second } }).then((response) => response.json())).toMatchObject({ capabilities: { manualWrite: true } });
     await worker.close();
   });
@@ -419,6 +466,39 @@ describe("workspace worker", () => {
     expect(html).not.toContain(workspaceDir);
     expect(html).not.toContain("a".repeat(64));
     expect(response.headers.get("content-security-policy")).toContain("frame-ancestors 'none'");
+    await worker.close();
+  });
+
+  it("quiesce rejects new work only after an in-flight manual write has drained", async () => {
+    const workspaceDir = mkdtempSync(join(tmpdir(), "weaver-worker-")); roots.push(workspaceDir);
+    const worker = new WorkspaceWorker({ workspaceDir, buildId: "test-build" });
+    const project = worker.store.catalog.createProject({ title: "Quiesce", goal: "", scenePack: getScenePack("free-brainstorming")! });
+    const origin = await worker.listen();
+    const cookie = await launchSession(worker, "a".repeat(64), project.id);
+    const headers = await browserHeaders(origin, cookie);
+    const target = new URL("/api/rpc", origin);
+    let finishResponse!: (value: { status: number; body: string }) => void;
+    const response = new Promise<{ status: number; body: string }>((resolve) => { finishResponse = resolve; });
+    const request = httpRequest(target, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...headers },
+    }, (result) => {
+      const chunks: Buffer[] = [];
+      result.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
+      result.on("end", () => finishResponse({ status: result.statusCode ?? 0, body: Buffer.concat(chunks).toString("utf8") }));
+    });
+    request.write('{"operation":"weaver_canvas_action","arguments":');
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    let drained = false;
+    const quiesced = worker.quiesce().then(() => { drained = true; });
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    expect(drained).toBe(false);
+    request.end(JSON.stringify({ action: "create_node", mutationId: "quiesce-write", projectId: project.id, viewId: project.defaultViewId, semanticType: "idea", title: "Drained write", content: { kind: "document", mode: "note", markdown: "", excerpt: "", embeddedAssetIds: [] } }) + "}");
+    expect(await response).toMatchObject({ status: 200 });
+    await quiesced;
+    expect(worker.store.graphChanges.read(project.id).nodes.some((node) => node.title === "Drained write")).toBe(true);
+    expect(await fetch(`${origin}/healthz`).then((result) => result.json())).toMatchObject({ state: "quiesced" });
+    worker.resume();
     await worker.close();
   });
 });

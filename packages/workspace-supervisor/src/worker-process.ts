@@ -14,9 +14,11 @@ export async function runWorkspaceWorkerProcess(options: { workspaceDir: string;
     await worker.close().catch(() => undefined);
     process.exit(0);
   };
-  process.on("message", async (message: WorkerCommand) => {
+  let commandQueue = Promise.resolve();
+  process.on("message", (message: WorkerCommand) => {
     if (!message || typeof message !== "object" || typeof message.id !== "number") return;
-    try {
+    commandQueue = commandQueue.then(async () => {
+      try {
       let result: unknown;
       const payload = message.payload ?? {};
       if (message.kind === "create_launch") result = worker.createLaunch(payload as Parameters<WorkspaceWorker["createLaunch"]>[0]);
@@ -30,9 +32,10 @@ export async function runWorkspaceWorkerProcess(options: { workspaceDir: string;
       else if (message.kind === "close") { process.send?.({ id: message.id, ok: true, result: { closed: true } }); await close(); return; }
       else throw new Error("WORKER_OPERATION_NOT_FOUND");
       process.send?.({ id: message.id, ok: true, result });
-    } catch (error) {
-      process.send?.({ id: message.id, ok: false, error: error instanceof Error ? error.message : "WORKER_OPERATION_FAILED" });
-    }
+      } catch (error) {
+        process.send?.({ id: message.id, ok: false, error: error instanceof Error ? error.message : "WORKER_OPERATION_FAILED" });
+      }
+    });
   });
   process.once("disconnect", close);
   process.once("SIGTERM", close);

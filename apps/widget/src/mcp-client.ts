@@ -10,7 +10,29 @@ export type { HostMode, WeaverPreview } from "./lib/host-mode";
 declare global { interface Window { __weaverPreview?: WeaverPreview; __weaverRuntime?: WeaverRuntime; __weaverCodexLoopback?: { origin: string; token: string } } }
 
 export const mcp = new McpApp({ name: "weaver-next-widget", version: "0.1.0" }, { availableDisplayModes: ["inline", "fullscreen"] }, { autoResize: true });
+export function createMutationId() { return globalThis.crypto.randomUUID(); }
 const connectedMcp = createMcpAppConnection(mcp);
+
+function mutationHistoryKey(projectId: string) { return `weaver:manual-mutations:${projectId}`; }
+function readMutationHistory(projectId: string): string[] {
+  try {
+    const value = JSON.parse(sessionStorage.getItem(mutationHistoryKey(projectId)) ?? "[]");
+    return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string").slice(-100) : [];
+  } catch { return []; }
+}
+function writeMutationHistory(projectId: string, value: string[]) {
+  try { sessionStorage.setItem(mutationHistoryKey(projectId), JSON.stringify(value.slice(-100))); }
+  catch { /* storage-disabled hosts still retain server-side audit */ }
+}
+function recordManualMutation(name: string, args: Record<string, unknown>, value: unknown) {
+  if (hostMode !== "runtime" || typeof args.mutationId !== "string" || !["weaver_canvas_action", "weaver_catalog_action", "weaver_import_asset"].includes(name)) return;
+  const resultProjectId = value && typeof value === "object" && "project" in value && value.project && typeof value.project === "object" && "id" in value.project ? value.project.id : undefined;
+  const projectId = typeof args.projectId === "string" ? args.projectId : typeof resultProjectId === "string" ? resultProjectId : undefined;
+  if (!projectId) return;
+  const history = readMutationHistory(projectId);
+  if (history.at(-1) !== args.mutationId) history.push(args.mutationId);
+  writeMutationHistory(projectId, history);
+}
 
 export const connectMcpApp = () => connectedMcp.connect();
 
@@ -107,7 +129,17 @@ export async function callTool<T>(name: string, args: Record<string, unknown>): 
   if (result.isError) throw new Error(toolErrorMessage(result, `${name} failed`));
   const value: unknown = result.structuredContent;
   if (value && typeof value === "object" && Object.keys(value).length === 1 && "items" in value && Array.isArray(value.items)) return value.items as T;
+  recordManualMutation(name, args, value);
   return value as T;
+}
+
+export async function undoLastCanvasMutation(projectId: string) {
+  const history = readMutationHistory(projectId);
+  const mutationId = history.pop();
+  if (!mutationId) return null;
+  writeMutationHistory(projectId, history);
+  try { return await callTool("canvas.undo", { mutationId }); }
+  catch (error) { history.push(mutationId); writeMutationHistory(projectId, history); throw error; }
 }
 
 export async function takeOverRuntimeProject(projectId: string) {

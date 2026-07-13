@@ -14,15 +14,23 @@ immutable runtime cache, diagnostics, supported schema migrations, recovery beha
 Codex/Claude launch paths, rollback switch, and CI/nightly/release validation are
 implemented.
 
+Manual Browser Graph/Layout/View/project/asset mutations now carry caller-generated
+`mutationId` values, commit state and audit records transactionally, replay
+idempotently, and are reachable through the Canvas Undo control. Runtime upgrades
+quiesce and drain in-flight writes before swapping workers. Installed MCP processes
+pin their verified Widget bundle in memory, so a running workspace can restart after
+the original plugin cache has been removed.
+
 The latest local acceptance run completed successfully:
 
 - `npm run lint`: completed with no lint errors (pre-existing warnings remain).
-- `npm test`: 54 test files and 301 tests passed.
+- `npm test`: 54 test files and 304 tests passed.
 - `npm run typecheck:widget`: passed.
-- `npm run e2e:nightly`: 12 Playwright tests passed, including all View families,
+- `npm run e2e:nightly`: 13 Playwright tests passed, including all View families,
   matrix/table projections, a 500-node/1000-edge fixture, repeated worker crashes,
-  two concurrent workspaces, SSE recovery, disconnect/reconnect, writer takeover, and
-  formal Codex/Claude MCP -> supervisor -> Browser convergence.
+  two concurrent workspaces, SSE recovery, disconnect/reconnect, writer takeover,
+  cold-start collision plus deletion of the original plugin cache, real Canvas Undo,
+  and formal Codex/Claude MCP -> supervisor -> Browser convergence.
 - `npm run build:release && npm run check:release && npm run probe:release`: passed;
   the release snapshot contained 161 files and the packaged MCP exposed 16 tools.
 - Packaged Codex and Claude host-bridge smoke tests each claimed a real headless
@@ -74,3 +82,4 @@ Append dated evidence here during the observation window. Do not rewrite prior e
 | 2026-07-13 | P0/P1 remediation: Browser/Agent boundary, writer audit, detached takeover, full inverse undo, build/protocol fencing, crash circuit, quiesced upgrade | 301 tests and 12 nightly E2E passed |
 | 2026-07-13 | Packaged Codex and Claude MCP/supervisor/Chromium host bridge smoke | Passed; release-acceptance cycle complete |
 | 2026-07-13 | Searched workspace and user runtime diagnostics for `canvas.legacyFallbackUsed` | No persisted fallback event found; this does not replace seven dated dogfood days |
+| 2026-07-13 | Caller-owned mutation replay, project/asset audit and Undo, in-flight quiesce drain, immutable-cache deletion restart, and explicit Agent connection status | 304 tests and 13 nightly E2E passed; release check/probe and both packaged host smokes passed |

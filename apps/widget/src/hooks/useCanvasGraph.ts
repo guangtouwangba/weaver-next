@@ -1,7 +1,7 @@
 import { useCallback, useEffect } from "react";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import type { CanvasEdge as Edge, CanvasNode as Node } from "../lib/canvas-model";
-import { callTool } from "../mcp-client";
+import { callTool, createMutationId } from "../mcp-client";
 import { applyLayoutOperations, type LayoutOperation } from "../sync";
 import { excerpt, toFlowEdge } from "../lib/graph-view";
 import { canvasThemeForMode, normalizeCanvasTheme } from "../lib/canvas-theme";
@@ -34,7 +34,7 @@ export function useCanvasGraph(params: {
     const currentLayout = layoutRef.current;
     if (!project || !currentLayout) return;
     if (standaloneDemo) { setLayout((current) => current ? { ...current, nodes: { ...current.nodes, [node.id]: { ...current.nodes[node.id], x: node.position.x, y: node.position.y } } } : current); setStatus(`Moved ${String((node.data as CardData).title ?? node.id)}`); return; }
-    try { const next = await callTool<Layout>("weaver_canvas_action", { workspaceDir: bootstrap.workspaceDir, action: "layout_operations", projectId: project.id, viewId: currentLayout.viewId, baseLayoutRevision: currentLayout.layoutRevision, operations: [{ type: "set-node-frame", viewId: currentLayout.viewId, nodeId: node.id, frame: { x: node.position.x, y: node.position.y, width: Number(node.style?.width ?? 280), height: Number(node.style?.height ?? 160) } }, { type: "pin-node", viewId: currentLayout.viewId, nodeId: node.id }] }); layoutRef.current = next; setLayout(next); setStatus(`Manual layout saved · r${next.layoutRevision}`); }
+    try { const next = await callTool<Layout>("weaver_canvas_action", { workspaceDir: bootstrap.workspaceDir, action: "layout_operations", mutationId: createMutationId(), projectId: project.id, viewId: currentLayout.viewId, baseLayoutRevision: currentLayout.layoutRevision, operations: [{ type: "set-node-frame", viewId: currentLayout.viewId, nodeId: node.id, frame: { x: node.position.x, y: node.position.y, width: Number(node.style?.width ?? 280), height: Number(node.style?.height ?? 160) } }, { type: "pin-node", viewId: currentLayout.viewId, nodeId: node.id }] }); layoutRef.current = next; setLayout(next); setStatus(`Manual layout saved · r${next.layoutRevision}`); }
     catch (error) { setStatus(error instanceof Error ? error.message : String(error)); await load(); }
   }
 
@@ -46,7 +46,7 @@ export function useCanvasGraph(params: {
       { type: "pin-node", viewId: currentLayout.viewId, nodeId: node.id },
     ] as LayoutOperation[]);
     if (standaloneDemo || !currentProject) { const next = applyLayoutOperations(currentLayout, currentLayout.layoutRevision + 1, operations); layoutRef.current = next; setLayout(next); return; }
-    try { const next = await callTool<Layout>("weaver_canvas_action", { workspaceDir: bootstrap.workspaceDir, action: "layout_operations", projectId: currentProject.id, viewId: currentLayout.viewId, baseLayoutRevision: currentLayout.layoutRevision, operations }); layoutRef.current = next; setLayout(next); setStatus(`Moved ${selectedNodes.length} nodes · r${next.layoutRevision}`); }
+    try { const next = await callTool<Layout>("weaver_canvas_action", { workspaceDir: bootstrap.workspaceDir, action: "layout_operations", mutationId: createMutationId(), projectId: currentProject.id, viewId: currentLayout.viewId, baseLayoutRevision: currentLayout.layoutRevision, operations }); layoutRef.current = next; setLayout(next); setStatus(`Moved ${selectedNodes.length} nodes · r${next.layoutRevision}`); }
     catch (error) { setStatus(error instanceof Error ? error.message : String(error)); await load(); }
   }
 
@@ -54,7 +54,7 @@ export function useCanvasGraph(params: {
     const currentProject = projectRef.current ?? project;
     if (!currentProject || sourceNodeId === targetNodeId) { setStatus(sourceNodeId === targetNodeId ? "A node cannot connect to itself" : "No active project"); return; }
     if (standaloneDemo) { setStatus(`${edgeType} connection previewed`); return; }
-    try { await callTool("weaver_canvas_action", { action: "link_nodes", workspaceDir: bootstrap.workspaceDir, projectId: currentProject.id, sourceNodeId, targetNodeId, edgeType, baseGraphRevision: currentProject.graphRevision }); setStatus(`Created ${edgeType} relation`); await load(); }
+    try { await callTool("weaver_canvas_action", { action: "link_nodes", mutationId: createMutationId(), workspaceDir: bootstrap.workspaceDir, projectId: currentProject.id, sourceNodeId, targetNodeId, edgeType, baseGraphRevision: currentProject.graphRevision }); setStatus(`Created ${edgeType} relation`); await load(); }
     catch (error) { setStatus(error instanceof Error ? error.message : String(error)); await load(); }
   }
 
@@ -67,7 +67,7 @@ export function useCanvasGraph(params: {
       for (const nodeId of selection) {
         const source = graphNodes.find((node) => node.id === nodeId); const frame = currentLayout.nodes[nodeId];
         if (!source || !frame) continue;
-        await callTool("weaver_canvas_action", { action: "create_node", workspaceDir: bootstrap.workspaceDir, projectId: currentProject.id, viewId: currentLayout.viewId, semanticType: source.type, title: `${source.title} copy`, content: source.content, x: frame.x + offset, y: frame.y + offset });
+        await callTool("weaver_canvas_action", { action: "create_node", mutationId: createMutationId(), workspaceDir: bootstrap.workspaceDir, projectId: currentProject.id, viewId: currentLayout.viewId, semanticType: source.type, title: `${source.title} copy`, content: source.content, x: frame.x + offset, y: frame.y + offset });
         offset += 8;
       }
       setStatus(`Duplicated ${selection.length} nodes`); await load();
@@ -87,7 +87,7 @@ export function useCanvasGraph(params: {
       for (let attempt = 0; attempt < 2; attempt += 1) {
         const baseGraphRevision = (projectRef.current ?? currentProject).graphRevision;
         try {
-          await callTool<{ project: Project }>("weaver_canvas_action", { workspaceDir: bootstrap.workspaceDir, action: "archive_node", projectId: currentProject.id, nodeId, baseGraphRevision });
+          await callTool<{ project: Project }>("weaver_canvas_action", { workspaceDir: bootstrap.workspaceDir, action: "archive_node", mutationId: createMutationId(), projectId: currentProject.id, nodeId, baseGraphRevision });
           archived += 1;
           break;
         } catch (error) {
@@ -112,7 +112,7 @@ export function useCanvasGraph(params: {
       layoutRef.current = next; setLayout(next); setStatus(`Resized node · ${Math.round(frame.width)}×${Math.round(frame.height)}`); return;
     }
     try {
-      const next = await callTool<Layout>("weaver_canvas_action", { workspaceDir: bootstrap.workspaceDir, action: "layout_operations", projectId: currentProject.id, viewId: currentLayout.viewId, baseLayoutRevision: currentLayout.layoutRevision, operations: [{ type: "set-node-frame", viewId: currentLayout.viewId, nodeId, frame }] });
+      const next = await callTool<Layout>("weaver_canvas_action", { workspaceDir: bootstrap.workspaceDir, action: "layout_operations", mutationId: createMutationId(), projectId: currentProject.id, viewId: currentLayout.viewId, baseLayoutRevision: currentLayout.layoutRevision, operations: [{ type: "set-node-frame", viewId: currentLayout.viewId, nodeId, frame }] });
       layoutRef.current = next; setLayout(next); setStatus(`Node size saved · ${Math.round(frame.width)}×${Math.round(frame.height)}`);
     } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); await load(); }
   }
@@ -135,7 +135,7 @@ export function useCanvasGraph(params: {
     layoutRef.current = optimistic; setLayout(optimistic);
     if (standaloneDemo || !currentProject) { setStatus("Edge style updated"); return; }
     try {
-      const next = await callTool<Layout>("weaver_canvas_action", { workspaceDir: bootstrap.workspaceDir, action: "layout_operations", projectId: currentProject.id, viewId: currentLayout.viewId, baseLayoutRevision: currentLayout.layoutRevision, operations: [{ type: "set-edge-route", viewId: currentLayout.viewId, edgeId, route }] });
+      const next = await callTool<Layout>("weaver_canvas_action", { workspaceDir: bootstrap.workspaceDir, action: "layout_operations", mutationId: createMutationId(), projectId: currentProject.id, viewId: currentLayout.viewId, baseLayoutRevision: currentLayout.layoutRevision, operations: [{ type: "set-edge-route", viewId: currentLayout.viewId, edgeId, route }] });
       layoutRef.current = next; setLayout(next); setStatus(`Edge style saved · r${next.layoutRevision}`);
     } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); await load(); }
   }
@@ -157,7 +157,7 @@ export function useCanvasGraph(params: {
     const currentProject = projectRef.current ?? project; if (!currentProject) return;
     const content = { ...item.content, markdown, excerpt: excerpt(markdown) };
     try {
-      await callTool("weaver_canvas_action", { action: "update_node", workspaceDir: bootstrap.workspaceDir, projectId: currentProject.id, nodeId, baseGraphRevision: currentProject.graphRevision, content });
+      await callTool("weaver_canvas_action", { action: "update_node", mutationId: createMutationId(), workspaceDir: bootstrap.workspaceDir, projectId: currentProject.id, nodeId, baseGraphRevision: currentProject.graphRevision, content });
       setStatus("Saved");
       await load();
     } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); await load(); }
@@ -169,7 +169,7 @@ export function useCanvasGraph(params: {
     if (standaloneDemo) { setStatus("Reference added"); return; }
     const currentProject = projectRef.current ?? project; if (!currentProject) return;
     try {
-      await callTool("weaver_canvas_action", { action: "link_nodes", workspaceDir: bootstrap.workspaceDir, projectId: currentProject.id, sourceNodeId, targetNodeId, edgeType: "reference", baseGraphRevision: currentProject.graphRevision });
+      await callTool("weaver_canvas_action", { action: "link_nodes", mutationId: createMutationId(), workspaceDir: bootstrap.workspaceDir, projectId: currentProject.id, sourceNodeId, targetNodeId, edgeType: "reference", baseGraphRevision: currentProject.graphRevision });
       setStatus("Reference added");
       await load();
     } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); await load(); }
@@ -182,7 +182,7 @@ export function useCanvasGraph(params: {
     const currentLayout = layoutRef.current ?? layout; const currentProject = projectRef.current ?? project;
     if (!currentLayout || !operations.length) return;
     if (standaloneDemo || !currentProject) { const optimistic = applyLayoutOperations(currentLayout, currentLayout.layoutRevision + 1, operations); layoutRef.current = optimistic; setLayout(optimistic); setStatus(message); return; }
-    try { const next = await callTool<Layout>("weaver_canvas_action", { workspaceDir: bootstrap.workspaceDir, action: "layout_operations", projectId: currentProject.id, viewId: currentLayout.viewId, baseLayoutRevision: currentLayout.layoutRevision, operations }); layoutRef.current = next; setLayout(next); setStatus(`${message} · r${next.layoutRevision}`); }
+    try { const next = await callTool<Layout>("weaver_canvas_action", { workspaceDir: bootstrap.workspaceDir, action: "layout_operations", mutationId: createMutationId(), projectId: currentProject.id, viewId: currentLayout.viewId, baseLayoutRevision: currentLayout.layoutRevision, operations }); layoutRef.current = next; setLayout(next); setStatus(`${message} · r${next.layoutRevision}`); }
     catch (error) { setStatus(error instanceof Error ? error.message : String(error)); await load(); }
   }
 
@@ -212,7 +212,7 @@ export function useCanvasGraph(params: {
     void persistGroupOps([{ type: "delete-group", viewId, groupId }], "Group dissolved");
   }
 
-  async function togglePinned() { if (!project || !layout || !selection.length || standaloneDemo) return; const shouldPin = selection.some((id) => !layout.nodes[id]?.pinned); try { const next = await callTool<Layout>("weaver_canvas_action", { workspaceDir: bootstrap.workspaceDir, action: "layout_operations", projectId: project.id, viewId: layout.viewId, baseLayoutRevision: layout.layoutRevision, operations: selection.map((nodeId) => ({ type: shouldPin ? "pin-node" : "unpin-node", viewId: layout.viewId, nodeId })) }); setLayout(next); setStatus(`${shouldPin ? "Pinned" : "Unpinned"} ${selection.length} nodes`); } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); } }
+  async function togglePinned() { if (!project || !layout || !selection.length || standaloneDemo) return; const shouldPin = selection.some((id) => !layout.nodes[id]?.pinned); try { const next = await callTool<Layout>("weaver_canvas_action", { workspaceDir: bootstrap.workspaceDir, action: "layout_operations", mutationId: createMutationId(), projectId: project.id, viewId: layout.viewId, baseLayoutRevision: layout.layoutRevision, operations: selection.map((nodeId) => ({ type: shouldPin ? "pin-node" : "unpin-node", viewId: layout.viewId, nodeId })) }); setLayout(next); setStatus(`${shouldPin ? "Pinned" : "Unpinned"} ${selection.length} nodes`); } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); } }
 
   async function toggleCanvasTheme() {
     const currentLayout = layoutRef.current ?? layout;
@@ -225,7 +225,7 @@ export function useCanvasGraph(params: {
     setLayout(optimistic);
     if (standaloneDemo || !currentProject) return;
     try {
-      const next = await callTool<Layout>("weaver_canvas_action", { workspaceDir: bootstrap.workspaceDir, action: "layout_operations", projectId: currentProject.id, viewId: currentLayout.viewId, baseLayoutRevision: currentLayout.layoutRevision, operations: [{ type: "set-view-theme", viewId: currentLayout.viewId, theme }] });
+      const next = await callTool<Layout>("weaver_canvas_action", { workspaceDir: bootstrap.workspaceDir, action: "layout_operations", mutationId: createMutationId(), projectId: currentProject.id, viewId: currentLayout.viewId, baseLayoutRevision: currentLayout.layoutRevision, operations: [{ type: "set-view-theme", viewId: currentLayout.viewId, theme }] });
       layoutRef.current = next; setLayout(next); setStatus(`${mode === "dark" ? "Dark" : "Light"} canvas · r${next.layoutRevision}`);
     } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); await load(); }
   }

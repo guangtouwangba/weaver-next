@@ -107119,13 +107119,13 @@ function readAsset(db, dataDir, assetId, thumbnail = false) {
   if (!target.startsWith(resolve(dataDir, "assets"))) throw new Error("UNSAFE_ASSET_PATH");
   return { asset, data: readFileSync(target) };
 }
-async function importImageAsset(db, dataDir, input) {
+async function prepareImageAsset(db, input) {
   if (!getProject(db, input.projectId)) throw new Error(`PROJECT_NOT_FOUND:${input.projectId}`);
   if (input.data.byteLength > 20 * 1024 * 1024) throw new Error("IMAGE_TOO_LARGE:Maximum image size is 20MB");
   const data = Buffer.from(input.data);
   const sha256 = createHash("sha256").update(data).digest("hex");
   const existing = getAssetByHash(db, input.projectId, sha256);
-  if (existing) return { asset: existing, deduplicated: true };
+  if (existing) return { existing };
   const image = sharp(data, { animated: false, limitInputPixels: 4e7 });
   const metadata = await image.metadata();
   const actualMime = { jpeg: "image/jpeg", png: "image/png", webp: "image/webp", gif: "image/gif" }[metadata.format];
@@ -107135,9 +107135,7 @@ async function importImageAsset(db, dataDir, input) {
   const extension = actualMime === "image/jpeg" ? "jpg" : actualMime.split("/")[1];
   const originalName = `original/${sha256}.${extension}`;
   const thumbnailName = `thumbnails/${sha256}.webp`;
-  writeFileSync(join(dataDir, "assets", originalName), data);
   const thumbnail = await sharp(data, { animated: false, limitInputPixels: 4e7 }).rotate().resize({ width: 640, height: 640, fit: "inside", withoutEnlargement: true }).webp({ quality: 82 }).toBuffer();
-  writeFileSync(join(dataDir, "assets", thumbnailName), thumbnail);
   const asset = assetSchema.parse({
     id,
     projectId: input.projectId,
@@ -107151,8 +107149,21 @@ async function importImageAsset(db, dataDir, input) {
     thumbnailUri: `weaver://projects/${input.projectId}/assets/${id}/files/${thumbnailName}`,
     createdAt: now()
   });
+  return { asset, originalName, thumbnailName, original: data, thumbnail };
+}
+function commitPreparedImageAsset(db, dataDir, prepared) {
+  if ("existing" in prepared) return { asset: prepared.existing, deduplicated: true };
+  const existing = getAssetByHash(db, prepared.asset.projectId, prepared.asset.sha256);
+  if (existing) return { asset: existing, deduplicated: true };
+  writeFileSync(join(dataDir, "assets", prepared.originalName), prepared.original);
+  writeFileSync(join(dataDir, "assets", prepared.thumbnailName), prepared.thumbnail);
+  const asset = prepared.asset;
   db.prepare("INSERT INTO asset(id, project_id, sha256, data) VALUES (?, ?, ?, ?)").run(asset.id, asset.projectId, asset.sha256, json2(asset));
   return { asset, deduplicated: false };
+}
+async function importImageAsset(db, dataDir, input) {
+  const prepared = await prepareImageAsset(db, input);
+  return transaction(db, () => commitPreparedImageAsset(db, dataDir, prepared));
 }
 function saveTaskAsset(dataDir, taskId, fileName, data) {
   const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, "-");
@@ -109217,6 +109228,28 @@ function writeProjectSnapshots(dataDir, project, scenePack) {
   writeFileSync2(join2(dataDir, "project.json"), `${JSON.stringify(project, null, 2)}
 `, "utf8");
 }
+function deletePristineProject(db, input) {
+  return transaction(db, () => {
+    const project = getProject(db, input.projectId);
+    if (!project) throw new Error("PROJECT_NOT_FOUND");
+    const laterMutation = db.prepare("SELECT 1 FROM canvas_mutation WHERE project_id = ? AND id <> ? LIMIT 1").get(input.projectId, input.creationMutationId);
+    const externalStateTables = ["asset", "agent_task", "changeset", "artifact", "layout_run"];
+    if (laterMutation || externalStateTables.some((table) => Number(db.prepare(`SELECT COUNT(*) AS count FROM ${table} WHERE project_id = ?`).get(input.projectId).count) > 0)) {
+      throw new Error("UNDO_REVISION_CONFLICT");
+    }
+    const viewIds = db.prepare("SELECT id FROM project_view WHERE project_id = ?").all(input.projectId).map((row) => row.id);
+    for (const viewId of viewIds) db.prepare("DELETE FROM canvas_view_state WHERE view_id = ?").run(viewId);
+    const bindings = db.prepare("SELECT chat_session_key, data FROM chat_canvas_binding").all();
+    for (const row of bindings) {
+      if (chatCanvasBindingSchema.parse(JSON.parse(row.data)).projectId === input.projectId) db.prepare("DELETE FROM chat_canvas_binding WHERE chat_session_key = ?").run(row.chat_session_key);
+    }
+    for (const table of ["project_event", "changeset_revert", "changeset", "agent_task", "artifact", "asset", "canvas_session", "project_view", "layout_history", "layout", "edge", "node", "project_write_lease"]) {
+      db.prepare(`DELETE FROM ${table} WHERE project_id = ?`).run(input.projectId);
+    }
+    db.prepare("DELETE FROM project WHERE id = ?").run(input.projectId);
+    return { deleted: true, projectId: input.projectId };
+  });
+}
 
 // packages/storage/src/view-catalog.ts
 function listProjectViews(db, projectId, status) {
@@ -110081,6 +110114,7 @@ var WorkspaceStore = class {
     getProject: (projectId) => getProject(this.db, projectId),
     createProject: (input) => createProject(this.db, this.dataDir, input),
     createSeededProject: (input) => createSeededProject(this.db, this.dataDir, input),
+    deletePristineProject: (input) => deletePristineProject(this.db, input),
     listViews: (projectId, status) => listProjectViews(this.db, projectId, status),
     getView: (projectId, viewId) => getProjectView(this.db, projectId, viewId),
     searchViews: (projectId, query, status = "active") => searchProjectViews(this.db, projectId, query, status),
@@ -110125,7 +110159,7 @@ var WorkspaceStore = class {
     rejectRun: (runId) => rejectLayoutRun(this.db, runId),
     revert: (projectId, viewId) => revertLayout(this.db, projectId, viewId)
   };
-  assets = { get: (assetId) => getAsset(this.db, assetId), byHash: (projectId, sha256) => getAssetByHash(this.db, projectId, sha256), read: (assetId, thumbnail = false) => readAsset(this.db, this.dataDir, assetId, thumbnail), importImage: (input) => importImageAsset(this.db, this.dataDir, input), deleteUnreferenced: (assetId) => deleteUnreferencedAsset(this.db, this.dataDir, assetId), saveTaskFile: (taskId, fileName, data) => saveTaskAsset(this.dataDir, taskId, fileName, data) };
+  assets = { get: (assetId) => getAsset(this.db, assetId), byHash: (projectId, sha256) => getAssetByHash(this.db, projectId, sha256), read: (assetId, thumbnail = false) => readAsset(this.db, this.dataDir, assetId, thumbnail), prepareImage: (input) => prepareImageAsset(this.db, input), commitPreparedImage: (prepared) => commitPreparedImageAsset(this.db, this.dataDir, prepared), importImage: (input) => importImageAsset(this.db, this.dataDir, input), deleteUnreferenced: (assetId) => deleteUnreferencedAsset(this.db, this.dataDir, assetId), saveTaskFile: (taskId, fileName, data) => saveTaskAsset(this.dataDir, taskId, fileName, data) };
   tasks = { prepare: (input) => prepareAgentTask(this.db, input), prepareBound: (input) => prepareAgentTaskFromBoundCanvas(this.db, input), assertChat: (taskId, chatSessionKey, requireOnline = true) => assertTaskChat(this.db, taskId, chatSessionKey, requireOnline), assertCanvas: (taskId, chatSessionKey, requireOnline = false) => assertTaskCanvas(this.db, taskId, chatSessionKey, requireOnline), get: (taskId) => getAgentTask(this.db, taskId), listCanvas: (canvasSessionId, includeTerminal = false) => listCanvasTasks(this.db, canvasSessionId, includeTerminal), reapCanvas: (canvasSessionId) => reapExpiredCanvasTasks(this.db, canvasSessionId), listProject: (projectId, includeTerminal = false) => listProjectTasks(this.db, projectId, includeTerminal), update: (taskId, patch) => updateAgentTask(this.db, taskId, patch), confirmDispatch: (taskId, dispatchKey) => confirmAgentDispatch(this.db, taskId, dispatchKey), failDispatch: (taskId, dispatchKey, input) => failAgentDispatch(this.db, taskId, dispatchKey, input), continue: (input) => beginAgentContinuation(this.db, input), progress: (taskId, note) => reportTaskProgress(this.db, taskId, note) };
   artifacts = { publish: (input) => publishArtifact(this.db, input), get: (artifactId) => getArtifact(this.db, artifactId) };
   browserSessions = {
@@ -110319,10 +110353,16 @@ function undoManualCanvasMutation(store, principal, raw) {
         store.assets.deleteUnreferenced(inverse.assetId);
         continue;
       }
+      if (action === "delete_pristine_project" && typeof inverse.mutationId === "string") {
+        store.catalog.deletePristineProject({ projectId: record2.projectId, creationMutationId: inverse.mutationId });
+        store.browserSessions.setTarget({ id: browserSessionId, now: (/* @__PURE__ */ new Date()).toISOString() });
+        continue;
+      }
       throw new Error("UNDO_OPERATION_UNSUPPORTED");
     }
   });
-  return { mutation: reverted, graph: store.graphChanges.read(existing.projectId), layout: existing.viewId ? store.layoutReviews.get(existing.projectId, existing.viewId) : void 0 };
+  const remainingProject = store.catalog.getProject(existing.projectId);
+  return { mutation: reverted, graph: remainingProject ? store.graphChanges.read(existing.projectId) : void 0, layout: remainingProject && existing.viewId ? store.layoutReviews.get(existing.projectId, existing.viewId) : void 0 };
 }
 
 // packages/scene-packs/src/index.ts
@@ -110678,9 +110718,6 @@ function compatSubscribeCanvas(store, principal, args) {
   return { eventStreamUrl: `/events?projectId=${encodeURIComponent(projectId)}&canvasSessionId=${encodeURIComponent(canvasSessionId)}&after=${currentSequence}`, currentSequence };
 }
 
-// packages/workspace-service/src/operations/compat-canvas.ts
-import { randomUUID as randomUUID8 } from "node:crypto";
-
 // packages/workspace-service/src/link-enrichment.ts
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
@@ -110813,7 +110850,7 @@ function mutationRequest(store, browserSessionId, args, operation) {
   const viewId = typeof args.viewId === "string" ? args.viewId : void 0;
   const layout = viewId ? store.layoutReviews.get(projectId, viewId) : null;
   return {
-    mutationId: typeof args.mutationId === "string" ? args.mutationId : randomUUID8(),
+    mutationId: required2(args, "mutationId"),
     projectId,
     viewId,
     writerLeaseRevision: lease.revision,
@@ -111006,7 +111043,6 @@ async function compatCanvasAction(store, principal, args) {
 }
 
 // packages/workspace-service/src/operations/catalog-actions.ts
-import { randomUUID as randomUUID9 } from "node:crypto";
 function required3(value, name) {
   if (value === void 0 || value === "") throw new Error(`INVALID_ARGS:${name} required`);
   return value;
@@ -111019,6 +111055,54 @@ function principalChatSessionKey(store, principal) {
 function applyCatalogAction(store, principal, input) {
   const args = catalogActionSchema.parse({ ...input, workspaceDir: store.workspaceDir });
   const chatSessionKey = principalChatSessionKey(store, principal);
+  if (principal.kind === "browser" && (args.action === "create_project" || args.action === "create_project_from_template")) {
+    const mutationId = required3(typeof input.mutationId === "string" ? input.mutationId : void 0, "mutationId");
+    const existing = store.canvasMutations.get(mutationId);
+    if (existing) {
+      if (existing.browserSessionId !== principal.browserSessionId) throw new Error("MUTATION_ID_CONFLICT");
+      const project = store.catalog.getProject(existing.projectId);
+      if (!project) throw new Error("MUTATION_RESULT_UNAVAILABLE");
+      const session = store.browserSessions.get(principal.browserSessionId);
+      return {
+        project,
+        graph: store.graphChanges.read(project.id),
+        layout: store.layoutReviews.get(project.id, project.defaultViewId),
+        binding: session?.pairedChatSessionKey ? store.sessions.getBinding(session.pairedChatSessionKey) : void 0
+      };
+    }
+    let result;
+    store.transaction(() => {
+      result = applyCatalogAction(store, { kind: "local-read" }, input);
+      const project = result.project;
+      if (!project) throw new Error("PROJECT_CREATION_FAILED");
+      const now3 = (/* @__PURE__ */ new Date()).toISOString();
+      store.browserSessions.setTarget({ id: principal.browserSessionId, projectId: project.id, viewId: project.defaultViewId, now: now3 });
+      const lease = store.browserSessions.claimWriter({ projectId: project.id, browserSessionId: principal.browserSessionId, now: now3 });
+      const layout = store.layoutReviews.get(project.id, project.defaultViewId);
+      store.canvasMutations.apply({
+        request: {
+          mutationId,
+          projectId: project.id,
+          viewId: project.defaultViewId,
+          writerLeaseRevision: lease.revision,
+          baseGraphRevision: 0,
+          baseLayoutRevision: 0,
+          baseViewCatalogRevision: 0,
+          operation: { action: args.action, title: args.title, goal: args.goal, scenePackId: args.scenePackId, templateId: "templateId" in args ? args.templateId : void 0, version: "version" in args ? args.version : void 0 }
+        },
+        browserSessionId: principal.browserSessionId,
+        createdAt: now3
+      }, () => ({
+        kind: "mixed",
+        resultGraphRevision: project.graphRevision,
+        resultLayoutRevision: layout?.layoutRevision,
+        resultViewCatalogRevision: project.viewCatalogRevision,
+        forwardOperations: [{ action: args.action, projectId: project.id }],
+        inverseOperations: [{ action: "delete_pristine_project", mutationId }]
+      }));
+    });
+    return result;
+  }
   if (args.action === "create_project") {
     const scene = getScenePack(required3(args.scenePackId, "scenePackId"));
     if (!scene) throw new Error("CATALOG_INVALID:scene pack");
@@ -111036,7 +111120,7 @@ function applyCatalogAction(store, principal, input) {
     if (!lease || lease.status !== "active" || lease.browserSessionId !== principal.browserSessionId) throw new Error("PROJECT_WRITER_LEASE_STALE");
     let result;
     const request = {
-      mutationId: typeof input.mutationId === "string" ? input.mutationId : randomUUID9(),
+      mutationId: required3(typeof input.mutationId === "string" ? input.mutationId : void 0, "mutationId"),
       projectId,
       viewId: "viewId" in args && typeof args.viewId === "string" ? args.viewId : void 0,
       writerLeaseRevision: lease.revision,
@@ -111088,7 +111172,7 @@ function applyCatalogAction(store, principal, input) {
 }
 
 // packages/workspace-service/src/operations/agent-actions.ts
-import { randomUUID as randomUUID10 } from "node:crypto";
+import { randomUUID as randomUUID8 } from "node:crypto";
 function chatKey(store, principal) {
   if (principal.kind === "chat") return principal.chatSessionKey;
   if (principal.kind === "local-read") throw new Error("CHAT_PRINCIPAL_REQUIRED");
@@ -111099,7 +111183,7 @@ function chatKey(store, principal) {
 function prepareAgentTask2(store, principal, args) {
   const actionKey = typeof args.actionKey === "string" ? args.actionKey : "";
   if (!actionKey) throw new Error("INVALID_ARGS:actionKey required");
-  const dispatchKey = typeof args.dispatchKey === "string" ? args.dispatchKey : randomUUID10();
+  const dispatchKey = typeof args.dispatchKey === "string" ? args.dispatchKey : randomUUID8();
   const prepared = store.tasks.prepareBound({ chatSessionKey: chatKey(store, principal), actionKey, userInstruction: typeof args.userInstruction === "string" ? args.userInstruction : void 0, dispatchKey });
   return store.tasks.confirmDispatch(prepared.taskId, dispatchKey);
 }
@@ -111130,7 +111214,7 @@ function submitChangeSet2(store, principal, args) {
 }
 
 // packages/workspace-service/src/operations/content-actions.ts
-import { randomUUID as randomUUID11 } from "node:crypto";
+import { randomUUID as randomUUID9 } from "node:crypto";
 import sharp2 from "sharp";
 
 // packages/layout-engine/src/engine.ts
@@ -111457,7 +111541,7 @@ async function recommendLayout(store, principal, args) {
   if (current.layoutRevision !== plan.baseLayoutRevision) throw new Error("LAYOUT_REVISION_CONFLICT");
   const project = store.catalog.getProject(plan.projectId);
   const weights = project ? getScenePack(project.scenePackId, project.scenePackVersion)?.scoringWeights : void 0;
-  const layoutRunId = randomUUID11();
+  const layoutRunId = randomUUID9();
   const candidates = await generateLayoutCandidates({ nodes: graph.nodes, edges: graph.edges, current, plan, layoutRunId, weights });
   const run = store.layoutReviews.saveRun({ id: layoutRunId, projectId: plan.projectId, viewId: plan.viewId, taskId, plan, candidates });
   store.tasks.update(taskId, { status: "pending_review", activeStage: "layout", results: { ...task2.results, layoutRunId } });
@@ -111505,32 +111589,49 @@ async function importAsset(store, _principal, args) {
   const browserSessionId = _principal.kind === "browser" ? _principal.browserSessionId : void 0;
   const writerLease = browserSessionId ? store.browserSessions.writer(projectId) : void 0;
   if (browserSessionId && (!writerLease || writerLease.status !== "active" || writerLease.browserSessionId !== browserSessionId)) throw new Error("PROJECT_WRITER_LEASE_STALE");
-  let output;
+  const mutationId = browserSessionId ? required4(args, "mutationId") : void 0;
+  if (browserSessionId && mutationId) {
+    const existing = store.canvasMutations.get(mutationId);
+    if (existing) {
+      if (existing.projectId !== projectId || existing.browserSessionId !== browserSessionId) throw new Error("MUTATION_ID_CONFLICT");
+      if (existing.status !== "applied") throw new Error("MUTATION_ALREADY_REVERTED");
+      const operation = existing.forwardOperations[0];
+      const asset = typeof operation?.assetId === "string" ? store.assets.get(operation.assetId) : null;
+      if (!asset) throw new Error("MUTATION_RESULT_UNAVAILABLE");
+      return { assetId: asset.id, width: asset.width, height: asset.height, deduplicated: operation?.deduplicated === true };
+    }
+  }
+  let input;
   if (args.source === "bytes") {
     const mimeType = required4(args, "mimeType");
-    output = await store.assets.importImage({ projectId, mimeType, data: Buffer.from(required4(args, "base64"), "base64") });
+    input = { projectId, mimeType, data: Buffer.from(required4(args, "base64"), "base64") };
   } else {
     if (args.source !== "svg") throw new Error("INVALID_ARGS:source required");
     const scale = typeof args.scale === "number" ? args.scale : 2;
     const png = await sharp2(Buffer.from(required4(args, "svg")), { density: Math.round(96 * scale) }).png().toBuffer();
-    output = await store.assets.importImage({ projectId, mimeType: "image/png", data: png });
+    input = { projectId, mimeType: "image/png", data: png };
   }
+  const prepared = await store.assets.prepareImage(input);
+  let output;
   if (browserSessionId && writerLease) {
     store.canvasMutations.apply({
       request: {
-        mutationId: typeof args.mutationId === "string" ? args.mutationId : randomUUID11(),
+        mutationId,
         projectId,
         writerLeaseRevision: writerLease.revision,
-        operation: { action: "import_asset", assetId: output.asset.id, mimeType: output.asset.mimeType, sha256: output.asset.sha256 }
+        operation: { action: "import_asset" }
       },
       browserSessionId,
       createdAt: (/* @__PURE__ */ new Date()).toISOString()
-    }, () => ({
-      kind: "graph",
-      forwardOperations: [{ action: "import_asset", assetId: output.asset.id }],
-      inverseOperations: output.deduplicated ? [] : [{ action: "delete_asset", assetId: output.asset.id }]
-    }));
-  }
+    }, () => {
+      output = store.assets.commitPreparedImage(prepared);
+      return {
+        kind: "graph",
+        forwardOperations: [{ action: "import_asset", assetId: output.asset.id, deduplicated: output.deduplicated }],
+        inverseOperations: output.deduplicated ? [] : [{ action: "delete_asset", assetId: output.asset.id }]
+      };
+    });
+  } else output = store.transaction(() => store.assets.commitPreparedImage(prepared));
   return { assetId: output.asset.id, width: output.asset.width, height: output.asset.height, deduplicated: output.deduplicated };
 }
 function publishArtifact2(store, _principal, args) {
@@ -111742,6 +111843,8 @@ var WorkspaceWorker = class {
   #eventStreams = /* @__PURE__ */ new Set();
   #closed = false;
   #quiesced = false;
+  #activeRequests = 0;
+  #quiesceWaiters = /* @__PURE__ */ new Set();
   #publicOrigin;
   #bridgeHeartbeats = /* @__PURE__ */ new Map();
   constructor(options) {
@@ -111755,7 +111858,7 @@ var WorkspaceWorker = class {
       fileURLToPath(new URL("../../../apps/widget/dist", import.meta.url))
     ].filter((value) => Boolean(value));
     this.canvasRoot = resolve3(options.canvasRoot ?? canvasCandidates.find(existsSync4) ?? canvasCandidates.at(-1));
-    this.#server = createServer((request, response) => void this.#handle(request, response));
+    this.#server = createServer((request, response) => void this.#trackRequest(request, response));
   }
   async listen(port = 0) {
     await new Promise((resolve6, reject) => {
@@ -111777,8 +111880,9 @@ var WorkspaceWorker = class {
     if (parsed.protocol !== "http:" || parsed.hostname !== "127.0.0.1" || parsed.pathname !== "/") throw new Error("INVALID_PUBLIC_ORIGIN");
     this.#publicOrigin = parsed.origin;
   }
-  quiesce() {
+  async quiesce() {
     this.#quiesced = true;
+    if (this.#activeRequests > 0) await new Promise((resolve6) => this.#quiesceWaiters.add(resolve6));
     return { quiesced: true };
   }
   resume() {
@@ -111843,6 +111947,18 @@ var WorkspaceWorker = class {
     this.#eventStreams.clear();
     await new Promise((resolve6, reject) => this.#server.close((error51) => error51 ? reject(error51) : resolve6()));
     this.store.close();
+  }
+  async #trackRequest(request, response) {
+    this.#activeRequests += 1;
+    try {
+      await this.#handle(request, response);
+    } finally {
+      this.#activeRequests -= 1;
+      if (this.#activeRequests === 0) {
+        for (const resolveWaiter of this.#quiesceWaiters) resolveWaiter();
+        this.#quiesceWaiters.clear();
+      }
+    }
   }
   async #handle(request, response) {
     const url2 = new URL(request.url ?? "/", "http://127.0.0.1");
@@ -112077,9 +112193,13 @@ data: ${JSON.stringify(event)}
       return;
     }
     if (request.method === "POST" && url2.pathname === "/api/rpc") {
-      const auth = this.#authenticateBrowser(request);
+      const auth = this.#authenticateBrowser(request, true);
       if (!auth) {
         sendJson(response, 401, { ok: false, error: { code: "BROWSER_SESSION_INVALID" } });
+        return;
+      }
+      if (auth.session.status === "detached") {
+        sendJson(response, 200, { ok: false, error: { code: "SESSION_TAKEN_OVER" } });
         return;
       }
       if (!this.#validWriteRequest(request, auth.session)) {
@@ -112264,7 +112384,7 @@ async function inProcessWorker(options) {
       worker.setPublicOrigin(value);
     },
     quiesce: async () => {
-      worker.quiesce();
+      await worker.quiesce();
     },
     resume: async () => {
       worker.resume();
@@ -112444,7 +112564,7 @@ var WorkspaceSupervisor = class _WorkspaceSupervisor {
       const port = Number(new URL(this.origin).port);
       this.#writeDescriptor(port, "ready");
       this.#diagnostics.record("runtime.upgradeCompleted", { fromBuildId: previousBuildId, toBuildId: requestedBuildId });
-      if (previous) await previous.close();
+      if (previous) await previous.close().catch(() => void 0);
     } catch (error51) {
       if (candidate) await candidate.close().catch(() => void 0);
       if (previous) await previous.resume().catch(() => void 0);
@@ -112635,30 +112755,33 @@ async function runWorkspaceWorkerProcess(options) {
     await worker.close().catch(() => void 0);
     process.exit(0);
   };
-  process.on("message", async (message) => {
+  let commandQueue = Promise.resolve();
+  process.on("message", (message) => {
     if (!message || typeof message !== "object" || typeof message.id !== "number") return;
-    try {
-      let result;
-      const payload = message.payload ?? {};
-      if (message.kind === "create_launch") result = worker.createLaunch(payload);
-      else if (message.kind === "read_binding") result = worker.readBinding(String(payload.chatSessionKey));
-      else if (message.kind === "dispatch") result = await worker.dispatchChatOperation(String(payload.chatSessionKey), String(payload.operation), payload.arguments ?? {});
-      else if (message.kind === "heartbeat") result = worker.heartbeatBridge(String(payload.chatSessionKey), payload.hostLabel === "Claude" ? "Claude" : payload.hostLabel === "Codex" ? "Codex" : void 0);
-      else if (message.kind === "diagnostics") result = worker.getDiagnostics();
-      else if (message.kind === "set_public_origin") {
-        worker.setPublicOrigin(String(payload.origin));
-        result = { ok: true };
-      } else if (message.kind === "quiesce") result = worker.quiesce();
-      else if (message.kind === "resume") result = worker.resume();
-      else if (message.kind === "close") {
-        process.send?.({ id: message.id, ok: true, result: { closed: true } });
-        await close();
-        return;
-      } else throw new Error("WORKER_OPERATION_NOT_FOUND");
-      process.send?.({ id: message.id, ok: true, result });
-    } catch (error51) {
-      process.send?.({ id: message.id, ok: false, error: error51 instanceof Error ? error51.message : "WORKER_OPERATION_FAILED" });
-    }
+    commandQueue = commandQueue.then(async () => {
+      try {
+        let result;
+        const payload = message.payload ?? {};
+        if (message.kind === "create_launch") result = worker.createLaunch(payload);
+        else if (message.kind === "read_binding") result = worker.readBinding(String(payload.chatSessionKey));
+        else if (message.kind === "dispatch") result = await worker.dispatchChatOperation(String(payload.chatSessionKey), String(payload.operation), payload.arguments ?? {});
+        else if (message.kind === "heartbeat") result = worker.heartbeatBridge(String(payload.chatSessionKey), payload.hostLabel === "Claude" ? "Claude" : payload.hostLabel === "Codex" ? "Codex" : void 0);
+        else if (message.kind === "diagnostics") result = worker.getDiagnostics();
+        else if (message.kind === "set_public_origin") {
+          worker.setPublicOrigin(String(payload.origin));
+          result = { ok: true };
+        } else if (message.kind === "quiesce") result = worker.quiesce();
+        else if (message.kind === "resume") result = worker.resume();
+        else if (message.kind === "close") {
+          process.send?.({ id: message.id, ok: true, result: { closed: true } });
+          await close();
+          return;
+        } else throw new Error("WORKER_OPERATION_NOT_FOUND");
+        process.send?.({ id: message.id, ok: true, result });
+      } catch (error51) {
+        process.send?.({ id: message.id, ok: false, error: error51 instanceof Error ? error51.message : "WORKER_OPERATION_FAILED" });
+      }
+    });
   });
   process.once("disconnect", close);
   process.once("SIGTERM", close);

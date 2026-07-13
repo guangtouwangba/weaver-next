@@ -8,6 +8,7 @@ import { useI18n } from "../lib/i18n";
 export function TopBar(props: {
   project: Project | null;
   status: string;
+  agentConnectionLabel?: string;
   switcherViews: ProjectView[];
   layout: Layout | null;
   draggedViewId: string | null;
@@ -35,12 +36,13 @@ export function TopBar(props: {
   startFromTemplateGallery: () => void | Promise<void>;
   projectRevision?: number; layoutRevision?: number; catalogRevision?: number; bindingRevision?: number;
 } & ViewRowActions) {
-  const { project, status, switcherViews, layout, draggedViewId, setDraggedViewId, reorderPinnedViews, switchView, busy, viewMenuId, setViewMenuId, setViewLibrary, projectViews, openTemplateGallery, streamState, reconnect, linkComposer, setLinkComposer, linkUrl, setLinkUrl, createLink, selection, standaloneDemo, togglePinned, beginRename, pinProjectView, duplicateProjectView, setDefaultView, trashProjectView, workspaceDir, chooseProject, startFromTemplateGallery, projectRevision, layoutRevision, catalogRevision, bindingRevision } = props;
+  const { project, status, agentConnectionLabel, switcherViews, layout, draggedViewId, setDraggedViewId, reorderPinnedViews, switchView, busy, viewMenuId, setViewMenuId, setViewLibrary, projectViews, openTemplateGallery, streamState, reconnect, linkComposer, setLinkComposer, linkUrl, setLinkUrl, createLink, selection, standaloneDemo, togglePinned, beginRename, pinProjectView, duplicateProjectView, setDefaultView, trashProjectView, workspaceDir, chooseProject, startFromTemplateGallery, projectRevision, layoutRevision, catalogRevision, bindingRevision } = props;
   const { t, locale, setLocale } = useI18n();
   return <header className="topbar">
     <ProjectSwitcher project={project} status={status} workspaceDir={workspaceDir} standaloneDemo={standaloneDemo} busy={busy} chooseProject={chooseProject} startFromTemplateGallery={startFromTemplateGallery} />
     <nav className="view-tabs" aria-label={t("projectViews")}>{switcherViews.map((view) => <div className="view-tab" data-active={layout?.viewId === view.id} data-dragging={draggedViewId === view.id} draggable={view.pinned} onDragStart={() => view.pinned && setDraggedViewId(view.id)} onDragOver={(event) => view.pinned && event.preventDefault()} onDrop={() => void reorderPinnedViews(view.id)} onDragEnd={() => setDraggedViewId(null)} key={view.id}><button onClick={() => void switchView(view.id)} disabled={busy}>{view.pinned ? <PinIcon size={10} fill="currentColor" /> : null}{view.name}</button><button className="view-tab-more" aria-label={`${t("moreActions")} ${view.name}`} onClick={() => setViewMenuId(viewMenuId === `tab:${view.id}` ? null : `tab:${view.id}`)}><MoreHorizontal size={13} /></button>{viewMenuId === `tab:${view.id}` ? <ViewActionsMenu view={view} project={project} projectViews={projectViews} beginRename={beginRename} pinProjectView={pinProjectView} duplicateProjectView={duplicateProjectView} setDefaultView={setDefaultView} trashProjectView={trashProjectView} /> : null}</div>)}<button className="all-views-button" onClick={() => setViewLibrary(true)} disabled={!project}><Library size={12} /> {t("allViews")} <span>{projectViews.filter((view) => view.status === "active").length}</span></button><button className="new-view" aria-label={t("newVisualView")} onClick={() => void openTemplateGallery("view")} disabled={!project || busy}><Plus size={12} /></button></nav>
     <div className="top-actions">
+      {agentConnectionLabel ? <span className="agent-connection-status">{agentConnectionLabel}</span> : null}
       <span className="revision-strip">G{projectRevision ?? 0} · L{layoutRevision ?? 0} · C{catalogRevision ?? 0} · B{bindingRevision ?? 0}</span>
       <button className="stream-status" data-state={streamState} onClick={() => streamState === "offline" && reconnect()} title={streamState === "offline" ? t("reconnect") : t("live")}><span /> {streamState === "online" || streamState === "polling" ? t("live") : streamState === "connecting" ? t("connecting") : t("reconnect")}</button>
       <button className="locale-toggle" onClick={() => setLocale(locale === "zh-CN" ? "en-US" : "zh-CN")}>{t("language")}</button>

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
-import { callTool, hostMode, isLocalDevelopment } from "../mcp-client";
+import { callTool, createMutationId, hostMode, isLocalDevelopment, undoLastCanvasMutation } from "../mcp-client";
 import { applyGraphDelta, applyLayoutOperations, applyViewCatalogDelta, type GraphDelta, type LayoutOperation } from "../sync";
 import type { AgentTask, Bootstrap, Candidate, CanvasAccessState, ChangeSetPreview, ChatBindingBootstrap, GraphEdge, GraphNode, Layout, Manifest, Project, ProjectEvent, ProjectView } from "../types";
 
@@ -229,7 +229,16 @@ export function useCanvasEventStream(params: {
   async function rejectChangeSet() { if (!changePreview) return; setBusy(true); try { await callTool("weaver_review_action", { resource: "changeset", action: "reject", id: changePreview.changeSet.id, workspaceDir: bootstrap.workspaceDir }); setChangePreview(null); } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); } finally { setBusy(false); } }
   async function applyCandidate() { const candidate = candidates[candidateIndex]; if (!candidate || !layoutRunId) return; setBusy(true); try { await callTool("weaver_review_action", { resource: "layout_run", action: "apply", id: layoutRunId, workspaceDir: bootstrap.workspaceDir, candidateId: candidate.id }); setCandidates([]); setLayoutRunId(null); } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); } finally { setBusy(false); } }
   async function rejectLayout() { if (!layoutRunId) return; setBusy(true); try { await callTool("weaver_review_action", { resource: "layout_run", action: "reject", id: layoutRunId, workspaceDir: bootstrap.workspaceDir }); setCandidates([]); setLayoutRunId(null); } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); } finally { setBusy(false); } }
-  async function revertLayout() { if (!project || !layout || standaloneDemo) return; setBusy(true); try { await callTool("weaver_canvas_action", { action: "revert_layout", workspaceDir: bootstrap.workspaceDir, projectId: project.id, viewId: layout.viewId }); } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); } finally { setBusy(false); } }
+  async function revertLayout() {
+    if (!project || !layout || standaloneDemo) return;
+    setBusy(true);
+    try {
+      const undone = await undoLastCanvasMutation(project.id);
+      if (!undone) await callTool("weaver_canvas_action", { action: "revert_layout", mutationId: createMutationId(), workspaceDir: bootstrap.workspaceDir, projectId: project.id, viewId: layout.viewId });
+      await load();
+    } catch (error) { setStatus(error instanceof Error ? error.message : String(error)); }
+    finally { setBusy(false); }
+  }
 
   function resetLayoutRun() { setCandidates([]); setLayoutRunId(null); }
   function reconnect() { setStreamGeneration((value) => value + 1); }

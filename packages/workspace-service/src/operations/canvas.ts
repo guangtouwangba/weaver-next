@@ -135,8 +135,14 @@ export function undoManualCanvasMutation(store: WorkspaceStore, principal: Works
         store.assets.deleteUnreferenced(inverse.assetId);
         continue;
       }
+      if (action === "delete_pristine_project" && typeof inverse.mutationId === "string") {
+        store.catalog.deletePristineProject({ projectId: record.projectId, creationMutationId: inverse.mutationId });
+        store.browserSessions.setTarget({ id: browserSessionId, now: new Date().toISOString() });
+        continue;
+      }
       throw new Error("UNDO_OPERATION_UNSUPPORTED");
     }
   });
-  return { mutation: reverted, graph: store.graphChanges.read(existing.projectId), layout: existing.viewId ? store.layoutReviews.get(existing.projectId, existing.viewId) : undefined };
+  const remainingProject = store.catalog.getProject(existing.projectId);
+  return { mutation: reverted, graph: remainingProject ? store.graphChanges.read(existing.projectId) : undefined, layout: remainingProject && existing.viewId ? store.layoutReviews.get(existing.projectId, existing.viewId) : undefined };
 }
