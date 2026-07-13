@@ -1,9 +1,9 @@
 {
-  "buildId": "1fadc45c4cac",
+  "buildId": "7ca46b9dfad9",
   "files": {
     "apps/widget/dist/assets/index-5p9x1JL6.css": "e304d595b719d81ad4c9f6104a793dd610c03d0d7fcb0b2a13ebf629f222af47",
-    "apps/widget/dist/assets/index-lUm8UIdg.js": "95aac409289da09bbed3f9a109f8d57ebeab47227c30babb1aac555ce5fbba12",
-    "apps/widget/dist/index.html": "2172f1b1f97eda0e6543cf090e7250e7f9cd6028a6883ebbba60c784ffb71b80",
+    "apps/widget/dist/assets/index-BIQ7sD_V.js": "0778cefecb4f66bbf5a775d8433c8810060fc50f55ffbc21aec2b4fac5a4d501",
+    "apps/widget/dist/index.html": "24bc67960a134e46883e3962d795a9fe7cdf3bc0a017276b88564982e9e416b2",
     "node_modules/@img/colour/LICENSE.md": "e2eaa4603c14cb26f301e88648c12a853fa3f0f5da6d4b0972958c666e7f2ab8",
     "node_modules/@img/colour/README.md": "be7edf3bc6467f761168cef3bb2b9b3def2532c98a86249848376ea00338ad1d",
     "node_modules/@img/colour/color.cjs": "f7c3efcf482624007f2019fffee3e1dec56b8cb893faa9a420b2832805888dce",

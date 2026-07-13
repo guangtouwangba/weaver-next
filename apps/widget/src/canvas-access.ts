@@ -1,5 +1,12 @@
 import type { Bootstrap, CanvasAccessState } from "./types";
 
+export function toolErrorMessage(result: { isError?: boolean; structuredContent?: unknown; content?: Array<{ type: string; text?: string }> }, fallback: string) {
+  const structured = result.structuredContent as { code?: unknown } | undefined;
+  const code = typeof structured?.code === "string" ? structured.code : "";
+  const text = result.content?.find((item) => item.type === "text")?.text ?? fallback;
+  return code && !text.includes(code) ? `${code}: ${text}` : text;
+}
+
 export function hasWidgetBuildMismatch(bootstrap: Bootstrap, embeddedBuildId?: string) {
   // Only the DEVELOPMENT flow blocks on build skew (stale dev HTML against a newer
   // dev server is a real footgun). In installed mode, skew is a normal transient:

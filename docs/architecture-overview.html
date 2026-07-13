@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weaver-Next 架构与技术设计总览</title>
+<style>
+  :root {
+    --bg: #0d1117; --bg-soft: #161b22; --bg-raised: #1c2129;
+    --border: #2d333c; --border-soft: #232931;
+    --text: #e6edf3; --text-dim: #9aa4b2; --text-faint: #6e7681;
+    --accent: #315CF6; --accent-soft: rgba(49,92,246,.14);
+    --accent-2: #58a6ff;
+    --green: #3fb950; --green-soft: rgba(63,185,80,.12);
+    --amber: #d29922; --amber-soft: rgba(210,153,34,.12);
+    --red: #f85149; --red-soft: rgba(248,81,73,.12);
+    --purple: #bc8cff; --purple-soft: rgba(188,140,255,.12);
+    --code-bg: #0a0d12;
+    --mono: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  }
+  html[data-theme="light"] {
+    --bg: #f7f8fa; --bg-soft: #ffffff; --bg-raised: #f0f2f5;
+    --border: #d8dee6; --border-soft: #e6eaf0;
+    --text: #1c2430; --text-dim: #57606c; --text-faint: #8b949e;
+    --accent-soft: rgba(49,92,246,.09);
+    --accent-2: #315CF6;
+    --code-bg: #14181f;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html { scroll-behavior:smooth; scroll-padding-top:76px; }
+  body { background:var(--bg); color:var(--text); font-family:var(--sans); font-size:15px; line-height:1.75; }
+
+  /* ---------- top bar ---------- */
+  .topbar {
+    position:fixed; top:0; left:0; right:0; height:56px; z-index:100;
+    display:flex; align-items:center; gap:16px; padding:0 20px;
+    background:color-mix(in srgb, var(--bg) 82%, transparent);
+    backdrop-filter:blur(12px); border-bottom:1px solid var(--border);
+  }
+  .brand { display:flex; align-items:center; gap:10px; font-weight:700; font-size:15px; white-space:nowrap; }
+  .brand .logo {
+    width:26px; height:26px; border-radius:7px; background:linear-gradient(135deg, var(--accent), #7b9bff);
+    display:grid; place-items:center; color:#fff; font-size:13px; font-weight:800;
+  }
+  .brand .sub { color:var(--text-faint); font-weight:400; font-size:12.5px; }
+  .search {
+    flex:1; max-width:420px; display:flex; align-items:center; gap:8px;
+    background:var(--bg-raised); border:1px solid var(--border); border-radius:8px;
+    padding:6px 12px; color:var(--text-faint); font-size:13px; cursor:text;
+  }
+  .search kbd {
+    margin-left:auto; font-family:var(--mono); font-size:11px; padding:1px 6px;
+    border:1px solid var(--border); border-radius:5px; background:var(--bg-soft); color:var(--text-faint);
+  }
+  .topbar .spacer { flex:1; }
+  .pill {
+    font-family:var(--mono); font-size:11.5px; padding:3px 10px; border-radius:999px;
+    border:1px solid var(--border); color:var(--text-dim); background:var(--bg-raised); white-space:nowrap;
+  }
+  .pill.ver { color:var(--accent-2); border-color:color-mix(in srgb, var(--accent) 45%, var(--border)); }
+  .theme-toggle {
+    width:34px; height:34px; border-radius:8px; border:1px solid var(--border);
+    background:var(--bg-raised); color:var(--text-dim); cursor:pointer; font-size:15px;
+    display:grid; place-items:center;
+  }
+  .theme-toggle:hover { color:var(--text); border-color:var(--text-faint); }
+
+  /* ---------- layout ---------- */
+  .shell { display:grid; grid-template-columns:248px minmax(0,1fr) 224px; gap:0; max-width:1440px; margin:0 auto; padding-top:56px; }
+
+  /* left nav */
+  .sidenav {
+    position:sticky; top:56px; height:calc(100vh - 56px); overflow-y:auto;
+    padding:24px 12px 40px 20px; border-right:1px solid var(--border-soft); font-size:13.5px;
+  }
+  .sidenav .group { color:var(--text-faint); font-size:11px; text-transform:uppercase; letter-spacing:.08em; margin:18px 0 6px 10px; font-weight:600; }
+  .sidenav .group:first-child { margin-top:0; }
+  .sidenav a {
+    display:block; color:var(--text-dim); text-decoration:none; padding:5px 10px; border-radius:7px; margin:1px 0;
+  }
+  .sidenav a:hover { color:var(--text); background:var(--bg-raised); }
+  .sidenav a.active { color:var(--accent-2); background:var(--accent-soft); font-weight:600; }
+
+  /* right toc */
+  .toc {
+    position:sticky; top:56px; height:calc(100vh - 56px); overflow-y:auto;
+    padding:28px 20px 40px 16px; font-size:12.5px;
+  }
+  .toc .toc-title { color:var(--text-faint); font-size:11px; text-transform:uppercase; letter-spacing:.08em; font-weight:600; margin-bottom:10px; }
+  .toc a { display:block; color:var(--text-faint); text-decoration:none; padding:3px 0 3px 12px; border-left:2px solid var(--border-soft); line-height:1.5; }
+  .toc a.l3 { padding-left:24px; }
+  .toc a:hover { color:var(--text); }
+  .toc a.active { color:var(--accent-2); border-left-color:var(--accent); }
+
+  /* article */
+  article { padding:40px 48px 120px; min-width:0; }
+  .crumb { font-size:12.5px; color:var(--text-faint); margin-bottom:14px; font-family:var(--mono); }
+  .crumb b { color:var(--accent-2); font-weight:500; }
+  h1 { font-size:32px; line-height:1.25; letter-spacing:-.02em; margin-bottom:10px; }
+  .lede { color:var(--text-dim); font-size:16px; max-width:760px; margin-bottom:20px; }
+  .meta-row { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:36px; }
+  .tag { font-size:11.5px; font-family:var(--mono); padding:3px 10px; border-radius:999px; background:var(--bg-raised); border:1px solid var(--border); color:var(--text-dim); }
+  h2 { font-size:22px; margin:52px 0 14px; padding-top:14px; border-top:1px solid var(--border-soft); letter-spacing:-.01em; }
+  h2 .hash, h3 .hash { color:var(--text-faint); opacity:0; margin-left:6px; text-decoration:none; font-weight:400; }
+  h2:hover .hash, h3:hover .hash { opacity:1; }
+  h3 { font-size:16.5px; margin:30px 0 10px; }
+  p { margin:0 0 14px; color:var(--text); max-width:820px; }
+  p.dim, li.dim { color:var(--text-dim); }
+  ul, ol { margin:0 0 16px 22px; max-width:800px; }
+  li { margin-bottom:6px; }
+  strong { font-weight:650; }
+  code {
+    font-family:var(--mono); font-size:.86em; background:var(--bg-raised);
+    border:1px solid var(--border-soft); padding:1.5px 6px; border-radius:5px; color:var(--accent-2);
+    word-break:break-word;
+  }
+  a.inline { color:var(--accent-2); text-decoration:none; border-bottom:1px dashed color-mix(in srgb, var(--accent-2) 50%, transparent); }
+
+  /* code block */
+  .codeblock { background:var(--code-bg); border:1px solid #1f242c; border-radius:12px; margin:16px 0 22px; overflow:hidden; }
+  .codeblock .cb-head {
+    display:flex; align-items:center; padding:8px 14px; border-bottom:1px solid #1f242c;
+    font-family:var(--mono); font-size:11px; color:#8b949e;
+  }
+  .codeblock .lang { color:#7b9bff; font-weight:600; text-transform:uppercase; letter-spacing:.06em; }
+  .codeblock .copy {
+    margin-left:auto; background:transparent; border:1px solid #2d333c; color:#8b949e;
+    font-family:var(--mono); font-size:11px; padding:2px 10px; border-radius:6px; cursor:pointer;
+  }
+  .codeblock .copy:hover { color:#e6edf3; border-color:#8b949e; }
+  .codeblock pre { padding:14px 16px; overflow-x:auto; font-family:var(--mono); font-size:12.5px; line-height:1.7; color:#c9d1d9; }
+  .cm { color:#8b949e; } .kw { color:#ff7b72; } .str { color:#a5d6ff; } .fn { color:#d2a8ff; } .ty { color:#7ee787; } .num { color:#79c0ff; }
+
+  /* callouts */
+  .callout { display:flex; gap:12px; border-radius:12px; padding:14px 16px; margin:18px 0 22px; font-size:14px; border:1px solid; max-width:840px; }
+  .callout .ic { font-size:16px; line-height:1.5; }
+  .callout p { margin:0; }
+  .callout.info { background:var(--accent-soft); border-color:color-mix(in srgb, var(--accent) 40%, transparent); }
+  .callout.warn { background:var(--amber-soft); border-color:color-mix(in srgb, var(--amber) 45%, transparent); }
+  .callout.danger { background:var(--red-soft); border-color:color-mix(in srgb, var(--red) 45%, transparent); }
+  .callout b.cap { display:block; font-size:12px; text-transform:uppercase; letter-spacing:.06em; margin-bottom:3px; }
+  .callout.info b.cap { color:var(--accent-2); } .callout.warn b.cap { color:var(--amber); } .callout.danger b.cap { color:var(--red); }
+
+  /* tables */
+  .tbl-wrap { overflow-x:auto; margin:16px 0 24px; border:1px solid var(--border); border-radius:12px; max-width:900px; }
+  table { border-collapse:collapse; width:100%; font-size:13.5px; }
+  th { text-align:left; background:var(--bg-raised); color:var(--text-dim); font-size:12px; text-transform:uppercase; letter-spacing:.05em; padding:10px 14px; border-bottom:1px solid var(--border); white-space:nowrap; }
+  td { padding:9px 14px; border-bottom:1px solid var(--border-soft); vertical-align:top; }
+  tr:last-child td { border-bottom:none; }
+  td code { white-space:nowrap; }
+
+  /* ---------- architecture diagram ---------- */
+  .diagram { border:1px solid var(--border); border-radius:16px; background:var(--bg-soft); padding:22px; margin:20px 0 28px; overflow-x:auto; }
+  .diagram .dg-title { font-family:var(--mono); font-size:11px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.1em; margin-bottom:16px; }
+  .dg-inner { min-width:760px; display:flex; flex-direction:column; gap:0; }
+  .dg-row { display:grid; gap:14px; }
+  .dg-box { border-radius:12px; border:1px solid var(--border); background:var(--bg-raised); padding:12px 14px; position:relative; }
+  .dg-box .bx-cap { font-size:10.5px; font-family:var(--mono); text-transform:uppercase; letter-spacing:.08em; color:var(--text-faint); margin-bottom:6px; }
+  .dg-box .bx-name { font-weight:700; font-size:13.5px; margin-bottom:3px; }
+  .dg-box .bx-desc { font-size:11.5px; color:var(--text-dim); line-height:1.55; }
+  .dg-box.host { border-color:color-mix(in srgb, var(--purple) 45%, var(--border)); }
+  .dg-box.host .bx-name { color:var(--purple); }
+  .dg-box.ui { border-color:color-mix(in srgb, var(--accent) 55%, var(--border)); background:var(--accent-soft); }
+  .dg-box.ui .bx-name { color:var(--accent-2); }
+  .dg-box.srv { border-color:color-mix(in srgb, var(--green) 45%, var(--border)); }
+  .dg-box.srv .bx-name { color:var(--green); }
+  .dg-box.pkg { }
+  .dg-box.db { border-color:color-mix(in srgb, var(--amber) 50%, var(--border)); }
+  .dg-box.db .bx-name { color:var(--amber); }
+  .dg-chip { display:inline-block; font-family:var(--mono); font-size:10px; padding:1px 7px; border-radius:999px; border:1px solid var(--border); color:var(--text-dim); margin:2px 3px 0 0; background:var(--bg-soft); }
+  .dg-arrows { display:grid; height:40px; align-items:center; }
+  .dg-arrow { text-align:center; font-family:var(--mono); font-size:10.5px; color:var(--text-faint); position:relative; }
+  .dg-arrow::before { content:""; position:absolute; left:50%; top:-9px; bottom:-9px; width:2px; background:linear-gradient(var(--border), var(--text-faint)); transform:translateX(-50%); z-index:0; }
+  .dg-arrow span { position:relative; z-index:1; background:var(--bg-soft); padding:1px 8px; border-radius:999px; border:1px solid var(--border); }
+  .dg-wide { border:1px dashed var(--border); border-radius:14px; padding:14px; margin-top:0; }
+  .dg-wide .wide-cap { font-family:var(--mono); font-size:10.5px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.1em; margin-bottom:10px; }
+
+  /* ---------- svg figures ---------- */
+  .figure { border:1px solid var(--border); border-radius:16px; background:var(--bg-soft); padding:18px 18px 10px; margin:18px 0 26px; overflow-x:auto; }
+  .figure .fig-cap { font-family:var(--mono); font-size:11px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.1em; margin-bottom:12px; }
+  .figure svg { display:block; min-width:720px; width:100%; height:auto; }
+  .figure .bx { fill:var(--bg-raised); stroke:var(--border); stroke-width:1.2; }
+  .figure .bx-acc { stroke:color-mix(in srgb, var(--accent) 60%, var(--border)); }
+  .figure .bx-green { stroke:color-mix(in srgb, var(--green) 55%, var(--border)); }
+  .figure .bx-amber { stroke:color-mix(in srgb, var(--amber) 55%, var(--border)); }
+  .figure .bx-red { stroke:color-mix(in srgb, var(--red) 55%, var(--border)); }
+  .figure .bx-purple { stroke:color-mix(in srgb, var(--purple) 55%, var(--border)); }
+  .figure .tt { font-family:var(--sans); font-size:12.5px; font-weight:700; fill:var(--text); }
+  .figure .ta { fill:var(--accent-2); } .figure .tg { fill:var(--green); } .figure .tm { fill:var(--amber); } .figure .tr { fill:var(--red); } .figure .tp { fill:var(--purple); }
+  .figure .dd { font-family:var(--sans); font-size:10px; fill:var(--text-dim); }
+  .figure .lab { font-family:var(--mono); font-size:9.5px; fill:var(--text-faint); }
+  .figure .ln { stroke:var(--text-faint); stroke-width:1.2; fill:none; }
+  .figure .lnd { stroke-dasharray:4 4; }
+  .figure .node-dot { fill:var(--accent-soft); stroke:var(--accent-2); stroke-width:1.5; }
+  .figure .col-fill { fill:var(--accent-soft); stroke:color-mix(in srgb, var(--accent) 45%, var(--border)); }
+
+  /* flow steps */
+  .flow { counter-reset:step; margin:18px 0 24px; max-width:840px; }
+  .flow .step { display:flex; gap:14px; padding:12px 0; border-bottom:1px dashed var(--border-soft); }
+  .flow .step:last-child { border-bottom:none; }
+  .flow .step::before {
+    counter-increment:step; content:counter(step);
+    flex:none; width:26px; height:26px; border-radius:999px; background:var(--accent-soft);
+    border:1px solid color-mix(in srgb, var(--accent) 50%, transparent); color:var(--accent-2);
+    display:grid; place-items:center; font-size:12.5px; font-weight:700; font-family:var(--mono); margin-top:2px;
+  }
+  .flow .step b { display:block; font-size:14px; }
+  .flow .step p { margin:2px 0 0; font-size:13.5px; color:var(--text-dim); }
+
+  /* state machine */
+  .states { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:14px 0 20px; font-family:var(--mono); font-size:12px; }
+  .states .st { padding:4px 12px; border-radius:999px; border:1px solid var(--border); background:var(--bg-raised); color:var(--text); }
+  .states .st.ok { border-color:color-mix(in srgb, var(--green) 55%, transparent); color:var(--green); }
+  .states .st.warn { border-color:color-mix(in srgb, var(--amber) 55%, transparent); color:var(--amber); }
+  .states .st.err { border-color:color-mix(in srgb, var(--red) 55%, transparent); color:var(--red); }
+  .states .ar { color:var(--text-faint); }
+
+  /* decision cards */
+  .cards { display:grid; grid-template-columns:repeat(auto-fill, minmax(260px,1fr)); gap:14px; margin:18px 0 26px; }
+  .card { border:1px solid var(--border); border-radius:14px; background:var(--bg-soft); padding:16px; }
+  .card .no { font-family:var(--mono); font-size:11px; color:var(--accent-2); font-weight:700; letter-spacing:.06em; }
+  .card b { display:block; font-size:14.5px; margin:5px 0 6px; }
+  .card p { font-size:12.5px; color:var(--text-dim); margin:0; line-height:1.65; }
+
+  footer { margin-top:70px; padding-top:20px; border-top:1px solid var(--border-soft); color:var(--text-faint); font-size:12.5px; font-family:var(--mono); }
+
+  @media (max-width:1180px){ .toc{display:none;} .shell{grid-template-columns:232px minmax(0,1fr);} }
+  @media (max-width:860px){ .sidenav{display:none;} .shell{grid-template-columns:1fr;} article{padding:28px 20px 90px;} .search{display:none;} }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand"><span class="logo">W</span>Weaver-Next<span class="sub">/ Architecture</span></div>
+  <div class="search">🔍 搜索文档…<kbd>⌘K</kbd></div>
+  <div class="spacer"></div>
+  <span class="pill ver">schema v7 · node ≥24</span>
+  <span class="pill">2026-07-12</span>
+  <button class="theme-toggle" id="themeToggle" title="切换主题">◐</button>
+</header>
+
+<div class="shell">
+
+  <!-- ============ LEFT NAV ============ -->
+  <nav class="sidenav" id="sidenav">
+    <div class="group">总览</div>
+    <a href="#overview">系统概览</a>
+    <a href="#diagram">整体架构图</a>
+    <a href="#monorepo">Monorepo 布局</a>
+    <div class="group">核心设计</div>
+    <a href="#domain">核心领域模型</a>
+    <a href="#mcp">MCP Server 架构</a>
+    <a href="#widget">Widget / UI 架构</a>
+    <a href="#storage">存储与持久化</a>
+    <a href="#layout">布局引擎</a>
+    <a href="#agent">Agent 任务系统</a>
+    <div class="group">工程</div>
+    <a href="#build">构建与发布</a>
+    <a href="#decisions">关键架构决策</a>
+    <a href="#files">关键文件索引</a>
+  </nav>
+
+  <!-- ============ ARTICLE ============ -->
+  <article>
+    <div class="crumb">docs / <b>architecture-overview</b></div>
+    <h1>Weaver-Next 架构与技术设计总览</h1>
+    <p class="lede">Weaver-Next 是一个<strong>本地优先的语义画布 / 知识图谱系统</strong>，以插件形态运行在 AI 编码代理宿主（OpenAI Codex 与 Claude Code）内。每个项目一张内容图（content graph），被投影为多个独立视图；Agent 只能通过<strong>可审计的 ChangeSet</strong> 修改图内容，用户在 React 白板上预览并批准。所有数据持久化在项目本地的 SQLite。</p>
+    <div class="meta-row">
+      <span class="tag">TypeScript · ESM</span><span class="tag">npm workspaces</span><span class="tag">React 18 + React Flow</span><span class="tag">MCP (stdio)</span><span class="tag">SQLite (node:sqlite)</span><span class="tag">esbuild + Vite 7</span><span class="tag">Zod contracts</span><span class="tag">elkjs / d3-force</span>
+    </div>
+
+    <!-- ================= 1. overview ================= -->
+    <h2 id="overview">系统概览<a class="hash" href="#overview">#</a></h2>
+    <p>整个系统由三层组成，围绕一个核心原则设计：<strong>内容与呈现分离、意图与结果分离、Agent 与数据分离</strong>。</p>
+    <ul>
+      <li><strong>宿主层</strong> —— Codex / Claude Code 通过 stdio 启动 MCP 服务器；Codex 内嵌 <code>ui://</code> 原生面板，Claude Code 打开带 token 的回环浏览器预览。两个宿主最终都走同一条回环数据链路。</li>
+      <li><strong>服务层</strong> —— <code>@weaver/mcp</code> 暴露整合后的工具面（consolidated dispatcher tools），同时内置一个 loopback HTTP/SSE Hub，承担 widget 静态资源、<code>/mcp-rpc</code> 进程内分发、<code>/events</code> 事件流。</li>
+      <li><strong>数据层</strong> —— <code>@weaver/storage</code> 用 Node 内置 <code>node:sqlite</code> 落盘到 <code>&lt;workspace&gt;/.weaver/weaver.sqlite</code>（WAL 模式），资产以 sha256 寻址存磁盘。</li>
+    </ul>
+    <div class="callout info"><span class="ic">💡</span><div><b class="cap">Info · 设计基线</b><p>每个 Weaver 功能都必须同时在 Codex 与 Claude 两个宿主中可用，两者仅入口不同——这是贯穿所有模块的第一约束。</p></div></div>
+
+    <!-- ================= 2. diagram ================= -->
+    <h2 id="diagram">整体架构图<a class="hash" href="#diagram">#</a></h2>
+    <div class="diagram">
+      <div class="dg-title">System Architecture · one loopback data path, two hosts</div>
+      <div class="dg-inner">
+        <!-- hosts row -->
+        <div class="dg-row" style="grid-template-columns:1fr 1fr 1fr;">
+          <div class="dg-box host">
+            <div class="bx-cap">Host</div>
+            <div class="bx-name">OpenAI Codex</div>
+            <div class="bx-desc">stdio 启动 MCP · <code>ui://</code> 内嵌原生面板（outputTemplate）</div>
+          </div>
+          <div class="dg-box host">
+            <div class="bx-cap">Host</div>
+            <div class="bx-name">Claude Code</div>
+            <div class="bx-desc">stdio 启动 MCP · 打开 tokenized 回环浏览器预览 <code>/preview</code></div>
+          </div>
+          <div class="dg-box ui">
+            <div class="bx-cap">UI · apps/widget</div>
+            <div class="bx-name">React Widget（画布）</div>
+            <div class="bx-desc">React 18 + @xyflow/react · Vite 单文件产物 · inline / fullscreen 双形态</div>
+          </div>
+        </div>
+        <div class="dg-arrows" style="grid-template-columns:1fr 1fr 1fr;">
+          <div class="dg-arrow"><span>MCP tools/call · stdio</span></div>
+          <div class="dg-arrow"><span>MCP tools/call · stdio</span></div>
+          <div class="dg-arrow"><span>POST /mcp-rpc + SSE /events</span></div>
+        </div>
+        <!-- server row -->
+        <div class="dg-row" style="grid-template-columns:1fr;">
+          <div class="dg-box srv">
+            <div class="bx-cap">Server · packages/mcp</div>
+            <div class="bx-name">@weaver/mcp — MCP Server + Loopback Hub</div>
+            <div class="bx-desc">整合分发器工具面（resource / action 判别式）· registry Map 进程内分发 · token 门控 SseEventHub · 会话身份由 cwd 确定性收敛</div>
+            <div style="margin-top:8px;">
+              <span class="dg-chip">weaver_read_session</span><span class="dg-chip">weaver_read_catalog</span><span class="dg-chip">weaver_canvas_action</span><span class="dg-chip">weaver_task_action</span><span class="dg-chip">weaver_review_action</span><span class="dg-chip">weaver_submit_changeset</span><span class="dg-chip">weaver_recommend_layout</span><span class="dg-chip">weaver_get_diagnostics</span><span class="dg-chip">…</span>
+            </div>
+          </div>
+        </div>
+        <div class="dg-arrows" style="grid-template-columns:1fr;">
+          <div class="dg-arrow"><span>pure domain calls</span></div>
+        </div>
+        <!-- domain row -->
+        <div class="dg-wide">
+          <div class="wide-cap">Domain packages · contracts-first</div>
+          <div class="dg-row" style="grid-template-columns:repeat(5,1fr);">
+            <div class="dg-box pkg"><div class="bx-name" style="font-size:12.5px;">@weaver/contracts</div><div class="bx-desc">Zod schema 唯一事实源</div></div>
+            <div class="dg-box pkg"><div class="bx-name" style="font-size:12.5px;">@weaver/core</div><div class="bx-desc">纯领域逻辑：graph / layout ops / context</div></div>
+            <div class="dg-box pkg"><div class="bx-name" style="font-size:12.5px;">@weaver/layout-engine</div><div class="bx-desc">确定性布局候选（elk / d3-force / semantic）</div></div>
+            <div class="dg-box pkg"><div class="bx-name" style="font-size:12.5px;">@weaver/visual-templates</div><div class="bx-desc">17 个不可变模板</div></div>
+            <div class="dg-box pkg"><div class="bx-name" style="font-size:12.5px;">@weaver/scene-packs</div><div class="bx-desc">13 套语义词表</div></div>
+          </div>
+        </div>
+        <div class="dg-arrows" style="grid-template-columns:1fr;">
+          <div class="dg-arrow"><span>WorkspaceStore facades</span></div>
+        </div>
+        <!-- storage row -->
+        <div class="dg-row" style="grid-template-columns:2fr 1fr;">
+          <div class="dg-box db">
+            <div class="bx-cap">Storage · packages/storage</div>
+            <div class="bx-name">SQLite — &lt;workspace&gt;/.weaver/weaver.sqlite</div>
+            <div class="bx-desc">WAL · schema v7 · project / node / edge / layout(+history/run) / project_view / agent_task / changeset / asset / project_event（事件日志）</div>
+          </div>
+          <div class="dg-box db">
+            <div class="bx-cap">Assets</div>
+            <div class="bx-name">.weaver/assets/</div>
+            <div class="bx-desc">sha256 去重 · sharp 缩略图 · 仅 image ≤ 20MB</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="dim">要点：Codex 原生面板对复杂参数的 <code>tools/call</code> 代理会以 <code>-32000</code> 拒绝，因此 widget <strong>优先直连回环 <code>/mcp-rpc</code></strong>（端点烘焙进 <code>ui://</code> HTML 的 <code>window.__weaverCodexLoopback</code>），Apps-SDK 代理仅作降级回退。回环端口与 token 由 <code>cwd</code> + <code>~/.weaver/preview-secret</code> 确定性派生，进程重启后 URL 保持稳定。</p>
+
+    <!-- ================= 3. monorepo ================= -->
+    <h2 id="monorepo">Monorepo 布局<a class="hash" href="#monorepo">#</a></h2>
+    <p>使用 <strong>npm workspaces</strong>（<code>"workspaces": ["apps/*","packages/*"]</code>），共享 <code>tsconfig.base.json</code>（ES2022 / NodeNext / strict），Biome 做 lint/format，Vitest 做测试。</p>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>包</th><th>路径</th><th>职责</th></tr></thead>
+      <tbody>
+        <tr><td><code>@weaver/contracts</code></td><td><code>packages/contracts</code></td><td>全领域 Zod schema + 推导类型，唯一事实源；仅依赖 <code>zod</code></td></tr>
+        <tr><td><code>@weaver/core</code></td><td><code>packages/core</code></td><td>纯领域逻辑：<code>applyGraphOperations</code>、<code>applyLayoutOperations</code>、<code>diffLayoutDocuments</code>、<code>resolveSceneContext</code></td></tr>
+        <tr><td><code>@weaver/scene-packs</code></td><td><code>packages/scene-packs</code></td><td>13 套内置 ScenePack（按思考领域的节点/边类型词表）</td></tr>
+        <tr><td><code>@weaver/visual-templates</code></td><td><code>packages/visual-templates</code></td><td>17 个不可变 VisualTemplate + 场景角色绑定 + 校验</td></tr>
+        <tr><td><code>@weaver/layout-engine</code></td><td><code>packages/layout-engine</code></td><td>确定性布局候选生成；依赖 <code>d3-force</code>、<code>elkjs</code>；子入口 <code>./semantic</code></td></tr>
+        <tr><td><code>@weaver/storage</code></td><td><code>packages/storage</code></td><td>SQLite 持久化（<code>node:sqlite</code>）、资产存储（<code>sharp</code>）、迁移、事件日志</td></tr>
+        <tr><td><code>@weaver/mcp</code></td><td><code>packages/mcp</code></td><td>MCP 服务器 + 回环 HTTP/SSE Hub + widget 分发</td></tr>
+        <tr><td><code>@weaver/widget</code></td><td><code>apps/widget</code></td><td>React 18 画布 UI，Vite 7 构建为单文件</td></tr>
+      </tbody>
+    </table></div>
+    <p>构建顺序（根 <code>build:packages</code>）：contracts → core → layout-engine → scene-packs → visual-templates → storage → mcp → <code>build:widget</code> → <code>build:plugin / build:release</code>。其余顶层目录：<code>plugins/</code>（发布快照）、<code>scripts/</code>（构建发布）、<code>skills/</code>（Agent 技能剧本）、<code>.codex-plugin/</code>（插件清单）、<code>.weaver/</code>（运行时工作区数据）。</p>
+
+    <div class="figure">
+      <div class="fig-cap">Figure 1 · Monorepo 依赖图（实线 = 编译期依赖，简化：core / scene-packs / layout-engine 直接依赖 contracts，其余经传递）</div>
+      <svg viewBox="0 0 760 340" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Monorepo 依赖图">
+        <defs>
+          <marker id="arDep" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+            <path d="M0 0L10 5L0 10z" style="fill:var(--text-faint)"/>
+          </marker>
+        </defs>
+        <rect class="bx bx-green" x="90" y="16" width="210" height="48" rx="10"/>
+        <text class="tt tg" x="195" y="36" text-anchor="middle">@weaver/mcp</text>
+        <text class="dd" x="195" y="52" text-anchor="middle">MCP Server + Loopback Hub</text>
+        <rect class="bx bx-acc" x="460" y="16" width="210" height="48" rx="10"/>
+        <text class="tt ta" x="565" y="36" text-anchor="middle">@weaver/widget</text>
+        <text class="dd" x="565" y="52" text-anchor="middle">React 18 画布（apps/widget）</text>
+        <rect class="bx" x="40" y="112" width="160" height="48" rx="10"/>
+        <text class="tt" x="120" y="132" text-anchor="middle">@weaver/storage</text>
+        <text class="dd" x="120" y="148" text-anchor="middle">SQLite · 资产 · 迁移</text>
+        <rect class="bx" x="250" y="112" width="180" height="48" rx="10"/>
+        <text class="tt" x="340" y="132" text-anchor="middle">@weaver/visual-templates</text>
+        <text class="dd" x="340" y="148" text-anchor="middle">17 个不可变模板</text>
+        <rect class="bx" x="480" y="112" width="170" height="48" rx="10"/>
+        <text class="tt" x="565" y="132" text-anchor="middle">@weaver/layout-engine</text>
+        <text class="dd" x="565" y="148" text-anchor="middle">elk · d3-force · semantic</text>
+        <rect class="bx" x="140" y="208" width="150" height="48" rx="10"/>
+        <text class="tt" x="215" y="228" text-anchor="middle">@weaver/core</text>
+        <text class="dd" x="215" y="244" text-anchor="middle">纯领域逻辑</text>
+        <rect class="bx" x="340" y="208" width="160" height="48" rx="10"/>
+        <text class="tt" x="420" y="228" text-anchor="middle">@weaver/scene-packs</text>
+        <text class="dd" x="420" y="244" text-anchor="middle">13 套语义词表</text>
+        <rect class="bx bx-purple" x="230" y="292" width="260" height="42" rx="10"/>
+        <text class="tt tp" x="360" y="310" text-anchor="middle">@weaver/contracts</text>
+        <text class="dd" x="360" y="326" text-anchor="middle">Zod schema · 全领域唯一事实源</text>
+        <line class="ln" x1="150" y1="64" x2="122" y2="112" marker-end="url(#arDep)"/>
+        <line class="ln" x1="205" y1="64" x2="320" y2="112" marker-end="url(#arDep)"/>
+        <line class="ln" x1="255" y1="64" x2="520" y2="112" marker-end="url(#arDep)"/>
+        <line class="ln lnd" x1="460" y1="40" x2="305" y2="40" marker-end="url(#arDep)"/>
+        <text class="lab" x="382" y="33" text-anchor="middle">运行时 HTTP /mcp-rpc（非编译依赖）</text>
+        <line class="ln" x1="120" y1="160" x2="195" y2="208" marker-end="url(#arDep)"/>
+        <line class="ln" x1="340" y1="160" x2="405" y2="208" marker-end="url(#arDep)"/>
+        <line class="ln" x1="230" y1="256" x2="310" y2="292" marker-end="url(#arDep)"/>
+        <line class="ln" x1="420" y1="256" x2="400" y2="292" marker-end="url(#arDep)"/>
+        <path class="ln" d="M565 160 L565 313 L494 313" marker-end="url(#arDep)"/>
+      </svg>
+    </div>
+
+    <!-- ================= 4. domain ================= -->
+    <h2 id="domain">核心领域模型<a class="hash" href="#domain">#</a></h2>
+    <p>全部定义在 <code>packages/contracts/src/</code>（<code>space.ts</code>、<code>visual.ts</code>、<code>layout.ts</code>、<code>actions.ts</code>、<code>widget.ts</code>、<code>failure.ts</code>）。</p>
+
+    <div class="figure">
+      <div class="fig-cap">Figure 2 · 领域模型与实体关系</div>
+      <svg viewBox="0 0 760 350" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="领域模型实体关系图">
+        <defs>
+          <marker id="arEr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+            <path d="M0 0L10 5L0 10z" style="fill:var(--text-faint)"/>
+          </marker>
+        </defs>
+        <rect class="bx bx-acc" x="20" y="24" width="180" height="64" rx="10"/>
+        <text class="tt ta" x="110" y="48" text-anchor="middle">ChangeSet</text>
+        <text class="dd" x="110" y="66" text-anchor="middle">唯一变更通道 · revision 守卫</text>
+        <rect class="bx" x="290" y="24" width="200" height="64" rx="10"/>
+        <text class="tt" x="390" y="48" text-anchor="middle">SpaceProject</text>
+        <text class="dd" x="390" y="66" text-anchor="middle">graphRevision · viewCatalogRevision</text>
+        <rect class="bx bx-purple" x="560" y="24" width="180" height="64" rx="10"/>
+        <text class="tt tp" x="650" y="48" text-anchor="middle">VisualTemplate</text>
+        <text class="dd" x="650" y="66" text-anchor="middle">不可变 · 带版本 · 内容保持</text>
+        <rect class="bx" x="60" y="150" width="200" height="70" rx="10"/>
+        <text class="tt" x="160" y="176" text-anchor="middle">SpaceNode</text>
+        <text class="dd" x="160" y="194" text-anchor="middle">content: document | image</text>
+        <text class="dd" x="160" y="208" text-anchor="middle">| link | chart</text>
+        <rect class="bx" x="320" y="150" width="150" height="56" rx="10"/>
+        <text class="tt" x="395" y="174" text-anchor="middle">SpaceEdge</text>
+        <text class="dd" x="395" y="192" text-anchor="middle">有类型 · 有方向</text>
+        <rect class="bx" x="540" y="150" width="200" height="70" rx="10"/>
+        <text class="tt" x="640" y="176" text-anchor="middle">ProjectView</text>
+        <text class="dd" x="640" y="194" text-anchor="middle">canvas/tree/board/timeline…</text>
+        <text class="dd" x="640" y="208" text-anchor="middle">经 ProjectionSpec 投影</text>
+        <rect class="bx" x="60" y="282" width="180" height="50" rx="10"/>
+        <text class="tt" x="150" y="303" text-anchor="middle">Asset</text>
+        <text class="dd" x="150" y="320" text-anchor="middle">sha256 去重 · 仅 image ≤20MB</text>
+        <rect class="bx" x="540" y="282" width="200" height="50" rx="10"/>
+        <text class="tt" x="640" y="303" text-anchor="middle">LayoutDocument</text>
+        <text class="dd" x="640" y="320" text-anchor="middle">几何独立存储 · layoutRevision</text>
+        <line class="ln" x1="340" y1="88" x2="180" y2="150" marker-end="url(#arEr)"/>
+        <text class="lab" x="240" y="112">1 : N 节点</text>
+        <line class="ln" x1="392" y1="88" x2="394" y2="150" marker-end="url(#arEr)"/>
+        <text class="lab" x="402" y="122">1 : N 边</text>
+        <line class="ln" x1="446" y1="88" x2="612" y2="150" marker-end="url(#arEr)"/>
+        <text class="lab" x="490" y="112">1 : N 视图</text>
+        <line class="ln" x1="320" y1="182" x2="264" y2="182" marker-end="url(#arEr)"/>
+        <text class="lab" x="292" y="173" text-anchor="middle">source / target</text>
+        <line class="ln" x1="150" y1="220" x2="150" y2="282" marker-end="url(#arEr)"/>
+        <text class="lab" x="158" y="254">attach（引用 assetId）</text>
+        <line class="ln" x1="640" y1="220" x2="640" y2="282" marker-end="url(#arEr)"/>
+        <text class="lab" x="648" y="254">1 : 1 几何</text>
+        <line class="ln lnd" x1="650" y1="88" x2="646" y2="150" marker-end="url(#arEr)"/>
+        <text class="lab" x="654" y="122">创建（不动内容）</text>
+        <line class="ln lnd" x1="110" y1="88" x2="140" y2="150" marker-end="url(#arEr)"/>
+        <text class="lab" x="20" y="112">graphOperations</text>
+        <text class="lab" x="20" y="124">layoutOperations</text>
+      </svg>
+    </div>
+
+    <h3 id="domain-graph">内容图：Project / Node / Edge / Asset</h3>
+    <ul>
+      <li><strong>SpaceProject</strong> —— id、title、goal、<code>scenePackId/Version</code>、<code>automationLevel</code>（cautious / collaborative / automatic）、<code>defaultViewId</code>，以及两个乐观并发计数器 <code>graphRevision</code> 与 <code>viewCatalogRevision</code>。</li>
+      <li><strong>SpaceNode</strong> —— <code>content</code> 是以 <code>kind</code> 判别的联合：<code>document</code>（markdown + 封面 + 内嵌资产）、<code>image</code>（assetId）、<code>link</code>（url + enrichment 状态）、<code>chart</code>（line/bar/pie/area/metric + <code>series</code> + <code>sourceNote</code>/<code>asOf</code> 审计字段）。schema transform 强制 <code>contentKind === content.kind</code>。</li>
+      <li><strong>SpaceEdge</strong> —— 有类型、有方向；<code>applyGraphOperations</code> 拒绝自环（<code>SELF_EDGE</code>）与跨项目边（<code>CROSS_PROJECT_EDGE</code>）。</li>
+      <li><strong>Asset</strong> —— 仅图片、≤20MB、sha256 寻址，含 storageUri + thumbnailUri。</li>
+    </ul>
+
+    <h3 id="domain-views">视图与投影：一图多视</h3>
+    <ul>
+      <li><strong>ProjectView</strong> —— <code>viewType</code> ∈ canvas / tree / graph / board / timeline / flow / table；生命周期 active / trashed（含 <code>purgeAfter</code>）、置顶排序、<code>createdBy</code>（user / agent / template）。</li>
+      <li><strong>ProjectionSpec</strong> —— 判别式联合，描述同一张图如何投影到各视图族（tree 的 rootNodeType/parentEdgeTypes、board 的 columnField、matrix 的 x/y 象限、timeline 的 timeField、table 的 columns…）。</li>
+      <li><strong>VisualTemplate</strong> —— <strong>不可变、带版本</strong>的蓝图：family / renderer / starterBlueprint（≤20 节点角色）/ sceneBindings / projection / layoutPreset / theme / agentGuidance。硬性不变量：<strong>把模板应用到既有项目绝不改动图内容</strong>，只新增视图与布局。</li>
+    </ul>
+
+    <div class="figure">
+      <div class="fig-cap">Figure 3 · 一图多视：ProjectionSpec 投影</div>
+      <svg viewBox="0 0 760 250" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="一图多视投影示意">
+        <defs>
+          <marker id="arPj" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+            <path d="M0 0L10 5L0 10z" style="fill:var(--text-faint)"/>
+          </marker>
+        </defs>
+        <rect class="bx" x="20" y="30" width="220" height="190" rx="14"/>
+        <text class="tt" x="130" y="56" text-anchor="middle">一张内容图（唯一事实）</text>
+        <line class="ln" x1="80" y1="115" x2="145" y2="90"/>
+        <line class="ln" x1="145" y1="90" x2="195" y2="135"/>
+        <line class="ln" x1="80" y1="115" x2="100" y2="170"/>
+        <line class="ln" x1="100" y1="170" x2="165" y2="185"/>
+        <line class="ln" x1="195" y1="135" x2="165" y2="185"/>
+        <circle class="node-dot" cx="80" cy="115" r="8"/>
+        <circle class="node-dot" cx="145" cy="90" r="8"/>
+        <circle class="node-dot" cx="195" cy="135" r="8"/>
+        <circle class="node-dot" cx="100" cy="170" r="8"/>
+        <circle class="node-dot" cx="165" cy="185" r="8"/>
+        <rect class="bx bx-acc" x="300" y="97" width="160" height="56" rx="12"/>
+        <text class="tt ta" x="380" y="120" text-anchor="middle">ProjectionSpec</text>
+        <text class="dd" x="380" y="138" text-anchor="middle">按视图族声明投影规则</text>
+        <line class="ln" x1="240" y1="125" x2="300" y2="125" marker-end="url(#arPj)"/>
+        <line class="ln" x1="460" y1="125" x2="497" y2="125"/>
+        <line class="ln" x1="497" y1="65" x2="497" y2="185"/>
+        <line class="ln" x1="497" y1="65" x2="515" y2="65" marker-end="url(#arPj)"/>
+        <line class="ln" x1="497" y1="185" x2="515" y2="185" marker-end="url(#arPj)"/>
+        <line class="ln" x1="497" y1="125" x2="688" y2="125"/>
+        <line class="ln" x1="688" y1="125" x2="688" y2="114" marker-end="url(#arPj)"/>
+        <line class="ln" x1="688" y1="125" x2="688" y2="136" marker-end="url(#arPj)"/>
+        <rect class="bx" x="515" y="20" width="108" height="90" rx="10"/>
+        <circle class="node-dot" cx="545" cy="45" r="5"/>
+        <circle class="node-dot" cx="585" cy="60" r="5"/>
+        <circle class="node-dot" cx="555" cy="80" r="5"/>
+        <circle class="node-dot" cx="600" cy="40" r="5"/>
+        <text class="lab" x="569" y="102" text-anchor="middle">canvas</text>
+        <rect class="bx" x="640" y="20" width="108" height="90" rx="10"/>
+        <line class="ln" x1="694" y1="42" x2="668" y2="64"/>
+        <line class="ln" x1="694" y1="42" x2="720" y2="64"/>
+        <line class="ln" x1="668" y1="64" x2="656" y2="84"/>
+        <line class="ln" x1="668" y1="64" x2="680" y2="84"/>
+        <circle class="node-dot" cx="694" cy="42" r="5"/>
+        <circle class="node-dot" cx="668" cy="64" r="5"/>
+        <circle class="node-dot" cx="720" cy="64" r="5"/>
+        <circle class="node-dot" cx="656" cy="84" r="4"/>
+        <circle class="node-dot" cx="680" cy="84" r="4"/>
+        <text class="lab" x="694" y="102" text-anchor="middle">tree</text>
+        <rect class="bx" x="515" y="140" width="108" height="90" rx="10"/>
+        <rect class="col-fill" x="527" y="152" width="24" height="50" rx="4"/>
+        <rect class="col-fill" x="557" y="152" width="24" height="36" rx="4"/>
+        <rect class="col-fill" x="587" y="152" width="24" height="58" rx="4"/>
+        <text class="lab" x="569" y="222" text-anchor="middle">board</text>
+        <rect class="bx" x="640" y="140" width="108" height="90" rx="10"/>
+        <line class="ln" x1="652" y1="190" x2="736" y2="190"/>
+        <circle class="node-dot" cx="665" cy="190" r="4"/>
+        <circle class="node-dot" cx="690" cy="190" r="4"/>
+        <circle class="node-dot" cx="715" cy="190" r="4"/>
+        <text class="lab" x="694" y="222" text-anchor="middle">timeline</text>
+      </svg>
+    </div>
+
+    <h3 id="domain-changeset">ChangeSet：唯一变更通道</h3>
+    <div class="codeblock">
+      <div class="cb-head"><span class="lang">ts</span><button class="copy" onclick="copyCode(this)">Copy</button></div>
+      <pre><span class="cm">// packages/contracts/src/layout.ts — 图的唯一变更路径</span>
+<span class="kw">type</span> <span class="ty">ChangeSet</span> = {
+  id: <span class="ty">string</span>; taskId: <span class="ty">string</span>; projectId: <span class="ty">string</span>;
+  baseGraphRevision: <span class="ty">number</span>;          <span class="cm">// 乐观并发守卫</span>
+  baseLayoutRevisions: <span class="ty">Record</span>&lt;<span class="ty">string</span>, <span class="ty">number</span>&gt;;
+  graphOperations: <span class="ty">GraphOperation</span>[];   <span class="cm">// add/update/archive node|edge, set-node-content, attach-asset…</span>
+  layoutOperations: <span class="ty">LayoutOperation</span>[]; <span class="cm">// frame/pin/group/rank/lane/route/projection/theme…</span>
+  rationale: <span class="ty">string</span>; riskLevel: <span class="ty">RiskLevel</span>; status: <span class="ty">ChangeSetStatus</span>;
+};</pre>
+    </div>
+    <div class="callout warn"><span class="ic">⚠️</span><div><b class="cap">Warn · 并发守卫</b><p>Apply 时校验 <code>baseGraphRevision</code> / <code>baseLayoutRevisions</code>，版本冲突则将任务置为 stale；同时自动放置新节点、清退未触碰的模板占位（starter）节点。Agent 从不直接接触 SQLite 或 <code>.weaver</code> 文件。</p></div></div>
+
+    <div class="figure">
+      <div class="fig-cap">Figure 4 · ChangeSet 生命周期时序（画布 watch 模式）</div>
+      <svg viewBox="0 0 760 400" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="ChangeSet 生命周期时序图">
+        <defs>
+          <marker id="arSq" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+            <path d="M0 0L10 5L0 10z" style="fill:var(--text-faint)"/>
+          </marker>
+        </defs>
+        <rect class="bx bx-acc" x="35" y="10" width="150" height="34" rx="8"/>
+        <text class="tt ta" x="110" y="31" text-anchor="middle">画布 Widget（用户）</text>
+        <rect class="bx bx-purple" x="235" y="10" width="150" height="34" rx="8"/>
+        <text class="tt tp" x="310" y="31" text-anchor="middle">Agent（Codex/Claude）</text>
+        <rect class="bx bx-green" x="435" y="10" width="150" height="34" rx="8"/>
+        <text class="tt tg" x="510" y="31" text-anchor="middle">@weaver/mcp Server</text>
+        <rect class="bx bx-amber" x="615" y="10" width="130" height="34" rx="8"/>
+        <text class="tt tm" x="680" y="31" text-anchor="middle">.weaver SQLite</text>
+        <line class="ln lnd" x1="110" y1="44" x2="110" y2="390" style="opacity:.45"/>
+        <line class="ln lnd" x1="310" y1="44" x2="310" y2="390" style="opacity:.45"/>
+        <line class="ln lnd" x1="510" y1="44" x2="510" y2="390" style="opacity:.45"/>
+        <line class="ln lnd" x1="680" y1="44" x2="680" y2="390" style="opacity:.45"/>
+        <line class="ln" x1="110" y1="72" x2="505" y2="72" marker-end="url(#arSq)"/>
+        <text class="lab" x="307" y="65" text-anchor="middle">composer 输入 → weaver_submit_canvas_prompt</text>
+        <line class="ln" x1="310" y1="102" x2="505" y2="102" marker-end="url(#arSq)"/>
+        <text class="lab" x="408" y="95" text-anchor="middle">await_canvas_prompt 长轮询 → 领取（dispatched）</text>
+        <line class="ln" x1="310" y1="132" x2="505" y2="132" marker-end="url(#arSq)"/>
+        <text class="lab" x="408" y="125" text-anchor="middle">start · 读 manifest / resolved_context</text>
+        <line class="ln" x1="510" y1="158" x2="675" y2="158" marker-end="url(#arSq)"/>
+        <text class="lab" x="593" y="151" text-anchor="middle">读图 · 场景策略裁剪邻域</text>
+        <line class="ln" x1="310" y1="192" x2="505" y2="192" marker-end="url(#arSq)"/>
+        <text class="lab" x="408" y="185" text-anchor="middle">weaver_submit_changeset（base revisions + operations）</text>
+        <line class="ln" x1="510" y1="218" x2="675" y2="218" marker-end="url(#arSq)"/>
+        <text class="lab" x="593" y="211" text-anchor="middle">存 ChangeSet · 任务 → pending_review</text>
+        <line class="ln lnd" x1="510" y1="248" x2="115" y2="248" marker-end="url(#arSq)"/>
+        <text class="lab" x="307" y="241" text-anchor="middle">SSE task.updated → ChangeSet 预览面板</text>
+        <line class="ln" x1="110" y1="282" x2="505" y2="282" marker-end="url(#arSq)"/>
+        <text class="lab" x="307" y="275" text-anchor="middle">用户 Apply（审批通过）</text>
+        <line class="ln" x1="510" y1="308" x2="675" y2="308" marker-end="url(#arSq)"/>
+        <text class="lab" x="593" y="301" text-anchor="middle">applyChangeSet：revision 守卫 · project_event</text>
+        <line class="ln lnd" x1="510" y1="340" x2="115" y2="340" marker-end="url(#arSq)"/>
+        <text class="lab" x="307" y="333" text-anchor="middle">SSE graph.changed / layout.changed → 画布刷新</text>
+        <line class="ln" x1="310" y1="372" x2="505" y2="372" marker-end="url(#arSq)"/>
+        <text class="lab" x="408" y="365" text-anchor="middle">continue / complete（develop_then_layout 进入布局阶段）</text>
+      </svg>
+    </div>
+
+    <!-- ================= 5. mcp ================= -->
+    <h2 id="mcp">MCP Server 架构<a class="hash" href="#mcp">#</a></h2>
+    <p>入口 <code>packages/mcp/src/server.ts</code> → <code>createWeaverServer()</code>（<code>create-server.ts</code>）。面向 Agent 的传输是 <strong>stdio</strong>（<code>StdioServerTransport</code>），并带完善的宿主死亡检测（stdin EOF、stdout EPIPE、未捕获 EPIPE → 自我终止），防止宿主重启后遗留孤儿进程。</p>
+
+    <h3 id="mcp-consolidated">整合分发器（consolidated dispatcher）</h3>
+    <p>源码注册的是<strong>少量整合工具</strong>，用 <code>resource</code> / <code>action</code> 判别字段扇出到 ~80 个细粒度操作，而非平铺 80 个工具：</p>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>整合工具</th><th>扇出目标（节选）</th></tr></thead>
+      <tbody>
+        <tr><td><code>weaver_read_session</code></td><td>bound_canvas · task · canvas_tasks · canvas_context · canvas_view_state · resolved_context · guard</td></tr>
+        <tr><td><code>weaver_read_catalog</code></td><td>project.list · view.list/search/get · template.list/get/validate/preview · artifact.get · asset.metadata/preview</td></tr>
+        <tr><td><code>weaver_canvas_action</code></td><td>claim · sync · switch · create_node · update_node · archive_node · attach_asset · enrich_link · layout_operations · revert_layout</td></tr>
+        <tr><td><code>weaver_task_action</code> / <code>weaver_review_action</code> / <code>weaver_catalog_action</code></td><td>任务状态机动作 / 审批动作 / 目录变更动作</td></tr>
+        <tr><td>独立工具</td><td><code>weaver_open_space</code> · <code>weaver_prepare_task</code> · <code>weaver_submit_changeset</code> · <code>weaver_recommend_layout</code> · <code>weaver_import_asset</code> · <code>weaver_get_diagnostics</code> · <code>weaver_read_graph</code> · <code>weaver_subscribe_canvas</code></td></tr>
+      </tbody>
+    </table></div>
+    <p>动机：Codex 会丢弃过大的工具 schema。<code>weaver_submit_changeset</code> 甚至对外宣告宽松的 <code>z.unknown()</code> 输入（内部再严格校验）以免被剔除；<code>create-server.ts</code> 维护 <code>CRITICAL_MODEL_TOOLS</code> 清单并用 <code>computeToolSurface()</code> 诊断宿主是否静默丢工具。</p>
+    <p><code>createWeaverServer</code> 对 <code>server.registerTool</code> 做了包装：把每个工具的 Zod shape + handler + <code>_meta</code> 收进 <code>registry</code> Map（供回环 <code>/mcp-rpc</code> 进程内分发）、注入结构化计时日志、给预览白名单工具自动打 <code>openai/widgetAccessible</code> 标记。</p>
+
+    <h3 id="mcp-session">会话身份收敛</h3>
+    <p><code>session-identity.ts</code> 从启动 <code>cwd</code> 确定性派生 <code>chatSessionKey</code>（<code>syntheticChatSessionKey</code>），使 stdio Agent、兄弟 MCP 进程、浏览器 widget <strong>收敛到同一个画布绑定</strong>。宿主类型由启动脚本注入 <code>WEAVER_HOST_KIND</code>（<code>start-mcp.mjs</code>=codex，<code>start-mcp-claude.mjs</code>=claude）。</p>
+
+    <!-- ================= 6. widget ================= -->
+    <h2 id="widget">Widget / UI 架构<a class="hash" href="#widget">#</a></h2>
+    <p><code>apps/widget</code>：React 18 + <code>@xyflow/react</code>（React Flow）画布，Vite 构建（<code>base:"./"</code>，<code>inlineDynamicImports</code>，单文件产物）。<code>src/main.tsx</code> 把状态提升到根组件，穿引一组领域 hooks：<code>useProjectBootstrap</code>、<code>useCanvasBindingSync</code>、<code>useCanvasGraph</code>、<code>useCanvasEventStream</code>、<code>useViewCatalog</code>、<code>useVisualTemplateGallery</code>、<code>useDisplayMode</code> 等；渲染核心在 <code>components/CanvasStage.tsx</code>，配套 <code>ChangeSetPreviewPanel</code>、<code>LayoutCandidatePanel</code>、<code>TemplateGalleryModal</code>、<code>DocumentEditorPanel</code>、<code>ViewLibraryDrawer</code>。</p>
+
+    <h3 id="widget-transport">三段式传输选择（mcp-client.ts）</h3>
+    <div class="codeblock">
+      <div class="cb-head"><span class="lang">ts</span><button class="copy" onclick="copyCode(this)">Copy</button></div>
+      <pre><span class="cm">// apps/widget/src/mcp-client.ts — callTool() 按宿主模式选传输</span>
+<span class="kw">if</span> (claudePreview)  <span class="cm">// POST {rpcPath:/mcp-rpc} + x-weaver-preview-token（由 /preview 注入 window.__weaverPreview）</span>
+<span class="kw">else if</span> (codexEmbedded) {
+  <span class="cm">// 1st: 回环 /mcp-rpc（window.__weaverCodexLoopback，绕开 Codex tools/call 代理的 -32000）</span>
+  <span class="cm">// 2nd: Apps-SDK App.callServerTool 代理（mcp-app-connection.ts，管理 connect/reset/drain）</span>
+}
+<span class="kw">else</span> <span class="cm">// dev: POST /api/mcp（Vite proxy）</span></pre>
+    </div>
+    <p><code>packages/mcp/src/widget.ts</code> 用内容哈希生成 <code>buildId</code>，产出两种 HTML 变体：<code>inlineWidgetHtml</code>（CSS/JS 全内联，供 Codex 原生面板）与 <code>bundledWidgetHtml</code>（资产由回环源提供，供浏览器预览）；<code>resources.ts</code> 同时注册一个<strong>稳定的</strong> <code>LEGACY_WIDGET_URI</code>，防止 Codex 缓存的描述符过期。<code>display_mode</code> 支持 <code>inline</code>（聊天内 <code>InlineEntryCard</code> 预览卡）与 <code>fullscreen</code>（完整白板）。</p>
+
+    <!-- ================= 7. storage ================= -->
+    <h2 id="storage">存储与持久化<a class="hash" href="#storage">#</a></h2>
+    <p>无外部数据库。<code>workspace-store.ts</code> 的 <code>WorkspaceStore</code> 打开工作区、跑迁移，并暴露命名空间外观：<code>sessions</code> / <code>catalog</code> / <code>graphChanges</code> / <code>layoutReviews</code> / <code>assets</code> / <code>tasks</code> / <code>artifacts</code>。行以 JSON <code>data</code> 列存储，读取时再过一遍 Zod schema（双保险校验）。</p>
+    <div class="codeblock">
+      <div class="cb-head"><span class="lang">text</span><button class="copy" onclick="copyCode(this)">Copy</button></div>
+      <pre>&lt;workspace&gt;/.weaver/
+├── weaver.sqlite            <span class="cm"># WAL · foreign_keys=ON · CURRENT_SCHEMA_VERSION = 7</span>
+│   ├── project / node / edge
+│   ├── layout / layout_history / layout_run
+│   ├── project_view / canvas_view_state / canvas_session / chat_canvas_binding
+│   ├── agent_task / changeset / artifact / asset
+│   └── project_event        <span class="cm"># 自增序列事件日志（SSE 回放源）</span>
+├── assets/{original,thumbnails,tasks}/
+└── exports/</pre>
+    </div>
+    <div class="callout danger"><span class="ic">🛑</span><div><b class="cap">Danger · 迁移策略</b><p><code>prepareWorkspaceData</code> 检测到 schema 版本不匹配时，会把整个 <code>.weaver</code> 目录重命名为带时间戳的备份（<code>.weaver-backup-…</code>）而非就地迁移——保守但不可逆地保留旧数据。</p></div></div>
+
+    <!-- ================= 8. layout ================= -->
+    <h2 id="layout">布局引擎<a class="hash" href="#layout">#</a></h2>
+    <p><code>generateLayoutCandidates(input)</code>（<code>engine.ts</code>）产出<strong>确定性、有种子</strong>的候选：<code>seededRandom</code> 由 <code>projectId:viewId:layoutRunId:index</code> 哈希派生，同输入必得同布局。Agent 只书写 <strong>LayoutPlan（语义意图）</strong>——scope / strategy / constraints（pin·align·rank·group·emphasis）/ preserve（pinnedNodes、mentalMapWeight）——从不书写坐标。</p>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>策略</th><th>实现</th><th>适用</th></tr></thead>
+      <tbody>
+        <tr><td>layered / tree / timeline / swimlane</td><td><code>elkjs</code>（layered）</td><td>有向层级结构</td></tr>
+        <tr><td>force</td><td><code>d3-force</code></td><td>无明显层级的关系图</td></tr>
+        <tr><td>radial / grid</td><td>自研（radial 尊重 <code>emphasis</code> 约束为中心）</td><td>中心辐射 / 规整排布</td></tr>
+        <tr><td>cluster / hybrid</td><td><code>src/semantic/</code>：detect（分簇）→ size（枢纽更大）→ micro（簇内）→ macro（簇间 pack + gutter）</td><td>语义聚类画布</td></tr>
+      </tbody>
+    </table></div>
+    <div class="figure">
+      <div class="fig-cap">Figure 6 · 布局推荐流水线（Agent 写意图 → 引擎出候选 → 用户定结果）</div>
+      <svg viewBox="0 0 760 240" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="布局流水线">
+        <defs>
+          <marker id="arLy" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+            <path d="M0 0L10 5L0 10z" style="fill:var(--text-faint)"/>
+          </marker>
+        </defs>
+        <rect class="bx bx-purple" x="20" y="22" width="150" height="58" rx="10"/>
+        <text class="tt tp" x="95" y="46" text-anchor="middle">LayoutPlan（意图）</text>
+        <text class="dd" x="95" y="64" text-anchor="middle">constraints · preserve</text>
+        <rect class="bx" x="205" y="22" width="140" height="58" rx="10"/>
+        <text class="tt" x="275" y="46" text-anchor="middle">校验 revision</text>
+        <text class="dd" x="275" y="64" text-anchor="middle">graph / layout 双守卫</text>
+        <rect class="bx bx-acc" x="380" y="22" width="190" height="58" rx="10"/>
+        <text class="tt ta" x="475" y="46" text-anchor="middle">候选生成（确定性 seeded）</text>
+        <text class="dd" x="475" y="64" text-anchor="middle">generateLayoutCandidates</text>
+        <rect class="bx" x="605" y="22" width="140" height="58" rx="10"/>
+        <text class="tt" x="675" y="46" text-anchor="middle">scoreLayout</text>
+        <text class="dd" x="675" y="64" text-anchor="middle">ScenePack 权重打分</text>
+        <line class="ln" x1="170" y1="51" x2="200" y2="51" marker-end="url(#arLy)"/>
+        <line class="ln" x1="345" y1="51" x2="375" y2="51" marker-end="url(#arLy)"/>
+        <line class="ln" x1="570" y1="51" x2="600" y2="51" marker-end="url(#arLy)"/>
+        <line class="ln" x1="430" y1="80" x2="386" y2="100"/>
+        <line class="ln" x1="460" y1="80" x2="452" y2="100"/>
+        <line class="ln" x1="490" y1="80" x2="530" y2="100"/>
+        <line class="ln" x1="520" y1="80" x2="614" y2="100"/>
+        <rect class="bx" x="360" y="100" width="52" height="22" rx="11"/>
+        <text class="lab" x="386" y="115" text-anchor="middle">elk</text>
+        <rect class="bx" x="420" y="100" width="64" height="22" rx="11"/>
+        <text class="lab" x="452" y="115" text-anchor="middle">d3-force</text>
+        <rect class="bx" x="492" y="100" width="76" height="22" rx="11"/>
+        <text class="lab" x="530" y="115" text-anchor="middle">radial · grid</text>
+        <rect class="bx" x="576" y="100" width="88" height="22" rx="11"/>
+        <text class="lab" x="620" y="115" text-anchor="middle">semantic 聚类</text>
+        <line class="ln" x1="690" y1="80" x2="690" y2="155" marker-end="url(#arLy)"/>
+        <rect class="bx" x="605" y="160" width="140" height="58" rx="10"/>
+        <text class="tt" x="675" y="184" text-anchor="middle">layout_run（preview）</text>
+        <text class="dd" x="675" y="202" text-anchor="middle">任务 → pending_review</text>
+        <rect class="bx bx-amber" x="380" y="160" width="190" height="58" rx="10"/>
+        <text class="tt tm" x="475" y="184" text-anchor="middle">用户 Apply / Revert</text>
+        <text class="dd" x="475" y="202" text-anchor="middle">画布候选面板选择</text>
+        <rect class="bx bx-green" x="110" y="160" width="220" height="58" rx="10"/>
+        <text class="tt tg" x="220" y="184" text-anchor="middle">LayoutDocument 更新</text>
+        <text class="dd" x="220" y="202" text-anchor="middle">layoutRevision++ · layout_history 可回滚</text>
+        <line class="ln" x1="605" y1="189" x2="575" y2="189" marker-end="url(#arLy)"/>
+        <line class="ln" x1="380" y1="189" x2="335" y2="189" marker-end="url(#arLy)"/>
+      </svg>
+    </div>
+
+    <p>候选由 <code>scoreLayout</code>（<code>score.ts</code>）打分，权重来自 ScenePack 的 <code>scoringWeights</code>；指标含 overlap、edgeCrossings、displacement、compactness、clusterSeparation、directionFlow、hardViolations。钉住的节点会被 <code>restorePinned</code> 还原；边按簇感知路由（簇内 bezier、跨簇正交）。运行生命周期：<code>weaver_recommend_layout</code> 校验 revision → 生成候选 → 存 <code>layout_run</code>（status=preview）→ 任务进入 <code>pending_review</code> → 用户 apply / revert；<code>layout_history</code> 保留历史版本供回滚。新视图满足条件（canvas/graph、≥4 节点、≥1 边）时用 <code>seedSemanticLayout</code> 自动播种。</p>
+
+    <!-- ================= 9. agent ================= -->
+    <h2 id="agent">Agent 任务系统<a class="hash" href="#agent">#</a></h2>
+    <p>存储在 <code>packages/storage/src/agent-tasks.ts</code>，工具在 <code>packages/mcp/src/tools/agent-tasks.ts</code>，配套技能剧本 <code>skills/weaver-develop-space</code>、<code>weaver-layout-space</code>、<code>weaver-watch</code>、<code>weaver-review-changes</code>。</p>
+    <div class="figure">
+      <div class="fig-cap">Figure 5 · AgentTask 状态机（虚线 = 异常路径）</div>
+      <svg viewBox="0 0 760 255" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="AgentTask 状态机">
+        <defs>
+          <marker id="arSt" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+            <path d="M0 0L10 5L0 10z" style="fill:var(--text-faint)"/>
+          </marker>
+        </defs>
+        <rect class="bx" x="20" y="30" width="100" height="36" rx="18"/>
+        <text class="tt" x="70" y="53" text-anchor="middle">prepared</text>
+        <rect class="bx" x="168" y="30" width="110" height="36" rx="18"/>
+        <text class="tt" x="223" y="53" text-anchor="middle">dispatched</text>
+        <rect class="bx" x="326" y="30" width="100" height="36" rx="18"/>
+        <text class="tt" x="376" y="53" text-anchor="middle">running</text>
+        <rect class="bx bx-amber" x="460" y="30" width="130" height="36" rx="18"/>
+        <text class="tt tm" x="525" y="53" text-anchor="middle">pending_review</text>
+        <rect class="bx bx-green" x="460" y="120" width="130" height="36" rx="18"/>
+        <text class="tt tg" x="525" y="143" text-anchor="middle">completed</text>
+        <rect class="bx bx-acc" x="618" y="120" width="136" height="36" rx="18"/>
+        <text class="tt ta" x="686" y="143" text-anchor="middle">ready_to_continue</text>
+        <rect class="bx bx-amber" x="20" y="212" width="90" height="32" rx="16"/>
+        <text class="tt tm" x="65" y="233" text-anchor="middle">stale</text>
+        <rect class="bx bx-red" x="134" y="212" width="90" height="32" rx="16"/>
+        <text class="tt tr" x="179" y="233" text-anchor="middle">failed</text>
+        <rect class="bx bx-red" x="248" y="212" width="104" height="32" rx="16"/>
+        <text class="tt tr" x="300" y="233" text-anchor="middle">cancelled</text>
+        <line class="ln" x1="120" y1="48" x2="163" y2="48" marker-end="url(#arSt)"/>
+        <text class="lab" x="142" y="24" text-anchor="middle">confirm</text>
+        <line class="ln" x1="278" y1="48" x2="321" y2="48" marker-end="url(#arSt)"/>
+        <text class="lab" x="301" y="24" text-anchor="middle">start</text>
+        <line class="ln" x1="426" y1="48" x2="455" y2="48" marker-end="url(#arSt)"/>
+        <text class="lab" x="443" y="24" text-anchor="middle">submit_changeset</text>
+        <line class="ln" x1="505" y1="66" x2="505" y2="115" marker-end="url(#arSt)"/>
+        <text class="lab" x="513" y="95">apply · 完成</text>
+        <line class="ln" x1="570" y1="66" x2="678" y2="115" marker-end="url(#arSt)"/>
+        <text class="lab" x="600" y="98">apply（develop_then_layout）</text>
+        <path class="ln" d="M686 156 L686 190 L376 190 L376 71" marker-end="url(#arSt)"/>
+        <text class="lab" x="540" y="184" text-anchor="middle">continue（expectedTaskRevision 守卫）→ 布局阶段</text>
+        <path class="ln lnd" d="M470 66 C300 120 110 160 70 207" marker-end="url(#arSt)"/>
+        <text class="lab" x="220" y="132">revision 冲突</text>
+        <line class="ln lnd" x1="350" y1="66" x2="184" y2="207" marker-end="url(#arSt)"/>
+        <text class="lab" x="80" y="158">收割：silent 超时 / 30min 上限</text>
+        <line class="ln lnd" x1="228" y1="66" x2="296" y2="207" marker-end="url(#arSt)"/>
+        <text class="lab" x="278" y="120">用户 ×</text>
+      </svg>
+    </div>
+    <div class="flow">
+      <div class="step"><div><b>Prepare</b><p><code>prepareAgentTask(FromBoundCanvas)</code> 把实时 <code>CanvasContextSnapshot</code>（选区、锚点、pinned context、<code>expectedGraphRevision</code>）快照进任务；要求画布在线、可代理、租约有效；已有活动任务则拒绝（<code>ACTIVE_CANVAS_TASK_EXISTS</code>）。</p></div></div>
+      <div class="step"><div><b>Dispatch</b><p><code>confirmAgentDispatch</code>（幂等 <code>dispatchKey</code>）；未确认/拒绝走 <code>failAgentDispatch</code>。</p></div></div>
+      <div class="step"><div><b>Start + 读取上下文</b><p><code>weaver_task_action(action:"start")</code> → running；Agent 读 manifest 与 <code>resolved_context</code>（<code>resolveSceneContext</code> 按场景策略裁剪的邻域）。</p></div></div>
+      <div class="step"><div><b>Heartbeat</b><p><code>reportTaskProgress</code> 递增 <code>taskRevision</code>，驱动画布 busy pill 并重置空闲收割计时。</p></div></div>
+      <div class="step"><div><b>Submit → Review</b><p><code>weaver_submit_changeset</code> 置 <code>pending_review</code>；用户在画布 apply / reject。<code>develop_then_layout</code> 意图下 apply 后进入 <code>ready_to_continue</code>（activeStage=layout），Agent 以 <code>continue</code>（守卫 <code>expectedTaskRevision</code>）接续并推荐布局。</p></div></div>
+    </div>
+    <p><strong>收割（reaping）</strong>：<code>reapExpiredCanvasTasks</code> 懒式清理沉默任务——prepared &gt;120s、dispatched &gt;180s、running 空闲 &gt;600s，外加 30 分钟硬性生命周期上限（心跳但卡死的 Agent 也无法霸占画布）；<code>pending_review</code> / <code>ready_to_continue</code> 等待用户、永不收割。<strong>Watch 模式</strong>：用户在画布 composer 输入指令，Agent 长轮询 <code>weaver_await_canvas_prompt</code> 领取为 dispatched 任务。<strong>事件流</strong>：<code>event-hub.ts</code> 签发 token 门控的 SSE grant，widget 以 <code>Last-Event-ID</code> 断点续传回放 <code>project_event</code>（SQLite 尾随 + <code>fs.watch</code>）。</p>
+
+    <!-- ================= 10. build ================= -->
+    <h2 id="build">构建与发布<a class="hash" href="#build">#</a></h2>
+    <ul>
+      <li><strong>Widget</strong> —— <code>vite build</code> → 单文件 <code>apps/widget/dist/index.html</code>（相对 <code>./</code> 引用）。</li>
+      <li><strong>MCP bundle</strong> —— <code>scripts/build-mcp-bundle.mjs</code>：esbuild 打包 <code>server.ts</code>（ESM / node24 / <code>external:["sharp"]</code>），自定义 resolver 插件把内部 <code>@weaver/*</code> 包名映射到各自 <code>src/index.ts</code>，整个 workspace 折叠为一个文件。</li>
+      <li><strong>插件发布</strong> —— <code>scripts/build-plugin-release.mjs</code> 产出 <code>plugins/weaver-next/</code> 快照：<code>runtime/server.mjs</code> + widget dist + <code>skills/</code> + <code>claude-skills/</code> + 启动脚本 + sharp 原生依赖，写入 <code>.mcp.json</code>（注册 <code>weaver_mcp</code>）与 <code>.release-manifest.json</code>（version / platform / files 清单）。<code>check-plugin-release.mjs</code> 验清单，<code>probe-mcp.mjs</code> 冒烟启动。</li>
+    </ul>
+    <div class="figure">
+      <div class="fig-cap">Figure 7 · 构建与发布流水线</div>
+      <svg viewBox="0 0 760 250" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="构建发布流水线">
+        <defs>
+          <marker id="arBd" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+            <path d="M0 0L10 5L0 10z" style="fill:var(--text-faint)"/>
+          </marker>
+        </defs>
+        <rect class="bx" x="20" y="20" width="200" height="58" rx="10"/>
+        <text class="tt" x="120" y="44" text-anchor="middle">packages/*（7 个 @weaver 包）</text>
+        <text class="dd" x="120" y="62" text-anchor="middle">TypeScript 源码 · ESM</text>
+        <rect class="bx" x="20" y="104" width="200" height="58" rx="10"/>
+        <text class="tt" x="120" y="128" text-anchor="middle">apps/widget</text>
+        <text class="dd" x="120" y="146" text-anchor="middle">vite build → 单文件 dist</text>
+        <rect class="bx bx-amber" x="290" y="20" width="210" height="80" rx="10"/>
+        <text class="tt tm" x="395" y="42" text-anchor="middle">esbuild bundle</text>
+        <text class="dd" x="395" y="60" text-anchor="middle">internal @weaver/* map（两份硬编码）</text>
+        <text class="dd" x="395" y="76" text-anchor="middle">external: sharp · target node24</text>
+        <text class="lab" x="395" y="92" text-anchor="middle">→ runtime/server.mjs</text>
+        <rect class="bx bx-green" x="560" y="20" width="185" height="170" rx="10"/>
+        <text class="tt tg" x="652" y="44" text-anchor="middle">plugins/weaver-next/</text>
+        <text class="lab" x="576" y="68">runtime/server.mjs</text>
+        <text class="lab" x="576" y="84">apps/widget/dist</text>
+        <text class="lab" x="576" y="100">skills/ · claude-skills/</text>
+        <text class="lab" x="576" y="116">.mcp.json · scripts/start-mcp*</text>
+        <text class="lab" x="576" y="132">.codex-plugin（plugin.json）</text>
+        <text class="lab" x="576" y="148">.release-manifest.json</text>
+        <text class="lab" x="576" y="164">node_modules（sharp 原生依赖）</text>
+        <line class="ln" x1="220" y1="49" x2="285" y2="49" marker-end="url(#arBd)"/>
+        <line class="ln" x1="500" y1="58" x2="555" y2="58" marker-end="url(#arBd)"/>
+        <line class="ln" x1="220" y1="133" x2="555" y2="133" marker-end="url(#arBd)"/>
+        <path class="ln" d="M600 190 L600 200 L435 200 L435 206" marker-end="url(#arBd)"/>
+        <line class="ln" x1="652" y1="190" x2="652" y2="206" marker-end="url(#arBd)"/>
+        <rect class="bx bx-purple" x="350" y="210" width="170" height="34" rx="8"/>
+        <text class="tt tp" x="435" y="231" text-anchor="middle">Codex（plugin.json）</text>
+        <rect class="bx bx-acc" x="560" y="210" width="185" height="34" rx="8"/>
+        <text class="tt ta" x="652" y="231" text-anchor="middle">Claude Code（.mcp.json）</text>
+        <text class="lab" x="20" y="232">check-plugin-release 校验清单 · probe-mcp 冒烟启动</text>
+      </svg>
+    </div>
+
+    <div class="callout warn"><span class="ic">⚠️</span><div><b class="cap">Warn · 已知坑</b><p>新增 <code>@weaver/*</code> 导入（尤其子路径）必须同步补进 <strong>两份硬编码的 esbuild internal package map</strong>（build-mcp-bundle 与 build-plugin-release），否则 <code>build:plugin</code> 直接损坏——tsc / vitest 都不会捕获这个问题。</p></div></div>
+
+    <!-- ================= 11. decisions ================= -->
+    <h2 id="decisions">关键架构决策<a class="hash" href="#decisions">#</a></h2>
+    <div class="cards">
+      <div class="card"><div class="no">ADR-01</div><b>ChangeSet 是唯一变更通道</b><p>所有图 / 布局写入都是带 revision 守卫、可审计、须审批的 ChangeSet；Agent 从不直接落盘。冲突即 stale，apply 附带自动放置与占位清退。</p></div>
+      <div class="card"><div class="no">ADR-02</div><b>Contracts-first / Zod 全覆盖</b><p>一套 <code>@weaver/contracts</code> schema 定义并在读写两端复验所有实体；<code>@weaver/core</code> 保持纯函数、可独立测试。</p></div>
+      <div class="card"><div class="no">ADR-03</div><b>内容与呈现分离</b><p>一张不可变语义图 → 多个 ProjectView（经 ProjectionSpec 投影）；VisualTemplate 不可变且内容保持；几何独立存于 LayoutDocument 并有自己的 revision。</p></div>
+      <div class="card"><div class="no">ADR-04</div><b>Agent 书写意图而非结果</b><p>LayoutPlan（约束/策略）而非坐标、asset id 而非路径、真实模板 id 而非杜撰。布局确定性有种子，候选可复现。</p></div>
+      <div class="card"><div class="no">ADR-05</div><b>整合分发器工具面</b><p>~80 个细粒度操作折叠为 ~13 个 resource/action 工具以适配 Codex 的 schema 上限；<code>CRITICAL_MODEL_TOOLS</code> + 诊断工具侦测宿主静默丢工具。</p></div>
+      <div class="card"><div class="no">ADR-06</div><b>一条回环链路服务两个宿主</b><p>单个 token 门控 SseEventHub 承担 widget 资产、/mcp-rpc、/api/bootstrap、/preview、/events；端口 + token 由 cwd 派生，进程更迭 URL 不变（leader/follower 重绑）。</p></div>
+      <div class="card"><div class="no">ADR-07</div><b>会话身份确定性收敛</b><p>同一宿主启动下所有进程从 cwd 派生同一 <code>chatSessionKey</code>，绑定同一画布；租约模型（bindingRevision / leaseId）支持离线心跳接管。</p></div>
+      <div class="card"><div class="no">ADR-08</div><b>技能作剧本、工具作执法</b><p><code>skills/*/SKILL.md</code> 是自然语言操作手册，编排 MCP 工具；所有不变量在服务端强制，剧本无法绕过守卫。</p></div>
+      <div class="card"><div class="no">ADR-09</div><b>韧性优先的运维设计</b><p>宿主死亡自检自杀、懒式任务收割 + 硬性寿命上限、schema 不匹配整目录备份、内容哈希 buildId 防陈旧缓存、逐调用结构化日志。</p></div>
+    </div>
+
+    <!-- ================= 12. files ================= -->
+    <h2 id="files">关键文件索引<a class="hash" href="#files">#</a></h2>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>关注点</th><th>入口文件</th></tr></thead>
+      <tbody>
+        <tr><td>领域模型</td><td><code>packages/contracts/src/space.ts</code> · <code>layout.ts</code> · <code>visual.ts</code></td></tr>
+        <tr><td>服务器 / 传输</td><td><code>packages/mcp/src/create-server.ts</code> · <code>event-hub.ts</code> · <code>session-identity.ts</code></td></tr>
+        <tr><td>持久化与不变量</td><td><code>packages/storage/src/workspace-store.ts</code> · <code>changesets.ts</code> · <code>chat-canvas-binding.ts</code> · <code>migrations.ts</code></td></tr>
+        <tr><td>布局</td><td><code>packages/layout-engine/src/engine.ts</code> · <code>semantic/index.ts</code> · <code>score.ts</code></td></tr>
+        <tr><td>UI / 数据链路</td><td><code>apps/widget/src/main.tsx</code> · <code>mcp-client.ts</code> · <code>components/CanvasStage.tsx</code></td></tr>
+        <tr><td>发布</td><td><code>scripts/build-plugin-release.mjs</code> · <code>.codex-plugin/plugin.json</code> · <code>plugins/weaver-next/.release-manifest.json</code></td></tr>
+      </tbody>
+    </table></div>
+
+    <div class="callout info"><span class="ic">📌</span><div><b class="cap">Info · 命名对照</b><p>技能文档与已安装 MCP 面上仍出现 ~80 个细粒度 <code>weaver_*</code> 名称——它们对应整合前的工具面 / resource-action 目标（源码注释中逐一标注）。依赖细粒度名称时请对照已安装构建验证。</p></div></div>
+
+    <footer>Weaver-Next · Architecture Overview · generated 2026-07-12 · source: repo exploration @ master (a63afe0)</footer>
+  </article>
+
+  <!-- ============ RIGHT TOC ============ -->
+  <aside class="toc" id="toc">
+    <div class="toc-title">On this page</div>
+    <a href="#overview">系统概览</a>
+    <a href="#diagram">整体架构图</a>
+    <a href="#monorepo">Monorepo 布局</a>
+    <a href="#domain">核心领域模型</a>
+    <a href="#domain-graph" class="l3">内容图</a>
+    <a href="#domain-views" class="l3">视图与投影</a>
+    <a href="#domain-changeset" class="l3">ChangeSet</a>
+    <a href="#mcp">MCP Server 架构</a>
+    <a href="#mcp-consolidated" class="l3">整合分发器</a>
+    <a href="#mcp-session" class="l3">会话身份收敛</a>
+    <a href="#widget">Widget / UI 架构</a>
+    <a href="#widget-transport" class="l3">三段式传输</a>
+    <a href="#storage">存储与持久化</a>
+    <a href="#layout">布局引擎</a>
+    <a href="#agent">Agent 任务系统</a>
+    <a href="#build">构建与发布</a>
+    <a href="#decisions">关键架构决策</a>
+    <a href="#files">关键文件索引</a>
+  </aside>
+</div>
+
+<script>
+  // theme toggle
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    const root = document.documentElement;
+    root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+  });
+
+  // copy buttons
+  function copyCode(btn) {
+    const pre = btn.closest('.codeblock').querySelector('pre');
+    navigator.clipboard.writeText(pre.innerText).then(() => {
+      const t = btn.textContent; btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = t, 1200);
+    });
+  }
+
+  // scroll-spy for both navs
+  const headings = Array.from(document.querySelectorAll('article h2[id], article h3[id]'));
+  const tocLinks = Array.from(document.querySelectorAll('.toc a'));
+  const navLinks = Array.from(document.querySelectorAll('.sidenav a'));
+  function spy() {
+    let current = headings[0]?.id;
+    for (const h of headings) {
+      if (h.getBoundingClientRect().top <= 90) current = h.id; else break;
+    }
+    tocLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + current));
+    // sidenav highlights nearest h2 ancestor
+    let h2 = current;
+    const cur = document.getElementById(current);
+    if (cur && cur.tagName === 'H3') {
+      let el = cur;
+      while (el && el.tagName !== 'H2') el = el.previousElementSibling;
+      if (el) h2 = el.id;
+    }
+    navLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + h2));
+  }
+  document.addEventListener('scroll', spy, { passive: true });
+  spy();
+</script>
+</body>
+</html>

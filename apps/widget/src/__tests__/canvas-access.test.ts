@@ -1,11 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { acknowledgedCanvasSequence, canvasAccessFromError, hasWidgetBuildMismatch } from "../canvas-access";
+import { acknowledgedCanvasSequence, canvasAccessFromError, hasWidgetBuildMismatch, toolErrorMessage } from "../canvas-access";
 
 describe("Canvas access guards", () => {
   it("maps duplicate and stale bindings to non-writable UI states", () => {
     expect(canvasAccessFromError(new Error("CANVAS_ALREADY_ACTIVE"))).toBe("duplicate");
     expect(canvasAccessFromError(new Error("CHAT_CANVAS_LEASE_STALE"))).toBe("detached");
     expect(canvasAccessFromError(new Error("OTHER"))).toBeUndefined();
+  });
+
+  it("preserves a structured MCP error code when the display text is generic", () => {
+    expect(toolErrorMessage({ isError: true, structuredContent: { code: "CHAT_CANVAS_LEASE_STALE" }, content: [{ type: "text", text: "CANVAS_CLAIM_FAILED" }] }, "fallback"))
+      .toBe("CHAT_CANVAS_LEASE_STALE: CANVAS_CLAIM_FAILED");
   });
 
   it("blocks build mismatches only in the development flow", () => {

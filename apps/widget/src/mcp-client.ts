@@ -2,6 +2,7 @@ import { App as McpApp } from "@modelcontextprotocol/ext-apps";
 import { isDevHost, resolveHostMode, type WeaverPreview, type WeaverRuntime } from "./lib/host-mode";
 import { createMcpAppConnection } from "./mcp-app-connection";
 import type { ToolResult } from "./types";
+import { toolErrorMessage } from "./canvas-access";
 
 export type { HostMode, WeaverPreview } from "./lib/host-mode";
 
@@ -90,7 +91,7 @@ export async function callTool<T>(name: string, args: Record<string, unknown>): 
   else if (hostMode === "claude" && weaverPreview) result = await fetchTool<T>(weaverPreview.rpcPath, name, args, { "x-weaver-preview-token": weaverPreview.token });
   else if (hostMode === "dev") result = await fetchTool<T>("/api/mcp", name, args);
   else result = await callCodexTool<T>(name, args);
-  if (result.isError) throw new Error(result.content?.find((item) => item.type === "text")?.text ?? `${name} failed`);
+  if (result.isError) throw new Error(toolErrorMessage(result, `${name} failed`));
   const value: unknown = result.structuredContent;
   if (value && typeof value === "object" && Object.keys(value).length === 1 && "items" in value && Array.isArray(value.items)) return value.items as T;
   return value as T;

@@ -20,6 +20,8 @@
     "probe:release": "WEAVER_PROBE_CWD=plugins/weaver-next WEAVER_PROBE_ARGS='[\"./scripts/start-mcp.mjs\"]' node scripts/probe-mcp.mjs",
     "smoke:host-bridge": "node scripts/smoke-host-bridge.mjs",
     "runtime:cleanup": "node scripts/cleanup-runtime-cache.mjs",
+    "prepare": "node scripts/install-git-hooks.mjs",
+    "verify:push": "node scripts/verify-push.mjs",
     "capture:readme": "node scripts/capture-readme-assets.mjs",
     "e2e": "playwright test",
     "e2e:core": "playwright test e2e/canvas.spec.ts e2e/localhost-canvas.spec.ts",

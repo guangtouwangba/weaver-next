@@ -185,6 +185,16 @@ MCP server 走 stdio，不能 `console.log`（会污染协议），所以所有�
 
 ## 7. 完成与交付
 
+### Push 前自动验证
+
+`npm install` 会将本仓库的 Git hooks 配置为 `.githooks`。每次 `git push` 前，`pre-push` 会自动运行 `npm run verify:push`，顺序覆盖 CI 的 lint、packages/widget build、TS tests、Widget typecheck、插件发布构建、release check 和 MCP probe。发布包在临时目录生成，不污染工作区；任一命令失败都会阻止 push。
+
+如需在 push 前手动预检，可直接运行：
+
+```bash
+npm run verify:push
+```
+
 提交结果前：
 
 1. 查看最终 diff，确认没有无关或生成物污染。

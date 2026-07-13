@@ -4,9 +4,16 @@ import { resolve } from "node:path";
 import { defaultViewTheme, viewThemeSchema } from "@weaver/contracts";
 import { canvasThemeForMode } from "../lib/canvas-theme";
 import { describeCanvasSelection, shouldPromptForProject, toFlowEdge } from "../lib/graph-view";
-import type { GraphNode, Project } from "../types";
+import { buildInlinePreview } from "../components/InlineEntryCard";
+import type { GraphEdge, GraphNode, Layout, Project } from "../types";
 
 describe("canvas appearance", () => {
+  it("closes the project switcher from the capture phase before React Flow consumes the press", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "../components/ProjectSwitcher.tsx"), "utf8");
+    expect(source).toMatch(/document\.addEventListener\("pointerdown", onDown, true\)/);
+    expect(source).toMatch(/document\.removeEventListener\("pointerdown", onDown, true\)/);
+  });
+
   it("keeps the left-positioned minimap from stretching to the right edge", () => {
     const styles = readFileSync(resolve(import.meta.dirname, "../styles.css"), "utf8");
     expect(styles).toMatch(/\.hybrid-minimap\s*\{[^}]*left:\s*14px;[^}]*right:\s*auto;/s);
@@ -31,6 +38,27 @@ describe("canvas appearance", () => {
 });
 
 describe("edge projection", () => {
+  it("uses only persisted graph edges and the current view layout in the inline preview", () => {
+    const nodes = [
+      { id: "a", title: "A" },
+      { id: "b", title: "B" },
+    ] as GraphNode[];
+    const layout = {
+      viewId: "v", viewName: "Graph", viewType: "graph", graphRevision: 1, layoutRevision: 1,
+      nodes: {
+        a: { nodeId: "a", x: -200, y: 100, width: 220, height: 112, pinned: false },
+        b: { nodeId: "b", x: 400, y: -100, width: 220, height: 112, pinned: false },
+      },
+    } as Layout;
+
+    const withoutEdges = buildInlinePreview(nodes, [], layout);
+    expect(withoutEdges.edges).toEqual([]);
+    expect(withoutEdges.nodes.find((node) => node.id === "a")?.x).toBeLessThan(withoutEdges.nodes.find((node) => node.id === "b")?.x ?? 0);
+
+    const withEdge = buildInlinePreview(nodes, [{ id: "e", sourceNodeId: "a", targetNodeId: "b", type: "relates-to" } as GraphEdge], layout);
+    expect(withEdge.edges).toEqual([{ id: "e", sourceNodeId: "a", targetNodeId: "b" }]);
+  });
+
   it("carries persisted routing and waypoints into the custom renderer", () => {
     const edge = toFlowEdge({ id: "edge-1", sourceNodeId: "a", targetNodeId: "b", type: "context-reference" }, {
       viewId: "v", viewName: "Tree", viewType: "tree", graphRevision: 1, layoutRevision: 2,

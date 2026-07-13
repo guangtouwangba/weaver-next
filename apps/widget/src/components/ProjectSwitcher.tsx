@@ -49,11 +49,13 @@ export function ProjectSwitcher(props: {
 
   useEffect(() => {
     if (!open) return;
-    const onDown = (event: MouseEvent) => { if (!anchorRef.current?.contains(event.target as Node)) setOpen(false); };
+    const onDown = (event: PointerEvent) => { if (!anchorRef.current?.contains(event.target as Node)) setOpen(false); };
     const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
-    window.addEventListener("mousedown", onDown);
+    // React Flow consumes pointer presses while starting canvas gestures. Listen
+    // in the capture phase so an outside press still dismisses this top-bar menu.
+    document.addEventListener("pointerdown", onDown, true);
     window.addEventListener("keydown", onKey);
-    return () => { window.removeEventListener("mousedown", onDown); window.removeEventListener("keydown", onKey); };
+    return () => { document.removeEventListener("pointerdown", onDown, true); window.removeEventListener("keydown", onKey); };
   }, [open]);
 
   if (!switchable) {

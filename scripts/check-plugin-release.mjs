@@ -2,7 +2,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
-const plugin = resolve(root, "plugins", "weaver-next");
+const pluginFlag = process.argv.indexOf("--plugin");
+const plugin = pluginFlag >= 0 ? resolve(process.argv[pluginFlag + 1]) : resolve(root, "plugins", "weaver-next");
 const required = [
   ".codex-plugin/plugin.json",
   ".mcp.json",

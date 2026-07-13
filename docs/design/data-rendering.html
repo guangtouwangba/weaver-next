@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Weaver 数据渲染管线</title>
+<style>
+  :root {
+    /* Weaver / TapNow tokens — dark is the ground truth (DESIGN.md § colors) */
+    --canvas: #0a0a0a;
+    --bg: #0f0f0f;
+    --surface: #17181a;
+    --surface-2: #1f1f1f;
+    --raised: #2b2b2b;
+    --ink: #f5f5f5;
+    --ink-strong: #fafafa;
+    --muted: #8b918d;
+    --faint: #6b716d;
+    --line: rgba(255,255,255,.10);
+    --line-strong: rgba(255,255,255,.18);
+    --blue: #1fa2dc;
+    --blue-bright: #33a8ff;
+    --blue-soft: rgba(31,162,220,.14);
+    --c1:#1fa2dc; --c2:#f2a900; --c3:#5ac8a0; --c4:#e0655b; --c5:#8a7ff0;
+    --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SFMono-Regular", "JetBrains Mono", Menlo, Consolas, monospace;
+    --maxw: 940px;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --canvas:#eef0ea; --bg:#f2f3ed; --surface:#ffffff; --surface-2:#fbfbf6; --raised:#e9ebe3;
+      --ink:#20231f; --ink-strong:#12140f; --muted:#5c635a; --faint:#828a80;
+      --line:rgba(20,25,18,.12); --line-strong:rgba(20,25,18,.22);
+      --blue:#1478a8; --blue-bright:#1478a8; --blue-soft:rgba(20,120,168,.12);
+    }
+  }
+  :root[data-theme="dark"] {
+    --canvas:#0a0a0a; --bg:#0f0f0f; --surface:#17181a; --surface-2:#1f1f1f; --raised:#2b2b2b;
+    --ink:#f5f5f5; --ink-strong:#fafafa; --muted:#8b918d; --faint:#6b716d;
+    --line:rgba(255,255,255,.10); --line-strong:rgba(255,255,255,.18);
+    --blue:#1fa2dc; --blue-bright:#33a8ff; --blue-soft:rgba(31,162,220,.14);
+  }
+  :root[data-theme="light"] {
+    --canvas:#eef0ea; --bg:#f2f3ed; --surface:#ffffff; --surface-2:#fbfbf6; --raised:#e9ebe3;
+    --ink:#20231f; --ink-strong:#12140f; --muted:#5c635a; --faint:#828a80;
+    --line:rgba(20,25,18,.12); --line-strong:rgba(20,25,18,.22);
+    --blue:#1478a8; --blue-bright:#1478a8; --blue-soft:rgba(20,120,168,.12);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: var(--sans); font-size: 15px; line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+    background-image: radial-gradient(var(--line) 1px, transparent 1px);
+    background-size: 22px 22px; background-position: -1px -1px;
+  }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+  a { color: var(--blue); text-decoration: none; }
+
+  /* Top bar */
+  .topbar { position: sticky; top: 0; z-index: 10; backdrop-filter: blur(10px);
+    background: color-mix(in srgb, var(--bg) 82%, transparent);
+    border-bottom: 1px solid var(--line); }
+  .topbar .wrap { display: flex; align-items: center; gap: 12px; height: 54px; }
+  .logo { width: 26px; height: 26px; display: grid; place-items: center; flex: 0 0 auto;
+    background: var(--ink-strong); color: var(--bg); border-radius: 7px; font-weight: 800; font-size: 15px; }
+  .topbar strong { font-size: 13px; letter-spacing:.01em; }
+  .topbar .path { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--faint);
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .theme-btn { flex:0 0 auto; height: 30px; padding: 0 11px; display:inline-flex; align-items:center; gap:6px;
+    color: var(--muted); background: transparent; border: 1px solid var(--line); border-radius: 999px;
+    font: inherit; font-size: 11px; cursor: pointer; }
+  .theme-btn:hover { color: var(--ink-strong); border-color: var(--line-strong); }
+
+  /* Hero */
+  header.hero { padding: 74px 0 44px; }
+  .eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing:.14em; text-transform: uppercase;
+    color: var(--blue); margin: 0 0 18px; }
+  h1 { font-size: clamp(30px, 5vw, 46px); line-height: 1.08; letter-spacing:-.02em; font-weight: 800;
+    margin: 0 0 18px; text-wrap: balance; }
+  h1 .em { color: var(--blue); }
+  .lede { max-width: 60ch; color: var(--muted); font-size: 17px; margin: 0; }
+  .lede b { color: var(--ink); font-weight: 600; }
+
+  /* Live demo */
+  .demo { margin: 40px 0 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+    border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--surface); }
+  @media (max-width: 720px){ .demo { grid-template-columns: 1fr; } }
+  .demo > div { padding: 22px 22px; }
+  .demo .spec { border-right: 1px solid var(--line); background: var(--canvas); }
+  @media (max-width: 720px){ .demo .spec { border-right: 0; border-bottom: 1px solid var(--line); } }
+  .demo h4 { margin: 0 0 12px; font-size: 10px; letter-spacing:.12em; text-transform: uppercase; color: var(--faint); font-weight: 700; }
+  pre { margin: 0; font-family: var(--mono); font-size: 12px; line-height: 1.7; color: var(--ink);
+    overflow-x: auto; }
+  pre .k { color: var(--blue-bright); } pre .s { color: var(--c3); } pre .n { color: var(--c2); } pre .p { color: var(--faint); }
+  .card { background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 12px 13px 10px;
+    display:flex; flex-direction: column; height: 100%; }
+  .card .kick { display:flex; align-items:baseline; gap:8px; margin-bottom: 8px; }
+  .card .kick span { font-family: var(--mono); font-size: 9px; letter-spacing:.1em; text-transform: uppercase; color: var(--faint); }
+  .card .kick strong { font-size: 13px; color: var(--ink-strong); }
+  .card svg { width: 100%; height: 150px; display:block; }
+  .card .foot { margin-top: 8px; font-family: var(--mono); font-size: 9px; letter-spacing:.06em; text-transform: uppercase; color: var(--faint); }
+  .demo-note { text-align:center; color: var(--faint); font-size: 12px; margin: 14px 0 0; font-style: italic; }
+  .arrow-mid { text-align:center; color: var(--blue); font-family: var(--mono); font-size: 12px; }
+
+  /* Pipeline */
+  section.pipe { padding: 46px 0 20px; }
+  .h2 { font-size: 13px; letter-spacing:.14em; text-transform: uppercase; color: var(--muted); font-weight: 700;
+    display:flex; align-items:center; gap: 12px; margin: 0 0 6px; }
+  .h2::after { content:""; height:1px; flex:1; background: var(--line); }
+  .pipe .sub { color: var(--faint); font-size: 13px; margin: 0 0 28px; }
+
+  .stations { position: relative; }
+  .stations::before { content:""; position: absolute; left: 19px; top: 14px; bottom: 14px; width: 2px;
+    background: linear-gradient(var(--blue), color-mix(in srgb, var(--blue) 15%, transparent)); opacity:.4; }
+  .station { position: relative; padding: 0 0 30px 58px; }
+  .station:last-child { padding-bottom: 4px; }
+  .station .num { position: absolute; left: 0; top: 0; width: 40px; height: 40px; display:grid; place-items:center;
+    background: var(--surface); border: 1px solid var(--line-strong); border-radius: 50%;
+    font-family: var(--mono); font-size: 14px; font-weight: 700; color: var(--blue); z-index:1; }
+  .station h3 { margin: 6px 0 4px; font-size: 18px; letter-spacing:-.01em; }
+  .station h3 .tag { font-family: var(--mono); font-size: 10px; font-weight: 600; color: var(--faint);
+    border: 1px solid var(--line); border-radius: 5px; padding: 2px 6px; margin-left: 8px; vertical-align: middle; white-space:nowrap; }
+  .station p { margin: 0 0 12px; color: var(--muted); max-width: 62ch; }
+  .station p b { color: var(--ink); font-weight: 600; }
+  .snip { background: var(--canvas); border: 1px solid var(--line); border-left: 2px solid var(--blue);
+    border-radius: 8px; padding: 12px 14px; overflow-x: auto; }
+  .snip pre { font-size: 11.5px; }
+  .fref { display:block; margin-top: 9px; font-family: var(--mono); font-size: 10.5px; color: var(--faint); }
+  .fref::before { content:"⌖ "; color: var(--blue); }
+
+  /* Why grid */
+  section.why { padding: 40px 0; }
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  @media (max-width: 640px){ .grid { grid-template-columns: 1fr; } }
+  .why-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px 18px; }
+  .why-card h4 { margin: 0 0 6px; font-size: 15px; display:flex; align-items:center; gap: 9px; }
+  .why-card .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--blue); flex:0 0 auto; box-shadow: 0 0 0 4px var(--blue-soft); }
+  .why-card p { margin: 0; color: var(--muted); font-size: 13.5px; }
+
+  /* Deck callout */
+  section.deck { padding: 12px 0 70px; }
+  .callout { background: linear-gradient(135deg, var(--blue-soft), transparent 70%), var(--surface);
+    border: 1px solid var(--line-strong); border-radius: 16px; padding: 30px 30px; }
+  .callout .eyebrow { margin-bottom: 12px; }
+  .callout h3 { margin: 0 0 10px; font-size: 22px; letter-spacing:-.01em; }
+  .callout p { margin: 0 0 16px; color: var(--muted); max-width: 64ch; }
+  .flow { display:flex; align-items:center; flex-wrap: wrap; gap: 10px; font-family: var(--mono); font-size: 12px; }
+  .flow span { padding: 7px 12px; background: var(--canvas); border: 1px solid var(--line); border-radius: 8px; color: var(--ink); }
+  .flow span.hot { border-color: var(--blue); color: var(--blue-bright); }
+  .flow i { color: var(--faint); font-style: normal; }
+
+  footer { border-top: 1px solid var(--line); padding: 22px 0 40px; color: var(--faint); font-size: 12px; }
+  footer .wrap { display:flex; gap: 10px; flex-wrap: wrap; align-items:center; }
+  footer .mono { font-family: var(--mono); }
+</style>
+</head>
+<body>
+  <div class="topbar"><div class="wrap">
+    <div class="logo">W</div>
+    <strong>Weaver · 数据渲染管线</strong>
+    <span class="path">apps/widget/src/lib/chart-svg.ts</span>
+    <button class="theme-btn" id="themeToggle" aria-label="切换主题"><span id="themeIcon">◐</span> 主题</button>
+  </div></div>
+
+  <header class="hero"><div class="wrap">
+    <p class="eyebrow">Point · 数据卡 · rendering</p>
+    <h1>渲染的是<span class="em">结构化 spec</span>,<br>不是像素。</h1>
+    <p class="lede">从图谱节点到画布上的一张数据卡,Weaver 走一条确定性的管线:内容以<b>结构</b>存在 Graph 里,一个<b>纯函数</b>把它算成几何,再画成<b>内联 SVG</b>。没有图表库、没有网络请求 —— 所以 Codex 原生面板与 Claude 浏览器逐像素一致。</p>
+
+    <div class="demo">
+      <div class="spec">
+        <h4>① content(存在 Graph 里)</h4>
+        <pre id="specView"></pre>
+      </div>
+      <div>
+        <h4>② 画布上此刻的渲染</h4>
+        <div class="card">
+          <div class="kick"><span>line</span><strong>市场规模</strong></div>
+          <div id="chartMount"></div>
+          <div class="foot">券商研报 · 2026Q2</div>
+        </div>
+      </div>
+    </div>
+    <p class="demo-note">右边这张图,就是页面此刻用文中那套「spec → 纯几何 → 内联 SVG」当场画出来的。</p>
+  </div></header>
+
+  <section class="pipe"><div class="wrap">
+    <p class="h2">六段管线</p>
+    <p class="sub">数据从图谱流到画布卡片,依次经过这六站 —— 这是一条真实的有序管线,所以用序号标注。</p>
+
+    <div class="stations">
+      <div class="station">
+        <div class="num">1</div>
+        <h3>数据是结构 <span class="tag">contracts/space.ts</span></h3>
+        <p>内容存在 Graph 的类型化节点里,<code>nodeContentSchema</code> 是个判别联合:<b>document / image / link / chart</b>。一张图表节点存的是<b>数据 + 语义</b>,不是画好的图 —— 这让它能被 agent 经 ChangeSet 产出、可溯源、双宿主同源。</p>
+        <div class="snip"><pre><span class="k">chart</span>: { chartType:<span class="s">"line"</span>, title, unit,
+  series:[{ name, color?, points:[{ label, value }] }],
+  metric?, sourceNote?, asOf? }</pre></div>
+        <span class="fref">contracts/space.ts · contentKindSchema + nodeContentSchema</span>
+      </div>
+
+      <div class="station">
+        <div class="num">2</div>
+        <h3>服务端读图 <span class="tag">mcp/shared/graph-reads.ts</span></h3>
+        <p><code>weaver_read_graph(resource:"full")</code> → <code>readProjectGraph</code> → <code>summarizeNode</code>。这里把 document 的 markdown 裁掉省 agent 上下文,但 <b>chart 的 content 全量带出</b>。widget 收到 <code>WidgetGraphNode[]</code>。</p>
+        <div class="snip"><pre>content = node.content.kind === <span class="s">"document"</span>
+  ? { ...content, markdown: <span class="k">undefined</span> } <span class="p">// 省上下文</span>
+  : node.content <span class="p">// chart / image / link 原样</span></pre></div>
+        <span class="fref">mcp/src/shared/graph-reads.ts · summarizeNode</span>
+      </div>
+
+      <div class="station">
+        <div class="num">3</div>
+        <h3>映射成 React Flow 节点 <span class="tag">hooks/useCanvasGraph.ts</span></h3>
+        <p>每个图谱节点组装成一个 RF <code>Node</code>:<b>type = contentKind</b> 决定用哪个组件;<b>data = CardData</b> 按 kind 收窄取字段;<b>位置/尺寸</b>来自 LayoutDocument(非权威、可重排);<b>主题</b>以内联 CSS 变量注入。</p>
+        <div class="snip"><pre>{ id, type: item.contentKind,
+  position: { x: frame.x, y: frame.y },
+  data: { …, chart: item.content.kind===<span class="s">"chart"</span> ? item.content : <span class="k">undefined</span> },
+  style: { <span class="p">--node-fill, --node-border, --node-accent …</span> } }</pre></div>
+        <span class="fref">apps/widget/src/hooks/useCanvasGraph.ts</span>
+      </div>
+
+      <div class="station">
+        <div class="num">4</div>
+        <h3>type → 组件 <span class="tag">lib/graph-view.ts</span></h3>
+        <p>一张注册表把 <code>contentKind</code> 映到组件。<b>加一种数据类型 = 加一个 content kind + 注册一个渲染组件</b>,就这么简单。</p>
+        <div class="snip"><pre>nodeTypes = { document: DocumentCard, image: ImageCard,
+  link: LinkCard, <span class="k">chart: ChartCard</span>, visualGroup: VisualGroupCard }</pre></div>
+        <span class="fref">apps/widget/src/lib/graph-view.ts · nodeTypes</span>
+      </div>
+
+      <div class="station">
+        <div class="num">5</div>
+        <h3>纯函数几何 <span class="tag">lib/chart-svg.ts</span></h3>
+        <p>核心在这:<code>layoutChart(spec, w, h)</code> 是<b>纯函数 —— 无 React、无 DOM、无随机</b>,把 spec + 像素框算成几何(polyline 点、bar rect、pie 的 arc、坐标轴刻度、metric 涨跌)。对空 / NaN / 单点 / 全零都有兜底,所以可单测、确定性。</p>
+        <div class="snip"><pre>plotBox(w,h) → valueExtent(values) → linePoints() / bars() / pieSlices()
+<span class="p">// 输入结构,输出可直接画的坐标,绝不抛异常</span></pre></div>
+        <span class="fref">apps/widget/src/lib/chart-svg.ts · layoutChart() + chart-svg.test.ts</span>
+      </div>
+
+      <div class="station">
+        <div class="num">6</div>
+        <h3>内联 SVG <span class="tag">components/nodes/ChartCard.tsx</span></h3>
+        <p>组件把几何画成内联 <code>&lt;svg&gt;</code>(<code>polyline / rect / path / text</code>),颜色走 CSS 变量(<code>--node-text / --node-border / --node-accent</code>)+ 一个 6 色投研色阶;单序列回落到 accent 保持克制。<code>ResizeObserver</code> 驱动响应式重绘。</p>
+        <div class="snip"><pre>&lt;svg viewBox=<span class="s">"0 0 {w} {h}"</span>&gt;
+  &lt;polyline points={line.polyline} stroke=<span class="s">"var(--node-accent)"</span> /&gt;
+  &lt;text …&gt;{tick.label}&lt;/text&gt;
+&lt;/svg&gt;</pre></div>
+        <span class="fref">apps/widget/src/components/nodes/ChartCard.tsx</span>
+      </div>
+    </div>
+  </div></section>
+
+  <section class="why"><div class="wrap">
+    <p class="h2">为什么是这套</p>
+    <div class="grid">
+      <div class="why-card"><h4><span class="dot"></span>纯函数,可测</h4><p>几何从 React 里剥离到 <code>chart-svg.ts</code>,已知输入 → 已知坐标,单测覆盖折线/柱/饼/涨跌与空数据兜底。</p></div>
+      <div class="why-card"><h4><span class="dot"></span>内联 SVG,双端一致</h4><p>无外部图表库、无 CDN、无网络,受宿主 iframe 的 CSP 也没问题 —— Codex 面板与 Claude 浏览器逐像素相同。</p></div>
+      <div class="why-card"><h4><span class="dot"></span>token 着色,主题自适</h4><p>颜色全走 <code>--node-*</code> 与 accent 变量,明暗主题由 <code>canvas-theme.ts</code> 算好注入,无一处硬编码 hex。</p></div>
+      <div class="why-card"><h4><span class="dot"></span>spec 与渲染分离</h4><p>持有的是结构而非成品:同一份数据能重排、能换样式、能导出成别的格式。</p></div>
+    </div>
+  </div></section>
+
+  <section class="deck"><div class="wrap">
+    <div class="callout">
+      <p class="eyebrow">同一个模子 → 演示 output</p>
+      <h3>Deck 就是把这套复制一份</h3>
+      <p>要在白板上出一份「演示 output」,不必另起炉灶:artifact 里存一份 <b>slide spec</b>,写一个 <code>layoutSlide()</code> 纯几何函数 + 内联 SVG 渲染器 —— 和 chart 完全同源。图谱是事实源,deck 是派生产物,改也走 Codex 重新生成。</p>
+      <div class="flow">
+        <span>Graph / 选区</span><i>→</i>
+        <span class="hot">Codex 生成 slide spec</span><i>→</i>
+        <span>layoutSlide() 纯几何</span><i>→</i>
+        <span>内联 SVG</span><i>→</i>
+        <span>导出</span>
+      </div>
+    </div>
+  </div></section>
+
+  <footer><div class="wrap">
+    <span class="mono">weaver-next</span>
+    <span>·</span>
+    <span>数据渲染:结构化 spec → 纯几何 → 内联 SVG</span>
+  </div></footer>
+
+<script>
+// ——— Theme toggle (media query is default; button stamps data-theme) ———
+(function(){
+  var root = document.documentElement, btn = document.getElementById('themeToggle'), icon = document.getElementById('themeIcon');
+  function current(){ return root.dataset.theme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); }
+  function apply(t){ root.dataset.theme = t; icon.textContent = t === 'dark' ? '☾' : '☀'; render(); }
+  btn.addEventListener('click', function(){ apply(current() === 'dark' ? 'light' : 'dark'); });
+  icon.textContent = current() === 'dark' ? '☾' : '☀';
+
+  // ——— The live chart: the very pipeline this page describes, in miniature ———
+  var spec = {
+    chartType: "line", title: "市场规模", unit: "亿",
+    series: [{ name: "规模", points: [
+      { label:"2020", value:120 }, { label:"2021", value:180 }, { label:"2022", value:260 },
+      { label:"2023", value:340 }, { label:"2024", value:520 }
+    ]}]
+  };
+
+  // Pretty-print the spec with light syntax colouring (illustration only)
+  document.getElementById('specView').innerHTML =
+'<span class="k">chart</span>: {\n' +
+'  chartType: <span class="s">"line"</span>, unit: <span class="s">"亿"</span>,\n' +
+'  series: [{ name: <span class="s">"规模"</span>, points: [\n' +
+'    { label:<span class="s">"2020"</span>, value:<span class="n">120</span> },\n' +
+'    { label:<span class="s">"2021"</span>, value:<span class="n">180</span> },\n' +
+'    { label:<span class="s">"2022"</span>, value:<span class="n">260</span> },\n' +
+'    { label:<span class="s">"2023"</span>, value:<span class="n">340</span> },\n' +
+'    { label:<span class="s">"2024"</span>, value:<span class="n">520</span> }\n' +
+'  ]}]\n}';
+
+  // A faithful mini of lib/chart-svg.ts: pure geometry from spec + box.
+  var W = 300, H = 150, M = { l: 30, r: 10, t: 12, b: 22 };
+  function render(){
+    var pts = spec.series[0].points;
+    var box = { x:M.l, y:M.t, w: Math.max(1, W-M.l-M.r), h: Math.max(1, H-M.t-M.b) };
+    var vals = pts.map(function(p){ return p.value; });
+    var max = Math.max.apply(null, vals.concat([0]));
+    var min = Math.min.apply(null, vals.concat([0]));
+    if (min === max) max = min + 1;
+    function xAt(i){ return pts.length<=1 ? box.x+box.w/2 : box.x + box.w*i/(pts.length-1); }
+    function yAt(v){ return box.y + box.h*(1 - (v-min)/(max-min)); }
+    var coords = pts.map(function(p,i){ return { x:xAt(i), y:yAt(p.value), label:p.label }; });
+    var poly = coords.map(function(c){ return c.x.toFixed(1)+','+c.y.toFixed(1); }).join(' ');
+    var area = 'M'+coords[0].x.toFixed(1)+','+(box.y+box.h).toFixed(1)+' ' +
+      coords.map(function(c){ return 'L'+c.x.toFixed(1)+','+c.y.toFixed(1); }).join(' ') +
+      ' L'+coords[coords.length-1].x.toFixed(1)+','+(box.y+box.h).toFixed(1)+' Z';
+    var ticks = [0, 0.5, 1].map(function(t){ var v = min + (max-min)*t; return { y: yAt(v), label: (v>=1e4?(v/1e4).toFixed(0)+'万':v.toFixed(0)) }; });
+    var svg = '<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" role="img" aria-label="市场规模折线图">';
+    svg += ticks.map(function(t,i){ return '<line x1="'+box.x+'" y1="'+t.y.toFixed(1)+'" x2="'+(box.x+box.w)+'" y2="'+t.y.toFixed(1)+'" stroke="var(--line-strong)" stroke-width="'+(i===0?1:0.5)+'"'+(i===0?'':' stroke-dasharray="2 3"')+' />' +
+      '<text x="'+(box.x-4)+'" y="'+t.y.toFixed(1)+'" text-anchor="end" dominant-baseline="middle" fill="var(--faint)" font-family="var(--mono)" font-size="8">'+t.label+'</text>'; }).join('');
+    svg += '<path d="'+area+'" fill="var(--blue)" fill-opacity="0.14" />';
+    svg += '<polyline points="'+poly+'" fill="none" stroke="var(--blue)" stroke-width="1.75" stroke-linejoin="round" stroke-linecap="round" />';
+    svg += coords.map(function(c){ return '<circle cx="'+c.x.toFixed(1)+'" cy="'+c.y.toFixed(1)+'" r="2" fill="var(--blue)" />'; }).join('');
+    svg += coords.map(function(c,i){ return (i===0||i===coords.length-1) ? '<text x="'+c.x.toFixed(1)+'" y="'+(H-6)+'" text-anchor="'+(i===0?'start':'end')+'" fill="var(--faint)" font-family="var(--mono)" font-size="8">'+c.label+'</text>' : ''; }).join('');
+    svg += '</svg>';
+    document.getElementById('chartMount').innerHTML = svg;
+  }
+  render();
+})();
+</script>
+</body>
+</html>
