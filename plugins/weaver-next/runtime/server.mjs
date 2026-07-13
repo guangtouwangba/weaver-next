@@ -46,7 +46,7 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
-// node_modules/zod/v4/core/core.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/core.js
 // @__NO_SIDE_EFFECTS__
 function $constructor(name, initializer3, params) {
   function init(inst, def) {
@@ -106,7 +106,7 @@ function config(newConfig) {
 }
 var _a, NEVER, $brand, $ZodAsyncError, $ZodEncodeError, globalConfig;
 var init_core = __esm({
-  "node_modules/zod/v4/core/core.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/core.js"() {
     NEVER = /* @__PURE__ */ Object.freeze({
       status: "aborted"
     });
@@ -127,7 +127,7 @@ var init_core = __esm({
   }
 });
 
-// node_modules/zod/v4/core/util.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/util.js
 var util_exports = {};
 __export(util_exports, {
   BIGINT_FORMAT_RANGES: () => BIGINT_FORMAT_RANGES,
@@ -738,7 +738,7 @@ function uint8ArrayToHex(bytes) {
 }
 var EVALUATING, captureStackTrace, allowsEval, getParsedType, propertyKeyTypes, primitiveTypes, NUMBER_FORMAT_RANGES, BIGINT_FORMAT_RANGES, Class;
 var init_util = __esm({
-  "node_modules/zod/v4/core/util.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/util.js"() {
     init_core();
     EVALUATING = /* @__PURE__ */ Symbol("evaluating");
     captureStackTrace = "captureStackTrace" in Error ? Error.captureStackTrace : (..._args) => {
@@ -829,7 +829,7 @@ var init_util = __esm({
   }
 });
 
-// node_modules/zod/v4/core/errors.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/errors.js
 function flattenError(error51, mapper = (issue2) => issue2.message) {
   const fieldErrors = {};
   const formErrors = [];
@@ -951,7 +951,7 @@ function prettifyError(error51) {
 }
 var initializer, $ZodError, $ZodRealError;
 var init_errors = __esm({
-  "node_modules/zod/v4/core/errors.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/errors.js"() {
     init_core();
     init_util();
     initializer = (inst, def) => {
@@ -975,10 +975,10 @@ var init_errors = __esm({
   }
 });
 
-// node_modules/zod/v4/core/parse.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/parse.js
 var _parse, parse, _parseAsync, parseAsync, _safeParse, safeParse, _safeParseAsync, safeParseAsync, _encode, encode, _decode, decode, _encodeAsync, encodeAsync, _decodeAsync, decodeAsync, _safeEncode, safeEncode, _safeDecode, safeDecode, _safeEncodeAsync, safeEncodeAsync, _safeDecodeAsync, safeDecodeAsync;
 var init_parse = __esm({
-  "node_modules/zod/v4/core/parse.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/parse.js"() {
     init_core();
     init_errors();
     init_util();
@@ -1071,7 +1071,7 @@ var init_parse = __esm({
   }
 });
 
-// node_modules/zod/v4/core/regexes.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/regexes.js
 var regexes_exports = {};
 __export(regexes_exports, {
   base64: () => base64,
@@ -1163,7 +1163,7 @@ function fixedBase64url(length) {
 }
 var cuid, cuid2, ulid, xid, ksuid, nanoid, duration, extendedDuration, guid, uuid, uuid4, uuid6, uuid7, email, html5Email, rfc5322Email, unicodeEmail, idnEmail, browserEmail, _emoji, ipv4, ipv6, mac, cidrv4, cidrv6, base64, base64url, hostname, domain, httpProtocol, e164, dateSource, date, string, bigint, integer, number, boolean, _null, _undefined, lowercase, uppercase, hex, md5_hex, md5_base64, md5_base64url, sha1_hex, sha1_base64, sha1_base64url, sha256_hex, sha256_base64, sha256_base64url, sha384_hex, sha384_base64, sha384_base64url, sha512_hex, sha512_base64, sha512_base64url;
 var init_regexes = __esm({
-  "node_modules/zod/v4/core/regexes.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/regexes.js"() {
     init_util();
     cuid = /^[cC][0-9a-z]{6,}$/;
     cuid2 = /^[0-9a-z]+$/;
@@ -1236,7 +1236,7 @@ var init_regexes = __esm({
   }
 });
 
-// node_modules/zod/v4/core/checks.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/checks.js
 function handleCheckPropertyResult(result2, payload, property) {
   if (result2.issues.length) {
     payload.issues.push(...prefixIssues(property, result2.issues));
@@ -1244,7 +1244,7 @@ function handleCheckPropertyResult(result2, payload, property) {
 }
 var $ZodCheck, numericOriginMap, $ZodCheckLessThan, $ZodCheckGreaterThan, $ZodCheckMultipleOf, $ZodCheckNumberFormat, $ZodCheckBigIntFormat, $ZodCheckMaxSize, $ZodCheckMinSize, $ZodCheckSizeEquals, $ZodCheckMaxLength, $ZodCheckMinLength, $ZodCheckLengthEquals, $ZodCheckStringFormat, $ZodCheckRegex, $ZodCheckLowerCase, $ZodCheckUpperCase, $ZodCheckIncludes, $ZodCheckStartsWith, $ZodCheckEndsWith, $ZodCheckProperty, $ZodCheckMimeType, $ZodCheckOverwrite;
 var init_checks = __esm({
-  "node_modules/zod/v4/core/checks.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/checks.js"() {
     init_core();
     init_regexes();
     init_util();
@@ -1792,10 +1792,10 @@ var init_checks = __esm({
   }
 });
 
-// node_modules/zod/v4/core/doc.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/doc.js
 var Doc;
 var init_doc = __esm({
-  "node_modules/zod/v4/core/doc.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/doc.js"() {
     Doc = class {
       constructor(args = []) {
         this.content = [];
@@ -1833,10 +1833,10 @@ var init_doc = __esm({
   }
 });
 
-// node_modules/zod/v4/core/versions.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/versions.js
 var version;
 var init_versions = __esm({
-  "node_modules/zod/v4/core/versions.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/versions.js"() {
     version = {
       major: 4,
       minor: 4,
@@ -1845,7 +1845,7 @@ var init_versions = __esm({
   }
 });
 
-// node_modules/zod/v4/core/schemas.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/schemas.js
 function isValidBase64(data) {
   if (data === "")
     return true;
@@ -2251,7 +2251,7 @@ function handleRefineResult(result2, payload, input, inst) {
 }
 var $ZodType, $ZodString, $ZodStringFormat, $ZodGUID, $ZodUUID, $ZodEmail, $ZodURL, $ZodEmoji, $ZodNanoID, $ZodCUID, $ZodCUID2, $ZodULID, $ZodXID, $ZodKSUID, $ZodISODateTime, $ZodISODate, $ZodISOTime, $ZodISODuration, $ZodIPv4, $ZodIPv6, $ZodMAC, $ZodCIDRv4, $ZodCIDRv6, $ZodBase64, $ZodBase64URL, $ZodE164, $ZodJWT, $ZodCustomStringFormat, $ZodNumber, $ZodNumberFormat, $ZodBoolean, $ZodBigInt, $ZodBigIntFormat, $ZodSymbol, $ZodUndefined, $ZodNull, $ZodAny, $ZodUnknown, $ZodNever, $ZodVoid, $ZodDate, $ZodArray, $ZodObject, $ZodObjectJIT, $ZodUnion, $ZodXor, $ZodDiscriminatedUnion, $ZodIntersection, $ZodTuple, $ZodRecord, $ZodMap, $ZodSet, $ZodEnum, $ZodLiteral, $ZodFile, $ZodTransform, $ZodOptional, $ZodExactOptional, $ZodNullable, $ZodDefault, $ZodPrefault, $ZodNonOptional, $ZodSuccess, $ZodCatch, $ZodNaN, $ZodPipe, $ZodCodec, $ZodPreprocess, $ZodReadonly, $ZodTemplateLiteral, $ZodFunction, $ZodPromise, $ZodLazy, $ZodCustom;
 var init_schemas = __esm({
-  "node_modules/zod/v4/core/schemas.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/schemas.js"() {
     init_checks();
     init_core();
     init_doc();
@@ -3951,7 +3951,7 @@ var init_schemas = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/ar.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ar.js
 function ar_default() {
   return {
     localeError: error()
@@ -3959,7 +3959,7 @@ function ar_default() {
 }
 var error;
 var init_ar = __esm({
-  "node_modules/zod/v4/locales/ar.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ar.js"() {
     init_util();
     error = () => {
       const Sizable = {
@@ -4064,7 +4064,7 @@ var init_ar = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/az.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/az.js
 function az_default() {
   return {
     localeError: error2()
@@ -4072,7 +4072,7 @@ function az_default() {
 }
 var error2;
 var init_az = __esm({
-  "node_modules/zod/v4/locales/az.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/az.js"() {
     init_util();
     error2 = () => {
       const Sizable = {
@@ -4176,7 +4176,7 @@ var init_az = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/be.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/be.js
 function getBelarusianPlural(count, one, few, many) {
   const absCount = Math.abs(count);
   const lastDigit = absCount % 10;
@@ -4199,7 +4199,7 @@ function be_default() {
 }
 var error3;
 var init_be = __esm({
-  "node_modules/zod/v4/locales/be.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/be.js"() {
     init_util();
     error3 = () => {
       const Sizable = {
@@ -4339,7 +4339,7 @@ var init_be = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/bg.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/bg.js
 function bg_default() {
   return {
     localeError: error4()
@@ -4347,7 +4347,7 @@ function bg_default() {
 }
 var error4;
 var init_bg = __esm({
-  "node_modules/zod/v4/locales/bg.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/bg.js"() {
     init_util();
     error4 = () => {
       const Sizable = {
@@ -4466,7 +4466,7 @@ var init_bg = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/ca.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ca.js
 function ca_default() {
   return {
     localeError: error5()
@@ -4474,7 +4474,7 @@ function ca_default() {
 }
 var error5;
 var init_ca = __esm({
-  "node_modules/zod/v4/locales/ca.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ca.js"() {
     init_util();
     error5 = () => {
       const Sizable = {
@@ -4581,7 +4581,7 @@ var init_ca = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/cs.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/cs.js
 function cs_default() {
   return {
     localeError: error6()
@@ -4589,7 +4589,7 @@ function cs_default() {
 }
 var error6;
 var init_cs = __esm({
-  "node_modules/zod/v4/locales/cs.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/cs.js"() {
     init_util();
     error6 = () => {
       const Sizable = {
@@ -4699,7 +4699,7 @@ var init_cs = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/da.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/da.js
 function da_default() {
   return {
     localeError: error7()
@@ -4707,7 +4707,7 @@ function da_default() {
 }
 var error7;
 var init_da = __esm({
-  "node_modules/zod/v4/locales/da.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/da.js"() {
     init_util();
     error7 = () => {
       const Sizable = {
@@ -4821,7 +4821,7 @@ var init_da = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/de.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/de.js
 function de_default() {
   return {
     localeError: error8()
@@ -4829,7 +4829,7 @@ function de_default() {
 }
 var error8;
 var init_de = __esm({
-  "node_modules/zod/v4/locales/de.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/de.js"() {
     init_util();
     error8 = () => {
       const Sizable = {
@@ -4936,7 +4936,7 @@ var init_de = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/el.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/el.js
 function el_default() {
   return {
     localeError: error9()
@@ -4944,7 +4944,7 @@ function el_default() {
 }
 var error9;
 var init_el = __esm({
-  "node_modules/zod/v4/locales/el.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/el.js"() {
     init_util();
     error9 = () => {
       const Sizable = {
@@ -5052,7 +5052,7 @@ var init_el = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/en.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/en.js
 function en_default() {
   return {
     localeError: error10()
@@ -5060,7 +5060,7 @@ function en_default() {
 }
 var error10;
 var init_en = __esm({
-  "node_modules/zod/v4/locales/en.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/en.js"() {
     init_util();
     error10 = () => {
       const Sizable = {
@@ -5171,7 +5171,7 @@ var init_en = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/eo.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/eo.js
 function eo_default() {
   return {
     localeError: error11()
@@ -5179,7 +5179,7 @@ function eo_default() {
 }
 var error11;
 var init_eo = __esm({
-  "node_modules/zod/v4/locales/eo.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/eo.js"() {
     init_util();
     error11 = () => {
       const Sizable = {
@@ -5287,7 +5287,7 @@ var init_eo = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/es.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/es.js
 function es_default() {
   return {
     localeError: error12()
@@ -5295,7 +5295,7 @@ function es_default() {
 }
 var error12;
 var init_es = __esm({
-  "node_modules/zod/v4/locales/es.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/es.js"() {
     init_util();
     error12 = () => {
       const Sizable = {
@@ -5426,7 +5426,7 @@ var init_es = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/fa.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/fa.js
 function fa_default() {
   return {
     localeError: error13()
@@ -5434,7 +5434,7 @@ function fa_default() {
 }
 var error13;
 var init_fa = __esm({
-  "node_modules/zod/v4/locales/fa.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/fa.js"() {
     init_util();
     error13 = () => {
       const Sizable = {
@@ -5547,7 +5547,7 @@ var init_fa = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/fi.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/fi.js
 function fi_default() {
   return {
     localeError: error14()
@@ -5555,7 +5555,7 @@ function fi_default() {
 }
 var error14;
 var init_fi = __esm({
-  "node_modules/zod/v4/locales/fi.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/fi.js"() {
     init_util();
     error14 = () => {
       const Sizable = {
@@ -5666,7 +5666,7 @@ var init_fi = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/fr.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/fr.js
 function fr_default() {
   return {
     localeError: error15()
@@ -5674,7 +5674,7 @@ function fr_default() {
 }
 var error15;
 var init_fr = __esm({
-  "node_modules/zod/v4/locales/fr.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/fr.js"() {
     init_util();
     error15 = () => {
       const Sizable = {
@@ -5798,7 +5798,7 @@ var init_fr = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/fr-CA.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/fr-CA.js
 function fr_CA_default() {
   return {
     localeError: error16()
@@ -5806,7 +5806,7 @@ function fr_CA_default() {
 }
 var error16;
 var init_fr_CA = __esm({
-  "node_modules/zod/v4/locales/fr-CA.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/fr-CA.js"() {
     init_util();
     error16 = () => {
       const Sizable = {
@@ -5912,7 +5912,7 @@ var init_fr_CA = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/he.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/he.js
 function he_default() {
   return {
     localeError: error17()
@@ -5920,7 +5920,7 @@ function he_default() {
 }
 var error17;
 var init_he = __esm({
-  "node_modules/zod/v4/locales/he.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/he.js"() {
     init_util();
     error17 = () => {
       const TypeNames = {
@@ -6113,7 +6113,7 @@ var init_he = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/hr.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/hr.js
 function hr_default() {
   return {
     localeError: error18()
@@ -6121,7 +6121,7 @@ function hr_default() {
 }
 var error18;
 var init_hr = __esm({
-  "node_modules/zod/v4/locales/hr.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/hr.js"() {
     init_util();
     error18 = () => {
       const Sizable = {
@@ -6242,7 +6242,7 @@ var init_hr = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/hu.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/hu.js
 function hu_default() {
   return {
     localeError: error19()
@@ -6250,7 +6250,7 @@ function hu_default() {
 }
 var error19;
 var init_hu = __esm({
-  "node_modules/zod/v4/locales/hu.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/hu.js"() {
     init_util();
     error19 = () => {
       const Sizable = {
@@ -6357,7 +6357,7 @@ var init_hu = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/hy.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/hy.js
 function getArmenianPlural(count, one, many) {
   return Math.abs(count) === 1 ? one : many;
 }
@@ -6375,7 +6375,7 @@ function hy_default() {
 }
 var error20;
 var init_hy = __esm({
-  "node_modules/zod/v4/locales/hy.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/hy.js"() {
     init_util();
     error20 = () => {
       const Sizable = {
@@ -6511,7 +6511,7 @@ var init_hy = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/id.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/id.js
 function id_default() {
   return {
     localeError: error21()
@@ -6519,7 +6519,7 @@ function id_default() {
 }
 var error21;
 var init_id = __esm({
-  "node_modules/zod/v4/locales/id.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/id.js"() {
     init_util();
     error21 = () => {
       const Sizable = {
@@ -6624,7 +6624,7 @@ var init_id = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/is.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/is.js
 function is_default() {
   return {
     localeError: error22()
@@ -6632,7 +6632,7 @@ function is_default() {
 }
 var error22;
 var init_is = __esm({
-  "node_modules/zod/v4/locales/is.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/is.js"() {
     init_util();
     error22 = () => {
       const Sizable = {
@@ -6740,7 +6740,7 @@ var init_is = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/it.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/it.js
 function it_default() {
   return {
     localeError: error23()
@@ -6748,7 +6748,7 @@ function it_default() {
 }
 var error23;
 var init_it = __esm({
-  "node_modules/zod/v4/locales/it.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/it.js"() {
     init_util();
     error23 = () => {
       const Sizable = {
@@ -6855,7 +6855,7 @@ var init_it = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/ja.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ja.js
 function ja_default() {
   return {
     localeError: error24()
@@ -6863,7 +6863,7 @@ function ja_default() {
 }
 var error24;
 var init_ja = __esm({
-  "node_modules/zod/v4/locales/ja.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ja.js"() {
     init_util();
     error24 = () => {
       const Sizable = {
@@ -6969,7 +6969,7 @@ var init_ja = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/ka.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ka.js
 function ka_default() {
   return {
     localeError: error25()
@@ -6977,7 +6977,7 @@ function ka_default() {
 }
 var error25;
 var init_ka = __esm({
-  "node_modules/zod/v4/locales/ka.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ka.js"() {
     init_util();
     error25 = () => {
       const Sizable = {
@@ -7088,7 +7088,7 @@ var init_ka = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/km.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/km.js
 function km_default() {
   return {
     localeError: error26()
@@ -7096,7 +7096,7 @@ function km_default() {
 }
 var error26;
 var init_km = __esm({
-  "node_modules/zod/v4/locales/km.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/km.js"() {
     init_util();
     error26 = () => {
       const Sizable = {
@@ -7205,17 +7205,17 @@ var init_km = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/kh.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/kh.js
 function kh_default() {
   return km_default();
 }
 var init_kh = __esm({
-  "node_modules/zod/v4/locales/kh.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/kh.js"() {
     init_km();
   }
 });
 
-// node_modules/zod/v4/locales/ko.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ko.js
 function ko_default() {
   return {
     localeError: error27()
@@ -7223,7 +7223,7 @@ function ko_default() {
 }
 var error27;
 var init_ko = __esm({
-  "node_modules/zod/v4/locales/ko.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ko.js"() {
     init_util();
     error27 = () => {
       const Sizable = {
@@ -7333,7 +7333,7 @@ var init_ko = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/lt.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/lt.js
 function getUnitTypeFromNumber(number4) {
   const abs = Math.abs(number4);
   const last = abs % 10;
@@ -7351,7 +7351,7 @@ function lt_default() {
 }
 var capitalizeFirstCharacter, error28;
 var init_lt = __esm({
-  "node_modules/zod/v4/locales/lt.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/lt.js"() {
     init_util();
     capitalizeFirstCharacter = (text) => {
       return text.charAt(0).toUpperCase() + text.slice(1);
@@ -7543,7 +7543,7 @@ var init_lt = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/mk.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/mk.js
 function mk_default() {
   return {
     localeError: error29()
@@ -7551,7 +7551,7 @@ function mk_default() {
 }
 var error29;
 var init_mk = __esm({
-  "node_modules/zod/v4/locales/mk.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/mk.js"() {
     init_util();
     error29 = () => {
       const Sizable = {
@@ -7659,7 +7659,7 @@ var init_mk = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/ms.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ms.js
 function ms_default() {
   return {
     localeError: error30()
@@ -7667,7 +7667,7 @@ function ms_default() {
 }
 var error30;
 var init_ms = __esm({
-  "node_modules/zod/v4/locales/ms.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ms.js"() {
     init_util();
     error30 = () => {
       const Sizable = {
@@ -7773,7 +7773,7 @@ var init_ms = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/nl.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/nl.js
 function nl_default() {
   return {
     localeError: error31()
@@ -7781,7 +7781,7 @@ function nl_default() {
 }
 var error31;
 var init_nl = __esm({
-  "node_modules/zod/v4/locales/nl.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/nl.js"() {
     init_util();
     error31 = () => {
       const Sizable = {
@@ -7890,7 +7890,7 @@ var init_nl = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/no.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/no.js
 function no_default() {
   return {
     localeError: error32()
@@ -7898,7 +7898,7 @@ function no_default() {
 }
 var error32;
 var init_no = __esm({
-  "node_modules/zod/v4/locales/no.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/no.js"() {
     init_util();
     error32 = () => {
       const Sizable = {
@@ -8005,7 +8005,7 @@ var init_no = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/ota.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ota.js
 function ota_default() {
   return {
     localeError: error33()
@@ -8013,7 +8013,7 @@ function ota_default() {
 }
 var error33;
 var init_ota = __esm({
-  "node_modules/zod/v4/locales/ota.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ota.js"() {
     init_util();
     error33 = () => {
       const Sizable = {
@@ -8121,7 +8121,7 @@ var init_ota = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/ps.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ps.js
 function ps_default() {
   return {
     localeError: error34()
@@ -8129,7 +8129,7 @@ function ps_default() {
 }
 var error34;
 var init_ps = __esm({
-  "node_modules/zod/v4/locales/ps.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ps.js"() {
     init_util();
     error34 = () => {
       const Sizable = {
@@ -8242,7 +8242,7 @@ var init_ps = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/pl.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/pl.js
 function pl_default() {
   return {
     localeError: error35()
@@ -8250,7 +8250,7 @@ function pl_default() {
 }
 var error35;
 var init_pl = __esm({
-  "node_modules/zod/v4/locales/pl.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/pl.js"() {
     init_util();
     error35 = () => {
       const Sizable = {
@@ -8358,7 +8358,7 @@ var init_pl = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/pt.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/pt.js
 function pt_default() {
   return {
     localeError: error36()
@@ -8366,7 +8366,7 @@ function pt_default() {
 }
 var error36;
 var init_pt = __esm({
-  "node_modules/zod/v4/locales/pt.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/pt.js"() {
     init_util();
     error36 = () => {
       const Sizable = {
@@ -8473,7 +8473,7 @@ var init_pt = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/ro.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ro.js
 function ro_default() {
   return {
     localeError: error37()
@@ -8481,7 +8481,7 @@ function ro_default() {
 }
 var error37;
 var init_ro = __esm({
-  "node_modules/zod/v4/locales/ro.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ro.js"() {
     init_util();
     error37 = () => {
       const Sizable = {
@@ -8599,7 +8599,7 @@ var init_ro = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/ru.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ru.js
 function getRussianPlural(count, one, few, many) {
   const absCount = Math.abs(count);
   const lastDigit = absCount % 10;
@@ -8622,7 +8622,7 @@ function ru_default() {
 }
 var error38;
 var init_ru = __esm({
-  "node_modules/zod/v4/locales/ru.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ru.js"() {
     init_util();
     error38 = () => {
       const Sizable = {
@@ -8762,7 +8762,7 @@ var init_ru = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/sl.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/sl.js
 function sl_default() {
   return {
     localeError: error39()
@@ -8770,7 +8770,7 @@ function sl_default() {
 }
 var error39;
 var init_sl = __esm({
-  "node_modules/zod/v4/locales/sl.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/sl.js"() {
     init_util();
     error39 = () => {
       const Sizable = {
@@ -8878,7 +8878,7 @@ var init_sl = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/sv.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/sv.js
 function sv_default() {
   return {
     localeError: error40()
@@ -8886,7 +8886,7 @@ function sv_default() {
 }
 var error40;
 var init_sv = __esm({
-  "node_modules/zod/v4/locales/sv.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/sv.js"() {
     init_util();
     error40 = () => {
       const Sizable = {
@@ -8995,7 +8995,7 @@ var init_sv = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/ta.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ta.js
 function ta_default() {
   return {
     localeError: error41()
@@ -9003,7 +9003,7 @@ function ta_default() {
 }
 var error41;
 var init_ta = __esm({
-  "node_modules/zod/v4/locales/ta.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ta.js"() {
     init_util();
     error41 = () => {
       const Sizable = {
@@ -9112,7 +9112,7 @@ var init_ta = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/th.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/th.js
 function th_default() {
   return {
     localeError: error42()
@@ -9120,7 +9120,7 @@ function th_default() {
 }
 var error42;
 var init_th = __esm({
-  "node_modules/zod/v4/locales/th.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/th.js"() {
     init_util();
     error42 = () => {
       const Sizable = {
@@ -9229,7 +9229,7 @@ var init_th = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/tr.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/tr.js
 function tr_default() {
   return {
     localeError: error43()
@@ -9237,7 +9237,7 @@ function tr_default() {
 }
 var error43;
 var init_tr = __esm({
-  "node_modules/zod/v4/locales/tr.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/tr.js"() {
     init_util();
     error43 = () => {
       const Sizable = {
@@ -9341,7 +9341,7 @@ var init_tr = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/uk.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/uk.js
 function uk_default() {
   return {
     localeError: error44()
@@ -9349,7 +9349,7 @@ function uk_default() {
 }
 var error44;
 var init_uk = __esm({
-  "node_modules/zod/v4/locales/uk.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/uk.js"() {
     init_util();
     error44 = () => {
       const Sizable = {
@@ -9456,17 +9456,17 @@ var init_uk = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/ua.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ua.js
 function ua_default() {
   return uk_default();
 }
 var init_ua = __esm({
-  "node_modules/zod/v4/locales/ua.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ua.js"() {
     init_uk();
   }
 });
 
-// node_modules/zod/v4/locales/ur.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ur.js
 function ur_default() {
   return {
     localeError: error45()
@@ -9474,7 +9474,7 @@ function ur_default() {
 }
 var error45;
 var init_ur = __esm({
-  "node_modules/zod/v4/locales/ur.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/ur.js"() {
     init_util();
     error45 = () => {
       const Sizable = {
@@ -9583,7 +9583,7 @@ var init_ur = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/uz.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/uz.js
 function uz_default() {
   return {
     localeError: error46()
@@ -9591,7 +9591,7 @@ function uz_default() {
 }
 var error46;
 var init_uz = __esm({
-  "node_modules/zod/v4/locales/uz.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/uz.js"() {
     init_util();
     error46 = () => {
       const Sizable = {
@@ -9700,7 +9700,7 @@ var init_uz = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/vi.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/vi.js
 function vi_default() {
   return {
     localeError: error47()
@@ -9708,7 +9708,7 @@ function vi_default() {
 }
 var error47;
 var init_vi = __esm({
-  "node_modules/zod/v4/locales/vi.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/vi.js"() {
     init_util();
     error47 = () => {
       const Sizable = {
@@ -9815,7 +9815,7 @@ var init_vi = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/zh-CN.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/zh-CN.js
 function zh_CN_default() {
   return {
     localeError: error48()
@@ -9823,7 +9823,7 @@ function zh_CN_default() {
 }
 var error48;
 var init_zh_CN = __esm({
-  "node_modules/zod/v4/locales/zh-CN.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/zh-CN.js"() {
     init_util();
     error48 = () => {
       const Sizable = {
@@ -9931,7 +9931,7 @@ var init_zh_CN = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/zh-TW.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/zh-TW.js
 function zh_TW_default() {
   return {
     localeError: error49()
@@ -9939,7 +9939,7 @@ function zh_TW_default() {
 }
 var error49;
 var init_zh_TW = __esm({
-  "node_modules/zod/v4/locales/zh-TW.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/zh-TW.js"() {
     init_util();
     error49 = () => {
       const Sizable = {
@@ -10045,7 +10045,7 @@ var init_zh_TW = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/yo.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/yo.js
 function yo_default() {
   return {
     localeError: error50()
@@ -10053,7 +10053,7 @@ function yo_default() {
 }
 var error50;
 var init_yo = __esm({
-  "node_modules/zod/v4/locales/yo.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/yo.js"() {
     init_util();
     error50 = () => {
       const Sizable = {
@@ -10159,7 +10159,7 @@ var init_yo = __esm({
   }
 });
 
-// node_modules/zod/v4/locales/index.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/index.js
 var locales_exports = {};
 __export(locales_exports, {
   ar: () => ar_default,
@@ -10216,7 +10216,7 @@ __export(locales_exports, {
   zhTW: () => zh_TW_default
 });
 var init_locales = __esm({
-  "node_modules/zod/v4/locales/index.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/locales/index.js"() {
     init_ar();
     init_az();
     init_be();
@@ -10272,13 +10272,13 @@ var init_locales = __esm({
   }
 });
 
-// node_modules/zod/v4/core/registries.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/registries.js
 function registry() {
   return new $ZodRegistry();
 }
 var _a2, $output, $input, $ZodRegistry, globalRegistry;
 var init_registries = __esm({
-  "node_modules/zod/v4/core/registries.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/registries.js"() {
     $output = /* @__PURE__ */ Symbol("ZodOutput");
     $input = /* @__PURE__ */ Symbol("ZodInput");
     $ZodRegistry = class {
@@ -10326,7 +10326,7 @@ var init_registries = __esm({
   }
 });
 
-// node_modules/zod/v4/core/api.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/api.js
 // @__NO_SIDE_EFFECTS__
 function _string(Class2, params) {
   return new Class2({
@@ -11359,7 +11359,7 @@ function _stringFormat(Class2, format, fnOrRegex, _params = {}) {
 }
 var TimePrecision;
 var init_api = __esm({
-  "node_modules/zod/v4/core/api.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/api.js"() {
     init_checks();
     init_registries();
     init_schemas();
@@ -11374,7 +11374,7 @@ var init_api = __esm({
   }
 });
 
-// node_modules/zod/v4/core/to-json-schema.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/to-json-schema.js
 function initializeContext(params) {
   let target = params?.target ?? "draft-2020-12";
   if (target === "draft-4")
@@ -11721,7 +11721,7 @@ function isTransforming(_schema, _ctx) {
 }
 var createToJSONSchemaMethod, createStandardJSONSchemaMethod;
 var init_to_json_schema = __esm({
-  "node_modules/zod/v4/core/to-json-schema.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/to-json-schema.js"() {
     init_registries();
     createToJSONSchemaMethod = (schema, processors = {}) => (params) => {
       const ctx = initializeContext({ ...params, processors });
@@ -11739,7 +11739,7 @@ var init_to_json_schema = __esm({
   }
 });
 
-// node_modules/zod/v4/core/json-schema-processors.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/json-schema-processors.js
 function toJSONSchema(input, params) {
   if ("_idmap" in input) {
     const registry2 = input;
@@ -11776,7 +11776,7 @@ function toJSONSchema(input, params) {
 }
 var formatMap, stringProcessor, numberProcessor, booleanProcessor, bigintProcessor, symbolProcessor, nullProcessor, undefinedProcessor, voidProcessor, neverProcessor, anyProcessor, unknownProcessor, dateProcessor, enumProcessor, literalProcessor, nanProcessor, templateLiteralProcessor, fileProcessor, successProcessor, customProcessor, functionProcessor, transformProcessor, mapProcessor, setProcessor, arrayProcessor, objectProcessor, unionProcessor, intersectionProcessor, tupleProcessor, recordProcessor, nullableProcessor, nonoptionalProcessor, defaultProcessor, prefaultProcessor, catchProcessor, pipeProcessor, readonlyProcessor, promiseProcessor, optionalProcessor, lazyProcessor, allProcessors;
 var init_json_schema_processors = __esm({
-  "node_modules/zod/v4/core/json-schema-processors.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/json-schema-processors.js"() {
     init_to_json_schema();
     init_util();
     formatMap = {
@@ -12290,10 +12290,10 @@ var init_json_schema_processors = __esm({
   }
 });
 
-// node_modules/zod/v4/core/json-schema-generator.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/json-schema-generator.js
 var JSONSchemaGenerator;
 var init_json_schema_generator = __esm({
-  "node_modules/zod/v4/core/json-schema-generator.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/json-schema-generator.js"() {
     init_json_schema_processors();
     init_to_json_schema();
     JSONSchemaGenerator = class {
@@ -12372,14 +12372,14 @@ var init_json_schema_generator = __esm({
   }
 });
 
-// node_modules/zod/v4/core/json-schema.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/json-schema.js
 var json_schema_exports = {};
 var init_json_schema = __esm({
-  "node_modules/zod/v4/core/json-schema.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/json-schema.js"() {
   }
 });
 
-// node_modules/zod/v4/core/index.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/index.js
 var core_exports2 = {};
 __export(core_exports2, {
   $ZodAny: () => $ZodAny,
@@ -12658,7 +12658,7 @@ __export(core_exports2, {
   version: () => version
 });
 var init_core2 = __esm({
-  "node_modules/zod/v4/core/index.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/core/index.js"() {
     init_core();
     init_parse();
     init_errors();
@@ -12678,7 +12678,7 @@ var init_core2 = __esm({
   }
 });
 
-// node_modules/zod/v4/classic/checks.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/classic/checks.js
 var checks_exports2 = {};
 __export(checks_exports2, {
   endsWith: () => _endsWith,
@@ -12712,12 +12712,12 @@ __export(checks_exports2, {
   uppercase: () => _uppercase
 });
 var init_checks2 = __esm({
-  "node_modules/zod/v4/classic/checks.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/classic/checks.js"() {
     init_core2();
   }
 });
 
-// node_modules/zod/v4/classic/iso.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/classic/iso.js
 var iso_exports = {};
 __export(iso_exports, {
   ZodISODate: () => ZodISODate,
@@ -12743,7 +12743,7 @@ function duration2(params) {
 }
 var ZodISODateTime, ZodISODate, ZodISOTime, ZodISODuration;
 var init_iso = __esm({
-  "node_modules/zod/v4/classic/iso.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/classic/iso.js"() {
     init_core2();
     init_schemas2();
     ZodISODateTime = /* @__PURE__ */ $constructor("ZodISODateTime", (inst, def) => {
@@ -12765,10 +12765,10 @@ var init_iso = __esm({
   }
 });
 
-// node_modules/zod/v4/classic/errors.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/classic/errors.js
 var initializer2, ZodError, ZodRealError;
 var init_errors2 = __esm({
-  "node_modules/zod/v4/classic/errors.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/classic/errors.js"() {
     init_core2();
     init_core2();
     init_util();
@@ -12813,10 +12813,10 @@ var init_errors2 = __esm({
   }
 });
 
-// node_modules/zod/v4/classic/parse.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/classic/parse.js
 var parse2, parseAsync2, safeParse2, safeParseAsync2, encode2, decode2, encodeAsync2, decodeAsync2, safeEncode2, safeDecode2, safeEncodeAsync2, safeDecodeAsync2;
 var init_parse2 = __esm({
-  "node_modules/zod/v4/classic/parse.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/classic/parse.js"() {
     init_core2();
     init_errors2();
     parse2 = /* @__PURE__ */ _parse(ZodRealError);
@@ -12834,7 +12834,7 @@ var init_parse2 = __esm({
   }
 });
 
-// node_modules/zod/v4/classic/schemas.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/classic/schemas.js
 var schemas_exports2 = {};
 __export(schemas_exports2, {
   ZodAny: () => ZodAny,
@@ -13518,7 +13518,7 @@ function preprocess(fn, schema) {
 }
 var _installedGroups, ZodType, _ZodString, ZodString, ZodStringFormat, ZodEmail, ZodGUID, ZodUUID, ZodURL, ZodEmoji, ZodNanoID, ZodCUID, ZodCUID2, ZodULID, ZodXID, ZodKSUID, ZodIPv4, ZodMAC, ZodIPv6, ZodCIDRv4, ZodCIDRv6, ZodBase64, ZodBase64URL, ZodE164, ZodJWT, ZodCustomStringFormat, ZodNumber, ZodNumberFormat, ZodBoolean, ZodBigInt, ZodBigIntFormat, ZodSymbol, ZodUndefined, ZodNull, ZodAny, ZodUnknown, ZodNever, ZodVoid, ZodDate, ZodArray, ZodObject, ZodUnion, ZodXor, ZodDiscriminatedUnion, ZodIntersection, ZodTuple, ZodRecord, ZodMap, ZodSet, ZodEnum, ZodLiteral, ZodFile, ZodTransform, ZodOptional, ZodExactOptional, ZodNullable, ZodDefault, ZodPrefault, ZodNonOptional, ZodSuccess, ZodCatch, ZodNaN, ZodPipe, ZodCodec, ZodPreprocess, ZodReadonly, ZodTemplateLiteral, ZodLazy, ZodPromise, ZodFunction, ZodCustom, describe2, meta2, stringbool;
 var init_schemas2 = __esm({
-  "node_modules/zod/v4/classic/schemas.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/classic/schemas.js"() {
     init_core2();
     init_core2();
     init_json_schema_processors();
@@ -14305,7 +14305,7 @@ var init_schemas2 = __esm({
   }
 });
 
-// node_modules/zod/v4/classic/compat.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/classic/compat.js
 function setErrorMap(map2) {
   config({
     customError: map2
@@ -14316,7 +14316,7 @@ function getErrorMap() {
 }
 var ZodIssueCode, ZodFirstPartyTypeKind;
 var init_compat = __esm({
-  "node_modules/zod/v4/classic/compat.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/classic/compat.js"() {
     init_core2();
     ZodIssueCode = {
       invalid_type: "invalid_type",
@@ -14336,7 +14336,7 @@ var init_compat = __esm({
   }
 });
 
-// node_modules/zod/v4/classic/from-json-schema.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/classic/from-json-schema.js
 function detectVersion(schema, defaultTarget) {
   const $schema = schema.$schema;
   if ($schema === "https://json-schema.org/draft/2020-12/schema") {
@@ -14741,7 +14741,7 @@ function fromJSONSchema(schema, params) {
 }
 var z, RECOGNIZED_KEYS;
 var init_from_json_schema = __esm({
-  "node_modules/zod/v4/classic/from-json-schema.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/classic/from-json-schema.js"() {
     init_registries();
     init_checks2();
     init_iso();
@@ -14825,7 +14825,7 @@ var init_from_json_schema = __esm({
   }
 });
 
-// node_modules/zod/v4/classic/coerce.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/classic/coerce.js
 var coerce_exports = {};
 __export(coerce_exports, {
   bigint: () => bigint3,
@@ -14850,13 +14850,13 @@ function date4(params) {
   return _coercedDate(ZodDate, params);
 }
 var init_coerce = __esm({
-  "node_modules/zod/v4/classic/coerce.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/classic/coerce.js"() {
     init_core2();
     init_schemas2();
   }
 });
 
-// node_modules/zod/v4/classic/external.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/classic/external.js
 var external_exports = {};
 __export(external_exports, {
   $brand: () => $brand,
@@ -15099,7 +15099,7 @@ __export(external_exports, {
   xor: () => xor
 });
 var init_external = __esm({
-  "node_modules/zod/v4/classic/external.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/classic/external.js"() {
     init_core2();
     init_schemas2();
     init_checks2();
@@ -15119,24 +15119,24 @@ var init_external = __esm({
   }
 });
 
-// node_modules/zod/v4/classic/index.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/classic/index.js
 var init_classic = __esm({
-  "node_modules/zod/v4/classic/index.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/classic/index.js"() {
     init_external();
     init_external();
   }
 });
 
-// node_modules/zod/v4/index.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/index.js
 var init_v4 = __esm({
-  "node_modules/zod/v4/index.js"() {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/index.js"() {
     init_classic();
   }
 });
 
-// node_modules/ajv/dist/compile/codegen/code.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/codegen/code.js
 var require_code = __commonJS({
-  "node_modules/ajv/dist/compile/codegen/code.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/codegen/code.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.regexpCode = exports.getEsmExportName = exports.getProperty = exports.safeStringify = exports.stringify = exports.strConcat = exports.addCodeArg = exports.str = exports._ = exports.nil = exports._Code = exports.Name = exports.IDENTIFIER = exports._CodeOrName = void 0;
@@ -15288,9 +15288,9 @@ var require_code = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/compile/codegen/scope.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/codegen/scope.js
 var require_scope = __commonJS({
-  "node_modules/ajv/dist/compile/codegen/scope.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/codegen/scope.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.ValueScope = exports.ValueScopeName = exports.Scope = exports.varKinds = exports.UsedValueState = void 0;
@@ -15433,9 +15433,9 @@ var require_scope = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/compile/codegen/index.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/codegen/index.js
 var require_codegen = __commonJS({
-  "node_modules/ajv/dist/compile/codegen/index.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/codegen/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.or = exports.and = exports.not = exports.CodeGen = exports.operators = exports.varKinds = exports.ValueScopeName = exports.ValueScope = exports.Scope = exports.Name = exports.regexpCode = exports.stringify = exports.getProperty = exports.nil = exports.strConcat = exports.str = exports._ = void 0;
@@ -16153,9 +16153,9 @@ var require_codegen = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/compile/util.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/util.js
 var require_util = __commonJS({
-  "node_modules/ajv/dist/compile/util.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/util.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.checkStrictMode = exports.getErrorPath = exports.Type = exports.useFunc = exports.setEvaluated = exports.evaluatedPropsToName = exports.mergeEvaluated = exports.eachItem = exports.unescapeJsonPointer = exports.escapeJsonPointer = exports.escapeFragment = exports.unescapeFragment = exports.schemaRefOrVal = exports.schemaHasRulesButRef = exports.schemaHasRules = exports.checkUnknownRules = exports.alwaysValidSchema = exports.toHash = void 0;
@@ -16320,9 +16320,9 @@ var require_util = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/compile/names.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/names.js
 var require_names = __commonJS({
-  "node_modules/ajv/dist/compile/names.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/names.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -16359,9 +16359,9 @@ var require_names = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/compile/errors.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/errors.js
 var require_errors = __commonJS({
-  "node_modules/ajv/dist/compile/errors.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/errors.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.extendErrors = exports.resetErrorsCount = exports.reportExtraError = exports.reportError = exports.keyword$DataError = exports.keywordError = void 0;
@@ -16481,9 +16481,9 @@ var require_errors = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/compile/validate/boolSchema.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/validate/boolSchema.js
 var require_boolSchema = __commonJS({
-  "node_modules/ajv/dist/compile/validate/boolSchema.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/validate/boolSchema.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.boolOrEmptySchema = exports.topBoolOrEmptySchema = void 0;
@@ -16532,9 +16532,9 @@ var require_boolSchema = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/compile/rules.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/rules.js
 var require_rules = __commonJS({
-  "node_modules/ajv/dist/compile/rules.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/rules.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.getRules = exports.isJSONType = void 0;
@@ -16563,9 +16563,9 @@ var require_rules = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/compile/validate/applicability.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/validate/applicability.js
 var require_applicability = __commonJS({
-  "node_modules/ajv/dist/compile/validate/applicability.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/validate/applicability.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.shouldUseRule = exports.shouldUseGroup = exports.schemaHasRulesForType = void 0;
@@ -16586,9 +16586,9 @@ var require_applicability = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/compile/validate/dataType.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/validate/dataType.js
 var require_dataType = __commonJS({
-  "node_modules/ajv/dist/compile/validate/dataType.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/validate/dataType.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.reportTypeError = exports.checkDataTypes = exports.checkDataType = exports.coerceAndCheckDataType = exports.getJSONTypes = exports.getSchemaTypes = exports.DataType = void 0;
@@ -16770,9 +16770,9 @@ var require_dataType = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/compile/validate/defaults.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/validate/defaults.js
 var require_defaults = __commonJS({
-  "node_modules/ajv/dist/compile/validate/defaults.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/validate/defaults.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.assignDefaults = void 0;
@@ -16807,9 +16807,9 @@ var require_defaults = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/code.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/code.js
 var require_code2 = __commonJS({
-  "node_modules/ajv/dist/vocabularies/code.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/code.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.validateUnion = exports.validateArray = exports.usePattern = exports.callValidateCode = exports.schemaProperties = exports.allSchemaProperties = exports.noPropertyInData = exports.propertyInData = exports.isOwnProperty = exports.hasPropFunc = exports.reportMissingProp = exports.checkMissingProp = exports.checkReportMissingProp = void 0;
@@ -16940,9 +16940,9 @@ var require_code2 = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/compile/validate/keyword.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/validate/keyword.js
 var require_keyword = __commonJS({
-  "node_modules/ajv/dist/compile/validate/keyword.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/validate/keyword.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.validateKeywordUsage = exports.validSchemaType = exports.funcKeywordCode = exports.macroKeywordCode = void 0;
@@ -17058,9 +17058,9 @@ var require_keyword = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/compile/validate/subschema.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/validate/subschema.js
 var require_subschema = __commonJS({
-  "node_modules/ajv/dist/compile/validate/subschema.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/validate/subschema.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.extendSubschemaMode = exports.extendSubschemaData = exports.getSubschema = void 0;
@@ -17141,9 +17141,9 @@ var require_subschema = __commonJS({
   }
 });
 
-// node_modules/fast-deep-equal/index.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/fast-deep-equal/index.js
 var require_fast_deep_equal = __commonJS({
-  "node_modules/fast-deep-equal/index.js"(exports, module) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/fast-deep-equal/index.js"(exports, module) {
     "use strict";
     module.exports = function equal(a2, b) {
       if (a2 === b) return true;
@@ -17176,9 +17176,9 @@ var require_fast_deep_equal = __commonJS({
   }
 });
 
-// node_modules/json-schema-traverse/index.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/json-schema-traverse/index.js
 var require_json_schema_traverse = __commonJS({
-  "node_modules/json-schema-traverse/index.js"(exports, module) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/json-schema-traverse/index.js"(exports, module) {
     "use strict";
     var traverse = module.exports = function(schema, opts, cb) {
       if (typeof opts == "function") {
@@ -17264,9 +17264,9 @@ var require_json_schema_traverse = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/compile/resolve.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/resolve.js
 var require_resolve = __commonJS({
-  "node_modules/ajv/dist/compile/resolve.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/resolve.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.getSchemaRefs = exports.resolveUrl = exports.normalizeId = exports._getFullPath = exports.getFullPath = exports.inlineRef = void 0;
@@ -17420,9 +17420,9 @@ var require_resolve = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/compile/validate/index.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/validate/index.js
 var require_validate = __commonJS({
-  "node_modules/ajv/dist/compile/validate/index.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/validate/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.getData = exports.KeywordCxt = exports.validateFunctionCode = void 0;
@@ -17928,9 +17928,9 @@ var require_validate = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/runtime/validation_error.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/runtime/validation_error.js
 var require_validation_error = __commonJS({
-  "node_modules/ajv/dist/runtime/validation_error.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/runtime/validation_error.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var ValidationError = class extends Error {
@@ -17944,9 +17944,9 @@ var require_validation_error = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/compile/ref_error.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/ref_error.js
 var require_ref_error = __commonJS({
-  "node_modules/ajv/dist/compile/ref_error.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/ref_error.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var resolve_1 = require_resolve();
@@ -17961,9 +17961,9 @@ var require_ref_error = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/compile/index.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/index.js
 var require_compile = __commonJS({
-  "node_modules/ajv/dist/compile/index.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/compile/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.resolveSchema = exports.getCompilingSchema = exports.resolveRef = exports.compileSchema = exports.SchemaEnv = void 0;
@@ -18185,9 +18185,9 @@ var require_compile = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/refs/data.json
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/refs/data.json
 var require_data = __commonJS({
-  "node_modules/ajv/dist/refs/data.json"(exports, module) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/refs/data.json"(exports, module) {
     module.exports = {
       $id: "https://raw.githubusercontent.com/ajv-validator/ajv/master/lib/refs/data.json#",
       description: "Meta-schema for $data reference (JSON AnySchema extension proposal)",
@@ -18204,9 +18204,9 @@ var require_data = __commonJS({
   }
 });
 
-// node_modules/fast-uri/lib/utils.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/fast-uri/lib/utils.js
 var require_utils = __commonJS({
-  "node_modules/fast-uri/lib/utils.js"(exports, module) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/fast-uri/lib/utils.js"(exports, module) {
     "use strict";
     var isUUID = RegExp.prototype.test.bind(/^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/iu);
     var isIPv4 = RegExp.prototype.test.bind(/^(?:(?:25[0-5]|2[0-4]\d|1\d{2}|[1-9]\d|\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d{2}|[1-9]\d|\d)$/u);
@@ -18517,9 +18517,9 @@ var require_utils = __commonJS({
   }
 });
 
-// node_modules/fast-uri/lib/schemes.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/fast-uri/lib/schemes.js
 var require_schemes = __commonJS({
-  "node_modules/fast-uri/lib/schemes.js"(exports, module) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/fast-uri/lib/schemes.js"(exports, module) {
     "use strict";
     var { isUUID } = require_utils();
     var URN_REG = /([\da-z][\d\-a-z]{0,31}):((?:[\w!$'()*+,\-.:;=@]|%[\da-f]{2})+)/iu;
@@ -18727,9 +18727,9 @@ var require_schemes = __commonJS({
   }
 });
 
-// node_modules/fast-uri/index.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/fast-uri/index.js
 var require_fast_uri = __commonJS({
-  "node_modules/fast-uri/index.js"(exports, module) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/fast-uri/index.js"(exports, module) {
     "use strict";
     var { normalizeIPv6, removeDotSegments, recomposeAuthority, normalizePercentEncoding, normalizePathEncoding, escapePreservingEscapes, reescapeHostDelimiters, isIPv4, nonSimpleDomain } = require_utils();
     var { SCHEMES, getSchemeHandler } = require_schemes();
@@ -19013,9 +19013,9 @@ var require_fast_uri = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/runtime/uri.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/runtime/uri.js
 var require_uri = __commonJS({
-  "node_modules/ajv/dist/runtime/uri.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/runtime/uri.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var uri = require_fast_uri();
@@ -19024,9 +19024,9 @@ var require_uri = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/core.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/core.js
 var require_core = __commonJS({
-  "node_modules/ajv/dist/core.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/core.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.CodeGen = exports.Name = exports.nil = exports.stringify = exports.str = exports._ = exports.KeywordCxt = void 0;
@@ -19635,9 +19635,9 @@ var require_core = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/core/id.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/core/id.js
 var require_id = __commonJS({
-  "node_modules/ajv/dist/vocabularies/core/id.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/core/id.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var def = {
@@ -19650,9 +19650,9 @@ var require_id = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/core/ref.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/core/ref.js
 var require_ref = __commonJS({
-  "node_modules/ajv/dist/vocabularies/core/ref.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/core/ref.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.callRef = exports.getValidate = void 0;
@@ -19772,9 +19772,9 @@ var require_ref = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/core/index.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/core/index.js
 var require_core2 = __commonJS({
-  "node_modules/ajv/dist/vocabularies/core/index.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/core/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var id_1 = require_id();
@@ -19793,9 +19793,9 @@ var require_core2 = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/validation/limitNumber.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/limitNumber.js
 var require_limitNumber = __commonJS({
-  "node_modules/ajv/dist/vocabularies/validation/limitNumber.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/limitNumber.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -19825,9 +19825,9 @@ var require_limitNumber = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/validation/multipleOf.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/multipleOf.js
 var require_multipleOf = __commonJS({
-  "node_modules/ajv/dist/vocabularies/validation/multipleOf.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/multipleOf.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -19853,9 +19853,9 @@ var require_multipleOf = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/runtime/ucs2length.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/runtime/ucs2length.js
 var require_ucs2length = __commonJS({
-  "node_modules/ajv/dist/runtime/ucs2length.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/runtime/ucs2length.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     function ucs2length(str) {
@@ -19879,9 +19879,9 @@ var require_ucs2length = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/validation/limitLength.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/limitLength.js
 var require_limitLength = __commonJS({
-  "node_modules/ajv/dist/vocabularies/validation/limitLength.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/limitLength.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -19911,9 +19911,9 @@ var require_limitLength = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/validation/pattern.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/pattern.js
 var require_pattern = __commonJS({
-  "node_modules/ajv/dist/vocabularies/validation/pattern.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/pattern.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var code_1 = require_code2();
@@ -19948,9 +19948,9 @@ var require_pattern = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/validation/limitProperties.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/limitProperties.js
 var require_limitProperties = __commonJS({
-  "node_modules/ajv/dist/vocabularies/validation/limitProperties.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/limitProperties.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -19977,9 +19977,9 @@ var require_limitProperties = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/validation/required.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/required.js
 var require_required = __commonJS({
-  "node_modules/ajv/dist/vocabularies/validation/required.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/required.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var code_1 = require_code2();
@@ -20059,9 +20059,9 @@ var require_required = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/validation/limitItems.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/limitItems.js
 var require_limitItems = __commonJS({
-  "node_modules/ajv/dist/vocabularies/validation/limitItems.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/limitItems.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -20088,9 +20088,9 @@ var require_limitItems = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/runtime/equal.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/runtime/equal.js
 var require_equal = __commonJS({
-  "node_modules/ajv/dist/runtime/equal.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/runtime/equal.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var equal = require_fast_deep_equal();
@@ -20099,9 +20099,9 @@ var require_equal = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/validation/uniqueItems.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/uniqueItems.js
 var require_uniqueItems = __commonJS({
-  "node_modules/ajv/dist/vocabularies/validation/uniqueItems.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/uniqueItems.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var dataType_1 = require_dataType();
@@ -20166,9 +20166,9 @@ var require_uniqueItems = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/validation/const.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/const.js
 var require_const = __commonJS({
-  "node_modules/ajv/dist/vocabularies/validation/const.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/const.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -20195,9 +20195,9 @@ var require_const = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/validation/enum.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/enum.js
 var require_enum = __commonJS({
-  "node_modules/ajv/dist/vocabularies/validation/enum.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/enum.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -20244,9 +20244,9 @@ var require_enum = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/validation/index.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/index.js
 var require_validation = __commonJS({
-  "node_modules/ajv/dist/vocabularies/validation/index.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/validation/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var limitNumber_1 = require_limitNumber();
@@ -20282,9 +20282,9 @@ var require_validation = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/applicator/additionalItems.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/additionalItems.js
 var require_additionalItems = __commonJS({
-  "node_modules/ajv/dist/vocabularies/applicator/additionalItems.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/additionalItems.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.validateAdditionalItems = void 0;
@@ -20335,9 +20335,9 @@ var require_additionalItems = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/applicator/items.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/items.js
 var require_items = __commonJS({
-  "node_modules/ajv/dist/vocabularies/applicator/items.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/items.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.validateTuple = void 0;
@@ -20392,9 +20392,9 @@ var require_items = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/applicator/prefixItems.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/prefixItems.js
 var require_prefixItems = __commonJS({
-  "node_modules/ajv/dist/vocabularies/applicator/prefixItems.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/prefixItems.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var items_1 = require_items();
@@ -20409,9 +20409,9 @@ var require_prefixItems = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/applicator/items2020.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/items2020.js
 var require_items2020 = __commonJS({
-  "node_modules/ajv/dist/vocabularies/applicator/items2020.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/items2020.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -20444,9 +20444,9 @@ var require_items2020 = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/applicator/contains.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/contains.js
 var require_contains = __commonJS({
-  "node_modules/ajv/dist/vocabularies/applicator/contains.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/contains.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -20538,9 +20538,9 @@ var require_contains = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/applicator/dependencies.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/dependencies.js
 var require_dependencies = __commonJS({
-  "node_modules/ajv/dist/vocabularies/applicator/dependencies.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/dependencies.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.validateSchemaDeps = exports.validatePropertyDeps = exports.error = void 0;
@@ -20632,9 +20632,9 @@ var require_dependencies = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/applicator/propertyNames.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/propertyNames.js
 var require_propertyNames = __commonJS({
-  "node_modules/ajv/dist/vocabularies/applicator/propertyNames.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/propertyNames.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -20675,9 +20675,9 @@ var require_propertyNames = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/applicator/additionalProperties.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/additionalProperties.js
 var require_additionalProperties = __commonJS({
-  "node_modules/ajv/dist/vocabularies/applicator/additionalProperties.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/additionalProperties.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var code_1 = require_code2();
@@ -20781,9 +20781,9 @@ var require_additionalProperties = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/applicator/properties.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/properties.js
 var require_properties = __commonJS({
-  "node_modules/ajv/dist/vocabularies/applicator/properties.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/properties.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var validate_1 = require_validate();
@@ -20839,9 +20839,9 @@ var require_properties = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/applicator/patternProperties.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/patternProperties.js
 var require_patternProperties = __commonJS({
-  "node_modules/ajv/dist/vocabularies/applicator/patternProperties.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/patternProperties.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var code_1 = require_code2();
@@ -20913,9 +20913,9 @@ var require_patternProperties = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/applicator/not.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/not.js
 var require_not = __commonJS({
-  "node_modules/ajv/dist/vocabularies/applicator/not.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/not.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var util_1 = require_util();
@@ -20944,9 +20944,9 @@ var require_not = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/applicator/anyOf.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/anyOf.js
 var require_anyOf = __commonJS({
-  "node_modules/ajv/dist/vocabularies/applicator/anyOf.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/anyOf.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var code_1 = require_code2();
@@ -20961,9 +20961,9 @@ var require_anyOf = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/applicator/oneOf.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/oneOf.js
 var require_oneOf = __commonJS({
-  "node_modules/ajv/dist/vocabularies/applicator/oneOf.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/oneOf.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -21019,9 +21019,9 @@ var require_oneOf = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/applicator/allOf.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/allOf.js
 var require_allOf = __commonJS({
-  "node_modules/ajv/dist/vocabularies/applicator/allOf.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/allOf.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var util_1 = require_util();
@@ -21046,9 +21046,9 @@ var require_allOf = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/applicator/if.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/if.js
 var require_if = __commonJS({
-  "node_modules/ajv/dist/vocabularies/applicator/if.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/if.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -21115,9 +21115,9 @@ var require_if = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/applicator/thenElse.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/thenElse.js
 var require_thenElse = __commonJS({
-  "node_modules/ajv/dist/vocabularies/applicator/thenElse.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/thenElse.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var util_1 = require_util();
@@ -21133,9 +21133,9 @@ var require_thenElse = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/applicator/index.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/index.js
 var require_applicator = __commonJS({
-  "node_modules/ajv/dist/vocabularies/applicator/index.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/applicator/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var additionalItems_1 = require_additionalItems();
@@ -21181,9 +21181,9 @@ var require_applicator = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/format/format.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/format/format.js
 var require_format = __commonJS({
-  "node_modules/ajv/dist/vocabularies/format/format.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/format/format.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -21271,9 +21271,9 @@ var require_format = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/format/index.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/format/index.js
 var require_format2 = __commonJS({
-  "node_modules/ajv/dist/vocabularies/format/index.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/format/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var format_1 = require_format();
@@ -21282,9 +21282,9 @@ var require_format2 = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/metadata.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/metadata.js
 var require_metadata = __commonJS({
-  "node_modules/ajv/dist/vocabularies/metadata.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/metadata.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.contentVocabulary = exports.metadataVocabulary = void 0;
@@ -21305,9 +21305,9 @@ var require_metadata = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/draft7.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/draft7.js
 var require_draft7 = __commonJS({
-  "node_modules/ajv/dist/vocabularies/draft7.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/draft7.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var core_1 = require_core2();
@@ -21327,9 +21327,9 @@ var require_draft7 = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/discriminator/types.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/discriminator/types.js
 var require_types = __commonJS({
-  "node_modules/ajv/dist/vocabularies/discriminator/types.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/discriminator/types.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.DiscrError = void 0;
@@ -21341,9 +21341,9 @@ var require_types = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/discriminator/index.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/discriminator/index.js
 var require_discriminator = __commonJS({
-  "node_modules/ajv/dist/vocabularies/discriminator/index.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/vocabularies/discriminator/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -21446,9 +21446,9 @@ var require_discriminator = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/refs/json-schema-draft-07.json
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/refs/json-schema-draft-07.json
 var require_json_schema_draft_07 = __commonJS({
-  "node_modules/ajv/dist/refs/json-schema-draft-07.json"(exports, module) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/refs/json-schema-draft-07.json"(exports, module) {
     module.exports = {
       $schema: "http://json-schema.org/draft-07/schema#",
       $id: "http://json-schema.org/draft-07/schema#",
@@ -21603,9 +21603,9 @@ var require_json_schema_draft_07 = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/ajv.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/ajv.js
 var require_ajv = __commonJS({
-  "node_modules/ajv/dist/ajv.js"(exports, module) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv/dist/ajv.js"(exports, module) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.MissingRefError = exports.ValidationError = exports.CodeGen = exports.Name = exports.nil = exports.stringify = exports.str = exports._ = exports.KeywordCxt = exports.Ajv = void 0;
@@ -21673,9 +21673,9 @@ var require_ajv = __commonJS({
   }
 });
 
-// node_modules/ajv-formats/dist/formats.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv-formats/dist/formats.js
 var require_formats = __commonJS({
-  "node_modules/ajv-formats/dist/formats.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv-formats/dist/formats.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.formatNames = exports.fastFormats = exports.fullFormats = void 0;
@@ -21876,9 +21876,9 @@ var require_formats = __commonJS({
   }
 });
 
-// node_modules/ajv-formats/dist/limit.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv-formats/dist/limit.js
 var require_limit = __commonJS({
-  "node_modules/ajv-formats/dist/limit.js"(exports) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv-formats/dist/limit.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.formatLimitDefinition = void 0;
@@ -21948,9 +21948,9 @@ var require_limit = __commonJS({
   }
 });
 
-// node_modules/ajv-formats/dist/index.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv-formats/dist/index.js
 var require_dist = __commonJS({
-  "node_modules/ajv-formats/dist/index.js"(exports, module) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/ajv-formats/dist/index.js"(exports, module) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var formats_1 = require_formats();
@@ -21990,9 +21990,9 @@ var require_dist = __commonJS({
   }
 });
 
-// node_modules/elkjs/lib/elk.bundled.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/elkjs/lib/elk.bundled.js
 var require_elk_bundled = __commonJS({
-  "node_modules/elkjs/lib/elk.bundled.js"(exports, module) {
+  "../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/elkjs/lib/elk.bundled.js"(exports, module) {
     (function(f2) {
       if (typeof exports === "object" && typeof module !== "undefined") {
         module.exports = f2();
@@ -113118,10 +113118,10 @@ var require_elk_bundled = __commonJS({
   }
 });
 
-// node_modules/@modelcontextprotocol/sdk/dist/esm/server/stdio.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/@modelcontextprotocol/sdk/dist/esm/server/stdio.js
 import process3 from "node:process";
 
-// node_modules/@modelcontextprotocol/sdk/dist/esm/types.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/@modelcontextprotocol/sdk/dist/esm/types.js
 init_v4();
 var LATEST_PROTOCOL_VERSION = "2025-11-25";
 var SUPPORTED_PROTOCOL_VERSIONS = [LATEST_PROTOCOL_VERSION, "2025-06-18", "2025-03-26", "2024-11-05", "2024-10-07"];
@@ -114653,7 +114653,7 @@ var UrlElicitationRequiredError = class extends McpError {
   }
 };
 
-// node_modules/@modelcontextprotocol/sdk/dist/esm/shared/stdio.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/stdio.js
 var ReadBuffer = class {
   append(chunk) {
     this._buffer = this._buffer ? Buffer.concat([this._buffer, chunk]) : chunk;
@@ -114681,7 +114681,7 @@ function serializeMessage(message) {
   return JSON.stringify(message) + "\n";
 }
 
-// node_modules/@modelcontextprotocol/sdk/dist/esm/server/stdio.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/@modelcontextprotocol/sdk/dist/esm/server/stdio.js
 var StdioServerTransport = class {
   constructor(_stdin = process3.stdin, _stdout = process3.stdout) {
     this._stdin = _stdin;
@@ -114746,7 +114746,7 @@ var StdioServerTransport = class {
 import { readFileSync as readFileSync4 } from "node:fs";
 import { resolve as resolve4 } from "node:path";
 
-// node_modules/zod/v3/helpers/util.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v3/helpers/util.js
 var util;
 (function(util2) {
   util2.assertEqual = (_2) => {
@@ -114880,7 +114880,7 @@ var getParsedType2 = (data) => {
   }
 };
 
-// node_modules/zod/v3/ZodError.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v3/ZodError.js
 var ZodIssueCode2 = util.arrayToEnum([
   "invalid_type",
   "invalid_literal",
@@ -114994,7 +114994,7 @@ ZodError2.create = (issues) => {
   return error51;
 };
 
-// node_modules/zod/v3/locales/en.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v3/locales/en.js
 var errorMap = (issue2, _ctx) => {
   let message;
   switch (issue2.code) {
@@ -115097,13 +115097,13 @@ var errorMap = (issue2, _ctx) => {
 };
 var en_default2 = errorMap;
 
-// node_modules/zod/v3/errors.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v3/errors.js
 var overrideErrorMap = en_default2;
 function getErrorMap2() {
   return overrideErrorMap;
 }
 
-// node_modules/zod/v3/helpers/parseUtil.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v3/helpers/parseUtil.js
 var makeIssue = (params) => {
   const { data, path, errorMaps, issueData } = params;
   const fullPath = [...path, ...issueData.path || []];
@@ -115212,14 +115212,14 @@ var isDirty = (x3) => x3.status === "dirty";
 var isValid = (x3) => x3.status === "valid";
 var isAsync = (x3) => typeof Promise !== "undefined" && x3 instanceof Promise;
 
-// node_modules/zod/v3/helpers/errorUtil.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v3/helpers/errorUtil.js
 var errorUtil;
 (function(errorUtil2) {
   errorUtil2.errToObj = (message) => typeof message === "string" ? { message } : message || {};
   errorUtil2.toString = (message) => typeof message === "string" ? message : message?.message;
 })(errorUtil || (errorUtil = {}));
 
-// node_modules/zod/v3/types.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v3/types.js
 var ParseInputLazyPath = class {
   constructor(parent, value, path, key) {
     this._cachedPath = [];
@@ -118622,13 +118622,13 @@ var nullableType = ZodNullable2.create;
 var preprocessType = ZodEffects.createWithPreprocess;
 var pipelineType = ZodPipeline.create;
 
-// node_modules/zod/v4/mini/external.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/mini/external.js
 init_core2();
 
-// node_modules/zod/v4/mini/parse.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/mini/parse.js
 init_core2();
 
-// node_modules/zod/v4/mini/schemas.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/mini/schemas.js
 init_core2();
 init_util();
 var ZodMiniType = /* @__PURE__ */ $constructor("ZodMiniType", (inst, def) => {
@@ -118676,11 +118676,11 @@ function object2(shape, params) {
   return new ZodMiniObject(def);
 }
 
-// node_modules/zod/v4/mini/external.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/v4/mini/external.js
 init_json_schema_processors();
 init_locales();
 
-// node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-compat.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-compat.js
 function isZ4Schema(s) {
   const schema = s;
   return !!schema._zod;
@@ -118824,12 +118824,12 @@ function getLiteralValue(schema) {
   return void 0;
 }
 
-// node_modules/@modelcontextprotocol/sdk/dist/esm/experimental/tasks/interfaces.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/@modelcontextprotocol/sdk/dist/esm/experimental/tasks/interfaces.js
 function isTerminal(status) {
   return status === "completed" || status === "failed" || status === "cancelled";
 }
 
-// node_modules/zod-to-json-schema/dist/esm/Options.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/Options.js
 var ignoreOverride = /* @__PURE__ */ Symbol("Let zodToJsonSchema decide on which parser to use");
 var defaultOptions = {
   name: void 0,
@@ -118863,7 +118863,7 @@ var getDefaultOptions = (options) => typeof options === "string" ? {
   ...options
 };
 
-// node_modules/zod-to-json-schema/dist/esm/Refs.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/Refs.js
 var getRefs = (options) => {
   const _options = getDefaultOptions(options);
   const currentPath = _options.name !== void 0 ? [..._options.basePath, _options.definitionPath, _options.name] : _options.basePath;
@@ -118884,7 +118884,7 @@ var getRefs = (options) => {
   };
 };
 
-// node_modules/zod-to-json-schema/dist/esm/errorMessages.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/errorMessages.js
 function addErrorMessage(res, key, errorMessage, refs) {
   if (!refs?.errorMessages)
     return;
@@ -118900,7 +118900,7 @@ function setResponseValueAndErrors(res, key, value, errorMessage, refs) {
   addErrorMessage(res, key, errorMessage, refs);
 }
 
-// node_modules/zod-to-json-schema/dist/esm/getRelativePath.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/getRelativePath.js
 var getRelativePath = (pathA, pathB) => {
   let i = 0;
   for (; i < pathA.length && i < pathB.length; i++) {
@@ -118910,7 +118910,7 @@ var getRelativePath = (pathA, pathB) => {
   return [(pathA.length - i).toString(), ...pathB.slice(i)].join("/");
 };
 
-// node_modules/zod-to-json-schema/dist/esm/parsers/any.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/any.js
 function parseAnyDef(refs) {
   if (refs.target !== "openAi") {
     return {};
@@ -118926,7 +118926,7 @@ function parseAnyDef(refs) {
   };
 }
 
-// node_modules/zod-to-json-schema/dist/esm/parsers/array.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/array.js
 function parseArrayDef(def, refs) {
   const res = {
     type: "array"
@@ -118950,7 +118950,7 @@ function parseArrayDef(def, refs) {
   return res;
 }
 
-// node_modules/zod-to-json-schema/dist/esm/parsers/bigint.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/bigint.js
 function parseBigintDef(def, refs) {
   const res = {
     type: "integer",
@@ -118996,24 +118996,24 @@ function parseBigintDef(def, refs) {
   return res;
 }
 
-// node_modules/zod-to-json-schema/dist/esm/parsers/boolean.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/boolean.js
 function parseBooleanDef() {
   return {
     type: "boolean"
   };
 }
 
-// node_modules/zod-to-json-schema/dist/esm/parsers/branded.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/branded.js
 function parseBrandedDef(_def, refs) {
   return parseDef(_def.type._def, refs);
 }
 
-// node_modules/zod-to-json-schema/dist/esm/parsers/catch.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/catch.js
 var parseCatchDef = (def, refs) => {
   return parseDef(def.innerType._def, refs);
 };
 
-// node_modules/zod-to-json-schema/dist/esm/parsers/date.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/date.js
 function parseDateDef(def, refs, overrideDateStrategy) {
   const strategy = overrideDateStrategy ?? refs.dateStrategy;
   if (Array.isArray(strategy)) {
@@ -119072,7 +119072,7 @@ var integerDateParser = (def, refs) => {
   return res;
 };
 
-// node_modules/zod-to-json-schema/dist/esm/parsers/default.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/default.js
 function parseDefaultDef(_def, refs) {
   return {
     ...parseDef(_def.innerType._def, refs),
@@ -119080,12 +119080,12 @@ function parseDefaultDef(_def, refs) {
   };
 }
 
-// node_modules/zod-to-json-schema/dist/esm/parsers/effects.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/effects.js
 function parseEffectsDef(_def, refs) {
   return refs.effectStrategy === "input" ? parseDef(_def.schema._def, refs) : parseAnyDef(refs);
 }
 
-// node_modules/zod-to-json-schema/dist/esm/parsers/enum.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/enum.js
 function parseEnumDef(def) {
   return {
     type: "string",
@@ -119093,7 +119093,7 @@ function parseEnumDef(def) {
   };
 }
 
-// node_modules/zod-to-json-schema/dist/esm/parsers/intersection.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/intersection.js
 var isJsonSchema7AllOfType = (type) => {
   if ("type" in type && type.type === "string")
     return false;
@@ -119135,7 +119135,7 @@ function parseIntersectionDef(def, refs) {
   } : void 0;
 }
 
-// node_modules/zod-to-json-schema/dist/esm/parsers/literal.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/literal.js
 function parseLiteralDef(def, refs) {
   const parsedType2 = typeof def.value;
   if (parsedType2 !== "bigint" && parsedType2 !== "number" && parsedType2 !== "boolean" && parsedType2 !== "string") {
@@ -119155,7 +119155,7 @@ function parseLiteralDef(def, refs) {
   };
 }
 
-// node_modules/zod-to-json-schema/dist/esm/parsers/string.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/string.js
 var emojiRegex2 = void 0;
 var zodPatterns = {
   /**
@@ -119480,7 +119480,7 @@ function stringifyRegExpWithFlags(regex, refs) {
   return pattern;
 }
 
-// node_modules/zod-to-json-schema/dist/esm/parsers/record.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/record.js
 function parseRecordDef(def, refs) {
   if (refs.target === "openAi") {
     console.warn("Warning: OpenAI may not support records in schemas! Try an array of key-value pairs instead.");
@@ -119532,7 +119532,7 @@ function parseRecordDef(def, refs) {
   return schema;
 }
 
-// node_modules/zod-to-json-schema/dist/esm/parsers/map.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/map.js
 function parseMapDef(def, refs) {
   if (refs.mapStrategy === "record") {
     return parseRecordDef(def, refs);
@@ -119557,7 +119557,7 @@ function parseMapDef(def, refs) {
   };
 }
 
-// node_modules/zod-to-json-schema/dist/esm/parsers/nativeEnum.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/nativeEnum.js
 function parseNativeEnumDef(def) {
   const object3 = def.values;
   const actualKeys = Object.keys(def.values).filter((key) => {
@@ -119571,7 +119571,7 @@ function parseNativeEnumDef(def) {
   };
 }
 
-// node_modules/zod-to-json-schema/dist/esm/parsers/never.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/never.js
 function parseNeverDef(refs) {
   return refs.target === "openAi" ? void 0 : {
     not: parseAnyDef({
@@ -119581,7 +119581,7 @@ function parseNeverDef(refs) {
   };
 }
 
-// node_modules/zod-to-json-schema/dist/esm/parsers/null.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/null.js
 function parseNullDef(refs) {
   return refs.target === "openApi3" ? {
     enum: ["null"],
@@ -119591,7 +119591,7 @@ function parseNullDef(refs) {
   };
 }
 
-// node_modules/zod-to-json-schema/dist/esm/parsers/union.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/union.js
 var primitiveMappings = {
   ZodString: "string",
   ZodNumber: "number",
@@ -119659,7 +119659,7 @@ var asAnyOf = (def, refs) => {
   return anyOf.length ? { anyOf } : void 0;
 };
 
-// node_modules/zod-to-json-schema/dist/esm/parsers/nullable.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/nullable.js
 function parseNullableDef(def, refs) {
   if (["ZodString", "ZodNumber", "ZodBigInt", "ZodBoolean", "ZodNull"].includes(def.innerType._def.typeName) && (!def.innerType._def.checks || !def.innerType._def.checks.length)) {
     if (refs.target === "openApi3") {
@@ -119691,7 +119691,7 @@ function parseNullableDef(def, refs) {
   return base && { anyOf: [base, { type: "null" }] };
 }
 
-// node_modules/zod-to-json-schema/dist/esm/parsers/number.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/number.js
 function parseNumberDef(def, refs) {
   const res = {
     type: "number"
@@ -119740,7 +119740,7 @@ function parseNumberDef(def, refs) {
   return res;
 }
 
-// node_modules/zod-to-json-schema/dist/esm/parsers/object.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/object.js
 function parseObjectDef(def, refs) {
   const forceOptionalIntoNullable = refs.target === "openAi";
   const result2 = {
@@ -119810,7 +119810,7 @@ function safeIsOptional(schema) {
   }
 }
 
-// node_modules/zod-to-json-schema/dist/esm/parsers/optional.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/optional.js
 var parseOptionalDef = (def, refs) => {
   if (refs.currentPath.toString() === refs.propertyPath?.toString()) {
     return parseDef(def.innerType._def, refs);
@@ -119829,7 +119829,7 @@ var parseOptionalDef = (def, refs) => {
   } : parseAnyDef(refs);
 };
 
-// node_modules/zod-to-json-schema/dist/esm/parsers/pipeline.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/pipeline.js
 var parsePipelineDef = (def, refs) => {
   if (refs.pipeStrategy === "input") {
     return parseDef(def.in._def, refs);
@@ -119849,12 +119849,12 @@ var parsePipelineDef = (def, refs) => {
   };
 };
 
-// node_modules/zod-to-json-schema/dist/esm/parsers/promise.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/promise.js
 function parsePromiseDef(def, refs) {
   return parseDef(def.type._def, refs);
 }
 
-// node_modules/zod-to-json-schema/dist/esm/parsers/set.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/set.js
 function parseSetDef(def, refs) {
   const items = parseDef(def.valueType._def, {
     ...refs,
@@ -119874,7 +119874,7 @@ function parseSetDef(def, refs) {
   return schema;
 }
 
-// node_modules/zod-to-json-schema/dist/esm/parsers/tuple.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/tuple.js
 function parseTupleDef(def, refs) {
   if (def.rest) {
     return {
@@ -119902,24 +119902,24 @@ function parseTupleDef(def, refs) {
   }
 }
 
-// node_modules/zod-to-json-schema/dist/esm/parsers/undefined.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/undefined.js
 function parseUndefinedDef(refs) {
   return {
     not: parseAnyDef(refs)
   };
 }
 
-// node_modules/zod-to-json-schema/dist/esm/parsers/unknown.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/unknown.js
 function parseUnknownDef(refs) {
   return parseAnyDef(refs);
 }
 
-// node_modules/zod-to-json-schema/dist/esm/parsers/readonly.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parsers/readonly.js
 var parseReadonlyDef = (def, refs) => {
   return parseDef(def.innerType._def, refs);
 };
 
-// node_modules/zod-to-json-schema/dist/esm/selectParser.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/selectParser.js
 var selectParser = (def, typeName, refs) => {
   switch (typeName) {
     case ZodFirstPartyTypeKind2.ZodString:
@@ -119995,7 +119995,7 @@ var selectParser = (def, typeName, refs) => {
   }
 };
 
-// node_modules/zod-to-json-schema/dist/esm/parseDef.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/parseDef.js
 function parseDef(def, refs, forceResolution = false) {
   const seenItem = refs.seen.get(def);
   if (refs.override) {
@@ -120051,7 +120051,7 @@ var addMeta = (def, refs, jsonSchema) => {
   return jsonSchema;
 };
 
-// node_modules/zod-to-json-schema/dist/esm/zodToJsonSchema.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod-to-json-schema/dist/esm/zodToJsonSchema.js
 var zodToJsonSchema = (schema, options) => {
   const refs = getRefs(options);
   let definitions2 = typeof options === "object" && options.definitions ? Object.entries(options.definitions).reduce((acc, [name2, schema2]) => ({
@@ -120113,7 +120113,7 @@ var zodToJsonSchema = (schema, options) => {
   return combined;
 };
 
-// node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-json-schema-compat.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-json-schema-compat.js
 function mapMiniTarget(t) {
   if (!t)
     return "draft-7";
@@ -120155,7 +120155,7 @@ function parseWithCompat(schema, data) {
   return result2.data;
 }
 
-// node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js
 var DEFAULT_REQUEST_TIMEOUT_MSEC = 6e4;
 var Protocol = class {
   constructor(_options) {
@@ -121109,7 +121109,7 @@ function mergeCapabilities(base, additional) {
   return result2;
 }
 
-// node_modules/@modelcontextprotocol/sdk/dist/esm/validation/ajv-provider.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/@modelcontextprotocol/sdk/dist/esm/validation/ajv-provider.js
 var import_ajv = __toESM(require_ajv(), 1);
 var import_ajv_formats = __toESM(require_dist(), 1);
 function createDefaultAjvInstance() {
@@ -121177,7 +121177,7 @@ var AjvJsonSchemaValidator = class {
   }
 };
 
-// node_modules/@modelcontextprotocol/sdk/dist/esm/experimental/tasks/server.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/@modelcontextprotocol/sdk/dist/esm/experimental/tasks/server.js
 var ExperimentalServerTasks = class {
   constructor(_server) {
     this._server = _server;
@@ -121390,7 +121390,7 @@ var ExperimentalServerTasks = class {
   }
 };
 
-// node_modules/@modelcontextprotocol/sdk/dist/esm/experimental/tasks/helpers.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/@modelcontextprotocol/sdk/dist/esm/experimental/tasks/helpers.js
 function assertToolsCallTaskCapability(requests, method, entityName) {
   if (!requests) {
     throw new Error(`${entityName} does not support task creation (required for ${method})`);
@@ -121425,7 +121425,7 @@ function assertClientRequestTaskCapability(requests, method, entityName) {
   }
 }
 
-// node_modules/@modelcontextprotocol/sdk/dist/esm/server/index.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/@modelcontextprotocol/sdk/dist/esm/server/index.js
 var Server = class extends Protocol {
   /**
    * Initializes this server with the given name and version information.
@@ -121805,7 +121805,7 @@ var Server = class extends Protocol {
   }
 };
 
-// node_modules/@modelcontextprotocol/sdk/dist/esm/server/completable.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/@modelcontextprotocol/sdk/dist/esm/server/completable.js
 var COMPLETABLE_SYMBOL = /* @__PURE__ */ Symbol.for("mcp.completable");
 function isCompletable(schema) {
   return !!schema && typeof schema === "object" && COMPLETABLE_SYMBOL in schema;
@@ -121819,7 +121819,7 @@ var McpZodTypeKind;
   McpZodTypeKind2["Completable"] = "McpCompletable";
 })(McpZodTypeKind || (McpZodTypeKind = {}));
 
-// node_modules/@modelcontextprotocol/sdk/dist/esm/shared/uriTemplate.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/uriTemplate.js
 var MAX_TEMPLATE_LENGTH = 1e6;
 var MAX_VARIABLE_LENGTH = 1e6;
 var MAX_TEMPLATE_EXPRESSIONS = 1e4;
@@ -122041,7 +122041,7 @@ var UriTemplate = class _UriTemplate {
   }
 };
 
-// node_modules/@modelcontextprotocol/sdk/dist/esm/shared/toolNameValidation.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/toolNameValidation.js
 var TOOL_NAME_REGEX = /^[A-Za-z0-9._-]{1,128}$/;
 function validateToolName(name) {
   const warnings = [];
@@ -122099,7 +122099,7 @@ function validateAndWarnToolName(name) {
   return result2.isValid;
 }
 
-// node_modules/@modelcontextprotocol/sdk/dist/esm/experimental/tasks/mcp-server.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/@modelcontextprotocol/sdk/dist/esm/experimental/tasks/mcp-server.js
 var ExperimentalMcpServerTasks = class {
   constructor(_mcpServer) {
     this._mcpServer = _mcpServer;
@@ -122114,11 +122114,11 @@ var ExperimentalMcpServerTasks = class {
   }
 };
 
-// node_modules/zod/index.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/zod/index.js
 init_external();
 init_external();
 
-// node_modules/@modelcontextprotocol/sdk/dist/esm/server/mcp.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/@modelcontextprotocol/sdk/dist/esm/server/mcp.js
 var McpServer = class {
   constructor(serverInfo, options) {
     this._registeredResources = {};
@@ -123360,7 +123360,7 @@ var defaultProjectionByView = {
   table: { kind: "table", nodeTypes: [], edgeTypes: [], columns: [{ key: "title", label: "Title", source: "title" }] }
 };
 var nodeStyleSchema = external_exports.object({ fill: external_exports.string(), borderColor: external_exports.string(), textColor: external_exports.string(), accentColor: external_exports.string().optional(), borderRadius: external_exports.number().nonnegative(), titleScale: external_exports.number().positive() });
-var edgeStyleSchema = external_exports.object({ color: external_exports.string(), width: external_exports.number().positive(), dashed: external_exports.boolean(), routing: external_exports.enum(["straight", "bezier", "orthogonal", "bundled"]), marker: external_exports.enum(["none", "arrow"]) });
+var edgeStyleSchema = external_exports.object({ color: external_exports.string(), width: external_exports.number().positive(), dashed: external_exports.boolean(), routing: external_exports.enum(["straight", "bezier", "orthogonal", "bundled"]), arrows: external_exports.enum(["none", "forward", "both"]).default("forward"), curvature: external_exports.number().optional() });
 var viewThemeSchema = external_exports.object({
   canvas: external_exports.object({
     mode: external_exports.enum(["dark", "light"]).default("light"),
@@ -123375,9 +123375,9 @@ var viewThemeSchema = external_exports.object({
   edgeStyles: external_exports.record(external_exports.string(), edgeStyleSchema)
 });
 var defaultViewTheme = {
-  canvas: { mode: "light", backgroundColor: "#f2f3ed", pattern: "dots", patternGap: 20, patternSize: 1, patternColor: "#aeb5aa", patternOpacity: 0.42 },
-  nodeStyles: { default: { fill: "#fbfbf6", borderColor: "#cbd0c6", textColor: "#20231f", accentColor: "#315cf6", borderRadius: 8, titleScale: 1 } },
-  edgeStyles: { default: { color: "#7e867c", width: 1.5, dashed: false, routing: "bezier", marker: "arrow" } }
+  canvas: { mode: "light", backgroundColor: "#f4f5f7", pattern: "dots", patternGap: 20, patternSize: 1, patternColor: "#c7ccd3", patternOpacity: 0.55 },
+  nodeStyles: { default: { fill: "#ffffff", borderColor: "#e3e6ea", textColor: "#171a1f", accentColor: "#1585bd", borderRadius: 8, titleScale: 1 } },
+  edgeStyles: { default: { color: "rgba(23,26,31,0.34)", width: 1.5, dashed: false, routing: "straight", arrows: "forward" } }
 };
 var sceneTemplateBindingSchema = external_exports.object({
   nodeRoles: external_exports.record(external_exports.string(), external_exports.string()).default({}),
@@ -123430,14 +123430,21 @@ var nodeLayoutSchema = rectSchema.extend({
 var edgeLayoutSchema = external_exports.object({
   edgeId: external_exports.string(),
   routing: external_exports.enum(["straight", "bezier", "orthogonal", "bundled"]).default("bezier"),
+  // Per-edge visual overrides. Optional so an edge with no override inherits its
+  // relationship type's semantic default; older persisted layouts stay valid.
+  lineStyle: external_exports.enum(["solid", "dashed"]).optional(),
+  arrows: external_exports.enum(["none", "forward", "both"]).optional(),
   sourcePort: external_exports.string().optional(),
   targetPort: external_exports.string().optional(),
   waypoints: external_exports.array(pointSchema).default([]),
   labelPosition: pointSchema.optional(),
   hidden: external_exports.boolean().default(false)
 });
+var groupKindSchema = external_exports.enum(["frame", "interaction", "semantic", "projection"]);
 var groupLayoutSchema = rectSchema.extend({
   groupId: external_exports.string(),
+  label: external_exports.string().optional(),
+  kind: groupKindSchema.default("interaction"),
   direction: external_exports.enum(["horizontal", "vertical", "radial"]).optional(),
   padding: external_exports.number().nonnegative().default(32),
   collapsed: external_exports.boolean().default(false)
@@ -123513,6 +123520,9 @@ var layoutOperationSchema = external_exports.discriminatedUnion("type", [
   external_exports.object({ type: external_exports.literal("set-node-collapsed"), viewId: external_exports.string(), nodeId: external_exports.string(), collapsed: external_exports.boolean() }),
   external_exports.object({ type: external_exports.literal("set-node-z-index"), viewId: external_exports.string(), nodeId: external_exports.string(), zIndex: external_exports.number().int() }),
   external_exports.object({ type: external_exports.literal("assign-node-to-group"), viewId: external_exports.string(), nodeId: external_exports.string(), groupId: external_exports.string().nullable() }),
+  external_exports.object({ type: external_exports.literal("create-group"), viewId: external_exports.string(), groupId: external_exports.string(), frame: rectSchema, label: external_exports.string().optional(), kind: groupKindSchema.optional(), direction: external_exports.enum(["horizontal", "vertical", "radial"]).optional() }),
+  external_exports.object({ type: external_exports.literal("rename-group"), viewId: external_exports.string(), groupId: external_exports.string(), label: external_exports.string() }),
+  external_exports.object({ type: external_exports.literal("delete-group"), viewId: external_exports.string(), groupId: external_exports.string() }),
   external_exports.object({ type: external_exports.literal("set-group-frame"), viewId: external_exports.string(), groupId: external_exports.string(), frame: rectSchema }),
   external_exports.object({ type: external_exports.literal("set-group-direction"), viewId: external_exports.string(), groupId: external_exports.string(), direction: external_exports.enum(["horizontal", "vertical", "radial"]) }),
   external_exports.object({ type: external_exports.literal("set-node-rank"), viewId: external_exports.string(), nodeId: external_exports.string(), rank: external_exports.number().int() }),
@@ -123572,8 +123582,8 @@ var summaryContentSchema = external_exports.discriminatedUnion("kind", [summaryD
 var widgetGraphNodeSchema = external_exports.object({ id: external_exports.string(), projectId: external_exports.string(), type: external_exports.string(), title: external_exports.string(), contentKind: contentKindSchema, content: summaryContentSchema, assets: external_exports.array(widgetAssetSchema).optional(), properties: external_exports.record(external_exports.string(), external_exports.unknown()), archived: external_exports.boolean(), createdAt: external_exports.string(), updatedAt: external_exports.string() });
 var widgetGraphEdgeSchema = edgeSchema.pick({ id: true, sourceNodeId: true, targetNodeId: true, type: true });
 var widgetLayoutNodeSchema = external_exports.object({ nodeId: external_exports.string(), x: external_exports.number(), y: external_exports.number(), width: external_exports.number(), height: external_exports.number(), pinned: external_exports.boolean() }).passthrough();
-var widgetLayoutEdgeSchema = external_exports.object({ edgeId: external_exports.string(), routing: external_exports.enum(["straight", "bezier", "orthogonal", "bundled"]), sourcePort: external_exports.string().optional(), targetPort: external_exports.string().optional(), waypoints: external_exports.array(external_exports.object({ x: external_exports.number(), y: external_exports.number() })), hidden: external_exports.boolean().optional() }).passthrough();
-var widgetLayoutGroupSchema = external_exports.object({ groupId: external_exports.string(), x: external_exports.number(), y: external_exports.number(), width: external_exports.number(), height: external_exports.number() }).passthrough();
+var widgetLayoutEdgeSchema = external_exports.object({ edgeId: external_exports.string(), routing: external_exports.enum(["straight", "bezier", "orthogonal", "bundled"]), lineStyle: external_exports.enum(["solid", "dashed"]).optional(), arrows: external_exports.enum(["none", "forward", "both"]).optional(), sourcePort: external_exports.string().optional(), targetPort: external_exports.string().optional(), waypoints: external_exports.array(external_exports.object({ x: external_exports.number(), y: external_exports.number() })), hidden: external_exports.boolean().optional() }).passthrough();
+var widgetLayoutGroupSchema = external_exports.object({ groupId: external_exports.string(), x: external_exports.number(), y: external_exports.number(), width: external_exports.number(), height: external_exports.number(), label: external_exports.string().optional(), kind: external_exports.enum(["frame", "interaction", "semantic", "projection"]).optional() }).passthrough();
 var widgetLayoutSchema = external_exports.object({ viewId: external_exports.string(), viewName: external_exports.string(), viewType: viewTypeSchema, graphRevision: external_exports.number().int().nonnegative(), layoutRevision: external_exports.number().int().nonnegative(), templateRef: external_exports.object({ id: external_exports.string(), version: external_exports.string() }).optional(), projection: external_exports.object({ kind: external_exports.string() }).passthrough().optional(), theme: viewThemeSchema.optional(), nodes: external_exports.record(external_exports.string(), widgetLayoutNodeSchema), edges: external_exports.record(external_exports.string(), widgetLayoutEdgeSchema).optional(), groups: external_exports.record(external_exports.string(), widgetLayoutGroupSchema).optional() }).passthrough();
 var widgetCandidateSchema = external_exports.object({ id: external_exports.string(), label: external_exports.string(), metrics: external_exports.object({ score: external_exports.number(), overlapCount: external_exports.number(), edgeCrossings: external_exports.number(), hardViolations: external_exports.array(external_exports.string()) }).passthrough(), document: widgetLayoutSchema });
 var widgetProjectViewSchema = projectViewSchema.extend({ nodeCount: external_exports.number().int().nonnegative().optional() });
@@ -123616,6 +123626,7 @@ var canvasActionSchema = external_exports.discriminatedUnion("action", [
   external_exports.object({ ...graphEdit, action: external_exports.literal("archive_node"), nodeId: external_exports.string().min(1) }),
   external_exports.object({ ...graphEdit, action: external_exports.literal("attach_asset"), nodeId: external_exports.string().min(1), assetId: external_exports.string().min(1), role: external_exports.enum(["embedded", "cover"]) }),
   external_exports.object({ ...graphEdit, action: external_exports.literal("enrich_link"), nodeId: external_exports.string().min(1) }),
+  external_exports.object({ ...graphEdit, action: external_exports.literal("link_nodes"), sourceNodeId: external_exports.string().min(1), targetNodeId: external_exports.string().min(1), edgeType: external_exports.string().min(1), directed: external_exports.boolean().optional() }),
   external_exports.object({ ...workspace, action: external_exports.literal("layout_operations"), projectId: external_exports.string().min(1), viewId: external_exports.string().min(1), baseLayoutRevision: external_exports.number().int().nonnegative(), operations: external_exports.array(layoutOperationSchema) }),
   external_exports.object({ ...workspace, action: external_exports.literal("revert_layout"), projectId: external_exports.string().min(1), viewId: external_exports.string().min(1) })
 ]);
@@ -123630,7 +123641,7 @@ var taskActionSchema = external_exports.discriminatedUnion("action", [
 ]);
 var layoutReviewActionSchema = external_exports.object({ ...workspace, resource: external_exports.literal("layout_run"), action: external_exports.enum(["preview", "apply", "reject", "revert"]), id: external_exports.string().min(1).optional(), candidateId: external_exports.string().min(1).optional(), projectId: external_exports.string().min(1).optional(), viewId: external_exports.string().min(1).optional() });
 var reviewActionSchema = external_exports.discriminatedUnion("resource", [
-  external_exports.object({ ...workspace, resource: external_exports.literal("changeset"), action: external_exports.enum(["preview", "apply", "reject"]), id: external_exports.string().min(1) }),
+  external_exports.object({ ...workspace, resource: external_exports.literal("changeset"), action: external_exports.enum(["preview", "apply", "reject", "revert"]), id: external_exports.string().min(1) }),
   layoutReviewActionSchema
 ]).superRefine((value, context) => {
   if (value.resource !== "layout_run") return;
@@ -123665,6 +123676,7 @@ function initializeSchema(db) {
     CREATE TABLE IF NOT EXISTS chat_canvas_binding (chat_session_key TEXT PRIMARY KEY, revision INTEGER NOT NULL, data TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS agent_task (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, data TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS changeset (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, task_id TEXT NOT NULL, data TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS changeset_revert (changeset_id TEXT PRIMARY KEY, project_id TEXT NOT NULL, data TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS artifact (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, type TEXT NOT NULL, data TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS asset (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, sha256 TEXT NOT NULL, data TEXT NOT NULL, UNIQUE(project_id, sha256));
     CREATE INDEX IF NOT EXISTS ix_asset_project ON asset(project_id);
@@ -123709,7 +123721,10 @@ var runningTaskMaxLifetimeMs = 18e5;
 var taskTransitions = {
   prepared: /* @__PURE__ */ new Set(["dispatched", "failed", "cancelled"]),
   dispatched: /* @__PURE__ */ new Set(["running", "failed", "cancelled"]),
-  running: /* @__PURE__ */ new Set(["pending_review", "completed", "stale", "failed", "cancelled"]),
+  // running → ready_to_continue: direct-write mode auto-applies the ChangeSet at
+  // submit (skipping pending_review), so a mixed develop_then_layout task moves
+  // straight from running into its layout stage.
+  running: /* @__PURE__ */ new Set(["pending_review", "ready_to_continue", "completed", "stale", "failed", "cancelled"]),
   pending_review: /* @__PURE__ */ new Set(["ready_to_continue", "completed", "stale", "cancelled"]),
   ready_to_continue: /* @__PURE__ */ new Set(["prepared", "stale", "cancelled"]),
   completed: /* @__PURE__ */ new Set(),
@@ -123914,8 +123929,19 @@ function applyLayoutOperations(document2, operations, nextRevision = document2.l
       case "assign-node-to-group":
         next.nodes[operation.nodeId].groupId = operation.groupId ?? void 0;
         break;
+      case "create-group":
+        next.groups[operation.groupId] = { groupId: operation.groupId, x: operation.frame.x, y: operation.frame.y, width: operation.frame.width, height: operation.frame.height, padding: 32, collapsed: false, kind: operation.kind ?? "interaction", ...operation.label !== void 0 ? { label: operation.label } : {}, ...operation.direction ? { direction: operation.direction } : {} };
+        break;
+      case "rename-group":
+        if (!next.groups[operation.groupId]) throw new Error(`LAYOUT_GROUP_NOT_FOUND:${operation.groupId}`);
+        next.groups[operation.groupId].label = operation.label;
+        break;
+      case "delete-group":
+        delete next.groups[operation.groupId];
+        for (const node of Object.values(next.nodes)) if (node.groupId === operation.groupId) node.groupId = void 0;
+        break;
       case "set-group-frame":
-        next.groups[operation.groupId] = { ...next.groups[operation.groupId] ?? { groupId: operation.groupId, padding: 32, collapsed: false }, ...operation.frame };
+        next.groups[operation.groupId] = { ...next.groups[operation.groupId] ?? { groupId: operation.groupId, padding: 32, collapsed: false, kind: "interaction" }, ...operation.frame };
         break;
       case "set-group-direction":
         if (!next.groups[operation.groupId]) throw new Error(`LAYOUT_GROUP_NOT_FOUND:${operation.groupId}`);
@@ -123966,9 +123992,19 @@ function diffLayoutDocuments(before, after) {
   }
   for (const [groupId, group] of Object.entries(after.groups)) {
     const previous = before.groups[groupId];
-    if (!previous || previous.x !== group.x || previous.y !== group.y || previous.width !== group.width || previous.height !== group.height) {
+    if (!previous) {
+      operations.push({ type: "create-group", viewId: after.viewId, groupId, frame: { x: group.x, y: group.y, width: group.width, height: group.height }, label: group.label, kind: group.kind, direction: group.direction });
+      continue;
+    }
+    if (previous.x !== group.x || previous.y !== group.y || previous.width !== group.width || previous.height !== group.height) {
       operations.push({ type: "set-group-frame", viewId: after.viewId, groupId, frame: { x: group.x, y: group.y, width: group.width, height: group.height } });
     }
+    if ((previous.label ?? void 0) !== (group.label ?? void 0) && group.label !== void 0) {
+      operations.push({ type: "rename-group", viewId: after.viewId, groupId, label: group.label });
+    }
+  }
+  for (const groupId of Object.keys(before.groups)) {
+    if (!after.groups[groupId]) operations.push({ type: "delete-group", viewId: after.viewId, groupId });
   }
   for (const [edgeId, edge] of Object.entries(after.edges)) {
     const previous = before.edges[edgeId];
@@ -124434,7 +124470,7 @@ function placeRows(hub, satellites, document2, spacing) {
   });
 }
 
-// node_modules/d3-force/src/center.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-force/src/center.js
 function center_default(x3, y3) {
   var nodes, strength = 1;
   if (x3 == null) x3 = 0;
@@ -124463,7 +124499,7 @@ function center_default(x3, y3) {
   return force;
 }
 
-// node_modules/d3-quadtree/src/add.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-quadtree/src/add.js
 function add_default(d2) {
   const x3 = +this._x.call(null, d2), y3 = +this._y.call(null, d2);
   return add(this.cover(x3, y3), x3, y3, d2);
@@ -124510,7 +124546,7 @@ function addAll(data) {
   return this;
 }
 
-// node_modules/d3-quadtree/src/cover.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-quadtree/src/cover.js
 function cover_default(x3, y3) {
   if (isNaN(x3 = +x3) || isNaN(y3 = +y3)) return this;
   var x0 = this._x0, y0 = this._y0, x1 = this._x1, y1 = this._y1;
@@ -124546,7 +124582,7 @@ function cover_default(x3, y3) {
   return this;
 }
 
-// node_modules/d3-quadtree/src/data.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-quadtree/src/data.js
 function data_default() {
   var data = [];
   this.visit(function(node) {
@@ -124557,12 +124593,12 @@ function data_default() {
   return data;
 }
 
-// node_modules/d3-quadtree/src/extent.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-quadtree/src/extent.js
 function extent_default(_2) {
   return arguments.length ? this.cover(+_2[0][0], +_2[0][1]).cover(+_2[1][0], +_2[1][1]) : isNaN(this._x0) ? void 0 : [[this._x0, this._y0], [this._x1, this._y1]];
 }
 
-// node_modules/d3-quadtree/src/quad.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-quadtree/src/quad.js
 function quad_default(node, x0, y0, x1, y1) {
   this.node = node;
   this.x0 = x0;
@@ -124571,7 +124607,7 @@ function quad_default(node, x0, y0, x1, y1) {
   this.y1 = y1;
 }
 
-// node_modules/d3-quadtree/src/find.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-quadtree/src/find.js
 function find_default(x3, y3, radius) {
   var data, x0 = this._x0, y0 = this._y0, x1, y1, x22, y22, x32 = this._x1, y32 = this._y1, quads = [], node = this._root, q, i;
   if (node) quads.push(new quad_default(node, x0, y0, x32, y32));
@@ -124609,7 +124645,7 @@ function find_default(x3, y3, radius) {
   return data;
 }
 
-// node_modules/d3-quadtree/src/remove.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-quadtree/src/remove.js
 function remove_default(d2) {
   if (isNaN(x3 = +this._x.call(null, d2)) || isNaN(y3 = +this._y.call(null, d2))) return this;
   var parent, node = this._root, retainer, previous, next, x0 = this._x0, y0 = this._y0, x1 = this._x1, y1 = this._y1, x3, y3, xm, ym, right, bottom, i, j2;
@@ -124639,12 +124675,12 @@ function removeAll(data) {
   return this;
 }
 
-// node_modules/d3-quadtree/src/root.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-quadtree/src/root.js
 function root_default() {
   return this._root;
 }
 
-// node_modules/d3-quadtree/src/size.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-quadtree/src/size.js
 function size_default() {
   var size = 0;
   this.visit(function(node) {
@@ -124655,7 +124691,7 @@ function size_default() {
   return size;
 }
 
-// node_modules/d3-quadtree/src/visit.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-quadtree/src/visit.js
 function visit_default(callback) {
   var quads = [], q, node = this._root, child, x0, y0, x1, y1;
   if (node) quads.push(new quad_default(node, this._x0, this._y0, this._x1, this._y1));
@@ -124671,7 +124707,7 @@ function visit_default(callback) {
   return this;
 }
 
-// node_modules/d3-quadtree/src/visitAfter.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-quadtree/src/visitAfter.js
 function visitAfter_default(callback) {
   var quads = [], next = [], q;
   if (this._root) quads.push(new quad_default(this._root, this._x0, this._y0, this._x1, this._y1));
@@ -124692,7 +124728,7 @@ function visitAfter_default(callback) {
   return this;
 }
 
-// node_modules/d3-quadtree/src/x.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-quadtree/src/x.js
 function defaultX(d2) {
   return d2[0];
 }
@@ -124700,7 +124736,7 @@ function x_default(_2) {
   return arguments.length ? (this._x = _2, this) : this._x;
 }
 
-// node_modules/d3-quadtree/src/y.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-quadtree/src/y.js
 function defaultY(d2) {
   return d2[1];
 }
@@ -124708,7 +124744,7 @@ function y_default(_2) {
   return arguments.length ? (this._y = _2, this) : this._y;
 }
 
-// node_modules/d3-quadtree/src/quadtree.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-quadtree/src/quadtree.js
 function quadtree(nodes, x3, y3) {
   var tree = new Quadtree(x3 == null ? defaultX : x3, y3 == null ? defaultY : y3, NaN, NaN, NaN, NaN);
   return nodes == null ? tree : tree.addAll(nodes);
@@ -124758,19 +124794,19 @@ treeProto.visitAfter = visitAfter_default;
 treeProto.x = x_default;
 treeProto.y = y_default;
 
-// node_modules/d3-force/src/constant.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-force/src/constant.js
 function constant_default(x3) {
   return function() {
     return x3;
   };
 }
 
-// node_modules/d3-force/src/jiggle.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-force/src/jiggle.js
 function jiggle_default(random) {
   return (random() - 0.5) * 1e-6;
 }
 
-// node_modules/d3-force/src/collide.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-force/src/collide.js
 function x(d2) {
   return d2.x + d2.vx;
 }
@@ -124843,7 +124879,7 @@ function collide_default(radius) {
   return force;
 }
 
-// node_modules/d3-force/src/link.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-force/src/link.js
 function index(d2) {
   return d2.index;
 }
@@ -124925,7 +124961,7 @@ function link_default(links) {
   return force;
 }
 
-// node_modules/d3-dispatch/src/dispatch.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-dispatch/src/dispatch.js
 var noop = { value: () => {
 } };
 function dispatch() {
@@ -124995,7 +125031,7 @@ function set2(type, name, callback) {
 }
 var dispatch_default = dispatch;
 
-// node_modules/d3-timer/src/timer.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-timer/src/timer.js
 var frame = 0;
 var timeout = 0;
 var interval = 0;
@@ -125097,7 +125133,7 @@ function sleep(time3) {
   }
 }
 
-// node_modules/d3-force/src/lcg.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-force/src/lcg.js
 var a = 1664525;
 var c = 1013904223;
 var m = 4294967296;
@@ -125106,7 +125142,7 @@ function lcg_default() {
   return () => (s = (a * s + c) % m) / m;
 }
 
-// node_modules/d3-force/src/simulation.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-force/src/simulation.js
 function x2(d2) {
   return d2.x;
 }
@@ -125215,7 +125251,7 @@ function simulation_default(nodes) {
   };
 }
 
-// node_modules/d3-force/src/manyBody.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/d3-force/src/manyBody.js
 function manyBody_default() {
   var nodes, node, random, alpha, strength = constant_default(-30), strengths, distanceMin2 = 1, distanceMax2 = Infinity, theta2 = 0.81;
   function force(_2) {
@@ -125329,7 +125365,7 @@ function macroPlace(document2, clusters, bboxes, edges, clusterOf, fixedIds, cur
     }
     if (!item.cluster.isCenter && item.cluster.memberIds.length >= 2) {
       const groupId = `cluster:${item.cluster.label}`;
-      document2.groups[groupId] = { groupId, x: item.bbox.x + dx, y: item.bbox.y + dy, width: item.bbox.width, height: item.bbox.height, direction: variant === "grid" ? "vertical" : "radial", padding: 32, collapsed: false };
+      document2.groups[groupId] = { groupId, label: item.cluster.label, kind: "interaction", x: item.bbox.x + dx, y: item.bbox.y + dy, width: item.bbox.width, height: item.bbox.height, direction: variant === "grid" ? "vertical" : "radial", padding: 32, collapsed: false };
       for (const id of item.cluster.memberIds) {
         if (document2.nodes[id]) document2.nodes[id].groupId = groupId;
       }
@@ -125772,12 +125808,12 @@ function templateLayout(db, input) {
   if (projection.kind === "board") {
     const columns = projection.columnOrder.length ? projection.columnOrder : [...new Set(nodes.map((node) => String(node.properties[projection.columnField] ?? "\u672A\u5206\u7EC4")))];
     columns.forEach((label, index2) => {
-      document2.groups[`column:${label}`] = { groupId: `column:${label}`, x: index2 * 320 - 24, y: -58, width: 292, height: Math.max(520, document2.bounds.height + 120), direction: "vertical", padding: 24, collapsed: false };
+      document2.groups[`column:${label}`] = { groupId: `column:${label}`, label, kind: "projection", x: index2 * 320 - 24, y: -58, width: 292, height: Math.max(520, document2.bounds.height + 120), direction: "vertical", padding: 24, collapsed: false };
     });
   }
   if (projection.kind === "matrix") {
     projection.quadrantLabels.forEach((label, index2) => {
-      document2.groups[`quadrant:${label}`] = { groupId: `quadrant:${label}`, x: index2 % 2 * 440 - 22, y: Math.floor(index2 / 2) * 330 - 42, width: 420, height: 310, padding: 22, collapsed: false };
+      document2.groups[`quadrant:${label}`] = { groupId: `quadrant:${label}`, label, kind: "projection", x: index2 % 2 * 440 - 22, y: Math.floor(index2 / 2) * 330 - 42, width: 420, height: 310, padding: 22, collapsed: false };
     });
   }
   for (const edge of graph.edges.filter((edge2) => !edge2.archived)) document2.edges[edge.id] = { edgeId: edge.id, routing: template.theme.edgeStyles.default?.routing ?? "bezier", waypoints: [], hidden: false };
@@ -126022,6 +126058,21 @@ function archiveNode(db, input) {
   const next = applyGraphOperations(graph, operations);
   replaceGraph(db, next);
   return { node: next.nodes.find((node) => node.id === input.nodeId), project: getProject(db, input.projectId) };
+}
+function linkNodes(db, input) {
+  const graph = getGraph(db, input.projectId);
+  if (graph.revision !== input.baseGraphRevision) throw new Error(`GRAPH_REVISION_CONFLICT:Expected ${input.baseGraphRevision}, current ${graph.revision}`);
+  if (input.sourceNodeId === input.targetNodeId) throw new Error("EDGE_SELF_LINK");
+  const source = graph.nodes.find((node) => node.id === input.sourceNodeId && !node.archived);
+  const target = graph.nodes.find((node) => node.id === input.targetNodeId && !node.archived);
+  if (!source) throw new Error(`NODE_NOT_FOUND:${input.sourceNodeId}`);
+  if (!target) throw new Error(`NODE_NOT_FOUND:${input.targetNodeId}`);
+  const existing = graph.edges.find((edge2) => !edge2.archived && edge2.type === input.type && edge2.sourceNodeId === input.sourceNodeId && edge2.targetNodeId === input.targetNodeId);
+  if (existing) return { edge: existing, project: getProject(db, input.projectId), created: false };
+  const timestamp = now();
+  const edge = edgeSchema.parse({ id: randomUUID4(), projectId: input.projectId, type: input.type, sourceNodeId: input.sourceNodeId, targetNodeId: input.targetNodeId, directed: input.directed ?? true, properties: {}, archived: false, createdAt: timestamp, updatedAt: timestamp });
+  replaceGraph(db, applyGraphOperations(graph, [{ type: "add-edge", edge }]));
+  return { edge, project: getProject(db, input.projectId), created: true };
 }
 function attachAsset(db, input) {
   const asset = getAsset(db, input.assetId);
@@ -126341,10 +126392,12 @@ function submitChangeSet(db, changeSet) {
     updateAgentTask(db, task2.taskId, { status: "stale", error: { code: "GRAPH_REVISION_CONFLICT", message: `Expected graph r${validated.baseGraphRevision}, current r${project.graphRevision}` } });
     throw new Error("GRAPH_REVISION_CONFLICT");
   }
+  const direct = project.automationLevel !== "cautious";
   transaction(db, () => {
     db.prepare("INSERT INTO changeset(id, project_id, task_id, data) VALUES (?, ?, ?, ?)").run(validated.id, validated.projectId, validated.taskId, json2(validated));
-    updateAgentTask(db, validated.taskId, { status: "pending_review", results: { ...task2.results, changeSetId: validated.id } });
+    if (!direct) updateAgentTask(db, validated.taskId, { status: "pending_review", results: { ...task2.results, changeSetId: validated.id } });
   });
+  if (direct) return { ...applyChangeSet(db, validated.id), autoApplied: true };
   return validated;
 }
 function listChangeSets(db, projectId, status) {
@@ -126433,6 +126486,11 @@ function applyChangeSet(db, changeSetId) {
   const applied = { ...changeSet, status: "applied", updatedAt: now() };
   const layoutRevisions = {};
   transaction(db, () => {
+    db.prepare("INSERT OR REPLACE INTO changeset_revert(changeset_id, project_id, data) VALUES (?, ?, ?)").run(
+      changeSetId,
+      changeSet.projectId,
+      json2({ priorGraph: graph, appliedGraphRevision: finalGraph.revision, viewIds: [...byView.keys()] })
+    );
     if (changeSet.graphOperations.length) replaceGraph(db, finalGraph, { taskId: task2.taskId, canvasSessionId: task2.canvasSessionId });
     if (addedNodes.length && starterIds.size) patchProject(db, changeSet.projectId, { starterNodeIds: [] });
     for (const [viewId, operations] of byView) {
@@ -126457,6 +126515,28 @@ function applyChangeSet(db, changeSetId) {
     });
   });
   return { ...applied, graphRevision: finalGraph.revision, layoutRevisions, task: getAgentTask(db, changeSet.taskId) };
+}
+function revertChangeSet(db, changeSetId) {
+  const current = getChangeSet(db, changeSetId);
+  if (!current) throw new Error("CHANGESET_NOT_FOUND");
+  if (current.status !== "applied") throw new Error(`CHANGESET_NOT_APPLIED:${current.status}`);
+  const row = db.prepare("SELECT data FROM changeset_revert WHERE changeset_id = ?").get(changeSetId);
+  if (!row) throw new Error("REVERT_UNAVAILABLE");
+  const snapshot = parse3(row.data);
+  const project = getProject(db, current.projectId);
+  if (!project) throw new Error("PROJECT_NOT_FOUND");
+  if (project.graphRevision !== snapshot.appliedGraphRevision) throw new Error(`REVERT_CONFLICT:graph moved to r${project.graphRevision} after this ChangeSet (applied r${snapshot.appliedGraphRevision})`);
+  const task2 = getAgentTask(db, current.taskId);
+  const reverted = { ...current, status: "reverted", updatedAt: now() };
+  transaction(db, () => {
+    if (current.graphOperations.length) {
+      replaceGraph(db, { ...snapshot.priorGraph, revision: project.graphRevision + 1 }, { taskId: current.taskId, canvasSessionId: task2?.canvasSessionId });
+    }
+    for (const viewId of snapshot.viewIds) revertLayout(db, current.projectId, viewId);
+    db.prepare("UPDATE changeset SET data = ? WHERE id = ?").run(json2(reverted), changeSetId);
+    db.prepare("DELETE FROM changeset_revert WHERE changeset_id = ?").run(changeSetId);
+  });
+  return { ...reverted, graphRevision: getProject(db, current.projectId).graphRevision };
 }
 
 // packages/storage/src/chat-canvas-binding.ts
@@ -126722,12 +126802,14 @@ var WorkspaceStore = class {
     createNode: (input) => createContentNode(this.db, input),
     updateNode: (input) => updateNodeContent(this.db, input),
     archiveNode: (input) => archiveNode(this.db, input),
+    linkNodes: (input) => linkNodes(this.db, input),
     attachAsset: (input) => attachAsset(this.db, input),
     submit: (changeSet) => submitChangeSet(this.db, changeSet),
     list: (projectId, status) => listChangeSets(this.db, projectId, status),
     get: (changeSetId) => getChangeSet(this.db, changeSetId),
     reject: (changeSetId) => rejectChangeSet(this.db, changeSetId),
-    apply: (changeSetId) => applyChangeSet(this.db, changeSetId)
+    apply: (changeSetId) => applyChangeSet(this.db, changeSetId),
+    revert: (changeSetId) => revertChangeSet(this.db, changeSetId)
   };
   layoutReviews = {
     get: (projectId, viewId) => getLayout(this.db, projectId, viewId),
@@ -127603,7 +127685,7 @@ data: ${JSON.stringify({ code: "EVENT_REPLAY_FAILED", message: error51 instanceo
   }
 };
 
-// node_modules/@modelcontextprotocol/ext-apps/dist/src/server/index.js
+// ../../../Users/siqiu.chen2/Documents/weaver-next/node_modules/@modelcontextprotocol/ext-apps/dist/src/server/index.js
 init_v4();
 var r = ((Z) => typeof __require < "u" ? __require : typeof Proxy < "u" ? new Proxy(Z, { get: ($, J) => (typeof __require < "u" ? __require : $)[J] }) : Z)(function(Z) {
   if (typeof __require < "u") return __require.apply(this, arguments);
@@ -127775,7 +127857,7 @@ var palette = {
 };
 function theme(family) {
   const [accent, background, fill] = palette[family];
-  return { ...structuredClone(defaultViewTheme), canvas: { mode: "light", backgroundColor: background, pattern: family === "table" ? "grid" : "dots", patternGap: 20, patternSize: 1, patternColor: `${accent}66`, patternOpacity: 0.42 }, nodeStyles: { default: { fill, borderColor: `${accent}88`, textColor: "#20231f", accentColor: accent, borderRadius: family === "flow" ? 5 : 10, titleScale: family === "hierarchy" ? 1.12 : 1 } }, edgeStyles: { default: { color: accent, width: 1.6, dashed: family === "relationship", routing: family === "flow" ? "orthogonal" : "bezier", marker: "arrow" } } };
+  return { ...structuredClone(defaultViewTheme), canvas: { mode: "light", backgroundColor: background, pattern: family === "table" ? "grid" : "dots", patternGap: 20, patternSize: 1, patternColor: `${accent}66`, patternOpacity: 0.42 }, nodeStyles: { default: { fill, borderColor: `${accent}88`, textColor: "#20231f", accentColor: accent, borderRadius: family === "flow" ? 5 : 10, titleScale: family === "hierarchy" ? 1.12 : 1 } }, edgeStyles: { default: { color: accent, width: 1.6, dashed: family === "relationship", routing: family === "flow" ? "orthogonal" : "bezier", arrows: "forward" } } };
 }
 var roleBindings = {
   "free-brainstorming": { nodes: { center: "idea", note: "note", detail: "note", topic: "idea", root: "idea", branch: "question" }, edges: { relation: "association", parent: "inspires" } },
@@ -128222,11 +128304,15 @@ async function enrichPublicLink(rawUrl, dependencies = {}) {
 function registerCanvasActionTool(server2, { mutateWithStore }) {
   const shape = {
     ...workspaceSchema.shape,
-    action: external_exports.enum(["claim", "sync", "switch", "create_node", "update_node", "archive_node", "attach_asset", "enrich_link", "layout_operations", "revert_layout"]),
+    action: external_exports.enum(["claim", "sync", "switch", "create_node", "update_node", "archive_node", "attach_asset", "enrich_link", "link_nodes", "layout_operations", "revert_layout"]),
     snapshot: external_exports.unknown().optional(),
     projectId: external_exports.string().optional(),
     viewId: external_exports.string().optional(),
     nodeId: external_exports.string().optional(),
+    sourceNodeId: external_exports.string().optional(),
+    targetNodeId: external_exports.string().optional(),
+    edgeType: external_exports.string().optional(),
+    directed: external_exports.boolean().optional(),
     assetId: external_exports.string().optional(),
     role: external_exports.enum(["embedded", "cover"]).optional(),
     leaseId: external_exports.string().optional(),
@@ -128274,6 +128360,7 @@ function registerCanvasActionTool(server2, { mutateWithStore }) {
       if (args.action === "create_node") return store.graphChanges.createNode({ projectId, viewId: required2(args.viewId, "viewId"), type: required2(args.semanticType, "semanticType"), title: required2(args.title, "title"), content: nodeContentSchema.parse(args.content), x: args.x ?? 0, y: args.y ?? 0 });
       if (args.action === "update_node") return store.graphChanges.updateNode({ projectId, nodeId: required2(args.nodeId, "nodeId"), baseGraphRevision: required2(args.baseGraphRevision, "baseGraphRevision"), title: args.title, type: args.semanticType, content: args.content ? nodeContentSchema.parse(args.content) : void 0 });
       if (args.action === "archive_node") return store.graphChanges.archiveNode({ projectId, nodeId: required2(args.nodeId, "nodeId"), baseGraphRevision: required2(args.baseGraphRevision, "baseGraphRevision") });
+      if (args.action === "link_nodes") return store.graphChanges.linkNodes({ projectId, sourceNodeId: required2(args.sourceNodeId, "sourceNodeId"), targetNodeId: required2(args.targetNodeId, "targetNodeId"), type: required2(args.edgeType, "edgeType"), baseGraphRevision: required2(args.baseGraphRevision, "baseGraphRevision"), directed: args.directed });
       if (args.action === "attach_asset") return store.graphChanges.attachAsset({ projectId, nodeId: required2(args.nodeId, "nodeId"), assetId: required2(args.assetId, "assetId"), role: required2(args.role, "role"), baseGraphRevision: required2(args.baseGraphRevision, "baseGraphRevision") });
       const viewId = required2(args.viewId, "viewId");
       if (args.action === "revert_layout") return store.layoutReviews.revert(projectId, viewId);
@@ -128289,8 +128376,13 @@ function registerCanvasActionTool(server2, { mutateWithStore }) {
 function registerChangesetsTools(server2, { mutateWithStore }) {
   server2.registerTool("weaver_submit_changeset", {
     title: "Submit ChangeSet",
-    description: "Submit auditable semantic Graph operations for review; never writes the Graph directly.",
-    inputSchema: { ...workspaceSchema.shape, changeSet: changeSetSchema },
+    description: "Submit semantic Graph operations. By default they apply IMMEDIATELY (direct-write: the record is kept and revertible via weaver_review_action revert); only projects set to automationLevel 'cautious' hold them for manual review. `changeSet` is a full ChangeSet object { id, taskId, projectId, baseGraphRevision, baseLayoutRevisions, graphOperations[], layoutOperations[], rationale, riskLevel, status } \u2014 validated server-side.",
+    // `changeSet` is advertised as a loose object, not the full changeSetSchema: the
+    // ChangeSet's fully-expanded JSON schema (nested graph+layout operation unions)
+    // is so large that Codex drops this tool from the model's tool surface entirely.
+    // The handler still enforces the exact schema via changeSetSchema.parse below, so
+    // no validation is lost — only the oversized advertised schema.
+    inputSchema: { ...workspaceSchema.shape, changeSet: external_exports.unknown() },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }
   }, defineTool(async ({ workspaceDir, changeSet }, extra) => {
     const chatSessionKey = chatSessionKeyFromRequest(extra);
@@ -129157,12 +129249,15 @@ function registerReviewActionTool(server2, { mutateWithStore }) {
         if (action === "preview") return previewChangeSet(store, changeSetId, chatSessionKey);
         if (action === "reject") return rejectChangeSet2(store, changeSetId, chatSessionKey);
         if (action === "apply") {
-          const item = store.graphChanges.get(changeSetId);
-          if (!item) throw new Error("CHANGESET_NOT_FOUND");
-          store.tasks.assertChat(item.taskId, chatSessionKey);
+          const item2 = store.graphChanges.get(changeSetId);
+          if (!item2) throw new Error("CHANGESET_NOT_FOUND");
+          store.tasks.assertChat(item2.taskId, chatSessionKey);
           return store.graphChanges.apply(changeSetId);
         }
-        throw new Error("INVALID_ARGS:changeset cannot revert");
+        const item = store.graphChanges.get(changeSetId);
+        if (!item) throw new Error("CHANGESET_NOT_FOUND");
+        store.tasks.assertCanvas(item.taskId, chatSessionKey);
+        return store.graphChanges.revert(changeSetId);
       }
       if (action === "preview") return readLayoutRun(store, need(id, "id"), chatSessionKey);
       if (action === "apply") return applyLayoutCandidate2(store, need(id, "id"), need(candidateId, "candidateId"), chatSessionKey);
@@ -129194,7 +129289,7 @@ function registerWorkspaceTools(server2, ctx) {
   K3(server2, "weaver_open_space", {
     title: "Open Weaver Workspace",
     description: "Open the Weaver semantic canvas for an explicit local workspace and optional project. Codex renders it as an embedded panel; Claude Code opens it as a tokenized loopback browser preview.",
-    inputSchema: { workspaceDir: external_exports.string().min(1), projectId: external_exports.string().optional(), displayMode: external_exports.enum(["fullscreen", "inline"]).default("inline") },
+    inputSchema: { workspaceDir: external_exports.string().min(1), projectId: external_exports.string().optional(), displayMode: external_exports.enum(["fullscreen", "inline"]).default("fullscreen") },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     _meta: { ui: { resourceUri: LEGACY_WIDGET_URI, visibility: ["model", "app"] }, "ui/resourceUri": LEGACY_WIDGET_URI, "openai/outputTemplate": LEGACY_WIDGET_URI, "openai/widgetAccessible": true }
   }, defineTool(async (input, extra) => {
@@ -129225,7 +129320,7 @@ function registerWorkspaceTools(server2, ctx) {
       widget: "weaver-workspace",
       workspaceDir: input.workspaceDir,
       projectId: input.projectId,
-      preferredDisplayMode: input.displayMode,
+      preferredDisplayMode: "fullscreen",
       serverVersion,
       widgetBuildId: activeWidgetBuildId,
       workspaceWidgetBuildId: workspaceBuildId,
