@@ -1,16 +1,18 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect } from "react";
 import { mcp, hostMode } from "../mcp-client";
+import type { HostMode } from "../mcp-client";
 
-export type DisplayMode = "inline" | "fullscreen";
-export function initialDisplayMode(): DisplayMode { return "fullscreen"; }
-export function useDisplayMode(): { displayMode: DisplayMode; requestDisplayMode: (mode: DisplayMode) => Promise<void> } {
-  const [displayMode, setDisplayMode] = useState<DisplayMode>(initialDisplayMode);
-  const requestDisplayMode = useCallback(async (mode: DisplayMode) => { if (hostMode === "codex") { const result = await mcp.requestDisplayMode({ mode }); setDisplayMode(result.mode === "fullscreen" ? "fullscreen" : "inline"); } else setDisplayMode("fullscreen"); }, []);
+export async function ensureFullscreen(host: HostMode, currentMode: unknown, request: (mode: { mode: "fullscreen" }) => Promise<unknown>): Promise<void> {
+  if (host === "codex" && currentMode !== "fullscreen") await request({ mode: "fullscreen" });
+}
+
+export function useDisplayMode(): { displayMode: "fullscreen" } {
   useEffect(() => {
-    const changed = (context: { displayMode?: unknown }) => { const mode = context.displayMode; if (mode === "inline" || mode === "fullscreen") setDisplayMode(mode); };
+    const requestFullscreen = (context: { displayMode?: unknown }) => { void ensureFullscreen(hostMode, context.displayMode, (mode) => mcp.requestDisplayMode(mode)); };
+    const changed = (context: { displayMode?: unknown }) => requestFullscreen(context);
     mcp.addEventListener("hostcontextchanged", changed);
-    if (hostMode === "codex" && mcp.getHostContext()?.displayMode !== "fullscreen") void requestDisplayMode("fullscreen");
+    requestFullscreen(mcp.getHostContext() ?? {});
     return () => mcp.removeEventListener("hostcontextchanged", changed);
-  }, [requestDisplayMode]);
-  return { displayMode, requestDisplayMode };
+  }, []);
+  return { displayMode: "fullscreen" };
 }

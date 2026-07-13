@@ -1,13 +1,20 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { initialDisplayMode } from "../hooks/useDisplayMode";
+import { ensureFullscreen } from "../hooks/useDisplayMode";
 
 describe("Codex display mode", () => {
-  it("starts in fullscreen and does not render the inline snapshot entry", () => {
-    expect(initialDisplayMode()).toBe("fullscreen");
+  it("requests fullscreen when the Codex host starts or returns inline", async () => {
+    const requests: Array<{ mode: "fullscreen" }> = [];
 
-    const main = readFileSync(resolve(import.meta.dirname, "../main.tsx"), "utf8");
-    expect(main).not.toContain("InlineEntryCard");
+    await ensureFullscreen("codex", "inline", async (request) => { requests.push(request); });
+    await ensureFullscreen("codex", "fullscreen", async (request) => { requests.push(request); });
+
+    expect(requests).toEqual([{ mode: "fullscreen" }]);
+  });
+
+  it("does not ask browser hosts to change display mode", async () => {
+    let requested = false;
+    await ensureFullscreen("claude", "inline", async () => { requested = true; });
+    await ensureFullscreen("dev", "inline", async () => { requested = true; });
+    expect(requested).toBe(false);
   });
 });

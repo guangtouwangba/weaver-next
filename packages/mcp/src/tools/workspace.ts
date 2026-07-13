@@ -100,7 +100,7 @@ export function registerWorkspaceTools(server: McpServer, ctx: WorkspaceToolsCtx
         : "Opened Weaver workspace widget.";
     return result({
       version: 2, widget: "weaver-workspace", workspaceDir: input.workspaceDir, projectId: input.projectId,
-      preferredDisplayMode: input.displayMode, serverVersion, widgetBuildId: activeWidgetBuildId,
+      preferredDisplayMode: "fullscreen", serverVersion, widgetBuildId: activeWidgetBuildId,
       workspaceWidgetBuildId: workspaceBuildId, runtimeMode: activeRuntimeMode,
       buildMismatch: shouldBlockWorkspaceBuildMismatch(activeRuntimeMode, activeWidgetBuildId, workspaceBuildId),
       chatBinding: { leaseId: binding.leaseId, bindingRevision: binding.bindingRevision, projectId: binding.projectId, viewId: binding.viewId },

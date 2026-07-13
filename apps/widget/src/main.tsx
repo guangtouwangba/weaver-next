@@ -34,7 +34,7 @@ function WeaverWidget() {
   const { fitView, getViewport, screenToFlowPosition, setViewport } = useReactFlow();
   const query = new URLSearchParams(location.search);
   const standaloneDemo = query.get("demo") === "1";
-  const { displayMode, requestDisplayMode } = useDisplayMode();
+  const { displayMode } = useDisplayMode();
 
   // Cross-cutting state that two or more domain hooks both need to read *and* write —
   // lifted to the composition root (same style as the cross-cutting refs) so the domain
@@ -111,7 +111,7 @@ function WeaverWidget() {
       selection={selection} standaloneDemo={standaloneDemo} togglePinned={togglePinned} revertLayout={revertLayout}
       beginRename={beginRename} pinProjectView={pinProjectView} duplicateProjectView={duplicateProjectView} setDefaultView={setDefaultView} trashProjectView={trashProjectView}
       workspaceDir={bootstrap.workspaceDir} chooseProject={chooseProject} startFromTemplateGallery={startFromTemplateGallery}
-      onBackToChat={() => requestDisplayMode("inline")} projectRevision={project?.graphRevision} layoutRevision={layout?.layoutRevision} catalogRevision={project?.viewCatalogRevision} bindingRevision={bindingRef.current?.bindingRevision}
+      projectRevision={project?.graphRevision} layoutRevision={layout?.layoutRevision} catalogRevision={project?.viewCatalogRevision} bindingRevision={bindingRef.current?.bindingRevision}
     />
     {bootstrap.schemaReset ? <div className="schema-reset-notice" role="status">{t("schemaResetNotice")} <code>{t("backupLabel")}: {bootstrap.schemaReset.backupName}</code></div> : null}
     <section className="workspace-stage">
