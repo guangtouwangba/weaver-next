@@ -164,5 +164,5 @@ export async function createWeaverServer(options: { previewWorkspaceDir?: string
     eventHub.configurePreview({ workspaceDir: options.previewWorkspaceDir ?? widgetRoot(), chatSessionKey: syntheticChatSessionKey(), dispatch, allowlist: PREVIEW_TOOL_ALLOWLIST });
   }
 
-  return { server, eventHub, dispatch, toolMeta: (name: string) => registry.get(name)?.meta, serverVersion, close: async () => { closeOwnedTestRuntimes(); await eventHub.close(); } };
+  return { server, eventHub, dispatch, toolMeta: (name: string) => registry.get(name)?.meta, serverVersion, close: async () => { await closeOwnedTestRuntimes(); await eventHub.close(); } };
 }

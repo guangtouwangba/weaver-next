@@ -168,7 +168,7 @@ test("Canvas keeps local editing when the Agent bridge disconnects and reconnect
 
     process.env.WEAVER_BRIDGE_GRACE_MS = "30000";
     worker.heartbeatBridge(chatSessionKey, "Codex");
-    await expect(page.getByText("Connected to this Codex session", { exact: true })).toBeVisible({ timeout: 7_000 });
+    await expect(page.locator(".agent-connection-status")).toHaveText("Connected to this Codex session", { timeout: 7_000 });
     const bootstrap = await page.evaluate(async () => fetch("/api/bootstrap").then((response) => response.json()));
     expect(bootstrap).toMatchObject({ capabilities: { manualWrite: true, agentConnected: true, agentWrite: true, hostLabel: "Codex" } });
 
@@ -294,7 +294,7 @@ for (const host of ["Codex", "Claude"] as const) {
       const opened = await call("weaver_open_space", { workspaceDir: workspace, projectId: project.id }) as { launchUrl: string };
       await page.goto(opened.launchUrl, { waitUntil: "domcontentloaded" });
       await expect(page.getByRole("toolbar", { name: "Canvas tools" })).toBeVisible();
-      await expect(page.getByText(`Connected to this ${host} session`, { exact: true })).toBeVisible({ timeout: 7_000 });
+      await expect(page.locator(".agent-connection-status")).toHaveText(`Connected to this ${host} session`, { timeout: 7_000 });
       await expect(page.locator(".weaver-dom-node")).toHaveCount(1);
 
       await page.getByRole("button", { name: "Note" }).click();

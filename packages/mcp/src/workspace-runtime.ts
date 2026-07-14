@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawn, type ChildProcess } from "node:child_process";
 import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync } from "node:fs";
 import { createHash, randomBytes } from "node:crypto";
 import { homedir } from "node:os";
@@ -8,7 +8,7 @@ import { canvasRuntimeDescriptorSchema, CANVAS_RUNTIME_PROTOCOL_VERSION, type Wo
 import { runtimeControlSocketPath, sendRuntimeControl, workspaceKey } from "@weaver/workspace-supervisor";
 import { cleanupRuntimeCache, markRuntimeUsed } from "./runtime-cache.js";
 
-const ownedTestProcesses = new Set<number>();
+const ownedTestProcesses = new Set<ChildProcess>();
 const bridgeHeartbeats = new Map<string, NodeJS.Timeout>();
 const sleep = (ms: number) => new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
 
@@ -125,7 +125,7 @@ export async function ensureWorkspaceRuntime(workspaceDir: string, buildId: stri
     stdio: "ignore",
   });
   child.unref();
-  if (process.env.VITEST && child.pid) ownedTestProcesses.add(child.pid);
+  if (process.env.VITEST && child.pid) ownedTestProcesses.add(child);
   let lastError: unknown;
   for (let attempt = 0; attempt < 100; attempt += 1) {
     try { return finish(await connectExisting(workspaceDir, buildId)); }
@@ -187,10 +187,19 @@ export async function clearWorkspaceRuntimeDiagnostics(input: { workspaceDir: st
   return await sendRuntimeControl(runtime.socketPath, { kind: "clear_diagnostics" });
 }
 
-export function closeOwnedTestRuntimes() {
+export async function closeOwnedTestRuntimes() {
   for (const timer of bridgeHeartbeats.values()) clearInterval(timer);
   bridgeHeartbeats.clear();
   if (!process.env.VITEST) return;
-  for (const pid of ownedTestProcesses) { try { process.kill(pid, "SIGTERM"); } catch { /* already exited */ } }
+  const exits = [...ownedTestProcesses].map((child) => {
+    if (child.exitCode !== null || child.signalCode !== null) return Promise.resolve();
+    return new Promise<void>((resolveExit) => {
+      child.once("exit", () => resolveExit());
+      child.ref();
+      try { child.kill("SIGTERM"); }
+      catch { resolveExit(); }
+    });
+  });
   ownedTestProcesses.clear();
+  await Promise.all(exits);
 }
