@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import { callTool, createMutationId, hostMode, isLocalDevelopment, undoLastCanvasMutation } from "../mcp-client";
+import { isTransientStreamError, streamReconnectDelay } from "../lib/stream-reconnect";
 import { applyGraphDelta, applyLayoutOperations, applyViewCatalogDelta, type GraphDelta, type LayoutOperation } from "../sync";
 import type { AgentTask, Bootstrap, Candidate, CanvasAccessState, ChangeSetPreview, ChatBindingBootstrap, GraphEdge, GraphNode, Layout, Manifest, Project, ProjectEvent, ProjectView } from "../types";
 
@@ -128,6 +129,12 @@ export function useCanvasEventStream(params: {
     if (standaloneDemo || accessState !== "active" || !project?.id || !layout?.viewId || !bootstrap.workspaceDir) return;
     let disposed = false;
     let reconnectTimer: number | undefined;
+    const scheduleReconnect = () => {
+      if (reconnectTimer !== undefined) window.clearTimeout(reconnectTimer);
+      const delay = streamReconnectDelay(streamReconnectAttempts.current);
+      streamReconnectAttempts.current += 1;
+      reconnectTimer = window.setTimeout(() => { if (!disposed) setStreamGeneration((value) => value + 1); }, delay);
+    };
     setStreamState("connecting");
     void (async () => {
       try {
@@ -147,10 +154,7 @@ export function useCanvasEventStream(params: {
           if (disposed) return;
           source.close();
           setStreamState("offline"); setStatus("Live sync disconnected · reconnecting…");
-          const delays = [250, 1_000, 3_000, 5_000];
-          const delay = delays[Math.min(streamReconnectAttempts.current, delays.length - 1)];
-          streamReconnectAttempts.current += 1;
-          reconnectTimer = window.setTimeout(() => { if (!disposed) setStreamGeneration((value) => value + 1); }, delay);
+          scheduleReconnect();
         };
         for (const kind of ["task.updated", "graph.changed", "layout.changed", "view.created", "view.catalog.changed", "chat.binding.changed", "stream.reset"] as const) source.addEventListener(kind, (message) => {
           try { handleProjectEvent(JSON.parse((message as MessageEvent).data) as ProjectEvent); }
@@ -158,7 +162,12 @@ export function useCanvasEventStream(params: {
         });
         // Development-only: the MCP process pushes this when the widget bundle is rebuilt.
         source.addEventListener("widget.reload", () => location.reload());
-      } catch (error) { if (!disposed) { setStreamState("offline"); setStatus(error instanceof Error ? error.message : String(error)); } }
+      } catch (error) {
+        if (!disposed) {
+          setStreamState("offline"); setStatus(error instanceof Error ? error.message : String(error));
+          if (isTransientStreamError(error)) scheduleReconnect();
+        }
+      }
     })();
     return () => { disposed = true; if (reconnectTimer !== undefined) window.clearTimeout(reconnectTimer); stream.current?.close(); stream.current = null; };
   }, [accessState, bootstrap.workspaceDir, project?.id, layout?.viewId, reconcileRevisions, standaloneDemo, streamGeneration]);
